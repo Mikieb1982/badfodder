@@ -31,3 +31,14 @@ const walker=actor();art.animate(walker,0);
 for(let i=0;i<50;i++){walker.x+=6;art.animate(walker,1/60);}
 assert(art.pose(walker).dust.length>0);assert(art.pose(walker).dust.length<=4);
 art.animate(walker,.3);assert.equal(art.pose(walker).dust.length,0,'Footstep dust settles while the actor is idle');
+
+// Live poses interpolate direction and gait without changing simulation fields.
+const turner=actor();art.animate(turner,0);turner.dir=1;art.animate(turner,1/60);
+assert(art.pose(turner).facing>0&&art.pose(turner).facing<1,'Facing interpolates rather than snapping');
+const wrap=actor();wrap.dir=Math.PI-.01;art.animate(wrap,0);wrap.dir=-Math.PI+.01;art.animate(wrap,1/60);
+assert(Math.abs(art.pose(wrap).facing-(Math.PI-.01))<.02,'Turning crosses the angle seam by the shortest route');
+const continuous=actor();art.animate(continuous,0);continuous.x+=.5;art.animate(continuous,1/60);
+const firstPhase=art.pose(continuous).phase;continuous.x+=.5;art.animate(continuous,1/60);
+assert(art.pose(continuous).phase>firstPhase);assert.equal(art.pose(continuous).frame,0,'Continuous gait advances between atlas frames');
+assert.equal(art.pose(slow).phase,art.pose(fast).phase,'Continuous gait stays distance-based');
+console.log('PASS: continuous gait, smooth turns and shortest-path angle wrapping.');
