@@ -135,6 +135,8 @@
       box-shadow:none;
     }
 
+    .wigan-tactical .hud-mission,.wigan-tactical .hud-counters,.wigan-tactical .hud-roster{visibility:hidden}
+    .wigan-tactical .touch-gameplay{visibility:hidden}
     .game-hud{
       position:absolute;
       inset:0;
@@ -493,7 +495,7 @@
     <div><strong>Pause:</strong> Enter or the pause button in the HUD.</div>
     <div><strong>Squad:</strong> select a squad portrait or ALL in the HUD. Keyboard: 1–8 or A.</div>
   </div>
-  <div class="note">Mission maps use real-world street and landmark geography, with gameplay simplification where required. Map data © OpenStreetMap contributors, ODbL 1.0.</div>
+  <div class="note">Mission maps use real-world street and landmark geography, with gameplay simplification where required. Map data <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors, ODbL 1.0</a>.</div>
 </main>
 
 <script src="town-map.js"></script>
@@ -501,6 +503,8 @@
 <script src="pixel-art.js"></script>
 <script src="painted-art.js"></script>
 <script src="building-art.js"></script>
+<script src="wigan-details.js"></script>
+<script src="wigan-scenery.js"></script>
 <script src="scenery-cache.js"></script>
 <script src="menu-ui.js"></script>
 <script src="music.js"></script>
@@ -558,7 +562,7 @@
   const hudAll=document.getElementById('hudAll');
   const hudProgress=document.getElementById('hudProgress');
 
-  let VIEW_W=1040, VIEW_H=650;
+  let VIEW_W=1040, VIEW_H=650,canvasScale=1;
   const TOUCH_DEVICE=(
     (window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)||
     (navigator.maxTouchPoints||0)>0||
@@ -566,6 +570,9 @@
   );
   const LOW_POWER=TOUCH_DEVICE;
   const SCALE=2;
+  const wiganDetails=MAP_DATA.key==='wigan'?BadFodderWiganDetails.prepare(MAP_DATA):null;
+  document.querySelector('.subtitle').textContent=MAP_DATA.key==='wigan'?'Wigan Town Centre':'Operation Bad Belzig';
+  canvas.setAttribute('aria-label','Top-down tactical game in '+(MAP_DATA.key==='wigan'?'Wigan town centre':'Bad Belzig'));
   const WORLD_W=MAP_DATA.width*SCALE;
   const WORLD_H=MAP_DATA.height*SCALE;
   const S=n=>n*SCALE;
@@ -586,6 +593,7 @@
   const hudChips=new Map();
   let fallbackFullscreen=false;
   let squadFormation={active:false,leader:null,members:[],trail:[],destination:null,manualMoving:false};
+  let wiganRouteCache={key:null,path:[]};
   const touchState={
     movePointer:null,moveX:0,moveY:0,moveMag:0,
     firePointer:null,fireHeld:false
@@ -595,7 +603,8 @@
 
   function setStatus(text){
     if(statusEl.textContent!==text)statusEl.textContent=text;
-    const brief=text.replace(/^Phase\s+\d+:\s*/,'');
+    const phase=(activeMission().phases||[])[missionStage];
+    const brief=MAP_DATA.key==='wigan'&&/^Phase\s+\d+:/.test(text)&&phase?phase.title:text.replace(/^Phase\s+\d+:\s*/,'');
     if(hudMission.textContent!==brief)hudMission.textContent=brief;
   }
 
@@ -607,7 +616,7 @@
   }
 
   const roads=MAP_DATA.roads.map(r=>({
-    name:r.name||'',kind:r.kind||'',
+    name:r.name||'',kind:r.kind||'',width:r.width,layer:r.layer||0,surface:r.surface||'',
     points:r.points.map(p=>[S(p[0]),S(p[1])])
   }));
 
@@ -625,9 +634,9 @@
     const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
     const seed=hash((i+1)*2654435761);
     return {
-      i,name:b.name||'',points:pts,
+      i,name:b.name||'',points:pts,solid:b.solid!==false,landmark:b.landmark||'',levels:b.levels||2,roofShape:b.roofShape||'gable',material:b.material||'stone',detail:wiganDetails&&wiganDetails.buildings.get(b.osmId),
       minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys),
-      height:S(8+Math.floor(unit(seed,1)*5)),
+      height:MAP_DATA.key==='wigan'?S(4+(b.levels||2)*5):S(8+Math.floor(unit(seed,1)*5)),
       wall:WALLS[Math.floor(unit(seed,2)*WALLS.length)],
       roof:ROOFS[Math.floor(unit(seed,3)*ROOFS.length)],
       door:DOORS[Math.floor(unit(seed,4)*DOORS.length)],
@@ -658,8 +667,8 @@
   }
 
   async function preload(){
+    await art.preloadPainted(MAP_DATA.key);
     if(MAP_DATA.key!=='wigan'){
-      await art.preloadPainted();
       ['castle','butter','post','rathaus','reissiger','briccius','marien'].forEach(art.landmark);
     }
     return Promise.resolve();
@@ -677,7 +686,7 @@
   const CELL=150;
   const buildingGrid=new Map();
   function cellKey(x,y){return x+'|'+y}
-  buildings.forEach(b=>{
+  buildings.filter(b=>b.solid!==false).forEach(b=>{
     const x0=Math.floor(b.minX/CELL),x1=Math.floor(b.maxX/CELL);
     const y0=Math.floor(b.minY/CELL),y1=Math.floor(b.maxY/CELL);
     for(let gx=x0;gx<=x1;gx++)for(let gy=y0;gy<=y1;gy++){
@@ -723,12 +732,14 @@
     return false;
   }
 
-  const NAV_RADIUS=6;
-  const PATH_CELL=12;
+  const NAV_RADIUS=MAP_DATA.key==='wigan'?4:6;
+  const PATH_CELL=MAP_DATA.key==='wigan'?8:12;
   const PATH_COLS=Math.ceil(WORLD_W/PATH_CELL);
   const PATH_ROWS=Math.ceil(WORLD_H/PATH_CELL);
   const pathBlockedCache=new Map();
   const pathEdgeCache=new Map();
+  const pathComponents=MAP_DATA.key==='wigan'?new Int32Array(PATH_COLS*PATH_ROWS):null;
+  let nextPathComponent=0;
 
   function pathCellKey(gx,gy){return gx+'|'+gy}
 
@@ -747,6 +758,36 @@
     const blocked=obstacleAt(p.x,p.y,NAV_RADIUS);
     pathBlockedCache.set(key,blocked);
     return blocked;
+  }
+
+  function pathEdgeClear(ax,ay,bx,by){
+    const ai=ay*PATH_COLS+ax,bi=by*PATH_COLS+bx;
+    const edge=Math.min(ai,bi)*(PATH_COLS*PATH_ROWS)+Math.max(ai,bi);
+    if(!pathEdgeCache.has(edge)){
+      const a=pathCellCenter(ax,ay),b=pathCellCenter(bx,by);
+      pathEdgeCache.set(edge,routeClear(a.x,a.y,b.x,b.y,NAV_RADIUS));
+    }
+    return pathEdgeCache.get(edge);
+  }
+
+  function pathComponent(gx,gy){
+    if(!pathComponents)return 1;
+    if(pathCellBlocked(gx,gy))return -1;
+    const start=gy*PATH_COLS+gx;if(pathComponents[start])return pathComponents[start];
+    const id=++nextPathComponent,queue=new Int32Array(PATH_COLS*PATH_ROWS);let read=0,write=1;
+    queue[0]=start;pathComponents[start]=id;
+    const dirs=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+    while(read<write){
+      const cell=queue[read++],x=cell%PATH_COLS,y=Math.floor(cell/PATH_COLS);
+      for(const [dx,dy] of dirs){
+        const nx=x+dx,ny=y+dy;if(pathCellBlocked(nx,ny))continue;
+        const key=ny*PATH_COLS+nx;if(pathComponents[key])continue;
+        if(dx&&dy&&(pathCellBlocked(x+dx,y)||pathCellBlocked(x,y+dy)))continue;
+        if(!pathEdgeClear(x,y,nx,ny))continue;
+        pathComponents[key]=id;queue[write++]=key;
+      }
+    }
+    return id;
   }
 
   function nearestOpenCell(gx,gy,from=null){
@@ -816,8 +857,19 @@
     const startRaw=[Math.floor(sx/PATH_CELL),Math.floor(sy/PATH_CELL)];
     const goalRaw=[Math.floor(tx/PATH_CELL),Math.floor(ty/PATH_CELL)];
     const start=nearestOpenCell(startRaw[0],startRaw[1],{x:sx,y:sy});
-    const goal=nearestOpenCell(goalRaw[0],goalRaw[1]);
+    let goal=nearestOpenCell(goalRaw[0],goalRaw[1]);
     if(!start||!goal)return[];
+    // Detect an enclosed courtyard once, rather than searching the whole town every AI update.
+    if(pathComponents&&pathComponent(...start)!==pathComponent(...goal)){
+      if(!obstacleAt(tx,ty,NAV_RADIUS))return[];
+      const component=pathComponent(...start);let closest=null,distance=160;
+      for(let y=goalRaw[1]-20;y<=goalRaw[1]+20;y++)for(let x=goalRaw[0]-20;x<=goalRaw[0]+20;x++){
+        if(pathCellBlocked(x,y)||pathComponent(x,y)!==component)continue;
+        const p=pathCellCenter(x,y),d=Math.hypot(p.x-tx,p.y-ty);
+        if(d<distance){closest=[x,y];distance=d;}
+      }
+      if(!closest)return[];goal=closest;
+    }
 
     const approachRadius=obstacleAt(tx,ty,NAV_RADIUS)?64:0;
     const startKey=pathCellKey(start[0],start[1]);
@@ -875,13 +927,7 @@
         if(dx&&dy&&(pathCellBlocked(cur.x+dx,cur.y)||pathCellBlocked(cur.x,cur.y+dy)))continue;
         const nk=pathCellKey(nx,ny);
         if(closed.has(nk))continue;
-        const ai=cur.y*PATH_COLS+cur.x,bi=ny*PATH_COLS+nx;
-        const edge=Math.min(ai,bi)*(PATH_COLS*PATH_ROWS)+Math.max(ai,bi);
-        if(!pathEdgeCache.has(edge)){
-          const a=pathCellCenter(cur.x,cur.y),b=pathCellCenter(nx,ny);
-          pathEdgeCache.set(edge,routeClear(a.x,a.y,b.x,b.y,NAV_RADIUS));
-        }
-        if(!pathEdgeCache.get(edge))continue;
+        if(!pathEdgeClear(cur.x,cur.y,nx,ny))continue;
         const tentative=currentG+(dx&&dy?1.4142:1);
         if(tentative<(gScore.get(nk)??Infinity)){
           came.set(nk,ck);
@@ -972,6 +1018,7 @@
   }
 
   function syncTouchControlState(){
+    gameViewport.classList.toggle('wigan-tactical',MAP_DATA.key==='wigan'&&mapOpen);
     touchControls.classList.toggle('blocked',menuOpen||mapOpen||paused||finished);
     document.getElementById('gameHud').inert=menuOpen;
     touchControls.inert=menuOpen;
@@ -1120,7 +1167,7 @@
       alert:false,lastSeen:null,aiState:'patrol',flash:0,
       dir:Math.PI/2,anim:i*.51,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0,path:null,pathIndex:0,repath:0,
       hitTimer:0,
-      groupId:Math.floor(i/3),
+      groupId:MAP_DATA.key==='wigan'?wiganSector(S(p[0]),S(p[1])):Math.floor(i/3),
       role:['anchor','left','right'][i%3],
       tacticTimer:.2+(i%3)*.18,tacticalPoint:null,
       burstCount:0,burstLimit:2+(i%2),burstPause:0,searchTimer:0
@@ -1144,6 +1191,7 @@
     cursorWorld=null;
     lastHudStats='';lastRosterSignature='';
     squadFormation={active:false,leader:null,members:[],trail:[],destination:null,manualMoving:false};
+    wiganRouteCache={key:null,path:[]};
     touchState.movePointer=null;touchState.moveX=0;touchState.moveY=0;touchState.moveMag=0;
     touchState.firePointer=null;touchState.fireHeld=false;
     pinchPointers.clear();pinchGesture=null;
@@ -1161,6 +1209,10 @@
 
   function phaseZone(phase){
     return phase&&phase.zone?zones[phase.zone]||null:null;
+  }
+
+  function wiganSector(x,y){
+    return Object.values(zones).map((z,i)=>({i,d:Math.hypot(x-z.x,y-z.y)})).sort((a,b)=>a.d-b.d)[0].i;
   }
 
   function phaseEvaluation(phase,living,remaining){
@@ -1517,7 +1569,7 @@
     const wedge=safeFormationPoint(leader.x-fx*back+rx*side,leader.y-fy*back+ry*side);
     if(wedge&&routeClear(leader.x,leader.y,wedge.x,wedge.y,NAV_RADIUS))return wedge;
     // Keep single file when there is no room to reform beside a wall or POI.
-    const trail=trailPointBehind(42*slot)||{x:leader.x,y:leader.y};
+    const trail=trailPointBehind(32*slot)||{x:leader.x,y:leader.y};
     return safeFormationPoint(trail.x,trail.y);
   }
 
@@ -1678,8 +1730,16 @@
       for(const s of squad){
         if(!s.alive)continue;
         if(Math.hypot(s.x-p.x,s.y-p.y)<32){
-          if(p.type==='ammo'){setStatus(s.name+' found an ammunition crate.')}
-          else{s.hp=Math.min(s.maxHp,s.hp+4);setStatus(s.name+' used a medical crate.')}
+          if(p.type==='ammo'){
+            if(MAP_DATA.key==='wigan'){
+              const added=Math.min(2,8-squadGrenades);if(added<=0)continue;
+              squadGrenades+=added;setStatus(s.name+' collected '+added+' grenades.');
+            }else setStatus(s.name+' found an ammunition crate.');
+          }
+          else{
+            if(MAP_DATA.key==='wigan'&&s.hp>=s.maxHp)continue;
+            s.hp=Math.min(s.maxHp,s.hp+4);setStatus(s.name+' used a medical crate.');
+          }
           p.active=false;break;
         }
       }
@@ -2056,7 +2116,7 @@
 
   function drawRoad(r){
     if(r.points.length<2)return;
-    if(r.kind==='railway'){
+    if(r.kind==='railway'&&MAP_DATA.key!=='wigan'){
       ctx.lineCap='round';ctx.lineJoin='round';
       ctx.beginPath();ctx.moveTo(r.points[0][0],r.points[0][1]);
       r.points.slice(1).forEach(p=>ctx.lineTo(p[0],p[1]));
@@ -2064,6 +2124,7 @@
       ctx.setLineDash([S(2),S(5)]);ctx.strokeStyle='#b6ad96';ctx.lineWidth=S(1.2);ctx.stroke();ctx.setLineDash([]);
       return;
     }
+    if(MAP_DATA.key==='wigan'){BadFodderWigan.road(ctx,r,S,art);return;}
     const path=/footway|path|track|steps/.test(r.kind),w=roadHalfWidth(r.kind)*2;
     ctx.lineCap='round';ctx.lineJoin='round';
     ctx.beginPath();ctx.moveTo(r.points[0][0],r.points[0][1]);
@@ -2087,6 +2148,7 @@
     const margin=S(40),vw=VIEW_W/zoom,vh=VIEW_H/zoom;
     const bounds=sceneryBounds||{x:camera.x,y:camera.y,w:vw,h:vh};
     if(b.maxX<bounds.x-margin||b.minX>bounds.x+bounds.w+margin||b.maxY<bounds.y-margin||b.minY>bounds.y+bounds.h+margin)return;
+    if(MAP_DATA.key==='wigan'){BadFodderWigan.building(ctx,b,art);return;}
     const h=b.height;
     const mesh=b.artMesh||(b.artMesh=BadFodderBuildings.mesh(b.points,h));
     if(!mesh)return;
@@ -2172,41 +2234,9 @@
     ctx.drawImage(art.landmark(key),Math.round(x-w/2),Math.round(y-h),w,h);
   }
 
-  function drawWiganLandmarks(){
-    const labels=MAP_DATA.labels||[];
-    ctx.save();
-    labels.forEach(item=>{
-      const p=poi[item.key];if(!p)return;
-      const compact=item.kind==='pub';
-      ctx.textAlign='center';
-      ctx.font='900 '+(compact?S(4.6):S(5.3))+'px "Courier New",monospace';
-      const pad=S(3),metrics=ctx.measureText(item.text),w=metrics.width+pad*2,h=S(10);
-      let y=p.y-S(18);
-      if(item.key==='formerCentral')y=p.y+S(22);
-      ctx.fillStyle='rgba(22,31,22,.82)';
-      ctx.fillRect(p.x-w/2,y-h,w,h);
-      ctx.strokeStyle=item.kind==='historic'?'#c89b5d':'#d8c978';
-      ctx.lineWidth=S(.7);ctx.strokeRect(p.x-w/2,y-h,w,h);
-      ctx.fillStyle='#f1e4b3';ctx.fillText(item.text,p.x,y-S(2.4));
-    });
-
-    // Bus bays and station canopies make the transport landmarks readable at gameplay scale.
-    if(poi.busStation){
-      ctx.strokeStyle='#d7c66f';ctx.lineWidth=S(1.1);
-      for(let i=-2;i<=2;i++){ctx.beginPath();ctx.moveTo(poi.busStation.x+S(i*15),poi.busStation.y-S(28));ctx.lineTo(poi.busStation.x+S(i*15),poi.busStation.y+S(28));ctx.stroke();}
-    }
-    [poi.wallgate,poi.northWestern].filter(Boolean).forEach(p=>{
-      ctx.fillStyle='#3c4742';ctx.fillRect(p.x-S(34),p.y-S(6),S(68),S(12));
-      ctx.strokeStyle='#ded3a4';ctx.lineWidth=S(.8);ctx.strokeRect(p.x-S(34),p.y-S(6),S(68),S(12));
-    });
-    if(poi.grandArcade){
-      ctx.strokeStyle='#d1b765';ctx.lineWidth=S(2);ctx.strokeRect(poi.grandArcade.x-S(66),poi.grandArcade.y-S(58),S(132),S(116));
-    }
-    ctx.restore();
-  }
 
   function drawLandmarks(){
-    if(MAP_DATA.key==='wigan'){drawWiganLandmarks();return;}
+    if(MAP_DATA.key==='wigan')return;
     landmarkImage('castle',poi.castle.x,poi.castle.y+S(45),S(145),S(95));
     landmarkImage('butter',S(325),S(1147),S(52),S(88));
     landmarkImage('rathaus',poi.market.x,poi.market.y+S(35),S(118),S(98));
@@ -2216,7 +2246,7 @@
     landmarkImage('post',poi.postcolumn.x,poi.postcolumn.y+S(12),S(38),S(74));
   }
 
-  const treeDots=[];
+  const treeDots=(MAP_DATA.vegetation||[]).map(t=>({x:S(t.x),y:S(t.y),r:S(t.r)}));
   (function makeVegetation(){
     let seed=94821;
     function rnd(){seed=hash(seed+17);return seed/4294967296}
@@ -2235,8 +2265,8 @@
   })();
 
   function drawTerrain(){
-    ctx.fillStyle=art.texture(ctx,'grass');ctx.fillRect(0,0,WORLD_W,WORLD_H);
-    areas.forEach(a=>polygon(a.points,art.texture(ctx,a.type)));
+    ctx.fillStyle=art.texture(ctx,MAP_DATA.key==='wigan'?'urban-paving':'grass');ctx.fillRect(0,0,WORLD_W,WORLD_H);
+    areas.forEach(a=>polygon(a.points,art.texture(ctx,MAP_DATA.key==='wigan'?({paving:'urban-paving',asphalt:'urban-asphalt',railbed:'urban-asphalt'}[a.type]||a.type):a.type)));
   }
 
   function drawVegetation(){
@@ -2254,9 +2284,15 @@
     try{
       ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.setTransform(scale,0,0,scale,-x*scale,-y*scale);
       renderingStatic=true;sceneryBounds={x,y,w:target.width/scale,h:target.height/scale};
-      drawTerrain();roads.forEach(drawRoad);
+      drawTerrain();
+      const drawingRoads=MAP_DATA.key==='wigan'?[...roads].sort((a,b)=>(a.kind==='railway'?-10:a.layer)-(b.kind==='railway'?-10:b.layer)):roads;
+      drawingRoads.forEach(drawRoad);
+      if(MAP_DATA.key==='wigan')BadFodderWigan.ground(ctx,MAP_DATA,S,art);
       if(!light)drawVegetation();
-      [...buildings].filter(b=>!b.landmarkFootprint).sort((a,b)=>a.maxY-b.maxY).forEach(drawBuilding);
+      if(wiganDetails){
+        const objects=[...buildings.filter(b=>!b.landmarkFootprint).map(b=>({y:b.maxY,building:b})),...wiganDetails.props.map(p=>({y:p.y,prop:p}))];
+        objects.sort((a,b)=>a.y-b.y).forEach(o=>o.building?drawBuilding(o.building):BadFodderWiganDetails.furniture(ctx,[o.prop],sceneryBounds));
+      }else [...buildings].filter(b=>!b.landmarkFootprint).sort((a,b)=>a.maxY-b.maxY).forEach(drawBuilding);
       drawLandmarks();
     }finally{ctx=live;renderingStatic=false;sceneryBounds=null;}
   }
@@ -2277,7 +2313,7 @@
     const cap=LOW_POWER?1200:1600,scale=Math.min(density,cap/Math.max(r.width,r.height));
     const width=Math.max(1,Math.round(r.width*scale)),height=Math.max(1,Math.round(r.height*scale));
     if(canvas.width===width&&canvas.height===height&&frame.width===width&&frame.height===height)return;
-    VIEW_W=width;VIEW_H=height;canvas.width=frame.width=VIEW_W;canvas.height=frame.height=VIEW_H;
+    canvasScale=width/r.width;VIEW_W=width;VIEW_H=height;canvas.width=frame.width=VIEW_W;canvas.height=frame.height=VIEW_H;
     clampCamera();
     ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';display.imageSmoothingEnabled=false;
   }
@@ -2298,7 +2334,33 @@
     });
   }
 
+  function wiganGuidanceTarget(){
+    const phase=(activeMission().phases||[])[missionStage],leader=squad.find(s=>s.alive);
+    if(!phase||!leader)return null;
+    const remaining=enemies.filter(e=>e.alive);
+    if(phase.type==='eliminate-and-reach'&&remaining.length){
+      const target=remaining.reduce((best,e)=>Math.hypot(e.x-leader.x,e.y-leader.y)<Math.hypot(best.x-leader.x,best.y-leader.y)?e:best);
+      return{target,phase,contact:true,caption:'Remaining hostiles'};
+    }
+    return{target:phaseZone(phase),phase,contact:false,caption:MAP_DATA.pois[phase.zone].name};
+  }
+
+  function wiganNavigationHint(){
+    const hint=wiganGuidanceTarget(),leader=squad.find(s=>s.alive);
+    if(!hint)return{caption:'Mission complete',path:[],contact:false};
+    const key=[missionStage,Math.round(leader.x/40),Math.round(leader.y/40),Math.round(hint.target.x/40),Math.round(hint.target.y/40),hint.contact].join('|');
+    if(wiganRouteCache.key!==key){
+      wiganRouteCache={key,path:[{x:leader.x,y:leader.y},...findPath(leader.x,leader.y,hint.target.x,hint.target.y)]};
+    }
+    return{...hint,path:wiganRouteCache.path};
+  }
+
   function drawMapOverlay(){
+    if(MAP_DATA.key==='wigan'){
+      const hint=wiganNavigationHint();
+      window.BadFodderWigan.tactical(ctx,MAP_DATA,scenery,squad,missionObjectives(),missionStage,VIEW_W,VIEW_H,canvasScale,hint,enemies);
+      return;
+    }
     ctx.save();
     ctx.fillStyle='rgba(15,22,18,.88)';ctx.fillRect(0,0,VIEW_W,VIEW_H);
 
@@ -2362,6 +2424,7 @@
 
     ctx.save();ctx.scale(zoom,zoom);ctx.translate(-camera.x,-camera.y);
     sceneryTiles.draw(ctx,camera.x,camera.y,VIEW_W/zoom,VIEW_H/zoom);
+    if(MAP_DATA.key==='wigan')BadFodderWigan.labels(ctx,MAP_DATA,zoom,canvasScale,camera,VIEW_W,VIEW_H);
     drawObjectiveZones();
 
     pickups.forEach(p=>{if(p.active)art.pickup(ctx,p);});
@@ -2430,6 +2493,10 @@
 
     ctx.restore();
 
+    if(MAP_DATA.key==='wigan'&&!mapOpen&&!finished&&!menuOpen){
+      const hint=wiganGuidanceTarget(),leader=squad.find(s=>s.alive);
+      if(hint&&leader)BadFodderWigan.guidance(ctx,MAP_DATA,hint,leader,VIEW_W,VIEW_H,canvasScale);
+    }
     if(mapOpen)drawMapOverlay();
 
     if(paused||finished){
@@ -2812,6 +2879,11 @@
 
       // Let the loading screen render before starting the expensive scenery work.
       await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+
+      if(pathComponents){
+        if(loadingText)loadingText.textContent='Preparing Wigan street routes…';
+        pathComponent(Math.floor(squad[0].x/PATH_CELL),Math.floor(squad[0].y/PATH_CELL));
+      }
 
       try{
         bakeScenery(false);

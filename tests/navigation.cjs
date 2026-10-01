@@ -5,7 +5,7 @@ const source=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const map=new Function(fs.readFileSync(path.join(root,'town-map.js'),'utf8')+';return TOWN_MAP;')();
 function body(name){const start=source.indexOf('  function '+name+'('),open=source.indexOf('{',start);let depth=1,end=open+1;for(;depth&&end<source.length;end++){if(source[end]==='{')depth++;if(source[end]==='}')depth--;}return source.slice(start,end);}
 
-const geometry=`const WORLD_W=TOWN_MAP.width*2,WORLD_H=TOWN_MAP.height*2;const buildings=TOWN_MAP.buildings.map((b,i)=>{const points=b.points.map(p=>p.map(v=>v*2));return{i,points,minX:Math.min(...points.map(p=>p[0])),maxX:Math.max(...points.map(p=>p[0])),minY:Math.min(...points.map(p=>p[1])),maxY:Math.max(...points.map(p=>p[1]))};});`;
+const geometry=`const MAP_DATA=TOWN_MAP;const WORLD_W=TOWN_MAP.width*2,WORLD_H=TOWN_MAP.height*2;const buildings=TOWN_MAP.buildings.map((b,i)=>{const points=b.points.map(p=>p.map(v=>v*2));return{i,points,minX:Math.min(...points.map(p=>p[0])),maxX:Math.max(...points.map(p=>p[0])),minY:Math.min(...points.map(p=>p[1])),maxY:Math.max(...points.map(p=>p[1]))};});`;
 const nav=source.slice(source.indexOf('  const CELL=150;'),source.indexOf('  function pointInCircle('));
 const q=new Function('TOWN_MAP',geometry+body('pointInPoly')+nav+body('moveEntity')+body('updateFacing')+';return {findPath,routeClear,followPath,assignPath,obstacleAt};')(map);
 
