@@ -10,7 +10,7 @@ The game opens on a title screen based on the supplied Bad Fodder artwork. Start
 
 Enter or the pause button opens the matching pause screen, with Resume, Restart Mission, Controls, Options and Main Menu. Escape returns from a submenu or resumes a paused mission. Arrow keys move through the menu and Tab stays within it. Mouse and touch controls work throughout.
 
-Options change camera zoom, footstep dust and fullscreen mode. Artwork lives in `assets/menu/logo.webp` and `assets/menu/town-background.webp`; both use lossless encoding. The built-in image-generation tool prepared the artwork from the supplied image: remove the baked logo/menu and reconstruct the town background, then extract the red-and-gold Bad Fodder logo on transparency. Menu labels and buttons are live HTML rather than part of the picture.
+Options change camera zoom, footstep dust, fullscreen mode and music. The supplied `assets/audio/bad_fodder.mp3` loops continuously across the title screen, mission and pause menu, using the same 22% volume and gentle fades as Sagenhaft. Playback starts after a click, tap or keypress. Music on/off is remembered locally; hiding the tab pauses playback and returning resumes it when enabled. A failed audio load exposes a retry button in Options. Artwork lives in `assets/menu/logo.webp` and `assets/menu/town-background.webp`; both use lossless encoding. The built-in image-generation tool prepared the artwork from the supplied image: remove the baked logo/menu and reconstruct the town background, then extract the red-and-gold Bad Fodder logo on transparency. Menu labels and buttons are live HTML rather than part of the picture.
 
 ## Current prototype
 
