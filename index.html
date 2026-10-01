@@ -439,7 +439,7 @@
         </div>
         <div class="menu-panel menu-card" data-view="controls" hidden>
           <h2>CONTROLS</h2>
-          <dl><dt>MOVE</dt><dd>Left-click terrain, or use the joystick.</dd><dt>FIRE</dt><dd>Hold right-click. MacBook: hold Shift + click, or hold F while aiming with the cursor. Mobile: hold FIRE.</dd><dt>GRENADE</dt><dd>Left + right mouse buttons. MacBook: Option/Alt + click, or press G at the cursor. Mobile: GRENADE.</dd><dt>SQUAD</dt><dd>1–4 / A, or select a squad portrait.</dd><dt>MAP / PAUSE</dt><dd>M / Enter or Esc, or the HUD buttons.</dd></dl>
+          <dl><dt>MOVE</dt><dd>Left-click terrain, or use the joystick.</dd><dt>FIRE</dt><dd>Hold right-click. MacBook: hold Shift + click, or hold F while aiming with the cursor. Mobile: hold FIRE.</dd><dt>GRENADE</dt><dd>Left + right mouse buttons. MacBook: Option/Alt + click, or press G at the cursor. Mobile: GRENADE.</dd><dt>ZOOM</dt><dd>On touch devices, pinch two fingers on the game to zoom in and out.</dd><dt>SQUAD</dt><dd>1–4 / A, or select a squad portrait.</dd><dt>MAP / PAUSE</dt><dd>M / Enter or Esc, or the HUD buttons.</dd></dl>
           <button class="menu-button" data-back type="button">BACK</button>
         </div>
         <div class="menu-panel menu-card" data-view="options" hidden>
@@ -491,6 +491,7 @@
     <div><strong>Move:</strong> left-click on desktop; use the bottom-right joystick on mobile.</div>
     <div><strong>Machine gun:</strong> right-click; on MacBook hold Shift + click or hold F at the cursor; mobile: FIRE.</div>
     <div><strong>Grenade:</strong> left + right click; on MacBook Option/Alt + click or G at the cursor; mobile: GRENADE.</div>
+    <div><strong>Zoom:</strong> pinch with two fingers on the game to zoom in and out on touch devices.</div>
     <div><strong>Map:</strong> M or MAP in the HUD.</div>
     <div><strong>Pause:</strong> Enter or the pause button in the HUD.</div>
     <div><strong>Squad:</strong> select a squad portrait or ALL in the HUD. Keyboard: 1–4 or A.</div>
@@ -585,6 +586,8 @@
     movePointer:null,moveX:0,moveY:0,moveMag:0,
     firePointer:null,fireHeld:false
   };
+  const pinchPointers=new Map();
+  let pinchGesture=null;
 
   function setStatus(text){
     if(statusEl.textContent!==text)statusEl.textContent=text;
@@ -1107,6 +1110,7 @@
     squadFormation={active:false,leader:null,members:[],trail:[],destination:null,manualMoving:false};
     touchState.movePointer=null;touchState.moveX=0;touchState.moveY=0;touchState.moveMag=0;
     touchState.firePointer=null;touchState.fireHeld=false;
+    pinchPointers.clear();pinchGesture=null;
     touchStick.style.transform='translate(0px,0px)';
     touchJoystick.classList.remove('active');
     touchFire.classList.remove('active');
@@ -2307,14 +2311,81 @@
     throwGrenade(cursorWorld.x,cursorWorld.y);
   }
 
+  function canvasScreenPoint(clientX,clientY){
+    const r=canvas.getBoundingClientRect();
+    return{
+      x:(clientX-r.left)/r.width*VIEW_W,
+      y:(clientY-r.top)/r.height*VIEW_H
+    };
+  }
+
+  function beginPinchIfReady(){
+    if(pinchPointers.size!==2)return;
+    const points=[...pinchPointers.values()];
+    const a=canvasScreenPoint(points[0].x,points[0].y);
+    const b=canvasScreenPoint(points[1].x,points[1].y);
+    const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+    const distance=Math.hypot(b.x-a.x,b.y-a.y);
+    if(distance<8)return;
+
+    pinchGesture={
+      startDistance:distance,
+      startZoom:zoom,
+      anchorWorld:{
+        x:mid.x/zoom+camera.x,
+        y:mid.y/zoom+camera.y
+      }
+    };
+  }
+
+  function updatePinch(){
+    if(!pinchGesture||pinchPointers.size!==2)return;
+    const points=[...pinchPointers.values()];
+    const a=canvasScreenPoint(points[0].x,points[0].y);
+    const b=canvasScreenPoint(points[1].x,points[1].y);
+    const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+    const distance=Math.hypot(b.x-a.x,b.y-a.y);
+    if(distance<8)return;
+
+    const nextZoom=Math.max(.55,Math.min(1.8,pinchGesture.startZoom*(distance/pinchGesture.startDistance)));
+    zoom=nextZoom;
+
+    // Keep the same world point under the midpoint of the two fingers.
+    camera.x=pinchGesture.anchorWorld.x-mid.x/zoom;
+    camera.y=pinchGesture.anchorWorld.y-mid.y/zoom;
+    clampCamera();
+  }
+
+  function endPinchPointer(pointerId){
+    pinchPointers.delete(pointerId);
+    if(pinchPointers.size<2)pinchGesture=null;
+  }
+
   canvas.addEventListener('contextmenu',evt=>evt.preventDefault());
 
   canvas.addEventListener('pointermove',evt=>{
+    if(evt.pointerType==='touch'){
+      if(pinchPointers.has(evt.pointerId)){
+        evt.preventDefault();
+        pinchPointers.set(evt.pointerId,{x:evt.clientX,y:evt.clientY});
+        updatePinch();
+      }
+      return;
+    }
     rememberCanvasPointer(evt);
   });
 
   canvas.addEventListener('pointerdown',evt=>{
     if(!started||menuOpen||paused||finished||mapOpen)return;
+
+    if(evt.pointerType==='touch'){
+      evt.preventDefault();
+      canvas.setPointerCapture?.(evt.pointerId);
+      pinchPointers.set(evt.pointerId,{x:evt.clientX,y:evt.clientY});
+      if(pinchPointers.size===2)beginPinchIfReady();
+      return;
+    }
+
     canvas.setPointerCapture?.(evt.pointerId);
     rememberCanvasPointer(evt);
     const p=cursorWorld;
@@ -2367,17 +2438,29 @@
   });
 
   canvas.addEventListener('pointerup',evt=>{
+    if(evt.pointerType==='touch'){
+      evt.preventDefault();
+      endPinchPointer(evt.pointerId);
+      return;
+    }
+
     rememberCanvasPointer(evt);
     rightHeld=(evt.buttons&2)!==0;
     if(evt.button===0||!(evt.buttons&1))macFireHeld=false;
     if((evt.buttons&3)!==3)bothLatched=false;
   });
 
-  canvas.addEventListener('pointercancel',()=>{
+  canvas.addEventListener('pointercancel',evt=>{
+    if(evt.pointerType==='touch')endPinchPointer(evt.pointerId);
     rightHeld=false;macFireHeld=false;bothLatched=false;
   });
 
+  canvas.addEventListener('lostpointercapture',evt=>{
+    if(evt.pointerType==='touch')endPinchPointer(evt.pointerId);
+  });
+
   canvas.addEventListener('pointerleave',evt=>{
+    if(evt.pointerType==='touch')return;
     if(evt.buttons===0){rightHeld=false;macFireHeld=false;bothLatched=false;}
   });
 
