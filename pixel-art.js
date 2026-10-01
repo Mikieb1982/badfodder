@@ -148,18 +148,27 @@ window.BadFodderArt = (() => {
   // Animation belongs to presentation: it never changes movement, aim or collisions.
   function animate(ent,dt){
     let m=motion.get(ent);
-    if(!m){m={x:ent.x,y:ent.y,stride:0,death:0,dir:Math.round((ent.dir||0)/(Math.PI/4))};motion.set(ent,m);}
+    if(!m){m={x:ent.x,y:ent.y,stride:0,death:0,dust:[],dir:Math.round((ent.dir||0)/(Math.PI/4))};motion.set(ent,m);}
     const distance=Math.hypot(ent.x-m.x,ent.y-m.y);m.x=ent.x;m.y=ent.y;
+    m.dust=m.dust.map(p=>({...p,life:p.life-dt})).filter(p=>p.life>0);
+    const previousStep=Math.floor(m.stride/6)%8;
     if(ent.alive===false){m.death+=dt;m.state='dead';m.frame=Math.min(2,Math.floor(m.death*12));return;}
     const angle=ent.dir||0,diff=Math.atan2(Math.sin(angle-m.dir*Math.PI/4),Math.cos(angle-m.dir*Math.PI/4));
     if(Math.abs(diff)>Math.PI/8+.06)m.dir=Math.round(angle/(Math.PI/4));
-    if(distance>.03&&distance<100)m.stride+=distance;
+    if(distance>.03&&distance<100){
+      m.stride+=distance;
+      const step=Math.floor(m.stride/6)%8;
+      if(step!==previousStep&&(step===2||step===6)){
+        m.dust.push({x:ent.x+(step===2?-3:3),y:ent.y+3,life:.22});
+        if(m.dust.length>4)m.dust.shift();
+      }
+    }
     if(ent.fireTimer>0){m.state='fire';m.frame=ent.fireTimer>.065?0:1;}
     else if(distance>.03){m.state='walk';m.frame=Math.floor(m.stride/6)%8;}
     else {m.state='idle';m.frame=0;}
   }
   function pose(ent){
-    const m=motion.get(ent);return m?{dir:((m.dir%8)+8)%8,state:m.state||'idle',frame:m.frame||0}:{dir:0,state:'idle',frame:0};
+    const m=motion.get(ent);return m?{dir:((m.dir%8)+8)%8,state:m.state||'idle',frame:m.frame||0,dust:m.dust}:{dir:0,state:'idle',frame:0,dust:[]};
   }
   function blast(ctx,x,y,age){
     const frame=Math.min(5,Math.floor(age*6));
