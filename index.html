@@ -500,6 +500,7 @@
 
 <script src="town-map.js"></script>
 <script src="pixel-art.js"></script>
+<script src="painted-art.js"></script>
 <script src="scenery-cache.js"></script>
 <script src="menu-ui.js"></script>
 <script src="music.js"></script>
@@ -563,8 +564,8 @@
   const WORLD_H=TOWN_MAP.height*SCALE;
   const S=n=>n*SCALE;
 
-  const WALLS=['#e3d4b0','#d5c5a8','#e7dcbf','#c7d0b2','#cfd6c3','#e6d3af'];
-  const ROOFS=['#af765d','#be8a69','#987261','#c59475','#89918a'];
+  const WALLS=['#edd3a0','#ddbd83','#f4e2b5','#c8d5a0','#d4dcb7','#eed0a0'];
+  const ROOFS=['#b8643d','#ce753d','#ab5e43','#d68949','#548291'];
   const DOORS=['#486a67','#725849','#596950','#5c697b'];
 
 
@@ -637,7 +638,8 @@
     market:{x:poi.market.x,y:poi.market.y,r:S(86)}
   };
 
-  function preload(){
+  async function preload(){
+    await art.preloadPainted();
     ['castle','butter','post','rathaus','reissiger','briccius','marien'].forEach(art.landmark);
     return Promise.resolve();
   }
@@ -1950,7 +1952,11 @@
       const side=[[a[0],a[1]],[d[0],d[1]],[d[0],d[1]-h],[a[0],a[1]-h]];
       const wall=ctx.createLinearGradient(0,a[1]-h,0,a[1]);
       wall.addColorStop(0,tint(b.wall,i%2?-9:5));wall.addColorStop(1,tint(b.wall,i%2?-18:-6));
-      polygon(side,wall,'#787662',.9);
+      polygon(side,wall,'#65583f',1.1);
+      if(art.paintedReady){
+        ctx.save();polygon(side,null);ctx.clip();ctx.globalAlpha=.45;ctx.fillStyle=art.texture(ctx,'stucco');
+        ctx.fillRect(Math.min(a[0],d[0])-1,Math.min(a[1],d[1])-h-1,Math.abs(a[0]-d[0])+2,Math.abs(a[1]-d[1])+h+2);ctx.restore();
+      }
       const len=Math.hypot(d[0]-a[0],d[1]-a[1]);
       if((renderingStatic||zoom>.95)&&len>S(8)){
         const n=Math.min(4,Math.floor(len/S(8)));
@@ -1986,9 +1992,14 @@
     const ux=Math.cos(angle)*reach,uy=Math.sin(angle)*reach;
     const light=ctx.createLinearGradient(cx-uy*.3,cy+ux*.3,cx+uy*.4,cy-ux*.4);
     light.addColorStop(0,tint(b.roof,14));light.addColorStop(.48,b.roof);light.addColorStop(1,tint(b.roof,-12));
-    ctx.fillStyle=light;ctx.fillRect(b.minX-2,b.minY-h-2,b.maxX-b.minX+4,b.maxY-b.minY+4);
+    if(art.paintedReady){
+      ctx.save();ctx.translate(cx,cy);ctx.rotate(angle);
+      ctx.fillStyle=art.texture(ctx,b.roof==='#548291'?'roof-slate':'roof');ctx.fillRect(-reach,-reach,reach*2,reach*2);ctx.restore();
+      ctx.globalAlpha=.25;
+    }
+    ctx.fillStyle=light;ctx.fillRect(b.minX-2,b.minY-h-2,b.maxX-b.minX+4,b.maxY-b.minY+4);ctx.globalAlpha=1;
     polygon([[cx-ux,cy-uy],[cx+ux,cy+uy],[cx+ux-uy*2,cy+uy+ux*2],[cx-ux-uy*2,cy-uy+ux*2]],'#473f3814');
-    if(!LOW_POWER){
+    if(!LOW_POWER&&!art.paintedReady){
       ctx.save();ctx.translate(cx,cy);ctx.rotate(angle);ctx.globalAlpha=.22;
       ctx.strokeStyle=tint(b.roof,-22);ctx.lineWidth=.75;
       for(let y=-reach;y<reach;y+=8){ctx.beginPath();ctx.moveTo(-reach,y);ctx.lineTo(reach,y);ctx.stroke();}
@@ -2169,13 +2180,13 @@
       }
       drawSoldier(ent,team);
       if(team==='enemy'&&ent.alert&&ent.alive){
-        ctx.fillStyle='#f0db97';ctx.fillRect(ent.x-2,ent.y-34,4,8);ctx.fillRect(ent.x-2,ent.y-24,4,2);
+        ctx.fillStyle='#f0db97';ctx.fillRect(ent.x-2,ent.y-50,4,8);ctx.fillRect(ent.x-2,ent.y-40,4,2);
         ctx.fillStyle=ent.role==='anchor'?'#d6be6b':'#b88b57';
         const pipX=ent.role==='left'?-5:ent.role==='right'?5:0;
-        ctx.fillRect(ent.x+pipX-2,ent.y-40,4,3);
+        ctx.fillRect(ent.x+pipX-2,ent.y-56,4,3);
       }
       if(team==='squad'&&ent.alive){
-        for(let h=0;h<ent.hp;h++){ctx.fillStyle='#eef1c2';ctx.fillRect(ent.x-13+h*6,ent.y-34,4,2);}
+        for(let h=0;h<ent.hp;h++){ctx.fillStyle='#eef1c2';ctx.fillRect(ent.x-13+h*6,ent.y-44,4,2);}
         ctx.fillStyle='#fff4ce';ctx.font='bold 12px "Courier New",monospace';ctx.textAlign='center';ctx.fillText(String(squad.indexOf(ent)+1),ent.x,ent.y+18);
       }
     });
