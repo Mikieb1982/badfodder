@@ -35,11 +35,15 @@ Options change camera zoom, footstep dust, fullscreen mode and music. The suppli
 
 ![Character facings and continuous blast effects](docs/character-art.png)
 
-The town uses original canvas illustration with a slightly cartoony military style inspired by Cannon Fodder. Rounded troops, soft clustered trees, warm roofs and pale stone paving share a restrained palette. Roof lighting and window frames give the real building footprints depth without dense pixel texture or a full-screen blur. Landmarks and trees are cached at twice their logical resolution; HUD portraits use three times their display resolution.
+The game uses painted arcade cartoon artwork inspired by Cannon Fodder: oversized helmets, expressive faces, stocky troops, vibrant terracotta roofs, stone streets and lush foliage. Raster brushwork and material shading replace the flat vector appearance. Ground detail is deliberately softer than characters and landmarks, preserving clear combat silhouettes.
 
-Live characters use continuous vector poses. Walking follows distance travelled, so boots and civilian arms move smoothly between the old eight atlas frames and stop when an actor is blocked. Turning interpolates across the shortest angle instead of snapping between eight directions. Soldiers carry their weapons through recoil and muzzle flashes; idle breathing, hit reactions and collapse use small continuous movements. Squad members have distinct portraits, pale helmet bands and blue patches; tan enemy caps also differ in shape and detail, so identification does not depend only on green versus red.
+`painted-art.js` loads four optimised WebP atlases before scenery baking and the Start button becomes available. They contain 24 character views, four trees, seven landmarks and four painted materials, totalling about 775 KiB. Images load once; terrain is still baked into the existing visible-tile cache. The existing procedural renderer is a fallback if an atlas fails or takes longer than eight seconds to load.
 
-Explosions have a continuous expanding shockwave, a short warm flash and rising smoke. Dust and impact particles use rounded shapes and fade out gently. Civilians remain unarmed.
+Troop and civilian legs move independently underneath the painted jacket, with torso sway, breathing, firing recoil and a short collapse. Animation follows distance travelled and stops when movement is blocked. Eight painted facings retain the existing direction threshold. Face portraits use the painted atlas; helmets and enemy caps differ in shape and detail as well as colour.
+
+![Painted character walking animation](docs/painted-walk.gif)
+
+The built-in image-generation tool created the source artwork. The final prompt set, packing details and asset paths are recorded in [Painted art direction](docs/painted-art-direction.md). Runtime atlases live in `assets/painted/`; no external image service is needed to play.
 
 The play canvas follows screen dimensions and density, capped at a 1600-pixel longest edge on desktop and 1200 pixels on touch devices. Native-resolution scenery tiles keep surfaces clear while high-quality filtering handles zoom. Small overlapping tile gutters prevent seams. Roads, POI positions, building footprints and vegetation anchors stay unchanged.
 
