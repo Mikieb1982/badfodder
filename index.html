@@ -445,6 +445,7 @@
         <div class="menu-panel menu-card" data-view="options" hidden>
           <h2>OPTIONS</h2>
           <button id="menuMusic" class="menu-button" type="button" aria-pressed="true">MUSIC: ON</button>
+          <button id="menuSfx" class="menu-button" type="button" aria-pressed="true">SFX: ON</button>
           <label class="menu-setting" for="menuZoom"><span>CAMERA ZOOM</span><select id="menuZoom"><option value="0.85">Wide</option><option value="1" selected>Normal</option><option value="1.25">Close</option></select></label>
           <label class="menu-setting" for="menuDust"><span>FOOTSTEP DUST</span><input id="menuDust" type="checkbox" checked></label>
           <button id="menuFull" class="menu-button" type="button">FULL SCREEN</button>
@@ -502,6 +503,7 @@
 <script src="scenery-cache.js"></script>
 <script src="menu-ui.js"></script>
 <script src="music.js"></script>
+<script src="sfx.js"></script>
 <script>
 (() => {
   'use strict';
@@ -984,6 +986,7 @@
   }
 
   function resumeMission(){
+    window.BadFodderSfx?.unlock();
     if(!started||finished)return;
     paused=false;menuOpen=false;
     pauseBtn.textContent='Pause (Enter)';
@@ -991,6 +994,7 @@
   }
 
   function beginMission(){
+    window.BadFodderSfx?.unlock();
     if(!started)return;
     resetGame();menuOpen=false;paused=false;
     menu.close();syncTouchControlState();root.focus({preventScroll:true});
@@ -1209,11 +1213,15 @@
       target.path=null;
       target.target=null;
       if('tacticalPoint' in target)target.tacticalPoint=null;
+
+      const team=squad.includes(target)?'squad':enemies.includes(target)?'enemy':'civilian';
+      window.BadFodderSfx?.death(team);
     }
   }
 
   function fireBullet(owner,sx,sy,tx,ty){
     const a=Math.atan2(ty-sy,tx-sx);
+    window.BadFodderSfx?.shoot(owner);
     bullets.push({owner,x:sx,y:sy,vx:Math.cos(a)*760,vy:Math.sin(a)*760,life:1.7});
     noise.push({x:sx,y:sy,r:S(190),life:.4});
     effects.push({type:'muzzle',x:sx,y:sy,life:.08});
@@ -1245,6 +1253,7 @@
     if(Math.hypot(x-s.x,y-s.y)>S(190)){setStatus('Grenade target is out of range.');return}
 
     squadGrenades--;
+    window.BadFodderSfx?.grenadeThrow();
     thrown.push({
       x:s.x,y:s.y,startX:s.x,startY:s.y,tx:x,ty:y,
       t:0,flight:.55,fuse:.42,z:0,landed:false
@@ -1254,6 +1263,7 @@
 
 
   function explode(x,y){
+    window.BadFodderSfx?.explosion();
     effects.push({type:'blast',x,y,life:.55});
     noise.push({x,y,r:S(320),life:.7});
 
