@@ -36,7 +36,7 @@ h1{font:800 28px/1 system-ui,sans-serif;letter-spacing:.13em;text-transform:uppe
 .hud-unit{flex:1;min-width:0;width:auto;min-height:50px;padding:5px;display:flex;gap:6px;align-items:center;border-radius:3px;background:#25382b;border:1px solid #40573e;box-shadow:none;outline:none;font-family:system-ui,sans-serif;transition:background .12s,border-color .12s}
 .hud-unit.selected{background:#344832;border:1px solid #e4cb83;outline:none;box-shadow:inset 0 -2px #e4cb83}
 .hud-unit.down{opacity:.65;background:#1f2923}
-.hud-portrait{flex:0 0 32px;width:32px!important;height:32px!important;aspect-ratio:1!important;min-height:0!important;max-height:none!important;object-fit:fill!important;background:#1b2a20;image-rendering:pixelated!important;border-radius:2px}
+.hud-portrait{flex:0 0 32px;width:32px!important;height:32px!important;aspect-ratio:1!important;min-height:0!important;max-height:none!important;object-fit:fill!important;background:#1b2a20;image-rendering:auto!important;border-radius:2px}
 .hud-unit-info{flex:1;min-width:0}
 .hud-name{font:700 10px/1.2 system-ui,sans-serif;color:#f2edda}
 .hud-name em{font:700 9px "Courier New",monospace;color:#e4cb83;margin-right:4px;font-style:normal}
@@ -83,3 +83,13 @@ h1{font:800 28px/1 system-ui,sans-serif;letter-spacing:.13em;text-transform:uppe
   .touch-joystick{width:100px;height:100px}#touchFire{width:66px;height:66px}#touchGrenade{width:54px;height:54px}
 }
 @media(prefers-reduced-motion:reduce){.touch-gameplay,.touch-joystick,.hud-unit{transition:none}.touch-action.active{transform:none}}
+
+/* Illustrated field equipment: quiet surfaces, warm edges and legible type. */
+.hud-mission,.hud-counters,.hud-roster{background:#253831f2;border-color:#a4ac8c;box-shadow:0 3px 12px #16241b35,inset 0 1px #edf0d21c;border-radius:8px}
+.hud-kicker{color:#c6d1b9}.hud-state{color:#ccd6bd}
+.hud-tools button,.hud-unit,#hudAll{border-radius:6px}
+.hud-tools button{background:linear-gradient(#35483c,#263930);border-color:#93a184;box-shadow:inset 0 1px #eef2d51a,0 2px 4px #15231b35}
+.hud-unit{background:#304638;border-color:#667b60}.hud-unit.selected{background:#425944;border-color:#f0dca3;box-shadow:inset 0 -2px #f0dca3}
+.hud-portrait{background:#d8d9b4;border-radius:5px;border:1px solid #8e9c7c}
+.hud-counter b{font-family:system-ui,sans-serif;letter-spacing:0}
+.hud-tools button:focus-visible,.hud-unit:focus-visible,#hudAll:focus-visible{outline-color:#fff0bf}

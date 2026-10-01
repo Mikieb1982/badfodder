@@ -495,7 +495,7 @@
     <div><strong>Pause:</strong> Enter or the pause button in the HUD.</div>
     <div><strong>Squad:</strong> select a squad portrait or ALL in the HUD. Keyboard: 1–4 or A.</div>
   </div>
-  <div class="note">This uses the established Bad Belzig map geometry: 179 mapped roads, 906 building footprints and pixel landmarks. Map data © OpenStreetMap contributors, ODbL 1.0.</div>
+  <div class="note">This uses the established Bad Belzig map geometry: 179 mapped roads, 906 building footprints and illustrated landmarks. Map data © OpenStreetMap contributors, ODbL 1.0.</div>
 </main>
 
 <script src="town-map.js"></script>
@@ -515,7 +515,7 @@
   frame.width=1040;frame.height=650;
   let ctx=frame.getContext('2d');
   let renderingStatic=false,scenery=null,sceneryTiles=null,sceneryBounds=null;
-  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='low';
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
   display.imageSmoothingEnabled=true;
   const art=BadFodderArt;
   const statusEl=document.getElementById('status');
@@ -563,8 +563,8 @@
   const WORLD_H=TOWN_MAP.height*SCALE;
   const S=n=>n*SCALE;
 
-  const WALLS=['#c3b383','#b8a577','#c8b98e','#a8ad86','#b5bda0','#d1c397'];
-  const ROOFS=['#985535','#a7663d','#885332','#b57547','#77715a'];
+  const WALLS=['#e3d4b0','#d5c5a8','#e7dcbf','#c7d0b2','#cfd6c3','#e6d3af'];
+  const ROOFS=['#af765d','#be8a69','#987261','#c59475','#89918a'];
   const DOORS=['#486a67','#725849','#596950','#5c697b'];
 
 
@@ -1042,8 +1042,8 @@
       chip.setAttribute('aria-pressed',String(s.selected));chip.disabled=!s.alive;
       const hp=Array.from({length:s.maxHp},(_,h)=>'<i class="'+(h<s.hp?(s.hp<=2?'on low':'on'):'')+'"></i>').join('');
       chip.innerHTML='<span class="hud-unit-info"><span class="hud-name"><em>'+(i+1)+'</em>'+s.name+'</span><span class="hud-health">'+hp+'</span><span class="hud-state">'+(s.alive?'HP '+s.hp+'/'+s.maxHp:'DOWN')+'</span></span>';
-      const portrait=document.createElement('canvas');portrait.width=32;portrait.height=32;portrait.className='hud-portrait';
-      const pg=portrait.getContext('2d');pg.imageSmoothingEnabled=false;pg.drawImage(art.soldier('squad',2,0,s.alive?'idle':'dead'),0,0);
+      const portrait=document.createElement('canvas');portrait.width=96;portrait.height=96;portrait.className='hud-portrait';
+      const pg=portrait.getContext('2d');pg.imageSmoothingEnabled=true;pg.drawImage(art.soldier('squad',2,s.alive?0:2,s.alive?'idle':'dead',i),0,0);
       chip.insertBefore(portrait,chip.firstChild);
 
     });
@@ -1055,7 +1055,7 @@
     const names=['Müller','Becker','Klein','Jansen'];
     const startX=S(786),startY=S(1450);
     squad=names.map((name,i)=>({
-      name,x:startX+(i%2)*34,y:startY+Math.floor(i/2)*34,
+      name,variant:i,x:startX+(i%2)*34,y:startY+Math.floor(i/2)*34,
       hp:5,maxHp:5,ammo:15,reserve:45,alive:true,selected:true,target:null,cooldown:0,reload:0,flash:0,
       dir:-Math.PI/2,anim:i*.7,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0,path:null,pathIndex:0,
       fireHeat:0,hitTimer:0,formSlot:0,followRepath:0,isFormationLeader:false
@@ -1931,74 +1931,74 @@
     ctx.lineCap='round';ctx.lineJoin='round';
     ctx.beginPath();ctx.moveTo(r.points[0][0],r.points[0][1]);
     r.points.slice(1).forEach(p=>ctx.lineTo(p[0],p[1]));
-    ctx.strokeStyle=path?'#7d8048':'#73734f';ctx.lineWidth=w+(path?5:11);ctx.stroke();
+    ctx.strokeStyle=path?'#95a17b':'#8d9780';ctx.lineWidth=w+(path?3:7);ctx.stroke();
+    ctx.strokeStyle=path?'#d2c29d':'#e0d8bc';ctx.lineWidth=w+(path?1:4);ctx.stroke();
     ctx.strokeStyle=art.texture(ctx,path?'path':'road');ctx.lineWidth=w;ctx.stroke();
 
   }
 
   function drawBuilding(b){
-    const margin=S(40);
-    const vw=VIEW_W/zoom,vh=VIEW_H/zoom;
+    const margin=S(40),vw=VIEW_W/zoom,vh=VIEW_H/zoom;
     const bounds=sceneryBounds||{x:camera.x,y:camera.y,w:vw,h:vh};
     if(b.maxX<bounds.x-margin||b.minX>bounds.x+bounds.w+margin||b.maxY<bounds.y-margin||b.minY>bounds.y+bounds.h+margin)return;
-
     const h=b.height;
-    ctx.save();
-
-    ctx.save();ctx.translate(S(2.2),S(3));
-    polygon(b.points,'#52653b');
-    ctx.restore();
-
+    ctx.save();ctx.lineJoin='round';ctx.lineCap='round';
+    ctx.save();ctx.translate(S(2.5),S(3.5));polygon(b.points,'#354c3926');ctx.restore();
+    ctx.save();ctx.translate(S(1.1),S(1.6));polygon(b.points,'#354c391a');ctx.restore();
     for(let i=0;i<b.points.length;i++){
       const a=b.points[i],d=b.points[(i+1)%b.points.length];
       const side=[[a[0],a[1]],[d[0],d[1]],[d[0],d[1]-h],[a[0],a[1]-h]];
-      polygon(side,i%2?tint(b.wall,-10):b.wall,'#51482f',2);
+      const wall=ctx.createLinearGradient(0,a[1]-h,0,a[1]);
+      wall.addColorStop(0,tint(b.wall,i%2?-9:5));wall.addColorStop(1,tint(b.wall,i%2?-18:-6));
+      polygon(side,wall,'#787662',.9);
       const len=Math.hypot(d[0]-a[0],d[1]-a[1]);
-      if(!LOW_POWER&&(renderingStatic||zoom>.95)&&len>S(8)){
+      if((renderingStatic||zoom>.95)&&len>S(8)){
         const n=Math.min(4,Math.floor(len/S(8)));
         for(let k=1;k<=n;k++){
           const t=k/(n+1),x=a[0]+(d[0]-a[0])*t,y=a[1]+(d[1]-a[1])*t-h*.48;
-          ctx.fillStyle='#384b4c';ctx.fillRect(x-S(1.1),y-S(1.5),S(2.2),S(3));
-          ctx.fillStyle='#a7b6a2';ctx.fillRect(x-S(.75),y-S(1.1),S(1.5),S(.7));
+          ctx.fillStyle='#efe3c5';ctx.beginPath();ctx.roundRect(x-S(1.35),y-S(1.9),S(2.7),S(3.8),S(.3));ctx.fill();
+          ctx.fillStyle='#4d6c70';ctx.fillRect(x-S(.95),y-S(1.45),S(1.9),S(2.9));
+          ctx.fillStyle='#a3c1bf';ctx.fillRect(x-S(.6),y-S(1.1),S(1.2),S(.8));
+          ctx.strokeStyle='#c5c4a8';ctx.lineWidth=.6;ctx.beginPath();ctx.moveTo(x,y-S(1.4));ctx.lineTo(x,y+S(1.45));ctx.stroke();
         }
       }
     }
-
     let front=null;
     for(let i=0;i<b.points.length;i++){
       const a=b.points[i],d=b.points[(i+1)%b.points.length],len=Math.hypot(d[0]-a[0],d[1]-a[1]);
       if(len>S(12)&&Math.abs(d[0]-a[0])>len*.65&&(!front||(a[1]+d[1])>front.y))front={a,d,y:a[1]+d[1]};
     }
     if(front){
-      const x=Math.round((front.a[0]+front.d[0])/4)*2,y=Math.round((front.a[1]+front.d[1])/4)*2;
-      ctx.fillStyle='#51452f';ctx.fillRect(x-3,y-h*.65,6,h*.65);
-      ctx.fillStyle='#ab9c70';ctx.fillRect(x+1,y-h*.3,2,2);
+      const x=(front.a[0]+front.d[0])/2,y=(front.a[1]+front.d[1])/2;
+      ctx.fillStyle='#f0e2c1';ctx.beginPath();ctx.roundRect(x-4,y-h*.68-1,8,h*.68+1,[2,2,0,0]);ctx.fill();
+      ctx.fillStyle=b.door;ctx.beginPath();ctx.roundRect(x-2.7,y-h*.63,5.4,h*.63,[1.5,1.5,0,0]);ctx.fill();
+      ctx.fillStyle='#e2ca87';ctx.beginPath();ctx.arc(x+1.1,y-h*.25,.7,0,Math.PI*2);ctx.fill();
     }
-
     const roof=b.points.map(p=>[p[0],p[1]-h]);
-    polygon(roof,b.roof,tint(b.roof,-32),1.35);
+    polygon(roof,b.roof,tint(b.roof,-27),1.15);
     ctx.save();polygon(roof,null);ctx.clip();
-    // Keep ridge treatment clipped to the real footprint; irregular OSM buildings no longer get oversized roof planes.
     let edge=0,length=0;
     b.points.forEach((p,i)=>{const q=b.points[(i+1)%b.points.length],l=Math.hypot(q[0]-p[0],q[1]-p[1]);if(l>length){edge=i;length=l;}});
     const a=b.points[edge],d=b.points[(edge+1)%b.points.length];
     const cx=(b.minX+b.maxX)/2,cy=(b.minY+b.maxY)/2-h;
     const angle=Math.atan2(d[1]-a[1],d[0]-a[0]);
-    const reach=Math.max(b.maxX-b.minX,b.maxY-b.minY)*.72;
+    const reach=Math.max(b.maxX-b.minX,b.maxY-b.minY)*1.2;
     const ux=Math.cos(angle)*reach,uy=Math.sin(angle)*reach;
+    const light=ctx.createLinearGradient(cx-uy*.3,cy+ux*.3,cx+uy*.4,cy-ux*.4);
+    light.addColorStop(0,tint(b.roof,14));light.addColorStop(.48,b.roof);light.addColorStop(1,tint(b.roof,-12));
+    ctx.fillStyle=light;ctx.fillRect(b.minX-2,b.minY-h-2,b.maxX-b.minX+4,b.maxY-b.minY+4);
+    polygon([[cx-ux,cy-uy],[cx+ux,cy+uy],[cx+ux-uy*2,cy+uy+ux*2],[cx-ux-uy*2,cy-uy+ux*2]],'#473f3814');
     if(!LOW_POWER){
-      ctx.save();ctx.translate(cx,cy);ctx.rotate(angle);
-      for(let y=-reach;y<reach;y+=6)for(let x=-reach+(Math.round(y/6)%2?4:0);x<reach;x+=10){
-        ctx.fillStyle=tint(b.roof,16);ctx.fillRect(Math.round(x),Math.round(y),6,2);
-        ctx.fillStyle=tint(b.roof,-10);ctx.fillRect(Math.round(x)+6,Math.round(y),2,4);
-      }
+      ctx.save();ctx.translate(cx,cy);ctx.rotate(angle);ctx.globalAlpha=.22;
+      ctx.strokeStyle=tint(b.roof,-22);ctx.lineWidth=.75;
+      for(let y=-reach;y<reach;y+=8){ctx.beginPath();ctx.moveTo(-reach,y);ctx.lineTo(reach,y);ctx.stroke();}
       ctx.restore();
     }
-    ctx.strokeStyle=tint(b.roof,-18);ctx.lineWidth=5;
-    ctx.beginPath();ctx.moveTo(cx-ux,cy-uy+3);ctx.lineTo(cx+ux,cy+uy+3);ctx.stroke();
-    ctx.strokeStyle=tint(b.roof,30);ctx.lineWidth=2;
-    ctx.beginPath();ctx.moveTo(cx-ux,cy-uy);ctx.lineTo(cx+ux,cy+uy);ctx.stroke();ctx.restore();
-    ctx.restore();
+    ctx.strokeStyle=tint(b.roof,-20);ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(cx-ux,cy-uy+1.5);ctx.lineTo(cx+ux,cy+uy+1.5);ctx.stroke();
+    ctx.strokeStyle=tint(b.roof,34);ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(cx-ux,cy-uy);ctx.lineTo(cx+ux,cy+uy);ctx.stroke();
+    ctx.restore();ctx.restore();
   }
 
   function landmarkImage(key,x,y,w,h){
@@ -2035,7 +2035,7 @@
 
   function drawTerrain(){
     ctx.fillStyle=art.texture(ctx,'grass');ctx.fillRect(0,0,WORLD_W,WORLD_H);
-    areas.forEach(a=>polygon(a.points,art.texture(ctx,a.type),'#61763b',2));
+    areas.forEach(a=>polygon(a.points,art.texture(ctx,a.type),'#80986d',1));
   }
 
   function drawVegetation(){
@@ -2051,7 +2051,7 @@
     const live=ctx;ctx=target.getContext('2d',{alpha:false});
     if(!ctx)throw new Error('Unable to create scenery canvas');
     try{
-      ctx.imageSmoothingEnabled=false;ctx.setTransform(scale,0,0,scale,-x*scale,-y*scale);
+      ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.setTransform(scale,0,0,scale,-x*scale,-y*scale);
       renderingStatic=true;sceneryBounds={x,y,w:target.width/scale,h:target.height/scale};
       drawTerrain();roads.forEach(drawRoad);
       if(!light)drawVegetation();
@@ -2078,7 +2078,7 @@
     if(canvas.width===width&&canvas.height===height&&frame.width===width&&frame.height===height)return;
     VIEW_W=width;VIEW_H=height;canvas.width=frame.width=VIEW_W;canvas.height=frame.height=VIEW_H;
     clampCamera();
-    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='low';display.imageSmoothingEnabled=false;
+    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';display.imageSmoothingEnabled=false;
   }
 
   function drawObjectiveZones(){
@@ -2128,17 +2128,13 @@
   function drawSoldier(ent,team='squad'){
     const visual=art.pose(ent);
     ctx.save();
-    if(showDust)(visual.dust||[]).forEach(p=>{ctx.globalAlpha=p.life/.22*.22;ctx.fillStyle='#b7a874';ctx.fillRect(p.x-2,p.y-1,4,2);});
-    ctx.restore();ctx.imageSmoothingEnabled=false;
-    const flinch=ent.hitTimer>0?Math.sin(Math.min(1,ent.hitTimer/.16)*Math.PI)*1.5:0;
-    ctx.save();
-    ctx.globalAlpha=1;
-    ctx.drawImage(
-      art.soldier(team,visual.dir,visual.frame,visual.state,ent.variant||0),
-      ent.x+flinch-16,
-      ent.y-26,32,32
-    );
-    ctx.restore();ctx.imageSmoothingEnabled=true;
+    if(showDust)(visual.dust||[]).forEach(p=>{
+      const age=1-p.life/.22;
+      ctx.globalAlpha=(1-age)*.2;ctx.fillStyle='#ddcfaa';
+      ctx.beginPath();ctx.ellipse(p.x,p.y,2+age*3,1+age,0,0,Math.PI*2);ctx.fill();
+    });
+    ctx.restore();
+    art.drawActor(ctx,ent,team);
   }
 
   function drawBulletTracer(b){
@@ -2202,30 +2198,24 @@
     effects.forEach(f=>{
       if(f.type==='wall'){
         const age=1-Math.min(1,f.life/.22);
+        ctx.save();ctx.globalAlpha=1-age;
         for(let i=0;i<5;i++){
-          const a=i*1.45;
-          const d=4+age*13;
-          ctx.fillStyle=i%2?'#b8a77b':'#6f684f';
-          ctx.fillRect(
-            Math.round((f.x+Math.cos(a)*d)/2)*2,
-            Math.round((f.y+Math.sin(a)*d)/2)*2,
-            4,4
-          );
+          const a=i*1.45,d=4+age*13;
+          ctx.fillStyle=i%2?'#d3c6a6':'#8d8b76';
+          ctx.beginPath();ctx.ellipse(f.x+Math.cos(a)*d,f.y+Math.sin(a)*d,2-age,.9, a,0,Math.PI*2);ctx.fill();
         }
-        return;
+        ctx.restore();return;
       }
       if(f.type==='blast'){art.blast(ctx,f.x,f.y,1-Math.min(1,f.life/.55));return;}
-      const life=.15;
-      const age=1-Math.min(1,f.life/life);
-      const radius=6;
-      const count=5;
-      for(let i=0;i<count;i++){
-        const angle=i*2.399,spread=radius*(.4+unit(i,3)*.6);
-        const x=Math.round((f.x+Math.cos(angle)*spread)/2)*2,y=Math.round((f.y+Math.sin(angle)*spread)/2)*2;
-        const size=4;
-        ctx.fillStyle=age>.5?['#64664d','#89866b','#b0a57a'][i%3]:['#fff1a4','#e2b14e','#b97335'][i%3];
-        ctx.fillRect(x,y,size,size);
+      const age=1-Math.min(1,f.life/.15);
+      ctx.save();ctx.globalAlpha=1-age;
+      for(let i=0;i<5;i++){
+        const angle=i*2.399,spread=3+age*8;
+        const x=f.x+Math.cos(angle)*spread,y=f.y+Math.sin(angle)*spread;
+        ctx.fillStyle=age>.5?['#8c927a','#b1ad91','#d3c6a6'][i%3]:['#fff4c5','#e7ba73','#cd9560'][i%3];
+        ctx.beginPath();ctx.ellipse(x,y,2.5-age,1.8-age*.8,angle,0,Math.PI*2);ctx.fill();
       }
+      ctx.restore();
     });
 
     ctx.restore();
@@ -2448,7 +2438,7 @@
     try{
       loadingEl.classList.remove('hidden');
       const loadingText=loadingEl.querySelector('span');
-      if(loadingText)loadingText.textContent=LOW_POWER?'Preparing mobile terrain…':'Preparing terrain and pixel sprites…';
+      if(loadingText)loadingText.textContent=LOW_POWER?'Preparing mobile terrain…':'Preparing illustrated town and characters…';
 
       await preload();
       resetGame();
