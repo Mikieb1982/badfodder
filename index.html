@@ -139,6 +139,11 @@
   let bullets=[],thrown=[],effects=[],noise=[],squad=[],enemies=[],civilians=[],pickups=[];
   let started=false;
   let cursorWorld=null,rightHeld=false,bothLatched=false;
+  let lastHudStats='',lastRosterSignature='';
+
+  function setStatus(text){
+    if(statusEl.textContent!==text)statusEl.textContent=text;
+  }
 
   function hash(n){n=Math.imul(n^(n>>>16),2246822519);n=Math.imul(n^(n>>>13),3266489917);return(n^(n>>>16))>>>0}
   function unit(seed,salt){return hash((seed+Math.imul(salt,1013904223))>>>0)/4294967296}
@@ -157,6 +162,10 @@
     points:a.points.map(p=>[S(p[0]),S(p[1])])
   }));
 
+  const LANDMARK_BUILDING_NAMES=new Set([
+    'butterturm','burgwirtschaft','burgbrauhaus','st. marien','reißigerhaus','rathaus','st. briccius'
+  ]);
+
   const buildings=TOWN_MAP.buildings.map((b,i)=>{
     const pts=b.points.map(p=>[S(p[0]),S(p[1])]);
     const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
@@ -167,7 +176,8 @@
       height:S(5+Math.floor(unit(seed,1)*5)),
       wall:WALLS[Math.floor(unit(seed,2)*WALLS.length)],
       roof:ROOFS[Math.floor(unit(seed,3)*ROOFS.length)],
-      door:DOORS[Math.floor(unit(seed,4)*DOORS.length)]
+      door:DOORS[Math.floor(unit(seed,4)*DOORS.length)],
+      landmarkFootprint:LANDMARK_BUILDING_NAMES.has((b.name||'').trim().toLowerCase())
     };
   });
 
@@ -246,6 +256,192 @@
     return false;
   }
 
+  const PATH_CELL=36;
+  const PATH_COLS=Math.ceil(WORLD_W/PATH_CELL);
+  const PATH_ROWS=Math.ceil(WORLD_H/PATH_CELL);
+  const pathBlockedCache=new Map();
+
+  function pathCellKey(gx,gy){return gx+'|'+gy}
+
+  function pathCellCenter(gx,gy){
+    return{
+      x:Math.min(WORLD_W-14,gx*PATH_CELL+PATH_CELL/2),
+      y:Math.min(WORLD_H-14,gy*PATH_CELL+PATH_CELL/2)
+    };
+  }
+
+  function pathCellBlocked(gx,gy){
+    if(gx<0||gy<0||gx>=PATH_COLS||gy>=PATH_ROWS)return true;
+    const key=pathCellKey(gx,gy);
+    if(pathBlockedCache.has(key))return pathBlockedCache.get(key);
+    const p=pathCellCenter(gx,gy);
+    const blocked=obstacleAt(p.x,p.y,14);
+    pathBlockedCache.set(key,blocked);
+    return blocked;
+  }
+
+  function nearestOpenCell(gx,gy){
+    if(!pathCellBlocked(gx,gy))return[gx,gy];
+    for(let radius=1;radius<=7;radius++){
+      for(let dx=-radius;dx<=radius;dx++){
+        for(const dy of[-radius,radius]){
+          const x=gx+dx,y=gy+dy;
+          if(!pathCellBlocked(x,y))return[x,y];
+        }
+      }
+      for(let dy=-radius+1;dy<=radius-1;dy++){
+        for(const dx of[-radius,radius]){
+          const x=gx+dx,y=gy+dy;
+          if(!pathCellBlocked(x,y))return[x,y];
+        }
+      }
+    }
+    return null;
+  }
+
+  class MinHeap{
+    constructor(){this.a=[]}
+    push(node){
+      const a=this.a;a.push(node);
+      let i=a.length-1;
+      while(i>0){
+        const p=(i-1)>>1;
+        if(a[p].f<=node.f)break;
+        a[i]=a[p];i=p;
+      }
+      a[i]=node;
+    }
+    pop(){
+      const a=this.a;
+      if(!a.length)return null;
+      const root=a[0],last=a.pop();
+      if(a.length){
+        let i=0;
+        while(true){
+          let l=i*2+1,r=l+1,small=i;
+          if(l<a.length&&a[l].f<a[small].f)small=l;
+          if(r<a.length&&a[r].f<a[small].f)small=r;
+          if(small===i)break;
+          a[i]=a[small];i=small;
+        }
+        a[i]=last;
+        // Restore upward if the moved node belongs above its provisional slot.
+        while(i>0){
+          const p=(i-1)>>1;
+          if(a[p].f<=a[i].f)break;
+          [a[p],a[i]]=[a[i],a[p]];i=p;
+        }
+      }
+      return root;
+    }
+    get length(){return this.a.length}
+  }
+
+  function routeClear(x1,y1,x2,y2,r=12){
+    const d=Math.hypot(x2-x1,y2-y1);
+    const steps=Math.max(1,Math.ceil(d/14));
+    for(let i=1;i<=steps;i++){
+      const t=i/steps;
+      if(obstacleAt(x1+(x2-x1)*t,y1+(y2-y1)*t,r))return false;
+    }
+    return true;
+  }
+
+  function findPath(sx,sy,tx,ty){
+    if(routeClear(sx,sy,tx,ty,12))return[{x:tx,y:ty}];
+
+    const startRaw=[Math.floor(sx/PATH_CELL),Math.floor(sy/PATH_CELL)];
+    const goalRaw=[Math.floor(tx/PATH_CELL),Math.floor(ty/PATH_CELL)];
+    const start=nearestOpenCell(startRaw[0],startRaw[1]);
+    const goal=nearestOpenCell(goalRaw[0],goalRaw[1]);
+    if(!start||!goal)return[];
+
+    const startKey=pathCellKey(start[0],start[1]);
+    const goalKey=pathCellKey(goal[0],goal[1]);
+    const open=new MinHeap();
+    const gScore=new Map([[startKey,0]]);
+    const came=new Map();
+    const closed=new Set();
+    const heuristic=(x,y)=>Math.hypot(goal[0]-x,goal[1]-y);
+
+    open.push({x:start[0],y:start[1],f:heuristic(start[0],start[1])});
+    const dirs=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+
+    while(open.length){
+      const cur=open.pop();
+      const ck=pathCellKey(cur.x,cur.y);
+      if(closed.has(ck))continue;
+      if(ck===goalKey){
+        const raw=[];
+        let key=ck;
+        while(key!==startKey){
+          const [gx,gy]=key.split('|').map(Number);
+          raw.push(pathCellCenter(gx,gy));
+          key=came.get(key);
+          if(!key)break;
+        }
+        raw.reverse();
+        if(routeClear(raw.length?raw[raw.length-1].x:sx,raw.length?raw[raw.length-1].y:sy,tx,ty,12))raw.push({x:tx,y:ty});
+
+        const smooth=[];
+        let ax=sx,ay=sy,index=0;
+        while(index<raw.length){
+          let far=index;
+          for(let j=raw.length-1;j>=index;j--){
+            if(routeClear(ax,ay,raw[j].x,raw[j].y,12)){far=j;break}
+          }
+          smooth.push(raw[far]);
+          ax=raw[far].x;ay=raw[far].y;index=far+1;
+        }
+        return smooth;
+      }
+
+      closed.add(ck);
+      const currentG=gScore.get(ck)??Infinity;
+
+      for(const [dx,dy] of dirs){
+        const nx=cur.x+dx,ny=cur.y+dy;
+        if(pathCellBlocked(nx,ny))continue;
+        if(dx&&dy&&(pathCellBlocked(cur.x+dx,cur.y)||pathCellBlocked(cur.x,cur.y+dy)))continue;
+        const nk=pathCellKey(nx,ny);
+        if(closed.has(nk))continue;
+        const tentative=currentG+(dx&&dy?1.4142:1);
+        if(tentative<(gScore.get(nk)??Infinity)){
+          came.set(nk,ck);
+          gScore.set(nk,tentative);
+          open.push({x:nx,y:ny,f:tentative+heuristic(nx,ny)});
+        }
+      }
+    }
+    return[];
+  }
+
+  function assignPath(ent,tx,ty){
+    const path=findPath(ent.x,ent.y,tx,ty);
+    ent.path=path;
+    ent.pathIndex=0;
+    ent.target=path.length?{x:tx,y:ty}:null;
+    return path.length>0;
+  }
+
+  function followPath(ent,speed,dt){
+    if(!ent.path||ent.pathIndex>=ent.path.length){
+      ent.path=null;ent.target=null;return false;
+    }
+    const p=ent.path[ent.pathIndex];
+    const dx=p.x-ent.x,dy=p.y-ent.y,d=Math.hypot(dx,dy);
+    if(d<10){
+      ent.pathIndex++;
+      if(ent.pathIndex>=ent.path.length){
+        ent.path=null;ent.target=null;return false;
+      }
+      return true;
+    }
+    updateFacing(ent,dx,dy);
+    moveEntity(ent,dx/d*speed*dt,dy/d*speed*dt,12);
+    return true;
+  }
+
   function pointInCircle(x,y,z){return Math.hypot(x-z.x,y-z.y)<=z.r}
   function selectedUnits(){return squad.filter((s,i)=>s.alive&&(selection==='all'||selection===i))}
 
@@ -263,7 +459,13 @@
     updateRoster();
   }
 
-  function updateRoster(){
+  function updateRoster(force=false){
+    const signature=squad.map((s,i)=>[
+      i,s.alive?1:0,s.hp,s.maxHp,s.selected?1:0
+    ].join(':')).join('|');
+    if(!force&&signature===lastRosterSignature)return;
+    lastRosterSignature=signature;
+
     rosterEl.innerHTML='';
     squad.forEach((s,i)=>{
       const d=document.createElement('div');
@@ -273,13 +475,14 @@
     });
   }
 
+
   function resetGame(){
     const names=['Müller','Becker','Klein','Jansen'];
     const startX=S(786),startY=S(1450);
     squad=names.map((name,i)=>({
       name,x:startX+(i%2)*34,y:startY+Math.floor(i/2)*34,
       hp:5,maxHp:5,ammo:15,reserve:45,alive:true,selected:true,target:null,cooldown:0,reload:0,flash:0,
-      dir:-Math.PI/2,anim:i*.7,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0
+      dir:-Math.PI/2,anim:i*.7,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0,path:null,pathIndex:0
     }));
 
     const hostileSpots=[
@@ -292,7 +495,7 @@
       x:S(p[0]),y:S(p[1]),homeX:S(p[0]),homeY:S(p[1]),
       hp:3,maxHp:3,alive:true,phase:i*.67,cooldown:.25+i*.04,
       alert:false,lastSeen:null,aiState:'patrol',flash:0,
-      dir:Math.PI/2,anim:i*.51,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0
+      dir:Math.PI/2,anim:i*.51,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0,path:null,pathIndex:0,repath:0
     })).filter(e=>!obstacleAt(e.x,e.y,12));
 
     const civilianSpots=[[610,760],[720,830],[870,740],[670,430],[780,550],[560,620],[950,900],[470,860],[830,250],[520,380],[600,1080],[740,1140]];
@@ -312,36 +515,54 @@
     bullets=[];thrown=[];effects=[];noise=[];squadGrenades=5;missionStage=0;
     finished=false;win=false;paused=false;mapOpen=false;selection='all';zoom=1;
     rightHeld=false;bothLatched=false;cursorWorld=null;
+    lastHudStats='';lastRosterSignature='';
     camera={x:S(620),y:S(1260)};
     pauseBtn.textContent='Pause (Enter)';
     mapBtn.classList.remove('active');mapBtn.textContent='Map (M)';
     setSelection('all');updateHud();
   }
 
-  function updateHud(){
-    squadCountEl.textContent=squad.filter(s=>s.alive).length;
-    enemyCountEl.textContent=enemies.filter(e=>e.alive).length;
-    grenadeCountEl.textContent=squadGrenades;
-    updateRoster();
+  function updateHud(force=false){
+    const living=squad.filter(s=>s.alive);
+    const remaining=enemies.filter(e=>e.alive).length;
+    const stats=[living.length,remaining,squadGrenades].join('|');
+
+    if(force||stats!==lastHudStats){
+      lastHudStats=stats;
+      squadCountEl.textContent=living.length;
+      enemyCountEl.textContent=remaining;
+      grenadeCountEl.textContent=squadGrenades;
+    }
+    updateRoster(force);
     if(finished)return;
 
-    const living=squad.filter(s=>s.alive),remaining=enemies.filter(e=>e.alive).length;
-
     if(missionStage===0){
-      statusEl.textContent='Stage 1: move up Bahnhofstraße and reach the Postdistanzsäule.';
-      if(living.some(s=>pointInCircle(s.x,s.y,zones.post)))missionStage=1;
+      setStatus('Stage 1: move up Bahnhofstraße and reach the Postdistanzsäule.');
+      if(living.some(s=>pointInCircle(s.x,s.y,zones.post))){
+        missionStage=1;
+        setStatus('Stage 2: secure Burg Eisenhardt.');
+      }
     }
+
     if(missionStage===1){
       const castleEnemies=enemies.filter(e=>e.alive&&Math.hypot(e.x-zones.castle.x,e.y-zones.castle.y)<S(185));
-      if(castleEnemies.length===0&&living.some(s=>pointInCircle(s.x,s.y,zones.castle)))missionStage=2;
-      else statusEl.textContent='Stage 2: secure Burg Eisenhardt. '+castleEnemies.length+' hostile'+(castleEnemies.length===1?'':'s')+' in the castle sector.';
+      if(castleEnemies.length===0&&living.some(s=>pointInCircle(s.x,s.y,zones.castle))){
+        missionStage=2;
+        setStatus('Stage 3: push through the Altstadt to Marktplatz and Rathaus.');
+      }else{
+        setStatus('Stage 2: secure Burg Eisenhardt. '+castleEnemies.length+' hostile'+(castleEnemies.length===1?'':'s')+' in the castle sector.');
+      }
     }
+
     if(missionStage===2){
       if(remaining===0&&living.some(s=>pointInCircle(s.x,s.y,zones.market))){
-        finished=true;win=true;statusEl.textContent='Mission complete. Bad Belzig secured.';
-      }else statusEl.textContent='Stage 3: push through the Altstadt to Marktplatz and Rathaus. '+remaining+' hostile'+(remaining===1?'':'s')+' remain.';
+        finished=true;win=true;setStatus('Mission complete. Bad Belzig secured.');
+      }else{
+        setStatus('Stage 3: push through the Altstadt to Marktplatz and Rathaus. '+remaining+' hostile'+(remaining===1?'':'s')+' remain.');
+      }
     }
   }
+
 
   function moveEntity(ent,dx,dy,r=10){
     const nx=Math.max(r,Math.min(WORLD_W-r,ent.x+dx));
@@ -386,10 +607,10 @@
     const units=selectedUnits();
     if(!units.length||squadGrenades<=0)return;
     const s=units[0];
-    if(Math.hypot(x-s.x,y-s.y)>S(190)){statusEl.textContent='Grenade target is out of range.';return}
+    if(Math.hypot(x-s.x,y-s.y)>S(190)){setStatus('Grenade target is out of range.');return}
     squadGrenades--;
     thrown.push({x:s.x,y:s.y,tx:x,ty:y,t:0,duration:.65});
-    updateHud();
+    updateHud(true);
   }
 
   function explode(x,y){
@@ -405,7 +626,7 @@
       const d=Math.hypot(s.x-x,s.y-y);
       if(d<S(38)){s.hp-=d<S(20)?2:1;s.flash=.18;if(s.hp<=0){s.alive=false;s.state='dead';s.deadTimer=0;s.deathAngle=Math.atan2(s.y-y,s.x-x)}}
     });
-    updateHud();
+    updateHud(true);
   }
 
   function updateSquad(dt){
@@ -420,15 +641,7 @@
       s.flash=Math.max(0,s.flash-dt);
       s.fireTimer=Math.max(0,(s.fireTimer||0)-dt);
 
-      let moving=false;
-      if(s.target){
-        const dx=s.target.x-s.x,dy=s.target.y-s.y,d=Math.hypot(dx,dy);
-        if(d<8)s.target=null;
-        else{
-          moving=true;updateFacing(s,dx,dy);
-          moveEntity(s,dx/d*185*dt,dy/d*185*dt,12);
-        }
-      }
+      const moving=followPath(s,185,dt);
 
       if(s.fireTimer>0)s.state='fire';
       else if(moving)s.state='walk';
@@ -440,8 +653,8 @@
       for(const s of squad){
         if(!s.alive)continue;
         if(Math.hypot(s.x-p.x,s.y-p.y)<32){
-          if(p.type==='ammo'){s.reserve=Math.min(75,s.reserve+30);statusEl.textContent=s.name+' collected ammunition.'}
-          else{s.hp=Math.min(s.maxHp,s.hp+2);statusEl.textContent=s.name+' used a medical crate.'}
+          if(p.type==='ammo'){s.reserve=Math.min(75,s.reserve+30);setStatus(s.name+' collected ammunition.')}
+          else{s.hp=Math.min(s.maxHp,s.hp+2);setStatus(s.name+' used a medical crate.')}
           p.active=false;break;
         }
       }
@@ -459,6 +672,7 @@
       e.cooldown=Math.max(0,e.cooldown-dt);
       e.flash=Math.max(0,e.flash-dt);
       e.fireTimer=Math.max(0,(e.fireTimer||0)-dt);
+      e.repath=Math.max(0,(e.repath||0)-dt);
 
       const near=nearestLivingSquad(e);if(!near.unit)return;
       const sees=near.d<S(175)&&!lineBlocked(e.x,e.y,near.unit.x,near.unit.y);
@@ -487,10 +701,13 @@
           moving=true;updateFacing(e,-dx,-dy);
           moveEntity(e,-dx/Math.max(1,d)*55*dt,-dy/Math.max(1,d)*55*dt,12);
         }else if(!sees&&d>14){
-          moving=true;updateFacing(e,dx,dy);
-          moveEntity(e,dx/d*72*dt,dy/d*72*dt,12);
+          if(e.repath<=0||!e.path){
+            assignPath(e,e.lastSeen.x,e.lastSeen.y);
+            e.repath=.75+unit(Math.floor(e.x+e.y),5)*.35;
+          }
+          moving=followPath(e,72,dt);
         }else if(!sees){
-          e.aiState='patrol';e.alert=false;
+          e.aiState='patrol';e.alert=false;e.path=null;e.target=null;
         }
       }else{
         e.phase+=dt*.65;
@@ -549,16 +766,21 @@
   }
 
   function checkFailure(){
-    if(!finished&&!squad.some(s=>s.alive)){finished=true;win=false;statusEl.textContent='Mission failed. The squad has been lost.'}
+    if(!finished&&!squad.some(s=>s.alive)){finished=true;win=false;setStatus('Mission failed. The squad has been lost.')}
   }
 
   function setMoveTargets(p){
-    const units=selectedUnits(),formation=[[-26,-24],[26,-24],[-26,24],[26,24]];
+    const units=selectedUnits(),formation=[[-28,-24],[28,-24],[-28,24],[28,24]];
+    let routed=0;
     units.forEach((s,i)=>{
       const o=units.length>1?(formation[i]||[0,0]):[0,0];
-      if(!obstacleAt(p.x+o[0],p.y+o[1],14))s.target={x:p.x+o[0],y:p.y+o[1]};
+      const tx=Math.max(16,Math.min(WORLD_W-16,p.x+o[0]));
+      const ty=Math.max(16,Math.min(WORLD_H-16,p.y+o[1]));
+      if(assignPath(s,tx,ty))routed++;
     });
+    if(units.length&&routed===0)setStatus('No clear route to that position.');
   }
+
 
   function updateCamera(dt){
     const f=selectedUnits()[0]||squad.find(s=>s.alive);if(!f)return;
@@ -632,15 +854,17 @@
     for(let y=Math.floor((b.minY-h)/6)*6;y<b.maxY-h;y+=6){
       for(let x=Math.floor(b.minX/10)*10+(y%12?4:0);x<b.maxX;x+=10)ctx.fillRect(x,y,6,2);
     }
-    // A lit roof plane and ridge follow the longest mapped footprint edge.
+    // Keep ridge treatment clipped to the real footprint; irregular OSM buildings no longer get oversized roof planes.
     let edge=0,length=0;
     b.points.forEach((p,i)=>{const q=b.points[(i+1)%b.points.length],l=Math.hypot(q[0]-p[0],q[1]-p[1]);if(l>length){edge=i;length=l;}});
     const a=b.points[edge],d=b.points[(edge+1)%b.points.length];
     const cx=(b.minX+b.maxX)/2,cy=(b.minY+b.maxY)/2-h;
     const angle=Math.atan2(d[1]-a[1],d[0]-a[0]);
-    const reach=Math.hypot(b.maxX-b.minX,b.maxY-b.minY),ux=Math.cos(angle)*reach,uy=Math.sin(angle)*reach;
-    polygon([[cx-ux,cy-uy],[cx+ux,cy+uy],[cx+ux-uy,cy+uy+ux],[cx-ux-uy,cy-uy+ux]],tint(b.roof,-17));
-    ctx.strokeStyle=tint(b.roof,28);ctx.lineWidth=2;
+    const reach=Math.max(b.maxX-b.minX,b.maxY-b.minY)*.72;
+    const ux=Math.cos(angle)*reach,uy=Math.sin(angle)*reach;
+    ctx.strokeStyle=tint(b.roof,-18);ctx.lineWidth=5;
+    ctx.beginPath();ctx.moveTo(cx-ux,cy-uy+3);ctx.lineTo(cx+ux,cy+uy+3);ctx.stroke();
+    ctx.strokeStyle=tint(b.roof,30);ctx.lineWidth=2;
     ctx.beginPath();ctx.moveTo(cx-ux,cy-uy);ctx.lineTo(cx+ux,cy+uy);ctx.stroke();ctx.restore();
     ctx.restore();
   }
@@ -691,7 +915,10 @@
     const liveContext=ctx;ctx=scenery.getContext('2d');
     ctx.imageSmoothingEnabled=false;ctx.scale(.5,.5);renderingStatic=true;
     drawTerrain();roads.forEach(drawRoad);
-    [...buildings].sort((a,b)=>a.maxY-b.maxY).forEach(drawBuilding);
+    [...buildings]
+      .filter(b=>!b.landmarkFootprint)
+      .sort((a,b)=>a.maxY-b.maxY)
+      .forEach(drawBuilding);
     drawLandmarks();renderingStatic=false;ctx=liveContext;
   }
 
@@ -843,7 +1070,7 @@
       rightHeld=false;
       if(!bothLatched){
         bothLatched=true;
-        selectedUnits().forEach(s=>s.target=null);
+        selectedUnits().forEach(s=>{s.target=null;s.path=null;s.pathIndex=0});
         throwGrenade(p.x,p.y);
       }
       return;
@@ -881,7 +1108,7 @@
 
   selectAllBtn.addEventListener('click',()=>setSelection('all'));
   unitButtons.forEach((b,i)=>b.addEventListener('click',()=>setSelection(i)));
-  stopBtn.addEventListener('click',()=>selectedUnits().forEach(s=>s.target=null));
+  stopBtn.addEventListener('click',()=>selectedUnits().forEach(s=>{s.target=null;s.path=null;s.pathIndex=0}));
   mapBtn.addEventListener('click',toggleMap);
   zoomOutBtn.addEventListener('click',()=>{zoom=Math.max(.55,zoom-.15)});
   zoomInBtn.addEventListener('click',()=>{zoom=Math.min(1.45,zoom+.15)});
@@ -936,7 +1163,7 @@
     bakeScenery();
     started=true;
     loadingEl.classList.add('hidden');
-    statusEl.textContent='Stage 1: move up Bahnhofstraße and reach the Postdistanzsäule.';
+    setStatus('Stage 1: move up Bahnhofstraße and reach the Postdistanzsäule.');
   });
 
   requestAnimationFrame(tick);
