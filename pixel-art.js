@@ -8,7 +8,7 @@ window.BadFodderArt = (() => {
   function texture(ctx,key){
     if(!tiles.has(key)){
       const c=make(128,128),g=c.getContext('2d');
-      const colors={grass:['#899449','#a3a05b','#6e7a37'],forest:['#59753b','#698543','#4f6834'],wood:['#658042','#768e4a','#587339'],meadow:['#97a05a','#a6ad64','#89954f'],cemetery:['#899266','#9aa275','#7a855c'],water:['#507b92','#739aa6','#41677f'],road:['#aaa17e','#c0b68e','#918b6f'],path:['#b09152','#c5a56a','#92763c']};
+      const colors={grass:['#89944e','#979b59','#7b8644'],forest:['#59753b','#698543','#4f6834'],wood:['#658042','#768e4a','#587339'],meadow:['#97a05a','#a6ad64','#89954f'],cemetery:['#899266','#9aa275','#7a855c'],water:['#507b92','#739aa6','#41677f'],road:['#aaa17e','#c0b68e','#918b6f'],path:['#b09152','#c5a56a','#92763c']};
       const col=colors[key]||colors.grass;g.fillStyle=col[0];g.fillRect(0,0,128,128);
       let seed=1937;const rnd=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
       // Broad, low-contrast patches instead of evenly distributed speckle.
@@ -18,7 +18,7 @@ window.BadFodderArt = (() => {
       }
       for(let i=0;i<260;i++){
         const x=Math.floor(rnd()*64)*2,y=Math.floor(rnd()*64)*2;g.fillStyle=col[i%2+1];
-        g.fillRect(x,y,key==='water'?6:2,2);if(!/water|road/.test(key)&&i%9===0){g.fillStyle='#c3b876';g.fillRect(x,y,2,2);}
+        g.fillRect(x,y,key==='water'?6:2,2);if(!/water|road/.test(key)&&i%9===0){g.fillStyle='#aaa56a';g.fillRect(x,y,2,2);}
         if(!/road|path|water/.test(key)&&i%6===0){g.fillRect(x+2,y-2,2,2);g.fillRect(x+4,y,2,2);}
       }
       if(key==='road'){
@@ -125,7 +125,7 @@ window.BadFodderArt = (() => {
     if(!trees.has(key)){
       const c=make(48,56),g=c.getContext('2d');
       const r=(x,y,w,h,col)=>{g.fillStyle=col;g.fillRect(x,y,w,h);};
-      const dark='#344026',mid=t.dark?'#596d30':'#6d8035',light=t.dark?'#92a447':'#b4b75b';
+      const dark='#475332',mid=t.dark?'#64763d':'#768742',light=t.dark?'#8d9e51':'#a4ac5c';
       r(15,49,27,3,'#596738');r(24,37,3,14,'#50422b');r(24,39,1,10,'#a78d53');r(21,46,4,2,'#50422b');
       // Hand-clustered leaves, with a seeded irregular silhouette and dithered light.
       let seed=variant*129+713;const rnd=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
@@ -136,7 +136,7 @@ window.BadFodderArt = (() => {
           const lit=(-xx-yy)/(rad*2),noise=rnd();
           const col=(xx+yy>rad*.65||noise<.13)?dark:lit+noise*.8>.62?light:mid;
           r(cx+xx,cy+yy,1,1,col);
-          if(noise>.98&&lit>.2)r(cx+xx,cy+yy,1,1,'#d0c779');
+          if(noise>.98&&lit>.2)r(cx+xx,cy+yy,1,1,'#b3b874');
         }
       }
       trees.set(key,c);

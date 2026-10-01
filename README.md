@@ -21,9 +21,11 @@ A browser-based top-down tactical game inspired by classic squad-control games a
 
 ## Graphics
 
-The town uses original code-drawn pixel art in a limited earthy palette inspired by early 1990s tactical games. A 520 × 325 render buffer is enlarged with nearest-neighbour sampling. Terrain, roof tiles, trees and seven landmark silhouettes share the same pixel treatment. Soldiers use compact eight-direction sprites inspired by the proportions in Cannon Fodder 2. Eight walking poses follow actual distance travelled, so blocked and stationary units stop stepping. A small facing threshold reduces directional flicker. Timed muzzle flashes, recoil, a three-stage collapse and six-stage explosion sprites animate independently of gameplay. Civilians remain unarmed.
+The town uses original code-drawn pixel art in a limited earthy palette inspired by early 1990s tactical games. Pixel artwork is sampled into a 1040 × 650 frame with light bilinear filtering and smooth camera positioning. The cached town keeps its original pixel resolution. This reduces shimmering during scrolling, zooming and responsive resizing without adding a full-screen blur. Terrain, roof tiles, trees and seven landmark silhouettes share the same pixel treatment. Soldiers use compact eight-direction sprites inspired by the proportions in Cannon Fodder 2. Eight walking poses follow actual distance travelled, so blocked and stationary units stop stepping. A small facing threshold reduces directional flicker. Timed muzzle flashes, recoil, a three-stage collapse and six-stage explosion sprites animate independently of gameplay. Civilians remain unarmed.
 
 Terrain combines warmer stippled ground, cobbles and densely dithered foliage. Landmark roof tiles match ordinary buildings. Roads, POI positions, building footprints and vegetation anchors stay unchanged. Trees and explosions use cached original pixel artwork.
+
+Terrain and foliage use restrained contrast to avoid harsh isolated pixels. Hit reactions use a small, single recoil movement instead of rapid oscillation and transparency changes.
 
 Run `npm test` to check gait timing, blocked actors, update-rate independence, muzzle/recoil timing, direction stability and the collapse sequence.
 

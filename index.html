@@ -30,7 +30,7 @@
     .card{padding:9px 10px;font:13px system-ui,sans-serif}
     .card.selected{background:var(--accent-soft);outline:1px solid var(--accent)}
     .viewport{position:relative;padding:8px;border:1px solid var(--border);border-radius:0;background:#0e1412;overflow:hidden}
-    canvas{image-rendering:pixelated;display:block;width:100%;aspect-ratio:1040/650;border-radius:0;background:#c8c9a8;touch-action:manipulation}
+    canvas{image-rendering:auto;display:block;width:100%;aspect-ratio:1040/650;border-radius:0;background:#c8c9a8;touch-action:manipulation}
     .loading{position:absolute;inset:8px;display:grid;place-items:center;border-radius:0;background:#526d34;color:#f1e3ae;text-align:center;z-index:2}
     .loading.hidden{display:none}
     .loading strong{display:block;font-size:24px;margin-bottom:5px}
@@ -102,10 +102,12 @@
   const canvas=document.getElementById('game');
   const display=canvas.getContext('2d');
   const frame=document.createElement('canvas');
-  frame.width=520;frame.height=325;
+  // Keep pixel artwork, but sample it on a full-size frame for stable scrolling.
+  frame.width=1040;frame.height=650;
   let ctx=frame.getContext('2d');
   let renderingStatic=false,scenery=null;
-  ctx.imageSmoothingEnabled=false;display.imageSmoothingEnabled=false;
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='low';
+  display.imageSmoothingEnabled=true;
   const art=BadFodderArt;
   const statusEl=document.getElementById('status');
   const squadCountEl=document.getElementById('squadCount');
@@ -1381,7 +1383,7 @@
 
     ctx.fillStyle='#1f2b21';ctx.fillRect(x-14,y-14,mapW+28,mapH+28);
     ctx.strokeStyle='#d4c878';ctx.lineWidth=3;ctx.strokeRect(x-14,y-14,mapW+28,mapH+28);
-    ctx.imageSmoothingEnabled=false;
+    ctx.imageSmoothingEnabled=true;
     ctx.drawImage(scenery,x,y,mapW,mapH);
 
     const sx=mapW/WORLD_W,sy=mapH/WORLD_H;
@@ -1408,13 +1410,13 @@
 
   function drawSoldier(ent,team='squad'){
     const visual=art.pose(ent);
-    const flinch=ent.hitTimer>0?Math.sin(ent.hitTimer*90)*3:0;
+    const flinch=ent.hitTimer>0?Math.sin(Math.min(1,ent.hitTimer/.16)*Math.PI)*1.5:0;
     ctx.save();
-    ctx.globalAlpha=ent.hitTimer>0?.78:1;
+    ctx.globalAlpha=1;
     ctx.drawImage(
       art.soldier(team,visual.dir,visual.frame,visual.state,ent.variant||0),
-      Math.round((ent.x+flinch)/2)*2-20,
-      Math.round(ent.y/2)*2-32,40,40
+      ent.x+flinch-20,
+      ent.y-32,40,40
     );
     ctx.restore();
   }
@@ -1427,10 +1429,10 @@
   }
 
   function drawWorld(){
-    ctx.setTransform(.5,0,0,.5,0,0);ctx.clearRect(0,0,VIEW_W,VIEW_H);
+    ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,VIEW_W,VIEW_H);
     ctx.fillStyle='#c7c9a8';ctx.fillRect(0,0,VIEW_W,VIEW_H);
 
-    ctx.save();ctx.scale(zoom,zoom);ctx.translate(-Math.round(camera.x/2)*2,-Math.round(camera.y/2)*2);
+    ctx.save();ctx.scale(zoom,zoom);ctx.translate(-camera.x,-camera.y);
     ctx.drawImage(scenery,0,0,WORLD_W,WORLD_H);
     drawObjectiveZones();
 
