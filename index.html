@@ -1061,9 +1061,9 @@
     const startX=S(786),startY=S(1450);
     squad=names.map((name,i)=>({
       name,variant:i,x:startX+(i%2)*34,y:startY+Math.floor(i/2)*34,
-      hp:5,maxHp:5,ammo:15,reserve:45,alive:true,selected:true,target:null,cooldown:0,reload:0,flash:0,
+      hp:8,maxHp:8,ammo:15,reserve:45,alive:true,selected:true,target:null,cooldown:0,reload:0,flash:0,
       dir:-Math.PI/2,anim:i*.7,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0,path:null,pathIndex:0,
-      fireHeat:0,hitTimer:0,formSlot:0,followRepath:0,isFormationLeader:false
+      fireHeat:0,hitTimer:0,damageGrace:0,formSlot:0,followRepath:0,isFormationLeader:false
     }));
 
     const hostileSpots=[
@@ -1081,7 +1081,7 @@
       groupId:Math.floor(i/3),
       role:['anchor','left','right'][i%3],
       tacticTimer:.2+(i%3)*.18,tacticalPoint:null,
-      burstCount:0,burstLimit:2+(i%3),burstPause:0,searchTimer:0
+      burstCount:0,burstLimit:2+(i%2),burstPause:0,searchTimer:0
     })).filter(e=>!obstacleAt(e.x,e.y,12));
 
     const civilianSpots=[[610,760],[720,830],[870,740],[670,430],[780,550],[560,620],[950,900],[470,860],[830,250],[520,380],[600,1080],[740,1140]];
@@ -1205,9 +1205,14 @@
 
   function applyDamage(target,amount,hitX,hitY){
     if(!target.alive)return;
+
+    const isSquad=squad.includes(target);
+    if(isSquad&&(target.damageGrace||0)>0)return;
+
     target.hp-=amount;
     target.flash=.14;
     target.hitTimer=.16;
+    if(isSquad)target.damageGrace=.32;
 
     const dx=target.x-hitX,dy=target.y-hitY,d=Math.hypot(dx,dy)||1;
     moveEntity(target,dx/d*7,dy/d*7,target===undefined?10:12);
@@ -1291,7 +1296,7 @@
       const d=Math.hypot(s.x-x,s.y-y);
       if(d>=S(40))return;
       const shielded=lineBlocked(x,y,s.x,s.y);
-      const damage=shielded?0:(d<S(20)?2:1);
+      const damage=shielded?0:(d<S(17)?2:1);
       if(damage)applyDamage(s,damage,x,y);
     });
 
@@ -1536,6 +1541,7 @@
       s.flash=Math.max(0,s.flash-dt);
       s.fireTimer=Math.max(0,(s.fireTimer||0)-dt);
       s.hitTimer=Math.max(0,(s.hitTimer||0)-dt);
+      s.damageGrace=Math.max(0,(s.damageGrace||0)-dt);
       s.fireHeat=Math.max(0,(s.fireHeat||0)-dt*.7);
 
       const firingNow=s.fireTimer>0;
@@ -1560,7 +1566,7 @@
         if(!s.alive)continue;
         if(Math.hypot(s.x-p.x,s.y-p.y)<32){
           if(p.type==='ammo'){setStatus(s.name+' found an ammunition crate.')}
-          else{s.hp=Math.min(s.maxHp,s.hp+2);setStatus(s.name+' used a medical crate.')}
+          else{s.hp=Math.min(s.maxHp,s.hp+4);setStatus(s.name+' used a medical crate.')}
           p.active=false;break;
         }
       }
@@ -1589,7 +1595,7 @@
       const near=nearestLivingSquad(e);
       if(!near.unit)return;
 
-      const sees=near.d<S(175)&&!lineBlocked(e.x,e.y,near.unit.x,near.unit.y);
+      const sees=near.d<S(160)&&!lineBlocked(e.x,e.y,near.unit.x,near.unit.y);
       const hears=noise.some(n=>Math.hypot(e.x-n.x,e.y-n.y)<n.r);
 
       if(sees||hears){
@@ -1598,7 +1604,10 @@
         e.aiState='combat';
         e.lastSeen={x:near.unit.x,y:near.unit.y};
         e.searchTimer=3.4;
-        if(newlyAlerted)alertNearbyEnemies(e,near.unit.x,near.unit.y,S(215));
+        if(newlyAlerted){
+          e.burstPause=Math.max(e.burstPause||0,.45+Math.random()*.3);
+          alertNearbyEnemies(e,near.unit.x,near.unit.y,S(215));
+        }
       }
 
       let moving=false;
@@ -1641,7 +1650,7 @@
 
           // Fire in short, recognisable bursts. Flankers generally finish their move before opening up.
           const canFire=
-            near.d<S(145)&&
+            near.d<S(130)&&
             e.cooldown<=0&&
             e.burstPause<=0&&
             (!moving||e.role==='anchor'||near.d<S(72));
@@ -1650,7 +1659,7 @@
             updateFacing(e,near.unit.x-e.x,near.unit.y-e.y);
             e.fireTimer=.14;e.state='fire';
 
-            const spread=15+Math.min(30,near.d*.07)+(moving?10:0);
+            const spread=24+Math.min(40,near.d*.09)+(moving?14:0);
             fireBullet(
               'enemy',e.x,e.y,
               near.unit.x+(Math.random()-.5)*spread,
@@ -1660,11 +1669,11 @@
             e.burstCount++;
             if(e.burstCount>=e.burstLimit){
               e.burstCount=0;
-              e.burstLimit=2+Math.floor(unit(Math.floor(e.x*3+e.y),17)*3);
-              e.burstPause=.62+unit(Math.floor(e.x+e.y*2),19)*.55;
-              e.cooldown=.18;
+              e.burstLimit=2+Math.floor(unit(Math.floor(e.x*3+e.y),17)*2);
+              e.burstPause=.9+unit(Math.floor(e.x+e.y*2),19)*.65;
+              e.cooldown=.24;
             }else{
-              e.cooldown=.14+unit(Math.floor(e.x+e.y),23)*.11;
+              e.cooldown=.2+unit(Math.floor(e.x+e.y),23)*.14;
             }
           }
         }else{
