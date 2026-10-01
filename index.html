@@ -1270,12 +1270,20 @@
       }
     }
 
+    let front=null;
+    for(let i=0;i<b.points.length;i++){
+      const a=b.points[i],d=b.points[(i+1)%b.points.length],len=Math.hypot(d[0]-a[0],d[1]-a[1]);
+      if(len>S(12)&&Math.abs(d[0]-a[0])>len*.65&&(!front||(a[1]+d[1])>front.y))front={a,d,y:a[1]+d[1]};
+    }
+    if(front){
+      const x=Math.round((front.a[0]+front.d[0])/4)*2,y=Math.round((front.a[1]+front.d[1])/4)*2;
+      ctx.fillStyle='#51452f';ctx.fillRect(x-3,y-h*.65,6,h*.65);
+      ctx.fillStyle='#ab9c70';ctx.fillRect(x+1,y-h*.3,2,2);
+    }
+
     const roof=b.points.map(p=>[p[0],p[1]-h]);
     polygon(roof,b.roof,tint(b.roof,-32),1.35);
-    ctx.save();polygon(roof,null);ctx.clip();ctx.fillStyle=tint(b.roof,19);
-    for(let y=Math.floor((b.minY-h)/6)*6;y<b.maxY-h;y+=6){
-      for(let x=Math.floor(b.minX/10)*10+(y%12?4:0);x<b.maxX;x+=10)ctx.fillRect(x,y,6,2);
-    }
+    ctx.save();polygon(roof,null);ctx.clip();
     // Keep ridge treatment clipped to the real footprint; irregular OSM buildings no longer get oversized roof planes.
     let edge=0,length=0;
     b.points.forEach((p,i)=>{const q=b.points[(i+1)%b.points.length],l=Math.hypot(q[0]-p[0],q[1]-p[1]);if(l>length){edge=i;length=l;}});
@@ -1284,6 +1292,12 @@
     const angle=Math.atan2(d[1]-a[1],d[0]-a[0]);
     const reach=Math.max(b.maxX-b.minX,b.maxY-b.minY)*.72;
     const ux=Math.cos(angle)*reach,uy=Math.sin(angle)*reach;
+    ctx.save();ctx.translate(cx,cy);ctx.rotate(angle);
+    for(let y=-reach;y<reach;y+=6)for(let x=-reach+(Math.round(y/6)%2?4:0);x<reach;x+=10){
+      ctx.fillStyle=tint(b.roof,16);ctx.fillRect(Math.round(x),Math.round(y),6,2);
+      ctx.fillStyle=tint(b.roof,-10);ctx.fillRect(Math.round(x)+6,Math.round(y),2,4);
+    }
+    ctx.restore();
     ctx.strokeStyle=tint(b.roof,-18);ctx.lineWidth=5;
     ctx.beginPath();ctx.moveTo(cx-ux,cy-uy+3);ctx.lineTo(cx+ux,cy+uy+3);ctx.stroke();
     ctx.strokeStyle=tint(b.roof,30);ctx.lineWidth=2;
@@ -1392,14 +1406,14 @@
     const dir=((Math.round((ent.dir||0)/(Math.PI/4))%8)+8)%8;
     // Civilian entities do not carry an alive flag.
     const state=ent.alive===false?'dead':ent.state||'idle';
-    const pose=state==='walk'?Math.floor((ent.anim||0)*1.5)%4:0;
+    const pose=/walk|fire/.test(state)?Math.floor((ent.anim||0)*1.5)%4:0;
     const flinch=ent.hitTimer>0?Math.sin(ent.hitTimer*90)*3:0;
     ctx.save();
     ctx.globalAlpha=ent.hitTimer>0?.78:1;
     ctx.drawImage(
       art.soldier(team,dir,pose,state,ent.variant||0),
-      Math.round((ent.x+flinch)/2)*2-24,
-      Math.round(ent.y/2)*2-36,48,48
+      Math.round((ent.x+flinch)/2)*2-32,
+      Math.round(ent.y/2)*2-52,64,64
     );
     ctx.restore();
   }
@@ -1419,33 +1433,29 @@
     ctx.drawImage(scenery,0,0,WORLD_W,WORLD_H);
     drawObjectiveZones();
 
-    pickups.forEach(p=>{
-      if(!p.active)return;
-      ctx.fillStyle=p.type==='ammo'?'#716b56':'#ebe5d4';ctx.fillRect(p.x-13,p.y-13,26,26);
-      ctx.strokeStyle='#4c463b';ctx.strokeRect(p.x-13,p.y-13,26,26);
-      ctx.fillStyle='#3b3b35';ctx.font='bold 14px system-ui';ctx.textAlign='center';ctx.fillText(p.type==='ammo'?'A':'+',p.x,p.y+5);
-    });
+    pickups.forEach(p=>{if(p.active)art.pickup(ctx,p);});
 
-    civilians.forEach(c=>drawSoldier(c,'civilian'));
-
-    enemies.forEach(e=>{
-      drawSoldier(e,'enemy');
-      if(e.alert&&e.alive){
-        ctx.fillStyle='#2c2218';ctx.font='bold 17px system-ui';ctx.textAlign='center';ctx.fillText('!',e.x,e.y-29);
-        ctx.fillStyle=e.role==='anchor'?'#d6be6b':'#b88b57';
-        const pipX=e.role==='left'?-5:e.role==='right'?5:0;
-        ctx.fillRect(e.x+pipX-2,e.y-34,4,3);
+    // Depth order avoids a whole team painting over everyone in front of it.
+    const actors=[...civilians.map(ent=>({ent,team:'civilian'})),...enemies.map(ent=>({ent,team:'enemy'})),...squad.map(ent=>({ent,team:'squad'}))];
+    actors.sort((a,b)=>a.ent.y-b.ent.y);
+    actors.forEach(({ent,team})=>{
+      if(team==='squad'&&ent.selected&&ent.alive){
+        ctx.strokeStyle='#eadb82';ctx.lineWidth=2;
+        // Small ground brackets leave the silhouette and walking feet visible.
+        for(const side of [-1,1]){
+          ctx.beginPath();ctx.moveTo(ent.x+side*18,ent.y-2);ctx.lineTo(ent.x+side*18,ent.y+10);ctx.lineTo(ent.x+side*12,ent.y+10);ctx.stroke();
+        }
       }
-    });
-
-    squad.forEach((s,i)=>{
-      if(s.selected&&s.alive){
-        ctx.strokeStyle='#e6df65';ctx.lineWidth=2.2;ctx.beginPath();ctx.arc(s.x,s.y,20,0,Math.PI*2);ctx.stroke();
+      drawSoldier(ent,team);
+      if(team==='enemy'&&ent.alert&&ent.alive){
+        ctx.fillStyle='#f0db97';ctx.fillRect(ent.x-2,ent.y-48,4,8);ctx.fillRect(ent.x-2,ent.y-38,4,2);
+        ctx.fillStyle=ent.role==='anchor'?'#d6be6b':'#b88b57';
+        const pipX=ent.role==='left'?-5:ent.role==='right'?5:0;
+        ctx.fillRect(ent.x+pipX-2,ent.y-54,4,3);
       }
-      drawSoldier(s,'squad');
-      if(s.alive){
-        for(let h=0;h<s.hp;h++){ctx.fillStyle='#eef1e7';ctx.fillRect(s.x-13+h*6,s.y-26,5,3)}
-        ctx.fillStyle='#fff';ctx.font='bold 10px system-ui';ctx.textAlign='center';ctx.fillText(String(i+1),s.x,s.y+24);
+      if(team==='squad'&&ent.alive){
+        for(let h=0;h<ent.hp;h++){ctx.fillStyle='#eef1c2';ctx.fillRect(ent.x-13+h*6,ent.y-48,4,2);}
+        ctx.fillStyle='#fff4ce';ctx.font='bold 12px "Courier New",monospace';ctx.textAlign='center';ctx.fillText(String(squad.indexOf(ent)+1),ent.x,ent.y+24);
       }
     });
 
