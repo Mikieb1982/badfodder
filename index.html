@@ -446,7 +446,7 @@
           <h2>OPTIONS</h2>
           <button id="menuMusic" class="menu-button" type="button" aria-pressed="true">MUSIC: ON</button>
           <button id="menuSfx" class="menu-button" type="button" aria-pressed="true">SFX: ON</button>
-          <label class="menu-setting" for="menuZoom"><span>CAMERA ZOOM</span><select id="menuZoom"><option value="0.85">Wide</option><option value="1" selected>Normal</option><option value="1.25">Close</option></select></label>
+          <label class="menu-setting" for="menuZoom"><span>CAMERA ZOOM</span><select id="menuZoom"><option value="0.85">Wide</option><option value="1.3" selected>Normal</option><option value="1.6">Close</option></select></label>
           <label class="menu-setting" for="menuDust"><span>FOOTSTEP DUST</span><input id="menuDust" type="checkbox" checked></label>
           <button id="menuFull" class="menu-button" type="button">FULL SCREEN</button>
           <button class="menu-button" data-back type="button">BACK</button>
@@ -501,6 +501,7 @@
 <script src="town-map.js"></script>
 <script src="pixel-art.js"></script>
 <script src="painted-art.js"></script>
+<script src="building-art.js"></script>
 <script src="scenery-cache.js"></script>
 <script src="menu-ui.js"></script>
 <script src="music.js"></script>
@@ -572,7 +573,7 @@
   let zoom=1,selection='all',paused=false,mapOpen=false,finished=false,win=false,missionStage=0;
   let camera={x:S(620),y:S(1260)},last=performance.now(),squadGrenades=5;
   let bullets=[],thrown=[],effects=[],noise=[],squad=[],enemies=[],civilians=[],pickups=[];
-  let started=false,menuOpen=true,preferredZoom=1,showDust=!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches);
+  let started=false,menuOpen=true,preferredZoom=1.3,showDust=!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches);
   let menu=null;
   let cursorWorld=null,rightHeld=false,bothLatched=false;
   let macFireHeld=false,keyboardFireHeld=false;
@@ -619,7 +620,7 @@
     return {
       i,name:b.name||'',points:pts,
       minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys),
-      height:S(5+Math.floor(unit(seed,1)*5)),
+      height:S(8+Math.floor(unit(seed,1)*5)),
       wall:WALLS[Math.floor(unit(seed,2)*WALLS.length)],
       roof:ROOFS[Math.floor(unit(seed,3)*ROOFS.length)],
       door:DOORS[Math.floor(unit(seed,4)*DOORS.length)],
@@ -1934,9 +1935,18 @@
     ctx.lineCap='round';ctx.lineJoin='round';
     ctx.beginPath();ctx.moveTo(r.points[0][0],r.points[0][1]);
     r.points.slice(1).forEach(p=>ctx.lineTo(p[0],p[1]));
-    ctx.strokeStyle=path?'#95a17b':'#8d9780';ctx.lineWidth=w+(path?3:7);ctx.stroke();
-    ctx.strokeStyle=path?'#d2c29d':'#a6a18c';ctx.lineWidth=w+(path?1:4);ctx.stroke();
+    ctx.strokeStyle=path?'#776e50':'#747866';ctx.lineWidth=w+(path?3:7);ctx.stroke();
+    ctx.strokeStyle=path?'#a08d6a':'#999582';ctx.lineWidth=w+(path?1:4);ctx.stroke();
     ctx.strokeStyle=art.texture(ctx,path?'path':'road');ctx.lineWidth=w;ctx.stroke();
+    if(path){
+      for(const side of [-1,1]){
+        ctx.beginPath();r.points.forEach((p,i)=>{
+          const a=r.points[Math.max(0,i-1)],b=r.points[Math.min(r.points.length-1,i+1)],length=Math.hypot(b[0]-a[0],b[1]-a[1])||1;
+          const x=p[0]-(b[1]-a[1])/length*w*.22*side,y=p[1]+(b[0]-a[0])/length*w*.22*side;
+          if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y);
+        });ctx.strokeStyle='#62583c66';ctx.lineWidth=1.7;ctx.stroke();
+      }
+    }
 
   }
 
@@ -1945,31 +1955,36 @@
     const bounds=sceneryBounds||{x:camera.x,y:camera.y,w:vw,h:vh};
     if(b.maxX<bounds.x-margin||b.minX>bounds.x+bounds.w+margin||b.maxY<bounds.y-margin||b.minY>bounds.y+bounds.h+margin)return;
     const h=b.height;
+    const mesh=b.artMesh||(b.artMesh=BadFodderBuildings.mesh(b.points,h));
+    if(!mesh)return;
     ctx.save();ctx.lineJoin='round';ctx.lineCap='round';
-    ctx.save();ctx.translate(S(2.5),S(3.5));polygon(b.points,'#354c3926');ctx.restore();
+    ctx.save();ctx.translate(S(4),S(5));polygon(b.points,'#27291f48');ctx.restore();
     ctx.save();ctx.translate(S(1.1),S(1.6));polygon(b.points,'#354c391a');ctx.restore();
-    for(let i=0;i<b.points.length;i++){
-      const a=b.points[i],d=b.points[(i+1)%b.points.length];
-      const side=[[a[0],a[1]],[d[0],d[1]],[d[0],d[1]-h],[a[0],a[1]-h]];
+    for(let i=0;i<mesh.walls.length;i++){
+      const {a,b:d,points:side}=mesh.walls[i];
+      if(!side)continue;
       const wall=ctx.createLinearGradient(0,a[1]-h,0,a[1]);
-      wall.addColorStop(0,tint(b.wall,i%2?-9:5));wall.addColorStop(1,tint(b.wall,i%2?-18:-6));
-      polygon(side,wall,'#65583f',1.1);
+      const shade=d[1]>a[1]?-24:-8;
+      wall.addColorStop(0,tint(b.wall,shade));wall.addColorStop(1,tint(b.wall,shade-18));
+      polygon(side,wall,'#4f4a3c',1.1);
       if(art.paintedReady){
-        ctx.save();polygon(side,null);ctx.clip();ctx.globalAlpha=.45;ctx.fillStyle=art.texture(ctx,'stucco');
-        ctx.fillRect(Math.min(a[0],d[0])-1,Math.min(a[1],d[1])-h-1,Math.abs(a[0]-d[0])+2,Math.abs(a[1]-d[1])+h+2);ctx.restore();
+        ctx.save();polygon(side,null);ctx.clip();ctx.globalAlpha=.6;ctx.globalCompositeOperation='multiply';ctx.fillStyle=art.texture(ctx,'stucco');
+        ctx.fillRect(Math.min(a[0],d[0])-1,Math.min(a[1],d[1])-h-mesh.rise-1,Math.abs(a[0]-d[0])+2,Math.abs(a[1]-d[1])+h+mesh.rise+2);ctx.restore();
       }
       const len=Math.hypot(d[0]-a[0],d[1]-a[1]);
-      if(len>S(16)&&b.roof!=='#548291'){
-        ctx.strokeStyle='#605543';ctx.lineWidth=1.5;ctx.beginPath();
+      if((len>S(16)||side.length>4)&&b.roof!=='#548291'){
+        ctx.save();polygon(side,null);ctx.clip();ctx.strokeStyle='#524738';ctx.lineWidth=2;ctx.beginPath();
         ctx.moveTo(a[0],a[1]-h*.2);ctx.lineTo(d[0],d[1]-h*.2);
         for(let j=0;j<=3;j++){const t=j/3,x=a[0]+(d[0]-a[0])*t,y=a[1]+(d[1]-a[1])*t;ctx.moveTo(x,y);ctx.lineTo(x,y-h);}
-        ctx.stroke();
+        ctx.moveTo(a[0],a[1]-h);ctx.lineTo((a[0]+d[0])/2,(a[1]+d[1])/2-h-mesh.rise);ctx.lineTo(d[0],d[1]-h);
+        ctx.moveTo((a[0]+d[0])/2,(a[1]+d[1])/2);ctx.lineTo((a[0]+d[0])/2,(a[1]+d[1])/2-h-mesh.rise);
+        ctx.stroke();ctx.restore();
       }
       if((renderingStatic||zoom>.95)&&len>S(8)){
         const n=Math.min(4,Math.floor(len/S(8)));
         for(let k=1;k<=n;k++){
           const t=k/(n+1),x=a[0]+(d[0]-a[0])*t,y=a[1]+(d[1]-a[1])*t-h*.48;
-          ctx.fillStyle='#efe3c5';ctx.beginPath();ctx.roundRect(x-S(1.35),y-S(1.9),S(2.7),S(3.8),S(.3));ctx.fill();
+          ctx.fillStyle='#9e9279';ctx.beginPath();ctx.roundRect(x-S(1.35),y-S(1.9),S(2.7),S(3.8),S(.3));ctx.fill();
           ctx.fillStyle='#333d39';ctx.fillRect(x-S(.95),y-S(1.45),S(1.9),S(2.9));
           ctx.fillStyle='#81908b';ctx.fillRect(x-S(.6),y-S(1.1),S(1.2),S(.8));
           ctx.strokeStyle='#c5c4a8';ctx.lineWidth=.6;ctx.beginPath();ctx.moveTo(x,y-S(1.4));ctx.lineTo(x,y+S(1.45));ctx.stroke();
@@ -1983,50 +1998,41 @@
     }
     if(front){
       const x=(front.a[0]+front.d[0])/2,y=(front.a[1]+front.d[1])/2;
-      ctx.fillStyle='#f0e2c1';ctx.beginPath();ctx.roundRect(x-4,y-h*.68-1,8,h*.68+1,[2,2,0,0]);ctx.fill();
+      ctx.fillStyle='#9c927c';ctx.beginPath();ctx.roundRect(x-4,y-h*.68-1,8,h*.68+1,[2,2,0,0]);ctx.fill();
       ctx.fillStyle=b.door;ctx.beginPath();ctx.roundRect(x-2.7,y-h*.63,5.4,h*.63,[1.5,1.5,0,0]);ctx.fill();
       ctx.fillStyle='#e2ca87';ctx.beginPath();ctx.arc(x+1.1,y-h*.25,.7,0,Math.PI*2);ctx.fill();
     }
-    const roof=b.points.map(p=>[p[0],p[1]-h]);
-    polygon(roof,b.roof,'#342f28',3.2);
-    ctx.save();polygon(roof,null);ctx.clip();
-    let edge=0,length=0;
-    b.points.forEach((p,i)=>{const q=b.points[(i+1)%b.points.length],l=Math.hypot(q[0]-p[0],q[1]-p[1]);if(l>length){edge=i;length=l;}});
-    const a=b.points[edge],d=b.points[(edge+1)%b.points.length];
-    const cx=(b.minX+b.maxX)/2,cy=(b.minY+b.maxY)/2-h;
-    const angle=Math.atan2(d[1]-a[1],d[0]-a[0]);
-    const reach=Math.max(b.maxX-b.minX,b.maxY-b.minY)*1.2;
-    const ux=Math.cos(angle)*reach,uy=Math.sin(angle)*reach;
-    const light=ctx.createLinearGradient(cx-uy*.3,cy+ux*.3,cx+uy*.4,cy-ux*.4);
-    light.addColorStop(0,tint(b.roof,14));light.addColorStop(.48,b.roof);light.addColorStop(1,tint(b.roof,-12));
-    if(art.paintedReady){
-      ctx.save();ctx.translate(cx,cy);ctx.rotate(angle);
-      ctx.fillStyle=art.texture(ctx,b.roof==='#548291'?'roof-slate':'roof');ctx.fillRect(-reach,-reach,reach*2,reach*2);ctx.restore();
-      ctx.globalAlpha=.25;
-    }
-    ctx.fillStyle=light;ctx.fillRect(b.minX-2,b.minY-h-2,b.maxX-b.minX+4,b.maxY-b.minY+4);ctx.globalAlpha=1;
-    polygon([[cx-ux,cy-uy],[cx+ux,cy+uy],[cx+ux-uy*2,cy+uy+ux*2],[cx-ux-uy*2,cy-uy+ux*2]],'#201f1bb0');
-    if(!LOW_POWER&&!art.paintedReady){
-      ctx.save();ctx.translate(cx,cy);ctx.rotate(angle);ctx.globalAlpha=.22;
-      ctx.strokeStyle=tint(b.roof,-22);ctx.lineWidth=.75;
-      for(let y=-reach;y<reach;y+=8){ctx.beginPath();ctx.moveTo(-reach,y);ctx.lineTo(reach,y);ctx.stroke();}
+    // Project each actual roof slope, including its texture, into the town view.
+    for(const plane of [...mesh.planes].sort((a,b)=>a.points.reduce((n,p)=>n+p[1],0)/a.points.length-b.points.reduce((n,p)=>n+p[1],0)/b.points.length)){
+      polygon(plane.points,b.roof,'#38352c',2);
+      ctx.save();polygon(plane.points,null);ctx.clip();
+      if(art.paintedReady){
+        ctx.transform(...plane.transform);ctx.fillStyle=art.texture(ctx,b.roof==='#548291'?'roof-slate':'roof');
+        ctx.fillRect(-mesh.length/2-2,-mesh.half-2,mesh.length+4,mesh.half*2+4);
+      }
       ctx.restore();
+      polygon(plane.points,plane.sign<0?'#d0c3a518':'#161b204d');
+      polygon(plane.points,null,plane.sign<0?'#afa38a':'#504e43',.8);
     }
-    ctx.strokeStyle=tint(b.roof,-20);ctx.lineWidth=3;
-    ctx.beginPath();ctx.moveTo(cx-ux,cy-uy+1.5);ctx.lineTo(cx+ux,cy+uy+1.5);ctx.stroke();
-    ctx.strokeStyle=tint(b.roof,34);ctx.lineWidth=1.5;
-    ctx.beginPath();ctx.moveTo(cx-ux,cy-uy);ctx.lineTo(cx+ux,cy+uy);ctx.stroke();
-    ctx.strokeStyle='#b4a58a';ctx.lineWidth=.7;
-    polygon(roof,null,'#b4a58a',.7);
-    // A small chimney, lit cap and soot recess add scale to the cached roof.
-    if(length>S(14)){
-      const x=cx+Math.cos(angle)*length*.17,y=cy+Math.sin(angle)*length*.17;
-      polygon([[x-3,y+3],[x+4,y+3],[x+4,y-7],[x-3,y-7]],'#857b68','#3d392f',.8);
-      polygon([[x+4,y+3],[x+7,y+1],[x+7,y-9],[x+4,y-7]],'#504b40');
-      polygon([[x-4,y-7],[x+4,y-7],[x+7,y-9],[x-1,y-9]],'#b2a58c','#39362d',.7);
-      ctx.fillStyle='#292822';ctx.fillRect(x,y-8,3,1.5);
+    for(const ridge of mesh.ridges){
+      ctx.strokeStyle='#3e3b33';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(...ridge[0]);ctx.lineTo(...ridge[1]);ctx.stroke();
+      ctx.strokeStyle='#b1a58d';ctx.lineWidth=1;ctx.stroke();
     }
-    ctx.restore();ctx.restore();
+    // Chimneys and occasional dormers are presentation details only.
+    if(mesh.length>28){
+      const [x,y]=mesh.project({u:mesh.length*.19,v:-mesh.half*.32});
+      polygon([[x-3,y+2],[x+3,y+2],[x+3,y-9],[x-3,y-9]],'#877f6b','#3e3c32',.7);
+      polygon([[x+3,y+2],[x+6,y],[x+6,y-11],[x+3,y-9]],'#4c4b40');
+      polygon([[x-4,y-9],[x+3,y-9],[x+6,y-11],[x-1,y-11]],'#b7aa8f','#38362d',.7);
+      ctx.fillStyle='#262720';ctx.fillRect(x,y-10,3,1.5);
+    }
+    if(mesh.length>44&&mesh.half>10&&b.roof!=='#548291'){
+      const [x,y]=mesh.project({u:-mesh.length*.17,v:mesh.half*.48});
+      polygon([[x-5,y+3],[x+5,y+3],[x+5,y-5],[x,y-10],[x-5,y-5]],'#ada58e','#4e493d',1);
+      polygon([[x-6,y-5],[x,y-11],[x+7,y-5]],'#5c5b50','#b6aa91',.8);
+      ctx.fillStyle='#2f3835';ctx.fillRect(x-2,y-4,4,5);ctx.strokeStyle='#c0b495';ctx.lineWidth=.8;ctx.strokeRect(x-2.5,y-4.5,5,6);
+    }
+    ctx.restore();
   }
 
   function landmarkImage(key,x,y,w,h){
@@ -2063,7 +2069,7 @@
 
   function drawTerrain(){
     ctx.fillStyle=art.texture(ctx,'grass');ctx.fillRect(0,0,WORLD_W,WORLD_H);
-    areas.forEach(a=>polygon(a.points,art.texture(ctx,a.type),'#80986d',1));
+    areas.forEach(a=>polygon(a.points,art.texture(ctx,a.type)));
   }
 
   function drawVegetation(){
@@ -2442,7 +2448,7 @@
   });
   mapBtn.addEventListener('click',toggleMap);
   zoomOutBtn.addEventListener('click',()=>{zoom=Math.max(.55,zoom-.15)});
-  zoomInBtn.addEventListener('click',()=>{zoom=Math.min(1.45,zoom+.15)});
+  zoomInBtn.addEventListener('click',()=>{zoom=Math.min(1.8,zoom+.15)});
   pauseBtn.addEventListener('click',togglePause);
   restartBtn.addEventListener('click',resetGame);
 

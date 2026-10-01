@@ -5,7 +5,7 @@
   const art=window.BadFodderArt;
   const fallback={texture:art.texture,landmark:art.landmark,tree:art.tree,soldier:art.soldier,drawActor:art.drawActor};
   const images={},materials=new Map(),landmarks=new Map(),portraits=new Map();
-  const keys=['materials','troops','trees','landmarks'];
+  const keys=['materials','troops','trees','landmarks','portraits'];
   let loading=null;
   art.paintedReady=false;
   art.preloadPainted=()=>loading||(loading=Promise.all(keys.map(key=>new Promise(resolve=>{
@@ -24,7 +24,7 @@
   art.texture=(ctx,key)=>{
     if(!art.paintedReady||!/^(grass|forest|wood|meadow|cemetery|road|path|roof|roof-slate|stucco)$/.test(key))return fallback.texture(ctx,key);
     if(!materials.has(key)){
-      const size=key.startsWith('roof')?112:key==='road'?96:key==='stucco'||key==='path'?192:320;
+      const size=key.startsWith('roof')?64:key==='road'?96:key==='stucco'?80:key==='path'?192:320;
       const c=canvas(size,size),g=c.getContext('2d');g.imageSmoothingQuality='high';
       const quadrant=key.startsWith('roof')?1:key==='road'?2:key==='stucco'||key==='path'?3:0;
       const half=images.materials.width/2;
@@ -91,7 +91,8 @@
     if(!portraits.has(key)){
       const c=canvas(96,96),g=c.getContext('2d'),sx=((dir%8)+8)%8*128,sy=row(team)*160;
       g.imageSmoothingQuality='high';
-      g.drawImage(images.troops,sx+8,sy+1,112,118,0,0,96,101);
+      if(team==='squad')g.drawImage(images.portraits,((variant%4)+4)%4*128,0,128,128,0,0,96,96);
+      else g.drawImage(images.troops,sx+29,sy+25,70,92,0,0,96,96);
       if(state==='dead'){g.globalCompositeOperation='source-atop';g.fillStyle='#253a3470';g.fillRect(0,0,96,96);g.globalCompositeOperation='source-over';}
       portraits.set(key,c);
     }
