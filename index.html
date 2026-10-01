@@ -245,7 +245,7 @@
   <section id="roster" class="roster"></section>
 
   <div class="viewport">
-    <div id="loading" class="loading"><div><strong>Bad Belzig</strong><span>Preparing terrain and pixel sprites…</span></div></div>
+    <div id="loading" class="loading"><div><strong>Bad Belzig</strong><span>Preparing game…</span></div></div>
     <canvas id="game" width="1040" height="650" aria-label="Top-down tactical game using the established Bad Belzig map"></canvas>
     <div id="touchControls" class="touch-controls" aria-label="Mobile game controls">
       <div class="touch-top">
@@ -283,8 +283,10 @@
   const canvas=document.getElementById('game');
   const display=canvas.getContext('2d');
   const frame=document.createElement('canvas');
-  // Keep pixel artwork, but sample it on a full-size frame for stable scrolling.
-  frame.width=1040;frame.height=650;
+  // Desktop keeps the full-resolution frame. Mobile uses a smaller internal buffer,
+  // then scales to the same 1040x650 logical view to reduce GPU and memory pressure.
+  frame.width=window.matchMedia&&window.matchMedia('(pointer:coarse)').matches?780:1040;
+  frame.height=window.matchMedia&&window.matchMedia('(pointer:coarse)').matches?488:650;
   let ctx=frame.getContext('2d');
   let renderingStatic=false,scenery=null;
   ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='low';
@@ -314,6 +316,12 @@
   const touchPause=document.getElementById('touchPause');
 
   const VIEW_W=1040, VIEW_H=650;
+  const TOUCH_DEVICE=(
+    (window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)||
+    (navigator.maxTouchPoints||0)>0||
+    window.innerWidth<=720
+  );
+  const LOW_POWER=TOUCH_DEVICE;
   const SCALE=2;
   const WORLD_W=TOWN_MAP.width*SCALE;
   const WORLD_H=TOWN_MAP.height*SCALE;
@@ -1575,7 +1583,7 @@
       const side=[[a[0],a[1]],[d[0],d[1]],[d[0],d[1]-h],[a[0],a[1]-h]];
       polygon(side,i%2?tint(b.wall,-10):b.wall,'#51482f',2);
       const len=Math.hypot(d[0]-a[0],d[1]-a[1]);
-      if((renderingStatic||zoom>.95)&&len>S(8)){
+      if(!LOW_POWER&&(renderingStatic||zoom>.95)&&len>S(8)){
         const n=Math.min(4,Math.floor(len/S(8)));
         for(let k=1;k<=n;k++){
           const t=k/(n+1),x=a[0]+(d[0]-a[0])*t,y=a[1]+(d[1]-a[1])*t-h*.48;
@@ -1607,12 +1615,14 @@
     const angle=Math.atan2(d[1]-a[1],d[0]-a[0]);
     const reach=Math.max(b.maxX-b.minX,b.maxY-b.minY)*.72;
     const ux=Math.cos(angle)*reach,uy=Math.sin(angle)*reach;
-    ctx.save();ctx.translate(cx,cy);ctx.rotate(angle);
-    for(let y=-reach;y<reach;y+=6)for(let x=-reach+(Math.round(y/6)%2?4:0);x<reach;x+=10){
-      ctx.fillStyle=tint(b.roof,16);ctx.fillRect(Math.round(x),Math.round(y),6,2);
-      ctx.fillStyle=tint(b.roof,-10);ctx.fillRect(Math.round(x)+6,Math.round(y),2,4);
+    if(!LOW_POWER){
+      ctx.save();ctx.translate(cx,cy);ctx.rotate(angle);
+      for(let y=-reach;y<reach;y+=6)for(let x=-reach+(Math.round(y/6)%2?4:0);x<reach;x+=10){
+        ctx.fillStyle=tint(b.roof,16);ctx.fillRect(Math.round(x),Math.round(y),6,2);
+        ctx.fillStyle=tint(b.roof,-10);ctx.fillRect(Math.round(x)+6,Math.round(y),2,4);
+      }
+      ctx.restore();
     }
-    ctx.restore();
     ctx.strokeStyle=tint(b.roof,-18);ctx.lineWidth=5;
     ctx.beginPath();ctx.moveTo(cx-ux,cy-uy+3);ctx.lineTo(cx+ux,cy+uy+3);ctx.stroke();
     ctx.strokeStyle=tint(b.roof,30);ctx.lineWidth=2;
@@ -1642,7 +1652,9 @@
       if(!/forest|wood|grass|meadow/.test(a.type))return;
       const xs=a.points.map(p=>p[0]),ys=a.points.map(p=>p[1]);
       const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
-      const count=/forest|wood/.test(a.type)?85:24;
+      const count=/forest|wood/.test(a.type)
+        ?(LOW_POWER?34:85)
+        :(LOW_POWER?10:24);
       for(let i=0;i<count;i++){
         const x=minX+rnd()*(maxX-minX),y=minY+rnd()*(maxY-minY);
         if(pointInPoly(x,y,a.points)&&!obstacleAt(x,y,8))treeDots.push({x,y,r:S(3+rnd()*4),dark:rnd()>.5});
@@ -1663,18 +1675,43 @@
     });
   }
 
-  function bakeScenery(){
+  function bakeScenery(forceLight=false){
+    const light=forceLight||LOW_POWER;
+    const scale=light?.34:.5;
+
     scenery=document.createElement('canvas');
-    scenery.width=WORLD_W/2;scenery.height=WORLD_H/2;
-    const liveContext=ctx;ctx=scenery.getContext('2d');
-    ctx.imageSmoothingEnabled=false;ctx.scale(.5,.5);renderingStatic=true;
-    drawTerrain();roads.forEach(drawRoad);drawVegetation();
+    scenery.width=Math.max(1,Math.round(WORLD_W*scale));
+    scenery.height=Math.max(1,Math.round(WORLD_H*scale));
+
+    const liveContext=ctx;
+    const bakeContext=scenery.getContext('2d',{alpha:false});
+    if(!bakeContext)throw new Error('Unable to create scenery canvas');
+
+    ctx=bakeContext;
+    ctx.imageSmoothingEnabled=true;
+    ctx.imageSmoothingQuality='low';
+    ctx.scale(scale,scale);
+    renderingStatic=true;
+
+    drawTerrain();
+    roads.forEach(drawRoad);
+
+    if(!light)drawVegetation();
+    else{
+      // Keep enough trees to preserve the character of the map without generating every canopy.
+      treeDots.forEach((t,i)=>{if(i%2===0)art.tree(ctx,t);});
+    }
+
     [...buildings]
       .filter(b=>!b.landmarkFootprint)
       .sort((a,b)=>a.maxY-b.maxY)
       .forEach(drawBuilding);
-    drawLandmarks();renderingStatic=false;ctx=liveContext;
+
+    drawLandmarks();
+    renderingStatic=false;
+    ctx=liveContext;
   }
+
 
   function drawObjectiveZones(){
     [zones.post,zones.castle,zones.market].forEach((z,i)=>{
@@ -1741,7 +1778,8 @@
   }
 
   function drawWorld(){
-    ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,VIEW_W,VIEW_H);
+    const frameScaleX=frame.width/VIEW_W,frameScaleY=frame.height/VIEW_H;
+    ctx.setTransform(frameScaleX,0,0,frameScaleY,0,0);ctx.clearRect(0,0,VIEW_W,VIEW_H);
     ctx.fillStyle='#c7c9a8';ctx.fillRect(0,0,VIEW_W,VIEW_H);
 
     ctx.save();ctx.scale(zoom,zoom);ctx.translate(-camera.x,-camera.y);
@@ -1829,7 +1867,8 @@
       ctx.font='16px system-ui';if(finished)ctx.fillText(win?'Bad Belzig secured.':'Press Restart to try again.',VIEW_W/2,VIEW_H/2+25);
     }
     display.setTransform(1,0,0,1,0,0);
-    display.drawImage(frame,0,0,VIEW_W,VIEW_H);
+    display.clearRect(0,0,VIEW_W,VIEW_H);
+    display.drawImage(frame,0,0,frame.width,frame.height,0,0,VIEW_W,VIEW_H);
   }
 
   function pointerWorld(evt){
@@ -2019,15 +2058,42 @@
     requestAnimationFrame(tick);
   }
 
-  preload().then(()=>{
-    resetGame();
-    bakeScenery();
-    started=true;
-    loadingEl.classList.add('hidden');
-    setStatus('Stage 1: move up Bahnhofstraße and reach the Postdistanzsäule.');
-  });
+  async function startGame(){
+    try{
+      loadingEl.classList.remove('hidden');
+      const loadingText=loadingEl.querySelector('span');
+      if(loadingText)loadingText.textContent=LOW_POWER?'Preparing mobile terrain…':'Preparing terrain and pixel sprites…';
+
+      await preload();
+      resetGame();
+
+      // Let the loading screen render before starting the expensive scenery work.
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+
+      try{
+        bakeScenery(false);
+      }catch(err){
+        console.warn('High-detail scenery bake failed; retrying lightweight mode.',err);
+        if(loadingText)loadingText.textContent='Preparing lightweight terrain…';
+        await new Promise(resolve=>setTimeout(resolve,0));
+        bakeScenery(true);
+      }
+
+      started=true;
+      loadingEl.classList.add('hidden');
+      setStatus('Stage 1: move up Bahnhofstraße and reach the Postdistanzsäule.');
+      syncTouchControlState();
+    }catch(err){
+      console.error('Bad Fodder failed to start',err);
+      started=false;
+      const loadingText=loadingEl.querySelector('span');
+      if(loadingText)loadingText.textContent='Unable to start game. Reload the page to try again.';
+      setStatus('Game startup failed.');
+    }
+  }
 
   requestAnimationFrame(tick);
+  startGame();
 })();
 </script>
 </body>
