@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>Bad Fodder: Operation Bad Belzig</title>
   <style>
     :root{
@@ -185,6 +185,23 @@
       #touchFire{width:70px;height:70px}
       #touchGrenade{width:56px;height:56px}
       .touch-top{top:8px;right:8px}
+    }
+
+    @media(pointer:coarse){
+      body{padding:6px}
+      .toolbar .controls{display:none}
+      .touch-controls{display:block;inset:0}
+      canvas{touch-action:none}
+      .viewport{padding:0}
+      .squad-controls{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+      .squad-controls::-webkit-scrollbar{display:none}
+    }
+
+    @media(pointer:coarse) and (orientation:landscape){
+      .touch-joystick{width:104px;height:104px}
+      #touchFire{width:66px;height:66px}
+      #touchGrenade{width:54px;height:54px}
+      .touch-top{top:7px;right:7px}
     }
 
     @media(hover:hover) and (pointer:fine){
