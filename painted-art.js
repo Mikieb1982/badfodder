@@ -28,11 +28,11 @@
       const c=canvas(size,size),g=c.getContext('2d');g.imageSmoothingQuality='high';
       const quadrant=key.startsWith('roof')?1:key==='road'?2:key==='stucco'||key==='path'?3:0;
       const half=images.materials.width/2;
-      const base={grass:'#7c9f3f',forest:'#416b3f',wood:'#588249',meadow:'#a2b84f',cemetery:'#879b59',path:'#bb9864'};
-      if(base[key]){g.fillStyle=base[key];g.fillRect(0,0,size,size);g.globalAlpha=key==='forest'?.38:key==='wood'?.44:key==='path'?.35:.42;}
+      const base={grass:'#8a8955',forest:'#414c32',wood:'#586143',meadow:'#a39a62',cemetery:'#797951',path:'#a28d6c'};
+      if(base[key]){g.fillStyle=base[key];g.fillRect(0,0,size,size);g.globalAlpha=key==='forest'?.48:key==='wood'?.55:key==='path'?.3:.72;}
       g.drawImage(images.materials,quadrant%2*half,Math.floor(quadrant/2)*half,half,half,0,0,size,size);
       g.globalAlpha=1;
-      if(key==='roof-slate'){g.globalCompositeOperation='color';g.fillStyle='#606f7c';g.fillRect(0,0,size,size);g.globalCompositeOperation='source-over';}
+      if(key==='roof-slate'){g.globalCompositeOperation='color';g.fillStyle='#68706b';g.fillRect(0,0,size,size);g.globalCompositeOperation='source-over';}
       materials.set(key,c);
     }
     return ctx.createPattern(materials.get(key),'repeat');

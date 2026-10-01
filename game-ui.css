@@ -84,12 +84,41 @@ h1{font:800 28px/1 system-ui,sans-serif;letter-spacing:.13em;text-transform:uppe
 }
 @media(prefers-reduced-motion:reduce){.touch-gameplay,.touch-joystick,.hud-unit{transition:none}.touch-action.active{transform:none}}
 
-/* Illustrated field equipment: quiet surfaces, warm edges and legible type. */
-.hud-mission,.hud-counters,.hud-roster{background:#253831f2;border-color:#a4ac8c;box-shadow:0 3px 12px #16241b35,inset 0 1px #edf0d21c;border-radius:8px}
-.hud-kicker{color:#c6d1b9}.hud-state{color:#ccd6bd}
-.hud-tools button,.hud-unit,#hudAll{border-radius:6px}
-.hud-tools button{background:linear-gradient(#35483c,#263930);border-color:#93a184;box-shadow:inset 0 1px #eef2d51a,0 2px 4px #15231b35}
-.hud-unit{background:#304638;border-color:#667b60}.hud-unit.selected{background:#425944;border-color:#f0dca3;box-shadow:inset 0 -2px #f0dca3}
-.hud-portrait{background:#d8d9b4;border-radius:5px;border:1px solid #8e9c7c}
-.hud-counter b{font-family:system-ui,sans-serif;letter-spacing:0}
-.hud-tools button:focus-visible,.hud-unit:focus-visible,#hudAll:focus-visible{outline-color:#fff0bf}
+/* Weathered field equipment, inspired by the supplied miniature-town guide. */
+.hud-mission,.hud-counters,.hud-roster,.hud-tools button,.hud-unit,#hudAll{
+  background-color:#444336;
+  background-image:url('assets/painted/panel.webp'),linear-gradient(#595747,#35352c);
+  background-size:240px 240px,100% 100%;background-blend-mode:multiply,normal;
+  border:3px ridge #9d9276;border-radius:11px;
+  box-shadow:inset 0 0 0 2px #272820,inset 0 3px 8px #e2d8ae24,0 3px 6px #0007;
+  color:#eee3b3;text-shadow:0 2px 1px #25241e;
+}
+.hud-mission{font:800 21px/1.25 'Arial Narrow',system-ui,sans-serif;width:min(580px,55%);padding:14px 19px;position:relative}
+.hud-mission::before,.hud-mission::after{content:'';position:absolute;top:8px;width:7px;height:7px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#c3b89e,#514c3e 60%,#25241d);box-shadow:0 1px 2px #0008}
+.hud-mission::before{left:6px}.hud-mission::after{right:6px}
+.hud-kicker{color:#c2ba95}.hud-mission strong{color:#e9d7a0}
+.hud-tools button{min-width:62px;min-height:58px;font-size:14px}
+.hud-counter{min-width:70px;padding:9px 12px;color:#d0c9a5;font-size:9px}
+.hud-counter b{font:800 24px/1.1 'Arial Narrow',system-ui,sans-serif;color:#eee3b3}
+.hud-roster{width:min(720px,calc(100% - 32px));padding:7px;gap:7px}
+.hud-squad{gap:7px}
+.hud-unit{min-height:106px;align-items:center;flex-wrap:wrap;gap:5px;padding:9px;position:relative}
+.hud-unit.selected{background-image:url('assets/painted/panel.webp');background-color:#454b38;background-blend-mode:multiply;border-color:#d5c6a1;box-shadow:inset 0 0 0 2px #2f3229,inset 0 0 18px #c4b47730,0 2px 4px #0006}
+.hud-unit.down{opacity:1;background-color:#5c3e30;background-blend-mode:multiply;border-color:#a86f4b}
+.hud-portrait{flex-basis:46px;width:46px!important;height:46px!important;border:3px solid #b8af94;border-radius:2px;background:#9b9b7a;transform:rotate(-3deg);box-shadow:0 2px 3px #0006}
+.hud-unit-info{min-width:58px}.hud-name{font-size:15px;color:#eee3b3}.hud-name em{display:none}
+.hud-health{gap:3px;margin-top:9px;display:flex}
+.hud-health i{width:10px;height:10px;flex:0 1 10px;border-radius:50%;background:#171914;box-shadow:inset 0 1px 2px #0009}
+.hud-health i.on{background:#e3d6a6;box-shadow:inset 0 1px #fff2c8,0 1px 2px #0009}.hud-health i.low{background:#cd9a67}
+.hud-state{font-size:10px;color:#d8cba2;margin-top:7px}.hud-unit.down .hud-state{color:#e2a077;font-weight:800}
+#hudAll{flex-basis:50px}#hudAll.selected{border-color:#d5c6a1}
+@media(pointer:coarse),(max-width:720px){
+ .hud-mission{width:auto;padding:10px 12px;font-size:12px}.hud-tools button{min-width:42px;min-height:44px;font-size:9px}
+ .hud-counter{min-width:42px;padding:5px;font-size:7px}.hud-counter b{font-size:17px}
+ .hud-roster{width:calc(100% - 20px);gap:3px;padding:4px}.hud-squad{gap:3px}.hud-unit{min-height:86px;padding:5px;gap:4px;justify-content:center}
+ .hud-portrait{flex-basis:30px;width:30px!important;height:30px!important;border-width:2px}.hud-unit-info{min-width:0;width:100%;flex:auto}.hud-name{font-size:10px}.hud-health{gap:2px;margin-top:5px;justify-content:center}.hud-health i{width:7px;height:7px;flex-basis:7px}.hud-state{font-size:8px;text-align:center}
+ #hudAll{flex-basis:32px;font-size:8px}
+}
+@media(pointer:coarse) and (orientation:landscape){
+ .hud-roster{width:min(520px,calc(100% - 340px))}.hud-unit{min-height:44px;padding:4px}.hud-portrait{display:none}.hud-name{font-size:9px}.hud-health i{width:6px;height:6px;flex-basis:6px}
+}
