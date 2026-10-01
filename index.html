@@ -564,8 +564,8 @@
   const WORLD_H=TOWN_MAP.height*SCALE;
   const S=n=>n*SCALE;
 
-  const WALLS=['#edd3a0','#ddbd83','#f4e2b5','#c8d5a0','#d4dcb7','#eed0a0'];
-  const ROOFS=['#b8643d','#ce753d','#ab5e43','#d68949','#548291'];
+  const WALLS=['#b7ac91','#a99c80','#d0c5a8','#a6a692','#bcb8a2','#c0ad91'];
+  const ROOFS=['#71695e','#817265','#655f56','#8a7b6d','#548291'];
   const DOORS=['#486a67','#725849','#596950','#5c697b'];
 
 
@@ -1934,7 +1934,7 @@
     ctx.beginPath();ctx.moveTo(r.points[0][0],r.points[0][1]);
     r.points.slice(1).forEach(p=>ctx.lineTo(p[0],p[1]));
     ctx.strokeStyle=path?'#95a17b':'#8d9780';ctx.lineWidth=w+(path?3:7);ctx.stroke();
-    ctx.strokeStyle=path?'#d2c29d':'#e0d8bc';ctx.lineWidth=w+(path?1:4);ctx.stroke();
+    ctx.strokeStyle=path?'#d2c29d':'#a6a18c';ctx.lineWidth=w+(path?1:4);ctx.stroke();
     ctx.strokeStyle=art.texture(ctx,path?'path':'road');ctx.lineWidth=w;ctx.stroke();
 
   }
@@ -1958,13 +1958,19 @@
         ctx.fillRect(Math.min(a[0],d[0])-1,Math.min(a[1],d[1])-h-1,Math.abs(a[0]-d[0])+2,Math.abs(a[1]-d[1])+h+2);ctx.restore();
       }
       const len=Math.hypot(d[0]-a[0],d[1]-a[1]);
+      if(len>S(16)&&b.roof!=='#548291'){
+        ctx.strokeStyle='#605543';ctx.lineWidth=1.5;ctx.beginPath();
+        ctx.moveTo(a[0],a[1]-h*.2);ctx.lineTo(d[0],d[1]-h*.2);
+        for(let j=0;j<=3;j++){const t=j/3,x=a[0]+(d[0]-a[0])*t,y=a[1]+(d[1]-a[1])*t;ctx.moveTo(x,y);ctx.lineTo(x,y-h);}
+        ctx.stroke();
+      }
       if((renderingStatic||zoom>.95)&&len>S(8)){
         const n=Math.min(4,Math.floor(len/S(8)));
         for(let k=1;k<=n;k++){
           const t=k/(n+1),x=a[0]+(d[0]-a[0])*t,y=a[1]+(d[1]-a[1])*t-h*.48;
           ctx.fillStyle='#efe3c5';ctx.beginPath();ctx.roundRect(x-S(1.35),y-S(1.9),S(2.7),S(3.8),S(.3));ctx.fill();
-          ctx.fillStyle='#4d6c70';ctx.fillRect(x-S(.95),y-S(1.45),S(1.9),S(2.9));
-          ctx.fillStyle='#a3c1bf';ctx.fillRect(x-S(.6),y-S(1.1),S(1.2),S(.8));
+          ctx.fillStyle='#333d39';ctx.fillRect(x-S(.95),y-S(1.45),S(1.9),S(2.9));
+          ctx.fillStyle='#81908b';ctx.fillRect(x-S(.6),y-S(1.1),S(1.2),S(.8));
           ctx.strokeStyle='#c5c4a8';ctx.lineWidth=.6;ctx.beginPath();ctx.moveTo(x,y-S(1.4));ctx.lineTo(x,y+S(1.45));ctx.stroke();
         }
       }
@@ -1981,7 +1987,7 @@
       ctx.fillStyle='#e2ca87';ctx.beginPath();ctx.arc(x+1.1,y-h*.25,.7,0,Math.PI*2);ctx.fill();
     }
     const roof=b.points.map(p=>[p[0],p[1]-h]);
-    polygon(roof,b.roof,tint(b.roof,-27),1.15);
+    polygon(roof,b.roof,'#342f28',3.2);
     ctx.save();polygon(roof,null);ctx.clip();
     let edge=0,length=0;
     b.points.forEach((p,i)=>{const q=b.points[(i+1)%b.points.length],l=Math.hypot(q[0]-p[0],q[1]-p[1]);if(l>length){edge=i;length=l;}});
@@ -1998,7 +2004,7 @@
       ctx.globalAlpha=.25;
     }
     ctx.fillStyle=light;ctx.fillRect(b.minX-2,b.minY-h-2,b.maxX-b.minX+4,b.maxY-b.minY+4);ctx.globalAlpha=1;
-    polygon([[cx-ux,cy-uy],[cx+ux,cy+uy],[cx+ux-uy*2,cy+uy+ux*2],[cx-ux-uy*2,cy-uy+ux*2]],'#473f3814');
+    polygon([[cx-ux,cy-uy],[cx+ux,cy+uy],[cx+ux-uy*2,cy+uy+ux*2],[cx-ux-uy*2,cy-uy+ux*2]],'#201f1bb0');
     if(!LOW_POWER&&!art.paintedReady){
       ctx.save();ctx.translate(cx,cy);ctx.rotate(angle);ctx.globalAlpha=.22;
       ctx.strokeStyle=tint(b.roof,-22);ctx.lineWidth=.75;
@@ -2009,6 +2015,16 @@
     ctx.beginPath();ctx.moveTo(cx-ux,cy-uy+1.5);ctx.lineTo(cx+ux,cy+uy+1.5);ctx.stroke();
     ctx.strokeStyle=tint(b.roof,34);ctx.lineWidth=1.5;
     ctx.beginPath();ctx.moveTo(cx-ux,cy-uy);ctx.lineTo(cx+ux,cy+uy);ctx.stroke();
+    ctx.strokeStyle='#b4a58a';ctx.lineWidth=.7;
+    polygon(roof,null,'#b4a58a',.7);
+    // A small chimney, lit cap and soot recess add scale to the cached roof.
+    if(length>S(14)){
+      const x=cx+Math.cos(angle)*length*.17,y=cy+Math.sin(angle)*length*.17;
+      polygon([[x-3,y+3],[x+4,y+3],[x+4,y-7],[x-3,y-7]],'#857b68','#3d392f',.8);
+      polygon([[x+4,y+3],[x+7,y+1],[x+7,y-9],[x+4,y-7]],'#504b40');
+      polygon([[x-4,y-7],[x+4,y-7],[x+7,y-9],[x-1,y-9]],'#b2a58c','#39362d',.7);
+      ctx.fillStyle='#292822';ctx.fillRect(x,y-8,3,1.5);
+    }
     ctx.restore();ctx.restore();
   }
 
