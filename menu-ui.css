@@ -23,6 +23,9 @@
 .menu-setting{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:18px 0;font-size:12px;font-weight:900}
 .menu-setting select{min-height:36px;padding:5px 8px;color:#f2e4bb;background:#28361e;border:1px solid #a8a357;font:700 13px system-ui,sans-serif}
 .menu-setting input{width:22px;height:22px;accent-color:#e6c768}
+.menu-range-control{display:flex;align-items:center;gap:9px;min-width:170px}
+.menu-volume input[type="range"]{width:130px;height:auto;accent-color:#e6c768;cursor:pointer}
+.menu-volume output{min-width:38px;text-align:right;color:#f0d47b;font:900 12px "Courier New",monospace}
 .menu-setting select:focus-visible,.menu-setting input:focus-visible{outline:2px solid #ffdf80;outline-offset:3px}
 .app.menu-open>.topbar,.app.menu-open>.toolbar,.app.menu-open>.help,.app.menu-open>.note{display:none}
 .app.menu-open{margin:0 auto}.app.menu-open .viewport{margin-top:0}
