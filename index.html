@@ -257,6 +257,18 @@
     body.mobile-fullscreen-fallback{
       overflow:hidden;
       padding:0;
+      overscroll-behavior:none;
+    }
+    body.mobile-fullscreen-fallback .topbar,
+    body.mobile-fullscreen-fallback .toolbar,
+    body.mobile-fullscreen-fallback .roster,
+    body.mobile-fullscreen-fallback .help,
+    body.mobile-fullscreen-fallback .note{display:none!important}
+    .viewport.full-window,
+    .viewport:fullscreen{
+      display:flex;
+      align-items:center;
+      justify-content:center;
     }
     .viewport.full-window .touch-controls,
     .viewport:fullscreen .touch-controls{inset:0}
@@ -270,6 +282,12 @@
     .viewport:fullscreen .touch-top{top:calc(8px + env(safe-area-inset-top,0px))}
     .viewport.full-window .hud-squad,
     .viewport:fullscreen .hud-squad{bottom:calc(8px + env(safe-area-inset-bottom,0px))}
+    .viewport.full-window .hud-counters,
+    .viewport:fullscreen .hud-counters{right:184px}
+    .viewport.full-window .hud-unit,
+    .viewport:fullscreen .hud-unit{background:rgba(24,33,22,.78)}
+    .viewport.full-window .hud-mission,
+    .viewport:fullscreen .hud-mission{background:rgba(24,33,22,.8)}
 
     @media(max-width:720px){
       body{padding:6px}
@@ -337,12 +355,14 @@
 
     @media(pointer:coarse){
       body{padding:6px}
-      .toolbar .controls{display:none}
+      .stats,.toolbar,.roster{display:none}
       .touch-controls{display:block;inset:0}
       canvas{touch-action:none}
       .viewport{padding:0}
-      .squad-controls{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
-      .squad-controls::-webkit-scrollbar{display:none}
+      .topbar{margin-bottom:6px}
+      .topbar h1{margin-bottom:0}
+      .subtitle{margin-bottom:3px}
+      #status{display:none}
     }
 
     @media(pointer:coarse) and (orientation:landscape){
@@ -357,6 +377,7 @@
 
     @media(hover:hover) and (pointer:fine){
       .touch-controls{display:none!important}
+      .hud-counters{right:10px}
     }
   </style>
 </head>
@@ -399,7 +420,7 @@
     <div id="loading" class="loading"><div><strong>Bad Belzig</strong><span>Preparing game…</span></div></div>
     <canvas id="game" width="1040" height="650" aria-label="Top-down tactical game using the established Bad Belzig map"></canvas>
     <div id="gameHud" class="game-hud" aria-label="Game status">
-      <div class="hud-mission"><strong>MISSION</strong><span id="hudMission">Preparing operation…</span></div>
+      <div class="hud-mission"><strong id="hudStage">OBJECTIVE 1/3</strong><span id="hudMission">Preparing operation…</span></div>
       <div class="hud-counters">
         <div class="hud-counter">ENEMY<b id="hudEnemies">20</b></div>
         <div class="hud-counter">GREN<b id="hudGrenades">5</b></div>
@@ -478,6 +499,7 @@
   const touchFull=document.getElementById('touchFull');
   const gameViewport=canvas.parentElement;
   const hudMission=document.getElementById('hudMission');
+  const hudStage=document.getElementById('hudStage');
   const hudEnemies=document.getElementById('hudEnemies');
   const hudGrenades=document.getElementById('hudGrenades');
   const hudSquad=document.getElementById('hudSquad');
@@ -990,6 +1012,7 @@
 
   function updateHud(force=false){
     const living=squad.filter(s=>s.alive);
+    hudStage.textContent='OBJECTIVE '+Math.min(3,missionStage+1)+'/3';
     const remaining=enemies.filter(e=>e.alive).length;
     const stats=[living.length,remaining,squadGrenades].join('|');
 
@@ -1025,7 +1048,7 @@
 
     if(missionStage===2){
       if(remaining===0&&living.some(s=>pointInCircle(s.x,s.y,zones.market))){
-        finished=true;win=true;setStatus('Mission complete. Bad Belzig secured.');syncTouchControlState();
+        finished=true;win=true;hudStage.textContent='MISSION COMPLETE';setStatus('Mission complete. Bad Belzig secured.');syncTouchControlState();
       }else{
         setStatus('Stage 3: push through the Altstadt to Marktplatz and Rathaus. '+remaining+' hostile'+(remaining===1?'':'s')+' remain.');
       }
@@ -1628,7 +1651,7 @@
   }
 
   function checkFailure(){
-    if(!finished&&!squad.some(s=>s.alive)){finished=true;win=false;setStatus('Mission failed. The squad has been lost.');syncTouchControlState()}
+    if(!finished&&!squad.some(s=>s.alive)){finished=true;win=false;hudStage.textContent='MISSION FAILED';setStatus('Mission failed. The squad has been lost.');syncTouchControlState()}
   }
 
   function setMoveTargets(p){
