@@ -575,7 +575,7 @@
   let bullets=[],thrown=[],effects=[],noise=[],squad=[],enemies=[],civilians=[],pickups=[];
   let started=false,menuOpen=true,preferredZoom=1.3,showDust=!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches);
   let menu=null;
-  let cursorWorld=null,rightHeld=false,bothLatched=false;
+  let cursorWorld=null,lastCanvasPointer=null,rightHeld=false,bothLatched=false;
   let macFireHeld=false,keyboardFireHeld=false;
   let lastHudStats='',lastRosterSignature='';
   const hudChips=new Map();
@@ -1002,6 +1002,7 @@
     if(!started)return;
     resetGame();menuOpen=false;paused=false;
     menu.close();syncTouchControlState();root.focus({preventScroll:true});
+    refreshCursorWorld();
   }
 
   function showTitle(){
@@ -1100,7 +1101,8 @@
     [...squad,...enemies,...civilians].forEach(ent=>art.animate(ent,0));
     bullets=[];thrown=[];effects=[];noise=[];squadGrenades=5;missionStage=0;
     finished=false;win=false;paused=false;mapOpen=false;selection='all';zoom=preferredZoom;
-    rightHeld=false;bothLatched=false;macFireHeld=false;keyboardFireHeld=false;cursorWorld=null;
+    rightHeld=false;bothLatched=false;macFireHeld=false;keyboardFireHeld=false;
+    cursorWorld=null;
     lastHudStats='';lastRosterSignature='';
     squadFormation={active:false,leader:null,members:[],trail:[],destination:null,manualMoving:false};
     touchState.movePointer=null;touchState.moveX=0;touchState.moveY=0;touchState.moveMag=0;
@@ -1110,6 +1112,7 @@
     touchFire.classList.remove('active');
     camera={x:S(620),y:S(1260)};
     clampCamera();
+    refreshCursorWorld();
     pauseBtn.textContent='Pause (Enter)';
     mapBtn.classList.remove('active');mapBtn.textContent='Map (M)';
     setSelection('all');updateHud();syncTouchControlState();
@@ -2273,7 +2276,22 @@
     return{x:px/zoom+camera.x,y:py/zoom+camera.y};
   }
 
+  function rememberCanvasPointer(evt){
+    lastCanvasPointer={clientX:evt.clientX,clientY:evt.clientY};
+    cursorWorld=pointerWorld(evt);
+  }
+
+  function refreshCursorWorld(){
+    if(!lastCanvasPointer)return null;
+    const r=canvas.getBoundingClientRect();
+    const x=lastCanvasPointer.clientX,y=lastCanvasPointer.clientY;
+    if(x<r.left||x>r.right||y<r.top||y>r.bottom)return null;
+    cursorWorld=pointerWorld(lastCanvasPointer);
+    return cursorWorld;
+  }
+
   function throwGrenadeAtCursor(){
+    refreshCursorWorld();
     if(!cursorWorld||!started||menuOpen||paused||finished||mapOpen)return;
     if(selection==='all')clearSquadFormation();
     selectedUnits().forEach(s=>{s.target=null;s.path=null;s.pathIndex=0});
@@ -2283,14 +2301,14 @@
   canvas.addEventListener('contextmenu',evt=>evt.preventDefault());
 
   canvas.addEventListener('pointermove',evt=>{
-    cursorWorld=pointerWorld(evt);
+    rememberCanvasPointer(evt);
   });
 
   canvas.addEventListener('pointerdown',evt=>{
     if(!started||menuOpen||paused||finished||mapOpen)return;
     canvas.setPointerCapture?.(evt.pointerId);
-    const p=pointerWorld(evt);
-    cursorWorld=p;
+    rememberCanvasPointer(evt);
+    const p=cursorWorld;
 
     // Left + right together: special weapon. Trigger once per chord.
     if((evt.buttons&1)&&(evt.buttons&2)){
@@ -2340,7 +2358,7 @@
   });
 
   canvas.addEventListener('pointerup',evt=>{
-    cursorWorld=pointerWorld(evt);
+    rememberCanvasPointer(evt);
     rightHeld=(evt.buttons&2)!==0;
     if(evt.button===0||!(evt.buttons&1))macFireHeld=false;
     if((evt.buttons&3)!==3)bothLatched=false;
@@ -2453,7 +2471,7 @@
   restartBtn.addEventListener('click',resetGame);
 
   root.tabIndex=0;
-  root.addEventListener('keydown',e=>{
+  window.addEventListener('keydown',e=>{
     if(menuOpen)return;
     const tag=e.target&&e.target.tagName;
     if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')return;
@@ -2464,6 +2482,7 @@
     // MacBook/one-button mouse alternatives.
     if(key==='f'){
       e.preventDefault();
+      refreshCursorWorld();
       keyboardFireHeld=true;
       if(cursorWorld&&!e.repeat)squadFireAt(cursorWorld.x,cursorWorld.y);
       return;
@@ -2498,7 +2517,7 @@
     }
   });
 
-  root.addEventListener('keyup',e=>{
+  window.addEventListener('keyup',e=>{
     if(e.key.toLowerCase()==='f')keyboardFireHeld=false;
   });
 
@@ -2512,6 +2531,7 @@
     const dt=Math.min(.033,(now-last)/1000||0);last=now;
     if(started&&!menuOpen&&!paused&&!finished&&!mapOpen){
       applyTouchMovement(dt);
+      if(keyboardFireHeld)refreshCursorWorld();
       if((rightHeld||macFireHeld||keyboardFireHeld)&&cursorWorld&&!bothLatched)squadFireAt(cursorWorld.x,cursorWorld.y);
       if(touchState.fireHeld)fireMobile();
       updateSquad(dt);updateEnemies(dt);updateCivilians(dt);updateProjectiles(dt);[...squad,...enemies,...civilians].forEach(ent=>art.animate(ent,dt));updateCamera(dt);checkFailure();updateHud();
