@@ -2,13 +2,14 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const source=fs.readFileSync(require('node:path').join(__dirname,'../music.js'),'utf8');
-function setup(saved){
+function setup(saved,savedVolume){
   const listeners={},audioListeners={},buttonListeners={},storage=new Map();
   if(saved!==undefined)storage.set('badfodder.music.v1',saved);
+  if(savedVolume!==undefined)storage.set('badfodder.music.volume.v1',savedVolume);
   let time=0,next=0,blocked=false,plays=0,appended=0;
   const frames=new Map(),button={setAttribute(key,value){this[key]=value},addEventListener(key,fn){buttonListeners[key]=fn}};
   const audio={volume:1,paused:true,muted:false,setAttribute(){},addEventListener(key,fn){audioListeners[key]=fn},pause(){this.paused=true},load(){},async play(){plays++;if(blocked)throw Error('Autoplay blocked');this.paused=false}};
-  const document={hidden:false,createElement(){return audio},getElementById(){return button},body:{appendChild(){appended++}},addEventListener(key,fn){listeners[key]=fn}};
+  const document={hidden:false,createElement(){return audio},getElementById(id){return id==='menuMusic'?button:null},body:{appendChild(){appended++}},addEventListener(key,fn){listeners[key]=fn}};
   const window={};
   vm.runInNewContext(source,{window,document,localStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,value)},performance:{now:()=>time},requestAnimationFrame:fn=>{frames.set(++next,fn);return next},cancelAnimationFrame:id=>frames.delete(id),addEventListener:(key,fn)=>{listeners[key]=fn}});
   return {audio,button,document,storage,api:window.BadFodderMusic,get plays(){return plays},get appended(){return appended},block(value){blocked=value},event(key,target={}){listeners[key]({target})},error(){audioListeners.error()},click(){buttonListeners.click()},step(ms){time+=ms;const callbacks=[...frames.values()];frames.clear();callbacks.forEach(fn=>fn(time))}};
@@ -16,6 +17,8 @@ function setup(saved){
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
 (async()=>{
   const t=setup();assert.equal(t.appended,1);assert(t.audio.loop);assert.equal(t.audio.volume,0);assert.equal(t.plays,0);
+  assert.equal(t.api.volume,.22,'No saved slider setting uses the intended default');
+  assert.equal(setup(undefined,'0').api.volume,0,'A saved zero volume stays zero');
   t.block(true);t.event('pointerdown');await settle();assert.equal(t.button.textContent,'MUSIC: ON');assert(t.audio.paused);
   t.block(false);t.event('keydown');await settle();t.step(600);assert.equal(t.audio.volume,.11);t.step(600);assert.equal(t.audio.volume,.22);
   const plays=t.plays;t.event('pointerdown');await settle();assert.equal(t.plays,plays,'Gestures must not restart a playing track');

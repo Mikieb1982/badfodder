@@ -8,13 +8,13 @@
   const keys=['materials','troops','trees','landmarks','portraits'];
   let loading=null;
   art.paintedReady=false;
-  art.preloadPainted=()=>loading||(loading=Promise.all(keys.map(key=>new Promise(resolve=>{
+  art.preloadPainted=(theme)=>loading||(loading=Promise.all((theme==='wigan'?[...keys,'urban']:keys).map(key=>new Promise(resolve=>{
     const image=new Image();image.decoding='async';let settled=false;
     const finish=ok=>{if(settled)return;settled=true;clearTimeout(timer);if(ok)images[key]=image;resolve(ok)};
     const timer=setTimeout(()=>finish(false),8000);
     image.onload=()=>finish(true);
     image.onerror=()=>finish(false);
-    image.src='assets/painted/'+key+'.webp';
+    image.src=key==='urban'?'assets/wigan/materials.webp':'assets/painted/'+key+'.webp';
   }))).then(results=>{
     art.paintedReady=results.every(Boolean);
     if(!art.paintedReady)console.warn('Painted artwork unavailable; using procedural fallback.');
@@ -22,6 +22,14 @@
   }));
   const canvas=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c};
   art.texture=(ctx,key)=>{
+    if(key.startsWith('urban-')){
+      if(!art.paintedReady||!images.urban)return fallback.texture(ctx,'road');
+      if(!materials.has(key)){const i={'urban-brick':0,'urban-asphalt':1,'urban-paving':2,'urban-roof':3}[key]??2;
+        const size=i===0?48:i===2?48:128,c=canvas(size,size),g=c.getContext('2d');g.imageSmoothingQuality='high';
+        g.fillStyle=['#a0694d','#575952','#b6b09b','#53544f'][i];g.fillRect(0,0,size,size);g.globalAlpha=i===1?.24:i===2?.48:.8;
+        const half=images.urban.width/2;g.drawImage(images.urban,i%2*half,Math.floor(i/2)*half,half,half,0,0,size,size);materials.set(key,c);}
+      return ctx.createPattern(materials.get(key),'repeat');
+    }
     if(!art.paintedReady||!/^(grass|forest|wood|meadow|cemetery|road|path|roof|roof-slate|stucco)$/.test(key))return fallback.texture(ctx,key);
     if(!materials.has(key)){
       const size=key.startsWith('roof')?64:key==='road'?96:key==='stucco'?80:key==='path'?192:320;

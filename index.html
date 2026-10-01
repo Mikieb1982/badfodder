@@ -135,6 +135,8 @@
       box-shadow:none;
     }
 
+    .wigan-tactical .hud-mission,.wigan-tactical .hud-counters,.wigan-tactical .hud-roster{visibility:hidden}
+    .wigan-tactical .touch-gameplay{visibility:hidden}
     .game-hud{
       position:absolute;
       inset:0;
@@ -493,7 +495,7 @@
     <div><strong>Pause:</strong> Enter or the pause button in the HUD.</div>
     <div><strong>Squad:</strong> select a squad portrait or ALL in the HUD. Keyboard: 1–8 or A.</div>
   </div>
-  <div class="note">Mission maps use real-world street and landmark geography, with gameplay simplification where required. Map data © OpenStreetMap contributors, ODbL 1.0.</div>
+  <div class="note">Mission maps use real-world street and landmark geography, with gameplay simplification where required. Map data <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors, ODbL 1.0</a>.</div>
 </main>
 
 <script src="town-map.js"></script>
@@ -501,6 +503,7 @@
 <script src="pixel-art.js"></script>
 <script src="painted-art.js"></script>
 <script src="building-art.js"></script>
+<script src="wigan-scenery.js"></script>
 <script src="scenery-cache.js"></script>
 <script src="menu-ui.js"></script>
 <script src="music.js"></script>
@@ -558,7 +561,7 @@
   const hudAll=document.getElementById('hudAll');
   const hudProgress=document.getElementById('hudProgress');
 
-  let VIEW_W=1040, VIEW_H=650;
+  let VIEW_W=1040, VIEW_H=650,canvasScale=1;
   const TOUCH_DEVICE=(
     (window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)||
     (navigator.maxTouchPoints||0)>0||
@@ -566,6 +569,8 @@
   );
   const LOW_POWER=TOUCH_DEVICE;
   const SCALE=2;
+  document.querySelector('.subtitle').textContent=MAP_DATA.key==='wigan'?'Wigan Town Centre':'Operation Bad Belzig';
+  canvas.setAttribute('aria-label','Top-down tactical game in '+(MAP_DATA.key==='wigan'?'Wigan town centre':'Bad Belzig'));
   const WORLD_W=MAP_DATA.width*SCALE;
   const WORLD_H=MAP_DATA.height*SCALE;
   const S=n=>n*SCALE;
@@ -595,7 +600,8 @@
 
   function setStatus(text){
     if(statusEl.textContent!==text)statusEl.textContent=text;
-    const brief=text.replace(/^Phase\s+\d+:\s*/,'');
+    const phase=(activeMission().phases||[])[missionStage];
+    const brief=MAP_DATA.key==='wigan'&&/^Phase\s+\d+:/.test(text)&&phase?phase.title:text.replace(/^Phase\s+\d+:\s*/,'');
     if(hudMission.textContent!==brief)hudMission.textContent=brief;
   }
 
@@ -607,7 +613,7 @@
   }
 
   const roads=MAP_DATA.roads.map(r=>({
-    name:r.name||'',kind:r.kind||'',
+    name:r.name||'',kind:r.kind||'',width:r.width,layer:r.layer||0,surface:r.surface||'',
     points:r.points.map(p=>[S(p[0]),S(p[1])])
   }));
 
@@ -625,9 +631,9 @@
     const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
     const seed=hash((i+1)*2654435761);
     return {
-      i,name:b.name||'',points:pts,
+      i,name:b.name||'',points:pts,solid:b.solid!==false,landmark:b.landmark||'',levels:b.levels||2,roofShape:b.roofShape||'gable',material:b.material||'stone',
       minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys),
-      height:S(8+Math.floor(unit(seed,1)*5)),
+      height:MAP_DATA.key==='wigan'?S(4+(b.levels||2)*5):S(8+Math.floor(unit(seed,1)*5)),
       wall:WALLS[Math.floor(unit(seed,2)*WALLS.length)],
       roof:ROOFS[Math.floor(unit(seed,3)*ROOFS.length)],
       door:DOORS[Math.floor(unit(seed,4)*DOORS.length)],
@@ -658,8 +664,8 @@
   }
 
   async function preload(){
+    await art.preloadPainted(MAP_DATA.key);
     if(MAP_DATA.key!=='wigan'){
-      await art.preloadPainted();
       ['castle','butter','post','rathaus','reissiger','briccius','marien'].forEach(art.landmark);
     }
     return Promise.resolve();
@@ -677,7 +683,7 @@
   const CELL=150;
   const buildingGrid=new Map();
   function cellKey(x,y){return x+'|'+y}
-  buildings.forEach(b=>{
+  buildings.filter(b=>b.solid!==false).forEach(b=>{
     const x0=Math.floor(b.minX/CELL),x1=Math.floor(b.maxX/CELL);
     const y0=Math.floor(b.minY/CELL),y1=Math.floor(b.maxY/CELL);
     for(let gx=x0;gx<=x1;gx++)for(let gy=y0;gy<=y1;gy++){
@@ -723,8 +729,8 @@
     return false;
   }
 
-  const NAV_RADIUS=6;
-  const PATH_CELL=12;
+  const NAV_RADIUS=MAP_DATA.key==='wigan'?4:6;
+  const PATH_CELL=MAP_DATA.key==='wigan'?8:12;
   const PATH_COLS=Math.ceil(WORLD_W/PATH_CELL);
   const PATH_ROWS=Math.ceil(WORLD_H/PATH_CELL);
   const pathBlockedCache=new Map();
@@ -972,6 +978,7 @@
   }
 
   function syncTouchControlState(){
+    gameViewport.classList.toggle('wigan-tactical',MAP_DATA.key==='wigan'&&mapOpen);
     touchControls.classList.toggle('blocked',menuOpen||mapOpen||paused||finished);
     document.getElementById('gameHud').inert=menuOpen;
     touchControls.inert=menuOpen;
@@ -1517,7 +1524,7 @@
     const wedge=safeFormationPoint(leader.x-fx*back+rx*side,leader.y-fy*back+ry*side);
     if(wedge&&routeClear(leader.x,leader.y,wedge.x,wedge.y,NAV_RADIUS))return wedge;
     // Keep single file when there is no room to reform beside a wall or POI.
-    const trail=trailPointBehind(42*slot)||{x:leader.x,y:leader.y};
+    const trail=trailPointBehind(32*slot)||{x:leader.x,y:leader.y};
     return safeFormationPoint(trail.x,trail.y);
   }
 
@@ -2056,7 +2063,7 @@
 
   function drawRoad(r){
     if(r.points.length<2)return;
-    if(r.kind==='railway'){
+    if(r.kind==='railway'&&MAP_DATA.key!=='wigan'){
       ctx.lineCap='round';ctx.lineJoin='round';
       ctx.beginPath();ctx.moveTo(r.points[0][0],r.points[0][1]);
       r.points.slice(1).forEach(p=>ctx.lineTo(p[0],p[1]));
@@ -2064,6 +2071,7 @@
       ctx.setLineDash([S(2),S(5)]);ctx.strokeStyle='#b6ad96';ctx.lineWidth=S(1.2);ctx.stroke();ctx.setLineDash([]);
       return;
     }
+    if(MAP_DATA.key==='wigan'){BadFodderWigan.road(ctx,r,S,art);return;}
     const path=/footway|path|track|steps/.test(r.kind),w=roadHalfWidth(r.kind)*2;
     ctx.lineCap='round';ctx.lineJoin='round';
     ctx.beginPath();ctx.moveTo(r.points[0][0],r.points[0][1]);
@@ -2087,6 +2095,7 @@
     const margin=S(40),vw=VIEW_W/zoom,vh=VIEW_H/zoom;
     const bounds=sceneryBounds||{x:camera.x,y:camera.y,w:vw,h:vh};
     if(b.maxX<bounds.x-margin||b.minX>bounds.x+bounds.w+margin||b.maxY<bounds.y-margin||b.minY>bounds.y+bounds.h+margin)return;
+    if(MAP_DATA.key==='wigan'){BadFodderWigan.building(ctx,b,art);return;}
     const h=b.height;
     const mesh=b.artMesh||(b.artMesh=BadFodderBuildings.mesh(b.points,h));
     if(!mesh)return;
@@ -2172,41 +2181,9 @@
     ctx.drawImage(art.landmark(key),Math.round(x-w/2),Math.round(y-h),w,h);
   }
 
-  function drawWiganLandmarks(){
-    const labels=MAP_DATA.labels||[];
-    ctx.save();
-    labels.forEach(item=>{
-      const p=poi[item.key];if(!p)return;
-      const compact=item.kind==='pub';
-      ctx.textAlign='center';
-      ctx.font='900 '+(compact?S(4.6):S(5.3))+'px "Courier New",monospace';
-      const pad=S(3),metrics=ctx.measureText(item.text),w=metrics.width+pad*2,h=S(10);
-      let y=p.y-S(18);
-      if(item.key==='formerCentral')y=p.y+S(22);
-      ctx.fillStyle='rgba(22,31,22,.82)';
-      ctx.fillRect(p.x-w/2,y-h,w,h);
-      ctx.strokeStyle=item.kind==='historic'?'#c89b5d':'#d8c978';
-      ctx.lineWidth=S(.7);ctx.strokeRect(p.x-w/2,y-h,w,h);
-      ctx.fillStyle='#f1e4b3';ctx.fillText(item.text,p.x,y-S(2.4));
-    });
-
-    // Bus bays and station canopies make the transport landmarks readable at gameplay scale.
-    if(poi.busStation){
-      ctx.strokeStyle='#d7c66f';ctx.lineWidth=S(1.1);
-      for(let i=-2;i<=2;i++){ctx.beginPath();ctx.moveTo(poi.busStation.x+S(i*15),poi.busStation.y-S(28));ctx.lineTo(poi.busStation.x+S(i*15),poi.busStation.y+S(28));ctx.stroke();}
-    }
-    [poi.wallgate,poi.northWestern].filter(Boolean).forEach(p=>{
-      ctx.fillStyle='#3c4742';ctx.fillRect(p.x-S(34),p.y-S(6),S(68),S(12));
-      ctx.strokeStyle='#ded3a4';ctx.lineWidth=S(.8);ctx.strokeRect(p.x-S(34),p.y-S(6),S(68),S(12));
-    });
-    if(poi.grandArcade){
-      ctx.strokeStyle='#d1b765';ctx.lineWidth=S(2);ctx.strokeRect(poi.grandArcade.x-S(66),poi.grandArcade.y-S(58),S(132),S(116));
-    }
-    ctx.restore();
-  }
 
   function drawLandmarks(){
-    if(MAP_DATA.key==='wigan'){drawWiganLandmarks();return;}
+    if(MAP_DATA.key==='wigan')return;
     landmarkImage('castle',poi.castle.x,poi.castle.y+S(45),S(145),S(95));
     landmarkImage('butter',S(325),S(1147),S(52),S(88));
     landmarkImage('rathaus',poi.market.x,poi.market.y+S(35),S(118),S(98));
@@ -2216,7 +2193,7 @@
     landmarkImage('post',poi.postcolumn.x,poi.postcolumn.y+S(12),S(38),S(74));
   }
 
-  const treeDots=[];
+  const treeDots=(MAP_DATA.vegetation||[]).map(t=>({x:S(t.x),y:S(t.y),r:S(t.r)}));
   (function makeVegetation(){
     let seed=94821;
     function rnd(){seed=hash(seed+17);return seed/4294967296}
@@ -2235,8 +2212,8 @@
   })();
 
   function drawTerrain(){
-    ctx.fillStyle=art.texture(ctx,'grass');ctx.fillRect(0,0,WORLD_W,WORLD_H);
-    areas.forEach(a=>polygon(a.points,art.texture(ctx,a.type)));
+    ctx.fillStyle=art.texture(ctx,MAP_DATA.key==='wigan'?'urban-paving':'grass');ctx.fillRect(0,0,WORLD_W,WORLD_H);
+    areas.forEach(a=>polygon(a.points,art.texture(ctx,MAP_DATA.key==='wigan'?({paving:'urban-paving',asphalt:'urban-asphalt',railbed:'urban-asphalt'}[a.type]||a.type):a.type)));
   }
 
   function drawVegetation(){
@@ -2254,7 +2231,10 @@
     try{
       ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.setTransform(scale,0,0,scale,-x*scale,-y*scale);
       renderingStatic=true;sceneryBounds={x,y,w:target.width/scale,h:target.height/scale};
-      drawTerrain();roads.forEach(drawRoad);
+      drawTerrain();
+      const drawingRoads=MAP_DATA.key==='wigan'?[...roads].sort((a,b)=>(a.kind==='railway'?-10:a.layer)-(b.kind==='railway'?-10:b.layer)):roads;
+      drawingRoads.forEach(drawRoad);
+      if(MAP_DATA.key==='wigan')BadFodderWigan.ground(ctx,MAP_DATA,S,art);
       if(!light)drawVegetation();
       [...buildings].filter(b=>!b.landmarkFootprint).sort((a,b)=>a.maxY-b.maxY).forEach(drawBuilding);
       drawLandmarks();
@@ -2277,7 +2257,7 @@
     const cap=LOW_POWER?1200:1600,scale=Math.min(density,cap/Math.max(r.width,r.height));
     const width=Math.max(1,Math.round(r.width*scale)),height=Math.max(1,Math.round(r.height*scale));
     if(canvas.width===width&&canvas.height===height&&frame.width===width&&frame.height===height)return;
-    VIEW_W=width;VIEW_H=height;canvas.width=frame.width=VIEW_W;canvas.height=frame.height=VIEW_H;
+    canvasScale=width/r.width;VIEW_W=width;VIEW_H=height;canvas.width=frame.width=VIEW_W;canvas.height=frame.height=VIEW_H;
     clampCamera();
     ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';display.imageSmoothingEnabled=false;
   }
@@ -2299,6 +2279,10 @@
   }
 
   function drawMapOverlay(){
+    if(MAP_DATA.key==='wigan'){
+      window.BadFodderWigan.tactical(ctx,MAP_DATA,scenery,squad,missionObjectives(),missionStage,VIEW_W,VIEW_H,canvasScale);
+      return;
+    }
     ctx.save();
     ctx.fillStyle='rgba(15,22,18,.88)';ctx.fillRect(0,0,VIEW_W,VIEW_H);
 
@@ -2362,6 +2346,7 @@
 
     ctx.save();ctx.scale(zoom,zoom);ctx.translate(-camera.x,-camera.y);
     sceneryTiles.draw(ctx,camera.x,camera.y,VIEW_W/zoom,VIEW_H/zoom);
+    if(MAP_DATA.key==='wigan')BadFodderWigan.labels(ctx,MAP_DATA,zoom,canvasScale,camera,VIEW_W,VIEW_H);
     drawObjectiveZones();
 
     pickups.forEach(p=>{if(p.active)art.pickup(ctx,p);});

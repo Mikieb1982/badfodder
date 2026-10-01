@@ -18,7 +18,7 @@ const missions=[
     phases:[
       {type:'secure-zone',zone:'wallgate',radius:120,title:'Secure the station gateway',brief:'Secure the Wigan Wallgate and North Western station gateway.'},
       {type:'reach',zone:'market',title:'Push through Market Place',brief:'Move through Market Place and the Standishgate town-centre route.'},
-      {type:'eliminate-and-reach',zone:'grandArcade',title:'Secure Grand Arcade',brief:'Clear remaining hostiles and secure Grand Arcade at the former Wigan Central station site.'}
+      {type:'eliminate-and-reach',zone:'grandArcade',title:'Secure Grand Arcade',brief:'Clear remaining hostiles and reach the Grand Arcade entrance on Standishgate.'}
     ]
   },
   {

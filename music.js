@@ -10,8 +10,8 @@ let volume=DEFAULT_VOLUME;
 try{
   const saved=localStorage.getItem(KEY);
   if(saved!==null)enabled=saved!=='0';
-  const savedVolume=Number(localStorage.getItem(VOLUME_KEY));
-  if(Number.isFinite(savedVolume))volume=Math.max(0,Math.min(1,savedVolume));
+  const savedVolume=localStorage.getItem(VOLUME_KEY);
+  if(savedVolume!==null&&Number.isFinite(Number(savedVolume)))volume=Math.max(0,Math.min(1,Number(savedVolume)));
 }catch(e){}
 const audio=document.createElement('audio');
 audio.src=SOURCE;
