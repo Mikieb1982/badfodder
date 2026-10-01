@@ -14,11 +14,11 @@ const missions=[
     ]
   },
   {
-    id:2,title:'White Out',environment:'snow-tundra',squadSize:4,playable:false,
+    id:2,title:'Wigan Town Centre',environment:'wigan-town',map:'wigan',squadSize:4,playable:true,
     phases:[
-      {type:'eliminate',title:'Clear the ridge patrol',brief:'Eliminate the enemy patrols covering the frozen ridge.'},
-      {type:'destroy',target:'radar',title:'Destroy the radar post',brief:'Destroy the radar installation before extraction.'},
-      {type:'reach',zone:'extraction',title:'Reach extraction',brief:'Get surviving troops to the extraction point.'}
+      {type:'secure-zone',zone:'wallgate',radius:120,title:'Secure the station gateway',brief:'Secure the Wigan Wallgate and North Western station gateway.'},
+      {type:'reach',zone:'market',title:'Push through Market Place',brief:'Move through Market Place and the Standishgate town-centre route.'},
+      {type:'eliminate-and-reach',zone:'grandArcade',title:'Secure Grand Arcade',brief:'Clear remaining hostiles and secure Grand Arcade at the former Wigan Central station site.'}
     ]
   },
   {
