@@ -3,11 +3,12 @@ window.BadFodderArt = (() => {
   'use strict';
   const P={ink:'#242b20',grass:'#749342',light:'#a1b65c',shade:'#526d34',stone:'#a49b74',stoneLight:'#c9c096',stoneDark:'#716950',roof:'#985535',roofLight:'#bd7950',roofDark:'#633f2d',wall:'#c3b383',wallLight:'#ddd0a1',water:'#547c91'};
   const make=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c;};
-  const tiles=new Map(),landmarks=new Map(),soldiers=new Map();
+  const tiles=new Map(),landmarks=new Map(),soldiers=new Map(),trees=new Map(),blasts=new Map();
+  const motion=new WeakMap();
   function texture(ctx,key){
     if(!tiles.has(key)){
       const c=make(128,128),g=c.getContext('2d');
-      const colors={grass:['#7b934b','#899f55','#6d8541'],forest:['#59753b','#698543','#4f6834'],wood:['#658042','#768e4a','#587339'],meadow:['#97a05a','#a6ad64','#89954f'],cemetery:['#899266','#9aa275','#7a855c'],water:['#507b92','#739aa6','#41677f'],road:['#aaa17e','#c0b68e','#918b6f'],path:['#b7a36c','#c6b47b','#a28f5e']};
+      const colors={grass:['#899449','#a3a05b','#6e7a37'],forest:['#59753b','#698543','#4f6834'],wood:['#658042','#768e4a','#587339'],meadow:['#97a05a','#a6ad64','#89954f'],cemetery:['#899266','#9aa275','#7a855c'],water:['#507b92','#739aa6','#41677f'],road:['#aaa17e','#c0b68e','#918b6f'],path:['#b09152','#c5a56a','#92763c']};
       const col=colors[key]||colors.grass;g.fillStyle=col[0];g.fillRect(0,0,128,128);
       let seed=1937;const rnd=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
       // Broad, low-contrast patches instead of evenly distributed speckle.
@@ -15,9 +16,9 @@ window.BadFodderArt = (() => {
         const x=Math.floor(rnd()*64)*2,y=Math.floor(rnd()*64)*2,w=8+Math.floor(rnd()*12)*2,h=4+Math.floor(rnd()*6)*2;
         g.fillStyle=col[i%2+1];g.fillRect(x+4,y,w-8,h);g.fillRect(x,y+2,w,h-4);
       }
-      for(let i=0;i<150;i++){
+      for(let i=0;i<260;i++){
         const x=Math.floor(rnd()*64)*2,y=Math.floor(rnd()*64)*2;g.fillStyle=col[i%2+1];
-        g.fillRect(x,y,key==='water'?6:2,2);
+        g.fillRect(x,y,key==='water'?6:2,2);if(!/water|road/.test(key)&&i%9===0){g.fillStyle='#c3b876';g.fillRect(x,y,2,2);}
         if(!/road|path|water/.test(key)&&i%6===0){g.fillRect(x+2,y-2,2,2);g.fillRect(x+4,y,2,2);}
       }
       if(key==='road'){
@@ -36,13 +37,18 @@ window.BadFodderArt = (() => {
     const c=make(160,120),g=c.getContext('2d');
     const rect=(x,y,w,h,col)=>{g.fillStyle=col;g.fillRect(x,y,w,h);};
     const poly=(pts,col)=>{g.fillStyle=col;g.beginPath();pts.forEach((p,i)=>i?g.lineTo(...p):g.moveTo(...p));g.closePath();g.fill();};
+    const roofTexture=(pts)=>{
+      g.save();g.beginPath();pts.forEach((p,i)=>i?g.lineTo(...p):g.moveTo(...p));g.closePath();g.clip();
+      for(let yy=0;yy<120;yy+=4)for(let xx=(yy%8?3:0);xx<160;xx+=8){rect(xx,yy,5,1,P.roofLight);rect(xx+5,yy+1,1,2,P.roofDark);}
+      g.restore();
+    };
     const masonry=(x,y,w,h)=>{rect(x,y,w,h,P.stone);rect(x+w-5,y,5,h,P.stoneDark);rect(x+1,y,2,h,P.stoneLight);for(let yy=y+4;yy<y+h;yy+=6)for(let xx=x+(yy%12?0:5);xx<x+w-5;xx+=11){rect(xx,yy,8,1,P.stoneLight);}};
     const windows=(x,y,n,rows=1)=>{for(let j=0;j<rows;j++)for(let i=0;i<n;i++){rect(x+i*13,y+j*12,5,7,P.ink);rect(x+i*13+1,y+j*12+1,2,3,'#829c9a');rect(x+i*13,y+j*12+7,6,1,P.wallLight);}};
     const house=(x,y,w,h)=>{
       rect(x+4,y+h,w,4,P.shade);rect(x,y,w,h,P.wall);rect(x+w-6,y,6,h,P.stoneDark);rect(x+2,y+2,w-10,2,P.wallLight);
       poly([[x-4,y],[x+9,y-18],[x+w-10,y-18],[x+w+4,y]],P.roofDark);
       poly([[x-2,y-2],[x+10,y-18],[x+w-11,y-18],[x+w-2,y-2]],P.roof);
-      for(let yy=y-15;yy<y-2;yy+=4)rect(x+12,yy,w-24,1,P.roofLight);
+      roofTexture([[x-2,y-2],[x+10,y-18],[x+w-11,y-18],[x+w-2,y-2]]);
       rect(x+w*.65,y-24,5,10,P.stoneDark);rect(x+w*.65-1,y-24,7,2,P.wallLight);
       windows(x+7,y+8,Math.max(1,Math.floor((w-12)/13)),Math.max(1,Math.floor((h-12)/12)));
       rect(x+w/2-4,y+h-13,8,13,P.ink);rect(x+w/2-2,y+h-12,4,12,'#594d33');
@@ -52,7 +58,7 @@ window.BadFodderArt = (() => {
       masonry(22,69,119,37);masonry(16,56,25,50);masonry(125,56,21,50);
       for(let x=16;x<146;x+=13)rect(x,51,7,10,P.stoneLight);
       house(44,65,73,34);rect(74,88,15,22,P.ink);rect(78,89,8,21,P.stoneDark);
-      poly([[41,64],[60,40],[108,40],[120,64]],P.roofDark);poly([[45,61],[62,40],[106,40],[113,61]],P.roof);windows(53,72,4);
+      poly([[41,64],[60,40],[108,40],[120,64]],P.roofDark);poly([[45,61],[62,40],[106,40],[113,61]],P.roof);windows(53,72,4);roofTexture([[45,61],[62,40],[106,40],[113,61]]);
     }else if(key==='butter'){
       masonry(59,30,42,77);rect(56,29,48,5,P.stoneDark);for(let x=57;x<105;x+=10)rect(x,20,7,10,P.stoneLight);
       windows(72,42,1,3);rect(75,96,9,14,P.ink);rect(56,108,49,4,P.stoneDark);rect(60,35,4,68,P.stoneLight);rect(95,35,5,72,P.stoneDark);rect(72,32,15,2,P.stoneLight);
@@ -72,7 +78,7 @@ window.BadFodderArt = (() => {
   }
   // Original 32px sprites: eight facings, four walk poses and two firing poses.
   function soldier(team,dir,frame,state,variant=0){
-    dir=((dir%8)+8)%8;frame=frame%4;
+    dir=((dir%8)+8)%8;frame=frame%8;
     const key=[team,dir,frame,state,variant].join('/');if(soldiers.has(key))return soldiers.get(key);
     const c=make(32,32),g=c.getContext('2d');
     const civilian=team==='civilian',enemy=team==='enemy';
@@ -80,11 +86,15 @@ window.BadFodderArt = (() => {
     const light=enemy?'#d0b47d':'#b0c074',dark=enemy?'#76613d':'#516632',skin='#e4c58b',skinShade='#ae885d',boot='#303528';
     const r=(x,y,w,h,color)=>{g.fillStyle=color;g.fillRect(Math.round(x),Math.round(y),w,h);};
     const dx=[1,1,0,-1,-1,-1,0,1][dir],dy=[0,1,1,1,0,-1,-1,-1][dir],back=dy<0,side=dy===0;
+    if(state==='dead'&&frame<2){
+      r(10,25,14,2,'#53653d');r(11,20,10,5,dark);r(12,17+frame*2,9,6,col);r(17,12+frame*3,6,5,skinShade);r(16,11+frame*3,8,3,col);r(9,24,5,3,boot);r(21,24,4,2,boot);
+      soldiers.set(key,c);return c;
+    }
     if(state==='dead'){
       r(6,25,19,2,'#53653d');r(6,21,5,4,boot);r(10,19,11,5,dark);r(11,18,8,4,col);r(21,19,5,4,skinShade);r(22,18,5,2,col);
       soldiers.set(key,c);return c;
     }
-    const walking=state==='walk',step=walking?[0,2,0,-2][frame]:0,bob=walking&&(frame%2)?1:0;
+    const walking=state==='walk',step=walking?[0,1,2,1,0,-1,-2,-1][frame]:0,bob=walking&&(frame===2||frame===6)?1:0;
     r(8,27,16,2,'#53653d');r(9,26,14,1,'#435538');
     // Feet alternate ahead and behind; profiles also swing horizontally.
     r(11-step*(side?.6:.3),22+step,4,5,boot);r(18+step*(side?.6:.3),22-step,4,5,boot);
@@ -111,15 +121,61 @@ window.BadFodderArt = (() => {
     soldiers.set(key,c);return c;
   }
   function tree(ctx,t){
-    const x=Math.round(t.x/2)*2,y=Math.round(t.y/2)*2,r=Math.max(10,Math.round(t.r*.75)*2);
-    const block=(dx,dy,w,h,color)=>{ctx.fillStyle=color;ctx.fillRect(x+dx,y+dy,w,h);};
-    block(-r+6,0,r*2,4,'#526638');block(-2,-r,4,r+2,'#594b2f');block(-2,-r,2,r,'#817044');
-    const dark='#354e2b',mid=t.dark?'#557535':'#68883e',lit=t.dark?'#789346':'#93a954';
-    // Overlapping stepped lobes, all snapped to the same two-world-unit grid.
-    block(-r+4,-r*2-2,r*2-8,r+10,dark);block(-r,-r*2+4,r*2,r+2,dark);block(-r+2,-r*2+2,r*2-4,r+3,mid);
-    block(-r+4,-r*2,r,r,mid);block(-r+4,-r*2+2,r-2,4,lit);block(-r+2,-r*2+6,4,4,lit);
-    block(0,-r*2+4,6,4,lit);block(2,-r-2,r-4,4,dark);block(-4,-r,4,4,dark);
-    block(-r+6,-r*2+4,2,2,'#b0bd70');block(4,-r*2+6,2,2,'#a1b363');
+    const variant=(Math.round(t.x+t.y)%5+5)%5,key=variant+'/'+t.dark;
+    if(!trees.has(key)){
+      const c=make(48,56),g=c.getContext('2d');
+      const r=(x,y,w,h,col)=>{g.fillStyle=col;g.fillRect(x,y,w,h);};
+      const dark='#344026',mid=t.dark?'#596d30':'#6d8035',light=t.dark?'#92a447':'#b4b75b';
+      r(15,49,27,3,'#596738');r(24,37,3,14,'#50422b');r(24,39,1,10,'#a78d53');r(21,46,4,2,'#50422b');
+      // Hand-clustered leaves, with a seeded irregular silhouette and dithered light.
+      let seed=variant*129+713;const rnd=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+      const lobes=[[16,18,12],[28,15,11],[11,28,9],[25,28,13],[35,26,8],[22,37,8]];
+      for(const [cx,cy,rad] of lobes){
+        for(let yy=-rad;yy<=rad;yy++)for(let xx=-rad;xx<=rad;xx++){
+          if(xx*xx+yy*yy>rad*rad-(rnd()>.87?8:0))continue;
+          const lit=(-xx-yy)/(rad*2),noise=rnd();
+          const col=(xx+yy>rad*.65||noise<.13)?dark:lit+noise*.8>.62?light:mid;
+          r(cx+xx,cy+yy,1,1,col);
+          if(noise>.98&&lit>.2)r(cx+xx,cy+yy,1,1,'#d0c779');
+        }
+      }
+      trees.set(key,c);
+    }
+    const w=Math.round((36+t.r*1.6)/2)*2,h=Math.round(w*56/48/2)*2;
+    ctx.drawImage(trees.get(key),Math.round(t.x/2)*2-w/2,Math.round(t.y/2)*2-h+4,w,h);
+  }
+
+  // Animation belongs to presentation: it never changes movement, aim or collisions.
+  function animate(ent,dt){
+    let m=motion.get(ent);
+    if(!m){m={x:ent.x,y:ent.y,stride:0,death:0,dir:Math.round((ent.dir||0)/(Math.PI/4))};motion.set(ent,m);}
+    const distance=Math.hypot(ent.x-m.x,ent.y-m.y);m.x=ent.x;m.y=ent.y;
+    if(ent.alive===false){m.death+=dt;m.state='dead';m.frame=Math.min(2,Math.floor(m.death*12));return;}
+    const angle=ent.dir||0,diff=Math.atan2(Math.sin(angle-m.dir*Math.PI/4),Math.cos(angle-m.dir*Math.PI/4));
+    if(Math.abs(diff)>Math.PI/8+.06)m.dir=Math.round(angle/(Math.PI/4));
+    if(distance>.03&&distance<100)m.stride+=distance;
+    if(ent.fireTimer>0){m.state='fire';m.frame=ent.fireTimer>.065?0:1;}
+    else if(distance>.03){m.state='walk';m.frame=Math.floor(m.stride/6)%8;}
+    else {m.state='idle';m.frame=0;}
+  }
+  function pose(ent){
+    const m=motion.get(ent);return m?{dir:((m.dir%8)+8)%8,state:m.state||'idle',frame:m.frame||0}:{dir:0,state:'idle',frame:0};
+  }
+  function blast(ctx,x,y,age){
+    const frame=Math.min(5,Math.floor(age*6));
+    if(!blasts.has(frame)){
+      const c=make(80,80),g=c.getContext('2d'),r=(x,y,w,h,col)=>{g.fillStyle=col;g.fillRect(x,y,w,h);};
+      const radius=5+frame*5;
+      for(let i=0;i<14;i++){
+        const a=i*2.399,d=radius*(.5+(i%3)*.2),cx=Math.round(40+Math.cos(a)*d),cy=Math.round(40+Math.sin(a)*d-frame*2),size=Math.max(3,12-frame);
+        const colors=frame<3?['#653d24','#b46a2e','#e4a442','#f3d66d']:['#4e4f3d','#72705a','#928b6a'];
+        r(cx-size/2,cy-size/2,size,size,colors[i%colors.length]);r(cx-size/2+2,cy-size/2-2,size-4,size,colors[(i+1)%colors.length]);
+      }
+      if(frame<2){r(34,34,12,12,'#fff0ac');r(37,30,6,20,'#ffe27a');}
+      for(let i=0;i<10;i++){const a=i*2.399,d=radius+8;r(Math.round(40+Math.cos(a)*d),Math.round(40+Math.sin(a)*d),2,2,'#584c31');}
+      blasts.set(frame,c);
+    }
+    ctx.drawImage(blasts.get(frame),Math.round(x/2)*2-80,Math.round(y/2)*2-80,160,160);
   }
   function pickup(ctx,p){
     const x=Math.round(p.x/2)*2,y=Math.round(p.y/2)*2;
@@ -133,5 +189,5 @@ window.BadFodderArt = (() => {
       ctx.fillStyle='#e3d091';for(let i=0;i<3;i++)ctx.fillRect(x-4+i*4,y-4,2,8);
     }else {ctx.fillStyle='#456b88';ctx.fillRect(x-4,y-8,8,14);ctx.fillRect(x-8,y-4,16,6);}
   }
-  return {P,texture,landmark,soldier,tree,pickup};
+  return {P,texture,landmark,soldier,tree,pickup,animate,pose,blast};
 })();

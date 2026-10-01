@@ -21,7 +21,11 @@ A browser-based top-down tactical game inspired by classic squad-control games a
 
 ## Graphics
 
-The town uses original code-drawn pixel art in a limited earthy palette inspired by early 1990s tactical games. A 520 × 325 render buffer is enlarged with nearest-neighbour sampling. Terrain, roof tiles, trees and seven landmark silhouettes share the same pixel treatment. Soldiers use eight directional facings with distinct front, profile and rear views, four walking poses, alternating muzzle flashes and recoil, and fallen poses; civilians are unarmed. Actors draw in ground-depth order. Terrain uses mottled grass patches, aligned roof tiles, stepped foliage and detailed supply crates. All artwork stays in the original limited pixel palette.
+The town uses original code-drawn pixel art in a limited earthy palette inspired by early 1990s tactical games. A 520 × 325 render buffer is enlarged with nearest-neighbour sampling. Terrain, roof tiles, trees and seven landmark silhouettes share the same pixel treatment. Soldiers use compact eight-direction sprites inspired by the proportions in Cannon Fodder 2. Eight walking poses follow actual distance travelled, so blocked and stationary units stop stepping. A small facing threshold reduces directional flicker. Timed muzzle flashes, recoil, a three-stage collapse and six-stage explosion sprites animate independently of gameplay. Civilians remain unarmed.
+
+Terrain combines warmer stippled ground, cobbles and densely dithered foliage. Landmark roof tiles match ordinary buildings. Roads, POI positions, building footprints and vegetation anchors stay unchanged. Trees and explosions use cached original pixel artwork.
+
+Run `npm test` to check gait timing, blocked actors, update-rate independence, muzzle/recoil timing, direction stability and the collapse sequence.
 
 The static town is baked once into a scenery canvas before play. Zoom and camera tracking reuse this canvas, while units and combat effects animate separately. Roads, building footprints, collision geometry and POI coordinates remain in `town-map.js` unchanged. Existing landmark image files are retained but no longer loaded by the game.
 

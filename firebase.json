@@ -10,7 +10,8 @@
       "package-lock.json",
       "node_modules/**",
       ".git/**",
-      ".github/**"
+      ".github/**",
+      "tests/**"
     ],
     "cleanUrls": true,
     "trailingSlash": false
