@@ -140,6 +140,7 @@
   let started=false;
   let cursorWorld=null,rightHeld=false,bothLatched=false;
   let lastHudStats='',lastRosterSignature='';
+  let squadFormation={active:false,leader:null,members:[],trail:[],destination:null};
 
   function setStatus(text){
     if(statusEl.textContent!==text)statusEl.textContent=text;
@@ -480,7 +481,7 @@
       name,x:startX+(i%2)*34,y:startY+Math.floor(i/2)*34,
       hp:5,maxHp:5,ammo:15,reserve:45,alive:true,selected:true,target:null,cooldown:0,reload:0,flash:0,
       dir:-Math.PI/2,anim:i*.7,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0,path:null,pathIndex:0,
-      fireHeat:0,hitTimer:0
+      fireHeat:0,hitTimer:0,formSlot:0,followRepath:0,isFormationLeader:false
     }));
 
     const hostileSpots=[
@@ -494,7 +495,11 @@
       hp:3,maxHp:3,alive:true,phase:i*.67,cooldown:.25+i*.04,
       alert:false,lastSeen:null,aiState:'patrol',flash:0,
       dir:Math.PI/2,anim:i*.51,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0,path:null,pathIndex:0,repath:0,
-      hitTimer:0
+      hitTimer:0,
+      groupId:Math.floor(i/3),
+      role:['anchor','left','right'][i%3],
+      tacticTimer:.2+(i%3)*.18,tacticalPoint:null,
+      burstCount:0,burstLimit:2+(i%3),burstPause:0,searchTimer:0
     })).filter(e=>!obstacleAt(e.x,e.y,12));
 
     const civilianSpots=[[610,760],[720,830],[870,740],[670,430],[780,550],[560,620],[950,900],[470,860],[830,250],[520,380],[600,1080],[740,1140]];
@@ -515,6 +520,7 @@
     finished=false;win=false;paused=false;mapOpen=false;selection='all';zoom=1;
     rightHeld=false;bothLatched=false;cursorWorld=null;
     lastHudStats='';lastRosterSignature='';
+    squadFormation={active:false,leader:null,members:[],trail:[],destination:null};
     camera={x:S(620),y:S(1260)};
     pauseBtn.textContent='Pause (Enter)';
     mapBtn.classList.remove('active');mapBtn.textContent='Map (M)';
@@ -588,13 +594,17 @@
   function alertNearbyEnemies(source,x,y,r=S(230)){
     enemies.forEach(e=>{
       if(!e.alive||e===source)return;
-      if(Math.hypot(e.x-x,e.y-y)>r)return;
+      const sameGroup=source&&e.groupId===source.groupId;
+      if(!sameGroup&&Math.hypot(e.x-x,e.y-y)>r)return;
       e.alert=true;
       e.aiState='combat';
       e.lastSeen={x,y};
+      e.searchTimer=Math.max(e.searchTimer||0,3.2);
+      e.tacticTimer=0;
       e.repath=0;
     });
   }
+
 
   function applyDamage(target,amount,hitX,hitY){
     if(!target.alive)return;
@@ -612,6 +622,7 @@
       target.deathAngle=Math.atan2(dy,dx);
       target.path=null;
       target.target=null;
+      if('tacticalPoint' in target)target.tacticalPoint=null;
     }
   }
 
@@ -686,6 +697,207 @@
   }
 
 
+
+  function clearSquadFormation(){
+    squadFormation.active=false;
+    squadFormation.leader=null;
+    squadFormation.members=[];
+    squadFormation.trail=[];
+    squadFormation.destination=null;
+    squad.forEach(s=>{
+      s.isFormationLeader=false;
+      s.formSlot=0;
+      s.followRepath=0;
+    });
+  }
+
+  function promoteFormationLeader(){
+    if(!squadFormation.active)return null;
+    const living=squadFormation.members.filter(s=>s.alive);
+    if(!living.length){clearSquadFormation();return null}
+
+    const leader=living[0];
+    squadFormation.leader=leader;
+    squadFormation.members=living;
+    squadFormation.trail=[{x:leader.x,y:leader.y}];
+
+    living.forEach((s,i)=>{
+      s.formSlot=i;
+      s.isFormationLeader=i===0;
+      s.followRepath=0;
+      if(i>0){s.path=null;s.target=null;s.pathIndex=0}
+    });
+
+    if(squadFormation.destination)assignPath(leader,squadFormation.destination.x,squadFormation.destination.y);
+    return leader;
+  }
+
+  function recordLeaderTrail(){
+    if(!squadFormation.active)return;
+    let leader=squadFormation.leader;
+    if(!leader||!leader.alive)leader=promoteFormationLeader();
+    if(!leader)return;
+
+    const trail=squadFormation.trail;
+    const lastPoint=trail[trail.length-1];
+    if(!lastPoint||Math.hypot(leader.x-lastPoint.x,leader.y-lastPoint.y)>=10){
+      trail.push({x:leader.x,y:leader.y});
+      if(trail.length>260)trail.splice(0,trail.length-260);
+    }
+  }
+
+  function trailPointBehind(distance){
+    const leader=squadFormation.leader;
+    const trail=squadFormation.trail;
+    if(!leader||!trail.length)return leader?{x:leader.x,y:leader.y}:null;
+
+    let px=leader.x,py=leader.y,remaining=distance;
+    for(let i=trail.length-1;i>=0;i--){
+      const p=trail[i];
+      const seg=Math.hypot(px-p.x,py-p.y);
+      if(seg>=remaining&&seg>0){
+        const t=remaining/seg;
+        return{x:px+(p.x-px)*t,y:py+(p.y-py)*t};
+      }
+      remaining-=seg;
+      px=p.x;py=p.y;
+    }
+    return{x:trail[0].x,y:trail[0].y};
+  }
+
+  function safeFormationPoint(x,y){
+    if(!obstacleAt(x,y,14))return{x,y};
+    const open=nearestOpenCell(Math.floor(x/PATH_CELL),Math.floor(y/PATH_CELL));
+    return open?pathCellCenter(open[0],open[1]):null;
+  }
+
+  function formationDestinationFor(s){
+    const leader=squadFormation.leader;
+    if(!leader)return null;
+    const slot=s.formSlot||0;
+
+    // While travelling, followers use the leader's actual trail so narrow streets become single-file naturally.
+    if(leader.path&&leader.path.length){
+      const trailPoint=trailPointBehind(42*slot)||{x:leader.x,y:leader.y};
+      return safeFormationPoint(trailPoint.x,trailPoint.y);
+    }
+
+    // Once the leader stops, reform into a loose wedge.
+    const offsets=[
+      [0,0],
+      [-34,30],
+      [34,30],
+      [0,62]
+    ];
+    const [side,back]=offsets[Math.min(slot,offsets.length-1)];
+    const fx=Math.cos(leader.dir||0),fy=Math.sin(leader.dir||0);
+    const rx=-fy,ry=fx;
+    return safeFormationPoint(
+      leader.x-fx*back+rx*side,
+      leader.y-fy*back+ry*side
+    );
+  }
+
+  function followFormationMember(s,dt){
+    const desired=formationDestinationFor(s);
+    if(!desired)return false;
+    const d=Math.hypot(desired.x-s.x,desired.y-s.y);
+    if(d<14){
+      s.path=null;s.target=null;s.pathIndex=0;
+      return false;
+    }
+
+    s.followRepath=Math.max(0,(s.followRepath||0)-dt);
+    const catchUp=d>130?1.16:d>75?1.08:1;
+
+    if(routeClear(s.x,s.y,desired.x,desired.y,12)){
+      s.path=null;s.target=null;s.pathIndex=0;
+      const dx=desired.x-s.x,dy=desired.y-s.y;
+      updateFacing(s,dx,dy);
+      moveEntity(s,dx/d*185*catchUp*dt,dy/d*185*catchUp*dt,12);
+      return true;
+    }
+
+    if(s.followRepath<=0||!s.path){
+      assignPath(s,desired.x,desired.y);
+      s.followRepath=.32+.08*(s.formSlot||1);
+    }
+    return followPath(s,185*catchUp,dt);
+  }
+
+  function pointSegmentDistance(px,py,ax,ay,bx,by){
+    const vx=bx-ax,vy=by-ay,wx=px-ax,wy=py-ay;
+    const c1=vx*wx+vy*wy;
+    if(c1<=0)return Math.hypot(px-ax,py-ay);
+    const c2=vx*vx+vy*vy;
+    if(c2<=c1)return Math.hypot(px-bx,py-by);
+    const t=c1/c2;
+    return Math.hypot(px-(ax+t*vx),py-(ay+t*vy));
+  }
+
+  function streetAffinity(x,y){
+    let best=Infinity;
+    for(const r of roads){
+      if(/footway|path|steps/.test(r.kind))continue;
+      for(let i=0;i<r.points.length-1;i++){
+        const a=r.points[i],b=r.points[i+1];
+        const d=pointSegmentDistance(x,y,a[0],a[1],b[0],b[1]);
+        if(d<best)best=d;
+        if(best<S(12))return 1;
+      }
+    }
+    return best<S(28)?.65:best<S(45)?.25:0;
+  }
+
+  function nearbyCoverScore(x,y,targetX,targetY){
+    let score=0;
+    const toward=Math.atan2(targetY-y,targetX-x);
+    for(let i=0;i<12;i++){
+      const a=i*Math.PI/6;
+      // Cover is useful when it sits to the side or rear, not directly between shooter and target.
+      const diff=Math.abs(Math.atan2(Math.sin(a-toward),Math.cos(a-toward)));
+      if(diff<.5)continue;
+      const sx=x+Math.cos(a)*S(15),sy=y+Math.sin(a)*S(15);
+      if(obstacleAt(sx,sy,3))score++;
+    }
+    return score;
+  }
+
+  function chooseEnemyTacticalPoint(e,target){
+    const base=Math.atan2(e.y-target.y,e.x-target.x);
+    const roleOffset=e.role==='left'?.78:e.role==='right'?-.78:0;
+    const desiredRadius=e.role==='anchor'?S(112):S(96);
+    let best=null,bestScore=-Infinity;
+
+    for(const radius of [desiredRadius-S(18),desiredRadius,desiredRadius+S(20)]){
+      for(const jitter of [-.28,0,.28]){
+        const a=base+roleOffset+jitter;
+        const x=target.x+Math.cos(a)*radius;
+        const y=target.y+Math.sin(a)*radius;
+        if(x<18||y<18||x>WORLD_W-18||y>WORLD_H-18||obstacleAt(x,y,14))continue;
+        if(lineBlocked(x,y,target.x,target.y))continue;
+
+        const cover=nearbyCoverScore(x,y,target.x,target.y);
+        const street=streetAffinity(x,y);
+        const travel=Math.hypot(x-e.x,y-e.y);
+        const score=cover*18+street*22-travel*.018-Math.abs(radius-desiredRadius)*.02;
+        if(score>bestScore){bestScore=score;best={x,y}}
+      }
+    }
+    return best;
+  }
+
+  function chooseRetreatPoint(e,target){
+    const away=Math.atan2(e.y-target.y,e.x-target.x);
+    for(const offset of [0,.45,-.45,.9,-.9]){
+      const x=e.x+Math.cos(away+offset)*S(62);
+      const y=e.y+Math.sin(away+offset)*S(62);
+      if(x<16||y<16||x>WORLD_W-16||y>WORLD_H-16||obstacleAt(x,y,14))continue;
+      return{x,y};
+    }
+    return null;
+  }
+
   function resolveSquadSpacing(){
     const living=squad.filter(s=>s.alive);
     const min=28;
@@ -706,6 +918,8 @@
   }
 
   function updateSquad(dt){
+    recordLeaderTrail();
+
     squad.forEach(s=>{
       if(!s.alive){
         s.state='dead';
@@ -720,7 +934,13 @@
       s.fireHeat=Math.max(0,(s.fireHeat||0)-dt*.7);
 
       const firingNow=s.fireTimer>0;
-      const moving=followPath(s,firingNow?128:185,dt);
+      let moving=false;
+
+      if(squadFormation.active&&squadFormation.members.includes(s)&&!s.isFormationLeader){
+        moving=followFormationMember(s,dt);
+      }else{
+        moving=followPath(s,firingNow?128:185,dt);
+      }
 
       if(s.fireTimer>0)s.state='fire';
       else if(moving)s.state='walk';
@@ -734,13 +954,14 @@
       for(const s of squad){
         if(!s.alive)continue;
         if(Math.hypot(s.x-p.x,s.y-p.y)<32){
-          if(p.type==='ammo'){s.reserve=Math.min(75,s.reserve+30);setStatus(s.name+' collected ammunition.')}
+          if(p.type==='ammo'){setStatus(s.name+' found an ammunition crate.')}
           else{s.hp=Math.min(s.maxHp,s.hp+2);setStatus(s.name+' used a medical crate.')}
           p.active=false;break;
         }
       }
     });
   }
+
 
   function updateEnemies(dt){
     enemies.forEach(e=>{
@@ -749,53 +970,116 @@
         e.deadTimer=(e.deadTimer||0)+dt;
         return;
       }
+
       e.anim=(e.anim||0)+dt*7;
       e.cooldown=Math.max(0,e.cooldown-dt);
       e.flash=Math.max(0,e.flash-dt);
       e.fireTimer=Math.max(0,(e.fireTimer||0)-dt);
       e.hitTimer=Math.max(0,(e.hitTimer||0)-dt);
       e.repath=Math.max(0,(e.repath||0)-dt);
+      e.tacticTimer=Math.max(0,(e.tacticTimer||0)-dt);
+      e.burstPause=Math.max(0,(e.burstPause||0)-dt);
+      e.searchTimer=Math.max(0,(e.searchTimer||0)-dt);
 
-      const near=nearestLivingSquad(e);if(!near.unit)return;
+      const near=nearestLivingSquad(e);
+      if(!near.unit)return;
+
       const sees=near.d<S(175)&&!lineBlocked(e.x,e.y,near.unit.x,near.unit.y);
       const hears=noise.some(n=>Math.hypot(e.x-n.x,e.y-n.y)<n.r);
 
       if(sees||hears){
         const newlyAlerted=!e.alert;
-        e.alert=true;e.aiState='combat';e.lastSeen={x:near.unit.x,y:near.unit.y};
+        e.alert=true;
+        e.aiState='combat';
+        e.lastSeen={x:near.unit.x,y:near.unit.y};
+        e.searchTimer=3.4;
         if(newlyAlerted)alertNearbyEnemies(e,near.unit.x,near.unit.y,S(215));
       }
 
       let moving=false;
+
       if(e.aiState==='combat'&&e.lastSeen){
-        if(sees)e.lastSeen={x:near.unit.x,y:near.unit.y};
-        const dx=e.lastSeen.x-e.x,dy=e.lastSeen.y-e.y,d=Math.hypot(dx,dy);
+        if(sees){
+          e.lastSeen={x:near.unit.x,y:near.unit.y};
+          e.searchTimer=3.4;
 
-        if(sees&&near.d<S(135)&&e.cooldown<=0){
-          updateFacing(e,near.unit.x-e.x,near.unit.y-e.y);
-          e.fireTimer=.14;e.state='fire';
-          const spread=18+Math.min(34,near.d*.08);
-          fireBullet('enemy',e.x,e.y,
-            near.unit.x+(Math.random()-.5)*spread,
-            near.unit.y+(Math.random()-.5)*spread
-          );
-          e.cooldown=.42+Math.random()*.42;
-        }
-
-        if(sees&&near.d>S(92)){
-          moving=true;updateFacing(e,dx,dy);
-          moveEntity(e,dx/Math.max(1,d)*82*dt,dy/Math.max(1,d)*82*dt,12);
-        }else if(sees&&near.d<S(55)){
-          moving=true;updateFacing(e,-dx,-dy);
-          moveEntity(e,-dx/Math.max(1,d)*55*dt,-dy/Math.max(1,d)*55*dt,12);
-        }else if(!sees&&d>14){
-          if(e.repath<=0||!e.path){
-            assignPath(e,e.lastSeen.x,e.lastSeen.y);
-            e.repath=.75+unit(Math.floor(e.x+e.y),5)*.35;
+          // Too close: back off instead of blindly charging through the squad.
+          if(near.d<S(48)&&e.tacticTimer<=0){
+            const retreat=chooseRetreatPoint(e,near.unit);
+            if(retreat){
+              assignPath(e,retreat.x,retreat.y);
+              e.tacticalPoint=retreat;
+            }
+            e.tacticTimer=.65;
           }
-          moving=followPath(e,72,dt);
-        }else if(!sees){
-          e.aiState='patrol';e.alert=false;e.path=null;e.target=null;
+
+          // Anchor holds a firing lane; flankers deliberately seek a different street/corner angle.
+          const needsPosition=
+            e.tacticTimer<=0&&(
+              !e.tacticalPoint||
+              (e.role!=='anchor'&&near.d>S(62))||
+              (e.role==='anchor'&&near.d>S(132))
+            );
+
+          if(needsPosition){
+            const tactical=chooseEnemyTacticalPoint(e,near.unit);
+            if(tactical&&Math.hypot(tactical.x-e.x,tactical.y-e.y)>22){
+              if(assignPath(e,tactical.x,tactical.y))e.tacticalPoint=tactical;
+            }
+            e.tacticTimer=.9+unit(Math.floor(e.x+e.y),e.groupId+11)*.65;
+          }
+
+          if(e.path){
+            const tacticalSpeed=e.role==='anchor'?62:78;
+            moving=followPath(e,tacticalSpeed,dt);
+          }
+
+          // Fire in short, recognisable bursts. Flankers generally finish their move before opening up.
+          const canFire=
+            near.d<S(145)&&
+            e.cooldown<=0&&
+            e.burstPause<=0&&
+            (!moving||e.role==='anchor'||near.d<S(72));
+
+          if(canFire){
+            updateFacing(e,near.unit.x-e.x,near.unit.y-e.y);
+            e.fireTimer=.14;e.state='fire';
+
+            const spread=15+Math.min(30,near.d*.07)+(moving?10:0);
+            fireBullet(
+              'enemy',e.x,e.y,
+              near.unit.x+(Math.random()-.5)*spread,
+              near.unit.y+(Math.random()-.5)*spread
+            );
+
+            e.burstCount++;
+            if(e.burstCount>=e.burstLimit){
+              e.burstCount=0;
+              e.burstLimit=2+Math.floor(unit(Math.floor(e.x*3+e.y),17)*3);
+              e.burstPause=.62+unit(Math.floor(e.x+e.y*2),19)*.55;
+              e.cooldown=.18;
+            }else{
+              e.cooldown=.14+unit(Math.floor(e.x+e.y),23)*.11;
+            }
+          }
+        }else{
+          const dx=e.lastSeen.x-e.x,dy=e.lastSeen.y-e.y,d=Math.hypot(dx,dy);
+
+          // Search the shared last-known position instead of immediately giving up.
+          if(d>18){
+            if(e.repath<=0||!e.path){
+              assignPath(e,e.lastSeen.x,e.lastSeen.y);
+              e.repath=.72+unit(Math.floor(e.x+e.y),5)*.38;
+            }
+            moving=followPath(e,70,dt);
+          }else if(e.searchTimer<=0){
+            e.aiState='patrol';
+            e.alert=false;
+            e.path=null;e.target=null;e.tacticalPoint=null;
+          }else{
+            // Stationary search: slowly scan while group-mates approach.
+            e.dir+=(e.role==='right'?-1:1)*dt*.7;
+          }
         }
       }else{
         e.phase+=dt*.65;
@@ -812,6 +1096,7 @@
       else e.state='idle';
     });
   }
+
 
   function updateCivilians(dt){
     civilians.forEach(c=>{
@@ -882,16 +1167,41 @@
   }
 
   function setMoveTargets(p){
-    const units=selectedUnits(),formation=[[-28,-24],[28,-24],[-28,24],[28,24]];
-    let routed=0;
+    const units=selectedUnits();
+    if(!units.length)return;
+
+    const tx=Math.max(16,Math.min(WORLD_W-16,p.x));
+    const ty=Math.max(16,Math.min(WORLD_H-16,p.y));
+
+    if(units.length===1){
+      clearSquadFormation();
+      if(!assignPath(units[0],tx,ty))setStatus('No clear route to that position.');
+      return;
+    }
+
+    clearSquadFormation();
+    const leader=units[0];
+    squadFormation={
+      active:true,
+      leader,
+      members:[...units],
+      trail:[{x:leader.x,y:leader.y}],
+      destination:{x:tx,y:ty}
+    };
+
     units.forEach((s,i)=>{
-      const o=units.length>1?(formation[i]||[0,0]):[0,0];
-      const tx=Math.max(16,Math.min(WORLD_W-16,p.x+o[0]));
-      const ty=Math.max(16,Math.min(WORLD_H-16,p.y+o[1]));
-      if(assignPath(s,tx,ty))routed++;
+      s.formSlot=i;
+      s.isFormationLeader=i===0;
+      s.followRepath=0;
+      if(i>0){s.path=null;s.target=null;s.pathIndex=0}
     });
-    if(units.length&&routed===0)setStatus('No clear route to that position.');
+
+    if(!assignPath(leader,tx,ty)){
+      clearSquadFormation();
+      setStatus('No clear route to that position.');
+    }
   }
+
 
 
   function updateCamera(dt){
@@ -1122,6 +1432,9 @@
       drawSoldier(e,'enemy');
       if(e.alert&&e.alive){
         ctx.fillStyle='#2c2218';ctx.font='bold 17px system-ui';ctx.textAlign='center';ctx.fillText('!',e.x,e.y-29);
+        ctx.fillStyle=e.role==='anchor'?'#d6be6b':'#b88b57';
+        const pipX=e.role==='left'?-5:e.role==='right'?5:0;
+        ctx.fillRect(e.x+pipX-2,e.y-34,4,3);
       }
     });
 
@@ -1217,6 +1530,7 @@
       rightHeld=false;
       if(!bothLatched){
         bothLatched=true;
+        if(selection==='all')clearSquadFormation();
         selectedUnits().forEach(s=>{s.target=null;s.path=null;s.pathIndex=0});
         throwGrenade(p.x,p.y);
       }
@@ -1255,7 +1569,10 @@
 
   selectAllBtn.addEventListener('click',()=>setSelection('all'));
   unitButtons.forEach((b,i)=>b.addEventListener('click',()=>setSelection(i)));
-  stopBtn.addEventListener('click',()=>selectedUnits().forEach(s=>{s.target=null;s.path=null;s.pathIndex=0}));
+  stopBtn.addEventListener('click',()=>{
+    clearSquadFormation();
+    selectedUnits().forEach(s=>{s.target=null;s.path=null;s.pathIndex=0});
+  });
   mapBtn.addEventListener('click',toggleMap);
   zoomOutBtn.addEventListener('click',()=>{zoom=Math.max(.55,zoom-.15)});
   zoomInBtn.addEventListener('click',()=>{zoom=Math.min(1.45,zoom+.15)});
