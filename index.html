@@ -392,7 +392,7 @@
       <div id="status">Loading Bad Belzig…</div>
     </div>
     <div class="stats">
-      <span class="pill">Squad <strong id="squadCount">4</strong>/4</span>
+      <span class="pill">Squad <strong id="squadCount">4</strong>/<strong id="squadMax">4</strong></span>
       <span class="pill">Hostiles <strong id="enemyCount">20</strong></span>
       <span class="pill">Grenades <strong id="grenadeCount">5</strong></span>
     </div>
@@ -401,10 +401,6 @@
   <section class="toolbar">
     <div class="squad-controls">
       <button id="selectAll" class="active" type="button">All</button>
-      <button class="unitBtn" data-unit="0" type="button">1 Müller</button>
-      <button class="unitBtn" data-unit="1" type="button">2 Becker</button>
-      <button class="unitBtn" data-unit="2" type="button">3 Klein</button>
-      <button class="unitBtn" data-unit="3" type="button">4 Jansen</button>
     </div>
     <div class="controls">
       <button id="stopBtn" type="button">Stop</button>
@@ -439,7 +435,7 @@
         </div>
         <div class="menu-panel menu-card" data-view="controls" hidden>
           <h2>CONTROLS</h2>
-          <dl><dt>MOVE</dt><dd>Left-click terrain, or use the joystick.</dd><dt>FIRE</dt><dd>Hold right-click. MacBook: hold Shift + click, or hold F while aiming with the cursor. Mobile: hold FIRE.</dd><dt>GRENADE</dt><dd>Left + right mouse buttons. MacBook: Option/Alt + click, or press G at the cursor. Mobile: GRENADE.</dd><dt>ZOOM</dt><dd>On touch devices, pinch two fingers on the game to zoom in and out.</dd><dt>SQUAD</dt><dd>1–4 / A, or select a squad portrait.</dd><dt>MAP / PAUSE</dt><dd>M / Enter or Esc, or the HUD buttons.</dd></dl>
+          <dl><dt>MOVE</dt><dd>Left-click terrain, or use the joystick.</dd><dt>FIRE</dt><dd>Hold right-click. MacBook: hold Shift + click, or hold F while aiming with the cursor. Mobile: hold FIRE.</dd><dt>GRENADE</dt><dd>Left + right mouse buttons. MacBook: Option/Alt + click, or press G at the cursor. Mobile: GRENADE.</dd><dt>ZOOM</dt><dd>On touch devices, pinch two fingers on the game to zoom in and out.</dd><dt>SQUAD</dt><dd>1–8 / A, or select a squad portrait.</dd><dt>MAP / PAUSE</dt><dd>M / Enter or Esc, or the HUD buttons.</dd></dl>
           <button class="menu-button" data-back type="button">BACK</button>
         </div>
         <div class="menu-panel menu-card" data-view="options" hidden>
@@ -457,7 +453,7 @@
     <div id="gameHud" class="game-hud" aria-label="Game status">
       <div class="hud-topline">
         <div class="hud-mission">
-          <div class="hud-kicker">BAD BELZIG <strong id="hudStage">OBJECTIVE 1/3</strong></div>
+          <div class="hud-kicker"><span id="hudCampaign">MISSION 01/24 · BAD BELZIG</span> <strong id="hudStage">OBJECTIVE 1/3</strong></div>
           <span id="hudMission">Preparing operation…</span>
           <div id="hudProgress" class="hud-progress" aria-label="Mission progress"><i></i><i></i><i></i></div>
         </div>
@@ -494,7 +490,7 @@
     <div><strong>Zoom:</strong> pinch with two fingers on the game to zoom in and out on touch devices.</div>
     <div><strong>Map:</strong> M or MAP in the HUD.</div>
     <div><strong>Pause:</strong> Enter or the pause button in the HUD.</div>
-    <div><strong>Squad:</strong> select a squad portrait or ALL in the HUD. Keyboard: 1–4 or A.</div>
+    <div><strong>Squad:</strong> select a squad portrait or ALL in the HUD. Keyboard: 1–8 or A.</div>
   </div>
   <div class="note">This uses the established Bad Belzig map geometry: 179 mapped roads, 906 building footprints and illustrated landmarks. Map data © OpenStreetMap contributors, ODbL 1.0.</div>
 </main>
@@ -507,6 +503,7 @@
 <script src="menu-ui.js"></script>
 <script src="music.js"></script>
 <script src="sfx.js"></script>
+<script src="campaign.js"></script>
 <script>
 (() => {
   'use strict';
@@ -521,15 +518,17 @@
   ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
   display.imageSmoothingEnabled=true;
   const art=BadFodderArt;
+  const campaign=BadFodderCampaign;
   const statusEl=document.getElementById('status');
   const squadCountEl=document.getElementById('squadCount');
+  const squadMaxEl=document.getElementById('squadMax');
   const enemyCountEl=document.getElementById('enemyCount');
   const grenadeCountEl=document.getElementById('grenadeCount');
   const rosterEl=document.getElementById('roster');
   const loadingEl=document.getElementById('loading');
 
   const selectAllBtn=document.getElementById('selectAll');
-  const unitButtons=Array.from(document.querySelectorAll('.unitBtn'));
+  let unitButtons=Array.from(document.querySelectorAll('.unitBtn'));
   const stopBtn=document.getElementById('stopBtn');
   const mapBtn=document.getElementById('mapBtn');
   const zoomOutBtn=document.getElementById('zoomOutBtn');
@@ -546,6 +545,7 @@
   const touchFull=document.getElementById('touchFull');
   const gameViewport=canvas.parentElement;
   const hudMission=document.getElementById('hudMission');
+  const hudCampaign=document.getElementById('hudCampaign');
   const hudStage=document.getElementById('hudStage');
   const hudEnemies=document.getElementById('hudEnemies');
   const hudGrenades=document.getElementById('hudGrenades');
@@ -642,6 +642,11 @@
     castle:{x:poi.castle.x,y:poi.castle.y,r:S(82)},
     market:{x:poi.market.x,y:poi.market.y,r:S(86)}
   };
+
+  function activeMission(){
+    const mission=campaign.current();
+    return mission&&mission.playable?mission:campaign.missions[0];
+  }
 
   async function preload(){
     await art.preloadPainted();
@@ -1014,6 +1019,20 @@
   }
 
 
+  function rebuildUnitButtons(){
+    unitButtons.forEach(b=>b.remove());
+    unitButtons=squad.map((s,i)=>{
+      const b=document.createElement('button');
+      b.className='unitBtn';
+      b.dataset.unit=String(i);
+      b.type='button';
+      b.textContent=(i+1)+' '+s.name;
+      b.addEventListener('click',()=>setSelection(i));
+      selectAllBtn.parentElement.appendChild(b);
+      return b;
+    });
+  }
+
   function setSelection(sel){
     selection=sel;
     squad.forEach((s,i)=>s.selected=s.alive&&(sel==='all'||sel===i));
@@ -1060,7 +1079,9 @@
 
 
   function resetGame(){
-    const names=['Müller','Becker','Klein','Jansen'];
+    const mission=activeMission();
+    const rosterNames=['Müller','Becker','Klein','Jansen','Fischer','Wagner','Schulz','Koch'];
+    const names=rosterNames.slice(0,Math.max(1,Math.min(8,mission.squadSize||4)));
     const startX=S(786),startY=S(1450);
     squad=names.map((name,i)=>({
       name,variant:i,x:startX+(i%2)*34,y:startY+Math.floor(i/2)*34,
@@ -1068,6 +1089,9 @@
       dir:-Math.PI/2,anim:i*.7,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0,path:null,pathIndex:0,
       fireHeat:0,hitTimer:0,damageGrace:0,formSlot:0,followRepath:0,isFormationLeader:false
     }));
+
+    rebuildUnitButtons();
+    squadMaxEl.textContent=String(squad.length);
 
     const hostileSpots=[
       [770,1285],[700,1230],[550,1190],[390,1160],[330,1085],
@@ -1122,50 +1146,106 @@
     setSelection('all');updateHud();syncTouchControlState();
   }
 
-  function updateHud(force=false){
-    const living=squad.filter(s=>s.alive);
-    hudAll.querySelector('span').textContent=living.length+' TROOPS';
-    hudStage.textContent=finished?(win?'MISSION COMPLETE':'MISSION FAILED'):'OBJECTIVE '+Math.min(3,missionStage+1)+'/3';
-    hudProgress.querySelectorAll('i').forEach((p,i)=>{p.className=win||i<missionStage?'done':i===missionStage?'current':'';});
-    const remaining=enemies.filter(e=>e.alive).length;
-    const stats=[living.length,remaining,squadGrenades].join('|');
+  function phaseZone(phase){
+    return phase&&phase.zone?zones[phase.zone]||null:null;
+  }
 
+  function phaseEvaluation(phase,living,remaining){
+    if(!phase)return{complete:true,status:'Mission complete.'};
+    const zone=phaseZone(phase);
+    const inZone=zone&&living.some(s=>pointInCircle(s.x,s.y,zone));
+
+    if(phase.type==='reach'){
+      return{complete:!!inZone,status:phase.brief};
+    }
+
+    if(phase.type==='secure-zone'){
+      const radius=S(phase.radius||160);
+      const localEnemies=zone?enemies.filter(e=>e.alive&&Math.hypot(e.x-zone.x,e.y-zone.y)<radius):[];
+      return{
+        complete:!!inZone&&localEnemies.length===0,
+        status:phase.brief+' '+localEnemies.length+' hostile'+(localEnemies.length===1?'':'s')+' remain in the sector.'
+      };
+    }
+
+    if(phase.type==='eliminate'){
+      return{complete:remaining===0,status:phase.brief+' '+remaining+' hostile'+(remaining===1?'':'s')+' remain.'};
+    }
+
+    if(phase.type==='eliminate-and-reach'){
+      return{
+        complete:remaining===0&&!!inZone,
+        status:phase.brief+' '+remaining+' hostile'+(remaining===1?'':'s')+' remain.'
+      };
+    }
+
+    // Future mission systems plug into these objective types without changing campaign data.
+    if(phase.type==='destroy')return{complete:false,status:phase.brief};
+    if(phase.type==='rescue')return{complete:false,status:phase.brief};
+    if(phase.type==='protect')return{complete:false,status:phase.brief};
+
+    return{complete:false,status:phase.brief||phase.title||'Complete the objective.'};
+  }
+
+  function rebuildHudProgress(count){
+    const current=hudProgress.querySelectorAll('i').length;
+    if(current===count)return;
+    hudProgress.innerHTML='';
+    for(let i=0;i<count;i++)hudProgress.appendChild(document.createElement('i'));
+  }
+
+  function completeCurrentMission(){
+    if(finished)return;
+    finished=true;win=true;
+    campaign.complete(campaign.state.current);
+    hudStage.textContent='MISSION COMPLETE';
+    setStatus('Mission complete. '+activeMission().title+' complete.');
+    syncTouchControlState();
+  }
+
+  function updateHud(force=false){
+    const mission=activeMission();
+    const phases=mission.phases||[];
+    const phaseCount=Math.max(1,phases.length);
+    const living=squad.filter(s=>s.alive);
+    const remaining=enemies.filter(e=>e.alive).length;
+
+    hudCampaign.textContent='MISSION '+String(mission.id).padStart(2,'0')+'/24 · '+mission.title.toUpperCase();
+    hudAll.querySelector('span').textContent=living.length+' TROOPS';
+    hudStage.textContent=finished?(win?'MISSION COMPLETE':'MISSION FAILED'):'OBJECTIVE '+Math.min(phaseCount,missionStage+1)+'/'+phaseCount;
+    rebuildHudProgress(phaseCount);
+    hudProgress.querySelectorAll('i').forEach((p,i)=>{p.className=win||i<missionStage?'done':i===missionStage?'current':'';});
+
+    const stats=[living.length,squad.length,remaining,squadGrenades,mission.id,missionStage].join('|');
     if(force||stats!==lastHudStats){
       lastHudStats=stats;
       squadCountEl.textContent=living.length;
+      squadMaxEl.textContent=squad.length;
       enemyCountEl.textContent=remaining;
       grenadeCountEl.textContent=squadGrenades;
       hudSquad.textContent=living.length;
       hudEnemies.textContent=remaining;
       hudGrenades.textContent=squadGrenades;
     }
+
     updateRoster(force);
     if(finished)return;
 
-    if(missionStage===0){
-      setStatus('Stage 1: move up Bahnhofstraße and reach the Postdistanzsäule.');
-      if(living.some(s=>pointInCircle(s.x,s.y,zones.post))){
-        missionStage=1;
-        setStatus('Stage 2: secure Burg Eisenhardt.');
-      }
-    }
+    const phase=phases[missionStage];
+    if(!phase){completeCurrentMission();return}
 
-    if(missionStage===1){
-      const castleEnemies=enemies.filter(e=>e.alive&&Math.hypot(e.x-zones.castle.x,e.y-zones.castle.y)<S(185));
-      if(castleEnemies.length===0&&living.some(s=>pointInCircle(s.x,s.y,zones.castle))){
-        missionStage=2;
-        setStatus('Stage 3: push through the Altstadt to Marktplatz and Rathaus.');
-      }else{
-        setStatus('Stage 2: secure Burg Eisenhardt. '+castleEnemies.length+' hostile'+(castleEnemies.length===1?'':'s')+' in the castle sector.');
-      }
-    }
+    const result=phaseEvaluation(phase,living,remaining);
+    setStatus('Phase '+(missionStage+1)+': '+result.status);
 
-    if(missionStage===2){
-      if(remaining===0&&living.some(s=>pointInCircle(s.x,s.y,zones.market))){
-        finished=true;win=true;hudStage.textContent='MISSION COMPLETE';setStatus('Mission complete. Bad Belzig secured.');syncTouchControlState();
-      }else{
-        setStatus('Stage 3: push through the Altstadt to Marktplatz and Rathaus. '+remaining+' hostile'+(remaining===1?'':'s')+' remain.');
+    if(result.complete){
+      missionStage++;
+      if(missionStage>=phaseCount){
+        completeCurrentMission();
+        return;
       }
+      const next=phases[missionStage];
+      setStatus('Phase '+(missionStage+1)+': '+(next.brief||next.title));
+      updateHud(true);
     }
   }
 
@@ -1400,7 +1480,11 @@
       [0,0],
       [-34,30],
       [34,30],
-      [0,62]
+      [-64,58],
+      [0,62],
+      [64,58],
+      [-34,92],
+      [34,92]
     ];
     const [side,back]=offsets[Math.min(slot,offsets.length-1)];
     const fx=Math.cos(leader.dir||0),fy=Math.sin(leader.dir||0);
@@ -2551,7 +2635,6 @@
 
   selectAllBtn.addEventListener('click',()=>setSelection('all'));
   hudAll.addEventListener('click',()=>setSelection('all'));
-  unitButtons.forEach((b,i)=>b.addEventListener('click',()=>setSelection(i)));
   stopBtn.addEventListener('click',()=>{
     clearSquadFormation();
     selectedUnits().forEach(s=>{s.target=null;s.path=null;s.pathIndex=0});
@@ -2587,10 +2670,10 @@
 
     if(e.repeat)return;
 
-    if(e.key==='1')setSelection(0);
-    if(e.key==='2')setSelection(1);
-    if(e.key==='3')setSelection(2);
-    if(e.key==='4')setSelection(3);
+    if(/^[1-8]$/.test(e.key)){
+      const index=Number(e.key)-1;
+      if(index<squad.length)setSelection(index);
+    }
     if(key==='a')setSelection('all');
 
     if(key==='m'){
