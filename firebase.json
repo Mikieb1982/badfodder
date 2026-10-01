@@ -11,7 +11,8 @@
       "node_modules/**",
       ".git/**",
       ".github/**",
-      "tests/**"
+      "tests/**",
+      "docs/**"
     ],
     "cleanUrls": true,
     "trailingSlash": false

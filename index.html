@@ -381,6 +381,7 @@
     }
   </style>
   <link rel="stylesheet" href="game-ui.css">
+  <link rel="stylesheet" href="menu-ui.css">
 </head>
 <body>
 <main class="app" id="gameRoot">
@@ -411,7 +412,7 @@
       <button id="zoomOutBtn" type="button">− Zoom</button>
       <button id="zoomInBtn" type="button">+ Zoom</button>
       <button id="pauseBtn" type="button">Pause (Enter)</button>
-      <button id="restartBtn" type="button">Restart (Esc)</button>
+      <button id="restartBtn" type="button">Restart</button>
     </div>
   </section>
 
@@ -420,6 +421,37 @@
   <div class="viewport">
     <div id="loading" class="loading"><div><strong>Bad Belzig</strong><span>Preparing game…</span></div></div>
     <canvas id="game" width="1040" height="650" aria-label="Top-down tactical game using the established Bad Belzig map"></canvas>
+    <section id="menuScreen" class="menu-screen" role="dialog" aria-modal="true" aria-label="Bad Fodder main menu" data-mode="title" data-panel="main">
+      <div class="menu-backdrop" aria-hidden="true"></div>
+      <div class="menu-layout">
+        <img class="menu-logo" src="assets/menu/logo.webp" alt="Bad Fodder" width="650" height="340">
+        <p id="menuBadge" class="menu-badge">OPERATION BAD BELZIG</p>
+        <div class="menu-panel" data-view="main">
+          <nav class="menu-actions" aria-label="Game menu">
+            <button id="menuStart" class="menu-button primary" type="button" disabled>PREPARING MISSION…</button>
+            <button id="menuResume" class="menu-button primary" type="button" hidden>RESUME</button>
+            <button id="menuRestart" class="menu-button" type="button" hidden>RESTART MISSION</button>
+            <button id="menuControls" class="menu-button" type="button">CONTROLS</button>
+            <button id="menuOptions" class="menu-button" type="button">OPTIONS</button>
+            <button id="menuMain" class="menu-button" type="button" hidden>MAIN MENU</button>
+          </nav>
+          <p class="menu-hint">MOUSE · TOUCH · KEYBOARD</p>
+        </div>
+        <div class="menu-panel menu-card" data-view="controls" hidden>
+          <h2>CONTROLS</h2>
+          <dl><dt>MOVE</dt><dd>Left-click terrain, or use the joystick.</dd><dt>FIRE</dt><dd>Hold right-click, or hold FIRE.</dd><dt>GRENADE</dt><dd>Left + right mouse buttons, or GRENADE.</dd><dt>SQUAD</dt><dd>1–4 / A, or select a squad portrait.</dd><dt>MAP / PAUSE</dt><dd>M / Enter or Esc, or the HUD buttons.</dd></dl>
+          <button class="menu-button" data-back type="button">BACK</button>
+        </div>
+        <div class="menu-panel menu-card" data-view="options" hidden>
+          <h2>OPTIONS</h2>
+          <label class="menu-setting" for="menuZoom"><span>CAMERA ZOOM</span><select id="menuZoom"><option value="0.85">Wide</option><option value="1" selected>Normal</option><option value="1.25">Close</option></select></label>
+          <label class="menu-setting" for="menuDust"><span>FOOTSTEP DUST</span><input id="menuDust" type="checkbox" checked></label>
+          <button id="menuFull" class="menu-button" type="button">FULL SCREEN</button>
+          <button class="menu-button" data-back type="button">BACK</button>
+        </div>
+        <p id="menuHelp" class="menu-footer">SELECT AN OPTION TO BEGIN</p>
+      </div>
+    </section>
     <div id="gameHud" class="game-hud" aria-label="Game status">
       <div class="hud-topline">
         <div class="hud-mission">
@@ -467,6 +499,7 @@
 <script src="town-map.js"></script>
 <script src="pixel-art.js"></script>
 <script src="scenery-cache.js"></script>
+<script src="menu-ui.js"></script>
 <script>
 (() => {
   'use strict';
@@ -534,7 +567,8 @@
   let zoom=1,selection='all',paused=false,mapOpen=false,finished=false,win=false,missionStage=0;
   let camera={x:S(620),y:S(1260)},last=performance.now(),squadGrenades=5;
   let bullets=[],thrown=[],effects=[],noise=[],squad=[],enemies=[],civilians=[],pickups=[];
-  let started=false;
+  let started=false,menuOpen=true,preferredZoom=1,showDust=!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches);
+  let menu=null;
   let cursorWorld=null,rightHeld=false,bothLatched=false;
   let lastHudStats='',lastRosterSignature='';
   const hudChips=new Map();
@@ -911,7 +945,9 @@
   }
 
   function syncTouchControlState(){
-    touchControls.classList.toggle('blocked',mapOpen||paused||finished);
+    touchControls.classList.toggle('blocked',menuOpen||mapOpen||paused||finished);
+    document.getElementById('gameHud').inert=menuOpen;
+    touchControls.inert=menuOpen;
     touchMap.classList.toggle('active',mapOpen);
     touchMap.textContent=mapOpen?'BACK':'MAP';
     touchMap.setAttribute('aria-label',mapOpen?'Close tactical map':'Tactical map');
@@ -935,15 +971,32 @@
   }
 
   function togglePause(){
-    if(finished)return;
-    paused=!paused;
-    pauseBtn.textContent=paused?'Resume (Enter)':'Pause (Enter)';
-    if(paused){
-      touchState.fireHeld=false;
-      touchFire.classList.remove('active');
-      releaseTouchMove();
-    }
+    if(finished||!started)return;
+    if(menuOpen){if(menu&&menu.mode==='pause')resumeMission();return;}
+    paused=true;menuOpen=true;
+    rightHeld=false;bothLatched=false;touchState.fireHeld=false;
+    touchFire.classList.remove('active');releaseTouchMove();
+    pauseBtn.textContent='Resume (Enter)';
+    if(menu)menu.show('pause');
     syncTouchControlState();
+  }
+
+  function resumeMission(){
+    if(!started||finished)return;
+    paused=false;menuOpen=false;
+    pauseBtn.textContent='Pause (Enter)';
+    menu.close();syncTouchControlState();root.focus({preventScroll:true});
+  }
+
+  function beginMission(){
+    if(!started)return;
+    resetGame();menuOpen=false;paused=false;
+    menu.close();syncTouchControlState();root.focus({preventScroll:true});
+  }
+
+  function showTitle(){
+    menuOpen=true;paused=true;rightHeld=false;touchState.fireHeld=false;
+    releaseTouchMove();menu.show('title');syncTouchControlState();
   }
 
 
@@ -1036,7 +1089,7 @@
 
     [...squad,...enemies,...civilians].forEach(ent=>art.animate(ent,0));
     bullets=[];thrown=[];effects=[];noise=[];squadGrenades=5;missionStage=0;
-    finished=false;win=false;paused=false;mapOpen=false;selection='all';zoom=1;
+    finished=false;win=false;paused=false;mapOpen=false;selection='all';zoom=preferredZoom;
     rightHeld=false;bothLatched=false;cursorWorld=null;
     lastHudStats='';lastRosterSignature='';
     squadFormation={active:false,leader:null,members:[],trail:[],destination:null,manualMoving:false};
@@ -1778,7 +1831,7 @@
   }
 
   function applyTouchMovement(dt){
-    if(touchState.moveMag<.08||paused||finished||mapOpen)return;
+    if(touchState.moveMag<.08||menuOpen||paused||finished||mapOpen)return;
 
     const leader=ensureTouchFormation();
     if(!leader||!leader.alive)return;
@@ -2063,7 +2116,7 @@
   function drawSoldier(ent,team='squad'){
     const visual=art.pose(ent);
     ctx.save();
-    (visual.dust||[]).forEach(p=>{ctx.globalAlpha=p.life/.22*.22;ctx.fillStyle='#b7a874';ctx.fillRect(p.x-2,p.y-1,4,2);});
+    if(showDust)(visual.dust||[]).forEach(p=>{ctx.globalAlpha=p.life/.22*.22;ctx.fillStyle='#b7a874';ctx.fillRect(p.x-2,p.y-1,4,2);});
     ctx.restore();ctx.imageSmoothingEnabled=false;
     const flinch=ent.hitTimer>0?Math.sin(Math.min(1,ent.hitTimer/.16)*Math.PI)*1.5:0;
     ctx.save();
@@ -2191,7 +2244,7 @@
   });
 
   canvas.addEventListener('pointerdown',evt=>{
-    if(!started||paused||finished||mapOpen)return;
+    if(!started||menuOpen||paused||finished||mapOpen)return;
     canvas.setPointerCapture?.(evt.pointerId);
     const p=pointerWorld(evt);
     cursorWorld=p;
@@ -2254,7 +2307,7 @@
   }
 
   touchJoystick.addEventListener('pointerdown',evt=>{
-    if(!started||paused||finished||mapOpen)return;
+    if(!started||menuOpen||paused||finished||mapOpen)return;
     evt.preventDefault();evt.stopPropagation();
     touchState.movePointer=evt.pointerId;
     touchJoystick.setPointerCapture?.(evt.pointerId);
@@ -2278,7 +2331,7 @@
   touchJoystick.addEventListener('lostpointercapture',()=>releaseTouchMove());
 
   touchFire.addEventListener('pointerdown',evt=>{
-    if(!started||paused||finished||mapOpen)return;
+    if(!started||menuOpen||paused||finished||mapOpen)return;
     evt.preventDefault();evt.stopPropagation();
     touchState.firePointer=evt.pointerId;
     touchState.fireHeld=true;
@@ -2301,7 +2354,7 @@
   });
 
   touchGrenade.addEventListener('pointerdown',evt=>{
-    if(!started||paused||finished||mapOpen)return;
+    if(!started||menuOpen||paused||finished||mapOpen)return;
     evt.preventDefault();evt.stopPropagation();
     touchGrenade.classList.add('active');
     grenadeMobile();
@@ -2339,8 +2392,11 @@
 
   root.tabIndex=0;
   root.addEventListener('keydown',e=>{
+    if(menuOpen)return;
+    if(e.repeat)return;
     const tag=e.target&&e.target.tagName;
     if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')return;
+    if(tag==='BUTTON'&&e.key==='Enter')return;
 
     if(e.key==='1')setSelection(0);
     if(e.key==='2')setSelection(1);
@@ -2360,13 +2416,13 @@
 
     if(e.key==='Escape'){
       e.preventDefault();
-      resetGame();
+      togglePause();
     }
   });
 
   function tick(now){
     const dt=Math.min(.033,(now-last)/1000||0);last=now;
-    if(started&&!paused&&!finished&&!mapOpen){
+    if(started&&!menuOpen&&!paused&&!finished&&!mapOpen){
       applyTouchMovement(dt);
       if(rightHeld&&cursorWorld&&!bothLatched)squadFireAt(cursorWorld.x,cursorWorld.y);
       if(touchState.fireHeld)fireMobile();
@@ -2399,6 +2455,7 @@
 
       sceneryTiles.draw(ctx,camera.x,camera.y,VIEW_W/zoom,VIEW_H/zoom);
       started=true;
+      menu.ready();
       loadingEl.classList.add('hidden');
       setStatus('Stage 1: move up Bahnhofstraße and reach the Postdistanzsäule.');
       syncTouchControlState();
@@ -2406,12 +2463,19 @@
     }catch(err){
       console.error('Bad Fodder failed to start',err);
       started=false;
+      menu.fail();
       const loadingText=loadingEl.querySelector('span');
       if(loadingText)loadingText.textContent='Unable to start game. Reload the page to try again.';
       setStatus('Game startup failed.');
     }
   }
 
+  menu=new BadFodderMenu({
+    root,screen:document.getElementById('menuScreen'),start:beginMission,resume:resumeMission,restart:beginMission,main:showTitle,
+    fullscreen:toggleMobileFullscreen,isFullscreen:isFullscreenActive,
+    zoom:value=>{preferredZoom=zoom=Number(value);clampCamera();},dust:value=>{showDust=value;},dustEnabled:showDust
+  });
+  menu.show('title');syncTouchControlState();
   window.addEventListener('resize',resizeGame);
   if(window.ResizeObserver)new ResizeObserver(resizeGame).observe(gameViewport);
   resizeGame();

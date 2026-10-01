@@ -2,6 +2,16 @@
 
 A browser-based top-down tactical game inspired by classic squad-control games and set on a stylised Bad Belzig map.
 
+## Title and pause screens
+
+![Bad Fodder title screen](docs/title-screen.jpg)
+
+The game opens on a title screen based on the supplied Bad Fodder artwork. Start Mission becomes available when the town and sprites are ready. The mission does not advance behind the title screen. Controls and Options are available before starting.
+
+Enter or the pause button opens the matching pause screen, with Resume, Restart Mission, Controls, Options and Main Menu. Escape returns from a submenu or resumes a paused mission. Arrow keys move through the menu and Tab stays within it. Mouse and touch controls work throughout.
+
+Options change camera zoom, footstep dust and fullscreen mode. Artwork lives in `assets/menu/logo.webp` and `assets/menu/town-background.webp`; both use lossless encoding. The built-in image-generation tool prepared the artwork from the supplied image: remove the baked logo/menu and reconstruct the town background, then extract the red-and-gold Bad Fodder logo on transparency. Menu labels and buttons are live HTML rather than part of the picture.
+
 ## Current prototype
 
 - Four-person controllable squad
@@ -49,8 +59,8 @@ The navigation regression suite runs individual and four-person squad movement t
 - **Fire machine gun**: hold right-click and aim with the cursor; ammunition is unlimited
 - **Throw grenade**: press left + right mouse buttons together
 - **View map**: press **M**
-- **Pause / resume**: press **Enter**
-- **Restart mission**: press **Esc**
+- **Pause / resume**: press **Enter** or **Esc**
+- **Restart mission**: choose **RESTART MISSION** in the pause menu or the toolbar **Restart** button
 - **1-4**: select an individual squad member
 - **A**: select all
 
