@@ -122,3 +122,20 @@ h1{font:800 28px/1 system-ui,sans-serif;letter-spacing:.13em;text-transform:uppe
 @media(pointer:coarse) and (orientation:landscape){
  .hud-roster{width:min(520px,calc(100% - 340px))}.hud-unit{min-height:44px;padding:4px}.hud-portrait{display:none}.hud-name{font-size:9px}.hud-health i{width:6px;height:6px;flex-basis:6px}
 }
+/* Portrait cards use the reference's name / face / health hierarchy. */
+.hud-unit{display:grid;grid-template-columns:54px 1fr;grid-template-rows:auto 54px auto;gap:6px 7px;text-align:left}
+.hud-unit-info{display:contents}.hud-name{grid-column:1/-1;grid-row:1;font-size:17px}
+.hud-portrait{grid-column:1;grid-row:2;width:52px!important;height:52px!important;align-self:center}
+.hud-state{grid-column:2;grid-row:2;font-size:15px;align-self:center;margin:0}
+.hud-health{grid-column:1/-1;grid-row:3;justify-content:center;margin:2px 0 0}.hud-health i{width:12px;height:12px;flex-basis:12px}
+.hud-unit.down .hud-state{font-size:12px}.hud-unit.down .hud-portrait{filter:sepia(.4) brightness(.72)}
+@media(pointer:coarse),(max-width:720px){
+ .hud-unit{grid-template-columns:1fr;grid-template-rows:auto 34px auto auto;gap:5px;padding:6px 3px;text-align:center}
+ .hud-name{font-size:10px}.hud-portrait{grid-column:1;grid-row:2;justify-self:center;width:32px!important;height:32px!important}
+ .hud-health{grid-column:1;grid-row:3;gap:2px}.hud-health i{width:7px;height:7px;flex-basis:7px}
+ .hud-state{grid-column:1;grid-row:4;font-size:9px}.hud-unit.down .hud-state{font-size:9px}
+}
+@media(pointer:coarse) and (orientation:landscape){
+ .hud-unit{grid-template-rows:auto auto;gap:3px}.hud-portrait{display:none}.hud-health{grid-row:2}.hud-state{display:none}
+}
+@media(pointer:coarse) and (orientation:landscape){.hud-unit.down .hud-name::after{content:'DOWN';display:block;font-size:7px;margin-top:2px;color:#e2a077}}
