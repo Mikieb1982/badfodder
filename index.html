@@ -493,10 +493,11 @@
     <div><strong>Pause:</strong> Enter or the pause button in the HUD.</div>
     <div><strong>Squad:</strong> select a squad portrait or ALL in the HUD. Keyboard: 1–8 or A.</div>
   </div>
-  <div class="note">This uses the established Bad Belzig map geometry: 179 mapped roads, 906 building footprints and illustrated landmarks. Map data © OpenStreetMap contributors, ODbL 1.0.</div>
+  <div class="note">Mission maps use real-world street and landmark geography, with gameplay simplification where required. Map data © OpenStreetMap contributors, ODbL 1.0.</div>
 </main>
 
 <script src="town-map.js"></script>
+<script src="wigan-map.js"></script>
 <script src="pixel-art.js"></script>
 <script src="painted-art.js"></script>
 <script src="building-art.js"></script>
@@ -520,6 +521,8 @@
   display.imageSmoothingEnabled=true;
   const art=BadFodderArt;
   const campaign=BadFodderCampaign;
+  const initialMission=campaign.current();
+  const MAP_DATA=(initialMission&&initialMission.playable&&initialMission.map==='wigan')?WIGAN_MAP:TOWN_MAP;
   const statusEl=document.getElementById('status');
   const squadCountEl=document.getElementById('squadCount');
   const squadMaxEl=document.getElementById('squadMax');
@@ -563,8 +566,8 @@
   );
   const LOW_POWER=TOUCH_DEVICE;
   const SCALE=2;
-  const WORLD_W=TOWN_MAP.width*SCALE;
-  const WORLD_H=TOWN_MAP.height*SCALE;
+  const WORLD_W=MAP_DATA.width*SCALE;
+  const WORLD_H=MAP_DATA.height*SCALE;
   const S=n=>n*SCALE;
 
   const WALLS=['#b7ac91','#a99c80','#d0c5a8','#a6a692','#bcb8a2','#c0ad91'];
@@ -592,7 +595,7 @@
 
   function setStatus(text){
     if(statusEl.textContent!==text)statusEl.textContent=text;
-    const brief=text.startsWith('Stage 1:')?'Reach the Postdistanzsäule':text.startsWith('Stage 2:')?'Secure Burg Eisenhardt':text.startsWith('Stage 3:')?'Clear Marktplatz and Rathaus':text;
+    const brief=text.replace(/^Phase\s+\d+:\s*/,'');
     if(hudMission.textContent!==brief)hudMission.textContent=brief;
   }
 
@@ -603,12 +606,12 @@
     return '#'+[16,8,0].map(s=>Math.max(0,Math.min(255,((n>>s)&255)+d)).toString(16).padStart(2,'0')).join('');
   }
 
-  const roads=TOWN_MAP.roads.map(r=>({
+  const roads=MAP_DATA.roads.map(r=>({
     name:r.name||'',kind:r.kind||'',
     points:r.points.map(p=>[S(p[0]),S(p[1])])
   }));
 
-  const areas=TOWN_MAP.areas.map(a=>({
+  const areas=MAP_DATA.areas.map(a=>({
     type:a.type,
     points:a.points.map(p=>[S(p[0]),S(p[1])])
   }));
@@ -617,7 +620,7 @@
     'butterturm','burgwirtschaft','burgbrauhaus','st. marien','reißigerhaus','rathaus','st. briccius'
   ]);
 
-  const buildings=TOWN_MAP.buildings.map((b,i)=>{
+  const buildings=MAP_DATA.buildings.map((b,i)=>{
     const pts=b.points.map(p=>[S(p[0]),S(p[1])]);
     const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
     const seed=hash((i+1)*2654435761);
@@ -633,16 +636,21 @@
   });
 
   const poi={};
-  Object.keys(TOWN_MAP.pois).forEach(k=>{
-    const p=TOWN_MAP.pois[k];
+  Object.keys(MAP_DATA.pois).forEach(k=>{
+    const p=MAP_DATA.pois[k];
     poi[k]={x:S(p.x),y:S(p.y)};
   });
 
-  const zones={
-    post:{x:poi.postcolumn.x,y:poi.postcolumn.y,r:S(46)},
-    castle:{x:poi.castle.x,y:poi.castle.y,r:S(82)},
-    market:{x:poi.market.x,y:poi.market.y,r:S(86)}
-  };
+  const zones={};
+  if(MAP_DATA.zones){
+    Object.entries(MAP_DATA.zones).forEach(([key,z])=>{
+      zones[key]={x:S(z.x),y:S(z.y),r:S(z.r||60)};
+    });
+  }else{
+    zones.post={x:poi.postcolumn.x,y:poi.postcolumn.y,r:S(46)};
+    zones.castle={x:poi.castle.x,y:poi.castle.y,r:S(82)};
+    zones.market={x:poi.market.x,y:poi.market.y,r:S(86)};
+  }
 
   function activeMission(){
     const mission=campaign.current();
@@ -650,8 +658,10 @@
   }
 
   async function preload(){
-    await art.preloadPainted();
-    ['castle','butter','post','rathaus','reissiger','briccius','marien'].forEach(art.landmark);
+    if(MAP_DATA.key!=='wigan'){
+      await art.preloadPainted();
+      ['castle','butter','post','rathaus','reissiger','briccius','marien'].forEach(art.landmark);
+    }
     return Promise.resolve();
   }
 
@@ -970,8 +980,9 @@
     touchMap.setAttribute('aria-label',mapOpen?'Close tactical map':'Tactical map');
     touchMap.setAttribute('aria-pressed',String(mapOpen));
     touchPause.classList.toggle('active',paused);
-    touchPause.textContent=finished?'RETRY':paused?'▶':'II';
-    touchPause.setAttribute('aria-label',finished?'Restart mission':paused?'Resume game':'Pause game');
+    const nextAvailable=finished&&win&&hasPlayableNextMission();
+    touchPause.textContent=nextAvailable?'NEXT':finished?'RETRY':paused?'▶':'II';
+    touchPause.setAttribute('aria-label',nextAvailable?'Next mission':finished?'Restart mission':paused?'Resume game':'Pause game');
     syncFullscreenButton();
   }
 
@@ -1083,18 +1094,21 @@
     const mission=activeMission();
     const rosterNames=['Müller','Becker','Klein','Jansen','Fischer','Wagner','Schulz','Koch'];
     const names=rosterNames.slice(0,Math.max(1,Math.min(8,mission.squadSize||4)));
+    const mapSquad=MAP_DATA.spawns&&MAP_DATA.spawns.squad;
     const startX=S(786),startY=S(1450);
-    squad=names.map((name,i)=>({
-      name,variant:i,x:startX+(i%2)*34,y:startY+Math.floor(i/2)*34,
+    squad=names.map((name,i)=>{
+      const spawn=mapSquad&&mapSquad[i]?mapSquad[i]:[786+(i%2)*17,1450+Math.floor(i/2)*17];
+      return({
+      name,variant:i,x:S(spawn[0]),y:S(spawn[1]),
       hp:8,maxHp:8,ammo:15,reserve:45,alive:true,selected:true,target:null,cooldown:0,reload:0,flash:0,
       dir:-Math.PI/2,anim:i*.7,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0,path:null,pathIndex:0,
       fireHeat:0,hitTimer:0,damageGrace:0,formSlot:0,followRepath:0,isFormationLeader:false
-    }));
+    })});
 
     rebuildUnitButtons();
     squadMaxEl.textContent=String(squad.length);
 
-    const hostileSpots=[
+    const hostileSpots=MAP_DATA.spawns&&MAP_DATA.spawns.enemies?MAP_DATA.spawns.enemies:[
       [770,1285],[700,1230],[550,1190],[390,1160],[330,1085],
       [430,980],[560,965],[735,1000],[845,930],[850,815],
       [760,735],[650,700],[600,590],[690,540],[760,475],
@@ -1112,19 +1126,16 @@
       burstCount:0,burstLimit:2+(i%2),burstPause:0,searchTimer:0
     })).filter(e=>!obstacleAt(e.x,e.y,12));
 
-    const civilianSpots=[[610,760],[720,830],[870,740],[670,430],[780,550],[560,620],[950,900],[470,860],[830,250],[520,380],[600,1080],[740,1140]];
+    const civilianSpots=MAP_DATA.spawns&&MAP_DATA.spawns.civilians?MAP_DATA.spawns.civilians:[[610,760],[720,830],[870,740],[670,430],[780,550],[560,620],[950,900],[470,860],[830,250],[520,380],[600,1080],[740,1140]];
     civilians=civilianSpots.map((p,i)=>({
       x:S(p[0]),y:S(p[1]),homeX:S(p[0]),homeY:S(p[1]),phase:i*.8,speed:32+(i%3)*5,
       dir:(i%4)*Math.PI*.5,anim:i*.43,state:'walk',variant:i%4
     })).filter(c=>!obstacleAt(c.x,c.y,8));
 
-    pickups=[
-      {type:'ammo',x:S(760),y:S(1210),active:true},
-      {type:'med',x:S(470),y:S(1115),active:true},
-      {type:'ammo',x:S(720),y:S(820),active:true},
-      {type:'med',x:S(615),y:S(590),active:true},
-      {type:'ammo',x:S(845),y:S(500),active:true}
+    const pickupSource=MAP_DATA.spawns&&MAP_DATA.spawns.pickups?MAP_DATA.spawns.pickups:[
+      {type:'ammo',x:760,y:1210},{type:'med',x:470,y:1115},{type:'ammo',x:720,y:820},{type:'med',x:615,y:590},{type:'ammo',x:845,y:500}
     ];
+    pickups=pickupSource.map(p=>({type:p.type,x:S(p.x),y:S(p.y),active:true}));
 
     [...squad,...enemies,...civilians].forEach(ent=>art.animate(ent,0));
     bullets=[];thrown=[];effects=[];noise=[];squadGrenades=5;missionStage=0;
@@ -1139,7 +1150,8 @@
     touchStick.style.transform='translate(0px,0px)';
     touchJoystick.classList.remove('active');
     touchFire.classList.remove('active');
-    camera={x:S(620),y:S(1260)};
+    const lead=squad[0]||{x:S(620),y:S(1260)};
+    camera={x:lead.x-VIEW_W/(2*zoom),y:lead.y-VIEW_H/(2*zoom)};
     clampCamera();
     refreshCursorWorld();
     pauseBtn.textContent='Pause (Enter)';
@@ -1193,6 +1205,18 @@
     if(current===count)return;
     hudProgress.innerHTML='';
     for(let i=0;i<count;i++)hudProgress.appendChild(document.createElement('i'));
+  }
+
+  function hasPlayableNextMission(){
+    const next=campaign.state.current+1;
+    return !!(campaign.missions[next]&&campaign.missions[next].playable);
+  }
+
+  function advanceCampaign(){
+    if(!finished||!win||!hasPlayableNextMission())return false;
+    campaign.setCurrent(campaign.state.current+1);
+    location.reload();
+    return true;
   }
 
   function completeCurrentMission(){
@@ -2032,6 +2056,14 @@
 
   function drawRoad(r){
     if(r.points.length<2)return;
+    if(r.kind==='railway'){
+      ctx.lineCap='round';ctx.lineJoin='round';
+      ctx.beginPath();ctx.moveTo(r.points[0][0],r.points[0][1]);
+      r.points.slice(1).forEach(p=>ctx.lineTo(p[0],p[1]));
+      ctx.strokeStyle='#514f48';ctx.lineWidth=S(7);ctx.stroke();
+      ctx.setLineDash([S(2),S(5)]);ctx.strokeStyle='#b6ad96';ctx.lineWidth=S(1.2);ctx.stroke();ctx.setLineDash([]);
+      return;
+    }
     const path=/footway|path|track|steps/.test(r.kind),w=roadHalfWidth(r.kind)*2;
     ctx.lineCap='round';ctx.lineJoin='round';
     ctx.beginPath();ctx.moveTo(r.points[0][0],r.points[0][1]);
@@ -2140,7 +2172,41 @@
     ctx.drawImage(art.landmark(key),Math.round(x-w/2),Math.round(y-h),w,h);
   }
 
+  function drawWiganLandmarks(){
+    const labels=MAP_DATA.labels||[];
+    ctx.save();
+    labels.forEach(item=>{
+      const p=poi[item.key];if(!p)return;
+      const compact=item.kind==='pub';
+      ctx.textAlign='center';
+      ctx.font='900 '+(compact?S(4.6):S(5.3))+'px "Courier New",monospace';
+      const pad=S(3),metrics=ctx.measureText(item.text),w=metrics.width+pad*2,h=S(10);
+      let y=p.y-S(18);
+      if(item.key==='formerCentral')y=p.y+S(22);
+      ctx.fillStyle='rgba(22,31,22,.82)';
+      ctx.fillRect(p.x-w/2,y-h,w,h);
+      ctx.strokeStyle=item.kind==='historic'?'#c89b5d':'#d8c978';
+      ctx.lineWidth=S(.7);ctx.strokeRect(p.x-w/2,y-h,w,h);
+      ctx.fillStyle='#f1e4b3';ctx.fillText(item.text,p.x,y-S(2.4));
+    });
+
+    // Bus bays and station canopies make the transport landmarks readable at gameplay scale.
+    if(poi.busStation){
+      ctx.strokeStyle='#d7c66f';ctx.lineWidth=S(1.1);
+      for(let i=-2;i<=2;i++){ctx.beginPath();ctx.moveTo(poi.busStation.x+S(i*15),poi.busStation.y-S(28));ctx.lineTo(poi.busStation.x+S(i*15),poi.busStation.y+S(28));ctx.stroke();}
+    }
+    [poi.wallgate,poi.northWestern].filter(Boolean).forEach(p=>{
+      ctx.fillStyle='#3c4742';ctx.fillRect(p.x-S(34),p.y-S(6),S(68),S(12));
+      ctx.strokeStyle='#ded3a4';ctx.lineWidth=S(.8);ctx.strokeRect(p.x-S(34),p.y-S(6),S(68),S(12));
+    });
+    if(poi.grandArcade){
+      ctx.strokeStyle='#d1b765';ctx.lineWidth=S(2);ctx.strokeRect(poi.grandArcade.x-S(66),poi.grandArcade.y-S(58),S(132),S(116));
+    }
+    ctx.restore();
+  }
+
   function drawLandmarks(){
+    if(MAP_DATA.key==='wigan'){drawWiganLandmarks();return;}
     landmarkImage('castle',poi.castle.x,poi.castle.y+S(45),S(145),S(95));
     landmarkImage('butter',S(325),S(1147),S(52),S(88));
     landmarkImage('rathaus',poi.market.x,poi.market.y+S(35),S(118),S(98));
@@ -2216,9 +2282,17 @@
     ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';display.imageSmoothingEnabled=false;
   }
 
+  function missionObjectives(){
+    return (activeMission().phases||[]).map((phase,i)=>({
+      phase,
+      zone:phase.zone?zones[phase.zone]:null,
+      label:(phase.title||('OBJECTIVE '+(i+1))).toUpperCase()
+    })).filter(o=>o.zone);
+  }
+
   function drawObjectiveZones(){
-    [zones.post,zones.castle,zones.market].forEach((z,i)=>{
-      const active=i===missionStage;
+    missionObjectives().forEach((o,i)=>{
+      const z=o.zone,active=i===missionStage;
       ctx.save();ctx.setLineDash([12,10]);ctx.strokeStyle=active?'#e4cb83':'rgba(70,70,70,.22)';ctx.lineWidth=active?3:2;
       ctx.beginPath();ctx.arc(z.x,z.y,z.r,0,Math.PI*2);ctx.stroke();ctx.restore();
     });
@@ -2239,8 +2313,9 @@
     ctx.drawImage(scenery,x,y,mapW,mapH);
 
     const sx=mapW/WORLD_W,sy=mapH/WORLD_H;
-    const objectives=[['POST',zones.post],['BURG',zones.castle],['MARKT',zones.market]];
-    objectives.forEach(([label,z],i)=>{
+    const objectives=missionObjectives();
+    objectives.forEach((o,i)=>{
+      const z=o.zone,label=o.label.length>16?o.label.slice(0,16):o.label;
       ctx.strokeStyle=i===missionStage?'#f2db69':'#c9bf93';ctx.lineWidth=i===missionStage?4:2;
       ctx.beginPath();ctx.arc(x+z.x*sx,y+z.y*sy,8+(i===missionStage?3:0),0,Math.PI*2);ctx.stroke();
       ctx.fillStyle='#fff0ad';ctx.font='bold 11px "Courier New",monospace';ctx.textAlign='left';
@@ -2253,7 +2328,7 @@
     });
 
     ctx.fillStyle='#f1e3ae';ctx.font='bold 24px "Courier New",monospace';ctx.textAlign='center';
-    ctx.fillText('BAD BELZIG - TACTICAL MAP',VIEW_W/2,31);
+    ctx.fillText((MAP_DATA.title||activeMission().title).toUpperCase()+' - TACTICAL MAP',VIEW_W/2,31);
     ctx.font='14px "Courier New",monospace';
     ctx.fillText('Press M to return',VIEW_W/2,VIEW_H-20);
     ctx.restore();
@@ -2361,7 +2436,7 @@
       ctx.fillStyle='rgba(25,31,28,.6)';ctx.fillRect(0,0,VIEW_W,VIEW_H);
       ctx.fillStyle='#f0ecd9';ctx.textAlign='center';ctx.font='bold 34px system-ui';
       ctx.fillText(finished?(win?'MISSION COMPLETE':'MISSION FAILED'):'PAUSED',VIEW_W/2,VIEW_H/2-10);
-      ctx.font='16px system-ui';if(finished)ctx.fillText('Select RETRY to play again.',VIEW_W/2,VIEW_H/2+25);
+      ctx.font='16px system-ui';if(finished)ctx.fillText(win&&hasPlayableNextMission()?'Click or press Enter for the next mission.':'Click or press Enter to retry.',VIEW_W/2,VIEW_H/2+25);
     }
     display.setTransform(1,0,0,1,0,0);
     display.clearRect(0,0,VIEW_W,VIEW_H);
@@ -2461,7 +2536,12 @@
   });
 
   canvas.addEventListener('pointerdown',evt=>{
-    if(!started||menuOpen||paused||finished||mapOpen)return;
+    if(!started||menuOpen||paused||mapOpen)return;
+    if(finished){
+      evt.preventDefault();
+      if(!advanceCampaign())resetGame();
+      return;
+    }
 
     if(evt.pointerType==='touch'){
       evt.preventDefault();
@@ -2623,7 +2703,7 @@
 
   touchFull.addEventListener('click',evt=>{evt.preventDefault();evt.stopPropagation();toggleMobileFullscreen();});
   touchMap.addEventListener('click',evt=>{evt.preventDefault();evt.stopPropagation();toggleMap();});
-  touchPause.addEventListener('click',evt=>{evt.preventDefault();evt.stopPropagation();if(finished)resetGame();else togglePause();});
+  touchPause.addEventListener('click',evt=>{evt.preventDefault();evt.stopPropagation();if(finished){if(!advanceCampaign())resetGame();}else togglePause();});
 
   document.addEventListener('fullscreenchange',()=>{
     if(document.fullscreenElement!==gameViewport){
@@ -2649,6 +2729,11 @@
   root.tabIndex=0;
   window.addEventListener('keydown',e=>{
     if(menuOpen)return;
+    if(finished&&e.key==='Enter'){
+      e.preventDefault();
+      if(!e.repeat&&!advanceCampaign())resetGame();
+      return;
+    }
     const tag=e.target&&e.target.tagName;
     if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')return;
     if(tag==='BUTTON'&&e.key==='Enter')return;
@@ -2720,7 +2805,7 @@
     try{
       loadingEl.classList.remove('hidden');
       const loadingText=loadingEl.querySelector('span');
-      if(loadingText)loadingText.textContent=LOW_POWER?'Preparing mobile terrain…':'Preparing illustrated town and characters…';
+      if(loadingText)loadingText.textContent=LOW_POWER?'Preparing mobile terrain…':'Preparing '+(MAP_DATA.title||activeMission().title)+'…';
 
       await preload();
       resetGame();
@@ -2741,7 +2826,8 @@
       started=true;
       menu.ready();
       loadingEl.classList.add('hidden');
-      setStatus('Stage 1: move up Bahnhofstraße and reach the Postdistanzsäule.');
+      const firstPhase=(activeMission().phases||[])[0];
+      setStatus('Phase 1: '+(firstPhase?(firstPhase.brief||firstPhase.title):'Begin mission.'));
       syncTouchControlState();
       updateHud(true);
     }catch(err){
