@@ -135,6 +135,142 @@
       box-shadow:none;
     }
 
+    .game-hud{
+      position:absolute;
+      inset:0;
+      z-index:3;
+      pointer-events:none;
+      font-family:"Courier New",monospace;
+      color:#f5e7af;
+      text-shadow:1px 1px 0 #1e261b;
+    }
+    .hud-mission{
+      position:absolute;
+      left:10px;
+      top:10px;
+      max-width:min(58%,560px);
+      padding:7px 10px;
+      border:1px solid rgba(218,205,131,.55);
+      background:rgba(28,37,25,.72);
+      line-height:1.22;
+      font-size:12px;
+    }
+    .hud-mission strong{
+      display:block;
+      color:#f4d66f;
+      font-size:10px;
+      letter-spacing:.08em;
+      margin-bottom:2px;
+    }
+    .hud-counters{
+      position:absolute;
+      top:10px;
+      right:184px;
+      display:flex;
+      gap:6px;
+      align-items:center;
+    }
+    .hud-counter{
+      min-width:58px;
+      padding:6px 7px;
+      text-align:center;
+      border:1px solid rgba(218,205,131,.45);
+      background:rgba(28,37,25,.68);
+      font-size:10px;
+    }
+    .hud-counter b{
+      display:block;
+      margin-top:1px;
+      font-size:16px;
+      color:#fff0ad;
+    }
+    .hud-squad{
+      position:absolute;
+      left:50%;
+      bottom:10px;
+      transform:translateX(-50%);
+      display:flex;
+      gap:5px;
+      pointer-events:auto;
+    }
+    .hud-unit{
+      width:74px;
+      min-height:38px;
+      padding:4px 5px;
+      border-radius:4px;
+      border:1px solid rgba(218,205,131,.42);
+      background:rgba(28,37,25,.67);
+      box-shadow:none;
+      font:700 10px "Courier New",monospace;
+      text-align:left;
+    }
+    .hud-unit.selected{
+      border-color:#f0d064;
+      background:rgba(75,86,49,.82);
+      outline:1px solid rgba(240,208,100,.7);
+    }
+    .hud-unit.down{opacity:.45}
+    .hud-unit .hud-name{
+      display:block;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .hud-health{
+      display:flex;
+      gap:2px;
+      margin-top:4px;
+    }
+    .hud-health i{
+      display:block;
+      width:9px;
+      height:4px;
+      background:#3e4931;
+    }
+    .hud-health i.on{background:#dce5a0}
+    .hud-health i.low{background:#d59055}
+
+    .viewport.full-window{
+      position:fixed;
+      inset:0;
+      z-index:9999;
+      width:100vw;
+      height:100dvh;
+      padding:0;
+      border:0;
+      background:#0b100d;
+    }
+    .viewport.full-window canvas,
+    .viewport:fullscreen canvas{
+      width:100%;
+      height:100%;
+      max-height:none;
+      min-height:0;
+      aspect-ratio:auto;
+      object-fit:contain;
+      background:#0b100d;
+    }
+    .viewport:fullscreen{
+      padding:0;
+      background:#0b100d;
+    }
+    body.mobile-fullscreen-fallback{
+      overflow:hidden;
+      padding:0;
+    }
+    .viewport.full-window .touch-controls,
+    .viewport:fullscreen .touch-controls{inset:0}
+    .viewport.full-window .game-hud,
+    .viewport:fullscreen .game-hud{inset:0}
+    .viewport.full-window .hud-mission,
+    .viewport:fullscreen .hud-mission{top:calc(8px + env(safe-area-inset-top,0px));left:10px}
+    .viewport.full-window .hud-counters,
+    .viewport:fullscreen .hud-counters{top:calc(8px + env(safe-area-inset-top,0px))}
+    .viewport.full-window .touch-top,
+    .viewport:fullscreen .touch-top{top:calc(8px + env(safe-area-inset-top,0px))}
+    .viewport.full-window .hud-squad,
+    .viewport:fullscreen .hud-squad{bottom:calc(8px + env(safe-area-inset-bottom,0px))}
+
     @media(max-width:720px){
       body{padding:6px}
       .app{max-width:none}
@@ -173,6 +309,14 @@
       }
       .loading{inset:0}
       .touch-controls{display:block;inset:0}
+      .hud-mission{left:7px;top:7px;max-width:48%;padding:5px 7px;font-size:10px}
+      .hud-mission strong{font-size:9px}
+      .hud-counters{top:7px;right:184px;gap:4px}
+      .hud-counter{min-width:44px;padding:4px 5px;font-size:8px}
+      .hud-counter b{font-size:13px}
+      .hud-squad{bottom:7px;gap:3px}
+      .hud-unit{width:54px;min-height:32px;padding:3px 4px;font-size:8px}
+      .hud-health i{width:6px;height:3px}
       .help{grid-template-columns:1fr 1fr;gap:5px;margin-top:7px;font-size:11px}
       .note{font-size:10px;margin-top:6px}
     }
@@ -185,6 +329,10 @@
       #touchFire{width:70px;height:70px}
       #touchGrenade{width:56px;height:56px}
       .touch-top{top:8px;right:8px}
+      .hud-mission{max-width:44%}
+      .hud-counters{right:174px}
+      .hud-squad{bottom:6px}
+      .hud-unit{width:48px}
     }
 
     @media(pointer:coarse){
@@ -202,6 +350,9 @@
       #touchFire{width:66px;height:66px}
       #touchGrenade{width:54px;height:54px}
       .touch-top{top:7px;right:7px}
+      .hud-mission{max-width:42%}
+      .hud-counters{right:184px}
+      .hud-squad{bottom:5px}
     }
 
     @media(hover:hover) and (pointer:fine){
@@ -247,8 +398,18 @@
   <div class="viewport">
     <div id="loading" class="loading"><div><strong>Bad Belzig</strong><span>Preparing game…</span></div></div>
     <canvas id="game" width="1040" height="650" aria-label="Top-down tactical game using the established Bad Belzig map"></canvas>
+    <div id="gameHud" class="game-hud" aria-label="Game status">
+      <div class="hud-mission"><strong>MISSION</strong><span id="hudMission">Preparing operation…</span></div>
+      <div class="hud-counters">
+        <div class="hud-counter">ENEMY<b id="hudEnemies">20</b></div>
+        <div class="hud-counter">GREN<b id="hudGrenades">5</b></div>
+        <div class="hud-counter">SQUAD<b id="hudSquad">4</b></div>
+      </div>
+      <div id="hudSquadBar" class="hud-squad"></div>
+    </div>
     <div id="touchControls" class="touch-controls" aria-label="Mobile game controls">
       <div class="touch-top">
+        <button id="touchFull" type="button" aria-label="Full screen">FULL</button>
         <button id="touchMap" type="button">MAP</button>
         <button id="touchPause" type="button">II</button>
       </div>
@@ -314,6 +475,13 @@
   const touchGrenade=document.getElementById('touchGrenade');
   const touchMap=document.getElementById('touchMap');
   const touchPause=document.getElementById('touchPause');
+  const touchFull=document.getElementById('touchFull');
+  const gameViewport=canvas.parentElement;
+  const hudMission=document.getElementById('hudMission');
+  const hudEnemies=document.getElementById('hudEnemies');
+  const hudGrenades=document.getElementById('hudGrenades');
+  const hudSquad=document.getElementById('hudSquad');
+  const hudSquadBar=document.getElementById('hudSquadBar');
 
   const VIEW_W=1040, VIEW_H=650;
   const TOUCH_DEVICE=(
@@ -338,6 +506,7 @@
   let started=false;
   let cursorWorld=null,rightHeld=false,bothLatched=false;
   let lastHudStats='',lastRosterSignature='';
+  let fallbackFullscreen=false;
   let squadFormation={active:false,leader:null,members:[],trail:[],destination:null,manualMoving:false};
   const touchState={
     movePointer:null,moveX:0,moveY:0,moveMag:0,
@@ -346,6 +515,7 @@
 
   function setStatus(text){
     if(statusEl.textContent!==text)statusEl.textContent=text;
+    if(hudMission.textContent!==text)hudMission.textContent=text;
   }
 
   function hash(n){n=Math.imul(n^(n>>>16),2246822519);n=Math.imul(n^(n>>>13),3266489917);return(n^(n>>>16))>>>0}
@@ -645,12 +815,53 @@
   function pointInCircle(x,y,z){return Math.hypot(x-z.x,y-z.y)<=z.r}
   function selectedUnits(){return squad.filter((s,i)=>s.alive&&(selection==='all'||selection===i))}
 
+
+  function isFullscreenActive(){
+    return document.fullscreenElement===gameViewport||fallbackFullscreen;
+  }
+
+  function syncFullscreenButton(){
+    touchFull.textContent=isFullscreenActive()?'EXIT':'FULL';
+    touchFull.classList.toggle('active',isFullscreenActive());
+  }
+
+  async function toggleMobileFullscreen(){
+    if(document.fullscreenElement===gameViewport){
+      try{await document.exitFullscreen();}catch(_){}
+      return;
+    }
+
+    if(fallbackFullscreen){
+      fallbackFullscreen=false;
+      gameViewport.classList.remove('full-window');
+      document.body.classList.remove('mobile-fullscreen-fallback');
+      syncFullscreenButton();
+      return;
+    }
+
+    if(gameViewport.requestFullscreen){
+      try{
+        await gameViewport.requestFullscreen({navigationUI:'hide'});
+        syncFullscreenButton();
+        return;
+      }catch(_){}
+    }
+
+    // iPhone/iPad fallback when browser fullscreen API is unavailable or rejected.
+    fallbackFullscreen=true;
+    gameViewport.classList.add('full-window');
+    document.body.classList.add('mobile-fullscreen-fallback');
+    window.scrollTo(0,0);
+    syncFullscreenButton();
+  }
+
   function syncTouchControlState(){
     touchControls.classList.toggle('blocked',mapOpen||paused||finished);
     touchMap.classList.toggle('active',mapOpen);
     touchMap.textContent=mapOpen?'BACK':'MAP';
     touchPause.classList.toggle('active',paused);
     touchPause.textContent=paused?'▶':'II';
+    syncFullscreenButton();
   }
 
   function toggleMap(){
@@ -694,13 +905,28 @@
     lastRosterSignature=signature;
 
     rosterEl.innerHTML='';
+    hudSquadBar.innerHTML='';
+
     squad.forEach((s,i)=>{
       const d=document.createElement('div');
       d.className='card'+(s.selected?' selected':'');
       d.innerHTML='<strong>'+(i+1)+' '+s.name+'</strong><div>'+(s.alive?'HP '+s.hp+'/'+s.maxHp:'DOWN')+'</div><div>'+(s.alive?'Machine gun ∞':'')+'</div>';
       rosterEl.appendChild(d);
+
+      const chip=document.createElement('button');
+      chip.type='button';
+      chip.className='hud-unit'+(s.selected?' selected':'')+(s.alive?'':' down');
+      chip.setAttribute('aria-label',(s.alive?'Select ':'Down: ')+s.name);
+      chip.disabled=!s.alive;
+      const hp=Array.from({length:s.maxHp},(_,h)=>
+        '<i class="'+(h<s.hp?(s.hp<=2?'on low':'on'):'')+'"></i>'
+      ).join('');
+      chip.innerHTML='<span class="hud-name">'+(i+1)+' '+s.name+'</span><span class="hud-health">'+hp+'</span>';
+      chip.addEventListener('click',()=>setSelection(i));
+      hudSquadBar.appendChild(chip);
     });
   }
+
 
 
   function resetGame(){
@@ -772,6 +998,9 @@
       squadCountEl.textContent=living.length;
       enemyCountEl.textContent=remaining;
       grenadeCountEl.textContent=squadGrenades;
+      hudSquad.textContent=living.length;
+      hudEnemies.textContent=remaining;
+      hudGrenades.textContent=squadGrenades;
     }
     updateRoster(force);
     if(finished)return;
@@ -2004,8 +2233,18 @@
   });
   touchGrenade.addEventListener('pointercancel',()=>touchGrenade.classList.remove('active'));
 
+  touchFull.addEventListener('click',evt=>{evt.preventDefault();evt.stopPropagation();toggleMobileFullscreen();});
   touchMap.addEventListener('click',evt=>{evt.preventDefault();evt.stopPropagation();toggleMap();});
   touchPause.addEventListener('click',evt=>{evt.preventDefault();evt.stopPropagation();togglePause();});
+
+  document.addEventListener('fullscreenchange',()=>{
+    if(document.fullscreenElement!==gameViewport){
+      fallbackFullscreen=false;
+      gameViewport.classList.remove('full-window');
+      document.body.classList.remove('mobile-fullscreen-fallback');
+    }
+    syncFullscreenButton();
+  });
 
   selectAllBtn.addEventListener('click',()=>setSelection('all'));
   unitButtons.forEach((b,i)=>b.addEventListener('click',()=>setSelection(i)));
@@ -2083,6 +2322,7 @@
       loadingEl.classList.add('hidden');
       setStatus('Stage 1: move up Bahnhofstraße and reach the Postdistanzsäule.');
       syncTouchControlState();
+      updateHud(true);
     }catch(err){
       console.error('Bad Fodder failed to start',err);
       started=false;
