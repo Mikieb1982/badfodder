@@ -516,6 +516,7 @@
       {type:'ammo',x:S(845),y:S(500),active:true}
     ];
 
+    [...squad,...enemies,...civilians].forEach(ent=>art.animate(ent,0));
     bullets=[];thrown=[];effects=[];noise=[];squadGrenades=5;missionStage=0;
     finished=false;win=false;paused=false;mapOpen=false;selection='all';zoom=1;
     rightHeld=false;bothLatched=false;cursorWorld=null;
@@ -1338,6 +1339,9 @@
   function drawTerrain(){
     ctx.fillStyle=art.texture(ctx,'grass');ctx.fillRect(0,0,WORLD_W,WORLD_H);
     areas.forEach(a=>polygon(a.points,art.texture(ctx,a.type),'#61763b',2));
+  }
+
+  function drawVegetation(){
     treeDots.forEach(t=>{
       const vw=VIEW_W/zoom,vh=VIEW_H/zoom;
       if(!renderingStatic&&(t.x<camera.x-S(20)||t.x>camera.x+vw+S(20)||t.y<camera.y-S(20)||t.y>camera.y+vh+S(20)))return;
@@ -1350,7 +1354,7 @@
     scenery.width=WORLD_W/2;scenery.height=WORLD_H/2;
     const liveContext=ctx;ctx=scenery.getContext('2d');
     ctx.imageSmoothingEnabled=false;ctx.scale(.5,.5);renderingStatic=true;
-    drawTerrain();roads.forEach(drawRoad);
+    drawTerrain();roads.forEach(drawRoad);drawVegetation();
     [...buildings]
       .filter(b=>!b.landmarkFootprint)
       .sort((a,b)=>a.maxY-b.maxY)
@@ -1403,17 +1407,14 @@
 
 
   function drawSoldier(ent,team='squad'){
-    const dir=((Math.round((ent.dir||0)/(Math.PI/4))%8)+8)%8;
-    // Civilian entities do not carry an alive flag.
-    const state=ent.alive===false?'dead':ent.state||'idle';
-    const pose=/walk|fire/.test(state)?Math.floor((ent.anim||0)*1.5)%4:0;
+    const visual=art.pose(ent);
     const flinch=ent.hitTimer>0?Math.sin(ent.hitTimer*90)*3:0;
     ctx.save();
     ctx.globalAlpha=ent.hitTimer>0?.78:1;
     ctx.drawImage(
-      art.soldier(team,dir,pose,state,ent.variant||0),
-      Math.round((ent.x+flinch)/2)*2-32,
-      Math.round(ent.y/2)*2-52,64,64
+      art.soldier(team,visual.dir,visual.frame,visual.state,ent.variant||0),
+      Math.round((ent.x+flinch)/2)*2-20,
+      Math.round(ent.y/2)*2-32,40,40
     );
     ctx.restore();
   }
@@ -1443,19 +1444,19 @@
         ctx.strokeStyle='#eadb82';ctx.lineWidth=2;
         // Small ground brackets leave the silhouette and walking feet visible.
         for(const side of [-1,1]){
-          ctx.beginPath();ctx.moveTo(ent.x+side*18,ent.y-2);ctx.lineTo(ent.x+side*18,ent.y+10);ctx.lineTo(ent.x+side*12,ent.y+10);ctx.stroke();
+          ctx.beginPath();ctx.moveTo(ent.x+side*12,ent.y-2);ctx.lineTo(ent.x+side*12,ent.y+8);ctx.lineTo(ent.x+side*8,ent.y+8);ctx.stroke();
         }
       }
       drawSoldier(ent,team);
       if(team==='enemy'&&ent.alert&&ent.alive){
-        ctx.fillStyle='#f0db97';ctx.fillRect(ent.x-2,ent.y-48,4,8);ctx.fillRect(ent.x-2,ent.y-38,4,2);
+        ctx.fillStyle='#f0db97';ctx.fillRect(ent.x-2,ent.y-34,4,8);ctx.fillRect(ent.x-2,ent.y-24,4,2);
         ctx.fillStyle=ent.role==='anchor'?'#d6be6b':'#b88b57';
         const pipX=ent.role==='left'?-5:ent.role==='right'?5:0;
-        ctx.fillRect(ent.x+pipX-2,ent.y-54,4,3);
+        ctx.fillRect(ent.x+pipX-2,ent.y-40,4,3);
       }
       if(team==='squad'&&ent.alive){
-        for(let h=0;h<ent.hp;h++){ctx.fillStyle='#eef1c2';ctx.fillRect(ent.x-13+h*6,ent.y-48,4,2);}
-        ctx.fillStyle='#fff4ce';ctx.font='bold 12px "Courier New",monospace';ctx.textAlign='center';ctx.fillText(String(squad.indexOf(ent)+1),ent.x,ent.y+24);
+        for(let h=0;h<ent.hp;h++){ctx.fillStyle='#eef1c2';ctx.fillRect(ent.x-13+h*6,ent.y-34,4,2);}
+        ctx.fillStyle='#fff4ce';ctx.font='bold 12px "Courier New",monospace';ctx.textAlign='center';ctx.fillText(String(squad.indexOf(ent)+1),ent.x,ent.y+18);
       }
     });
 
@@ -1489,14 +1490,15 @@
         }
         return;
       }
-      const life=f.type==='blast'?.55:.15;
+      if(f.type==='blast'){art.blast(ctx,f.x,f.y,1-Math.min(1,f.life/.55));return;}
+      const life=.15;
       const age=1-Math.min(1,f.life/life);
-      const radius=f.type==='blast'?12+age*55:6;
-      const count=f.type==='blast'?18:5;
+      const radius=6;
+      const count=5;
       for(let i=0;i<count;i++){
         const angle=i*2.399,spread=radius*(.4+unit(i,3)*.6);
         const x=Math.round((f.x+Math.cos(angle)*spread)/2)*2,y=Math.round((f.y+Math.sin(angle)*spread)/2)*2;
-        const size=f.type==='blast'?Math.max(2,Math.round((1-age)*8)*2):4;
+        const size=4;
         ctx.fillStyle=age>.5?['#64664d','#89866b','#b0a57a'][i%3]:['#fff1a4','#e2b14e','#b97335'][i%3];
         ctx.fillRect(x,y,size,size);
       }
@@ -1626,7 +1628,7 @@
     const dt=Math.min(.033,(now-last)/1000||0);last=now;
     if(started&&!paused&&!finished&&!mapOpen){
       if(rightHeld&&cursorWorld&&!bothLatched)squadFireAt(cursorWorld.x,cursorWorld.y);
-      updateSquad(dt);updateEnemies(dt);updateCivilians(dt);updateProjectiles(dt);updateCamera(dt);checkFailure();updateHud();
+      updateSquad(dt);updateEnemies(dt);updateCivilians(dt);updateProjectiles(dt);[...squad,...enemies,...civilians].forEach(ent=>art.animate(ent,dt));updateCamera(dt);checkFailure();updateHud();
     }
     if(started)drawWorld();
     requestAnimationFrame(tick);
