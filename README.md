@@ -35,6 +35,12 @@ Run `npm test` to check gait timing, blocked actors, update-rate independence, m
 
 Static scenery is cached as visible 512-pixel tiles, with 12 tiles retained on touch devices and 24 on desktop. Views containing more tiles retain all visible tiles to avoid rebuilding them each frame. A separate small overview serves the tactical map. Roads, building footprints, collision geometry and POI coordinates remain in `town-map.js` unchanged. Existing landmark image files are retained but no longer loaded by the game.
 
+## Street navigation
+
+Navigation uses a 12-pixel grid and a consistent 6-pixel ground clearance for route planning, walking and touch movement. Every route segment is checked against building footprints, and soldiers finish corner waypoints before turning. Clicks on blocked landmark footprints lead to a nearby walkable approach. Followers retain single-file positions when a wall prevents the squad from reforming into a wedge, and stalled walkers retry their route. Map geometry and POI positions remain unchanged.
+
+The navigation regression suite runs individual and four-person squad movement to all eight POIs, and checks routes to a destination on every mapped road.
+
 ## Controls
 
 ### Desktop
