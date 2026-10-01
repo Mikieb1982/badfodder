@@ -1,0 +1,42 @@
+/* The reference artwork is presentation; every menu control is live HTML. */
+.menu-screen[hidden],.menu-screen [hidden]{display:none!important}
+.menu-screen{position:absolute;inset:0;z-index:12;overflow:auto;overscroll-behavior:contain;background:#172012;color:#f1dfaa;font-family:"Courier New",monospace}
+.menu-backdrop{position:absolute;inset:0;background:url('assets/menu/town-background.webp') center/cover no-repeat;filter:brightness(.62);pointer-events:none}
+.menu-backdrop::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 15%,#080e0860 100%)}
+.menu-layout{position:relative;min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:26px 24px;box-sizing:border-box}
+.menu-logo{display:block;width:min(550px,82%);height:auto;max-height:310px;object-fit:contain;filter:drop-shadow(0 4px 0 #0008)}
+.menu-badge{margin:0;padding:8px 18px;max-width:95%;background:#18220ee8;border:2px solid #a69c4b;box-shadow:inset 0 0 0 2px #45542a,0 3px 0 #080d06;color:#e8ca76;font-weight:900;font-size:clamp(12px,1.7vw,19px);letter-spacing:.07em;text-align:center}
+.menu-badge::before,.menu-badge::after{content:'★';padding:0 12px;color:#e4c767}
+.menu-panel{width:min(380px,90%)}
+.menu-actions{display:flex;flex-direction:column;gap:10px}
+.menu-button{position:relative;display:block;width:100%;min-height:48px;padding:9px 16px;border:2px solid #788149;border-radius:2px;background:linear-gradient(#27351c,#17220f);box-shadow:inset 0 0 0 2px #10180c,0 3px 0 #080d07;color:#eee1b7;font:900 clamp(14px,1.8vw,21px)/1.2 "Courier New",monospace;text-shadow:2px 2px #060b06;letter-spacing:.035em;cursor:pointer;touch-action:manipulation}
+.menu-button:hover,.menu-button:focus-visible,.menu-actions:not(:focus-within) .primary:not(:disabled){color:#fff0b2;border-color:#f0cf6c;background:linear-gradient(#384624,#243017);outline:1px solid #fff2b6;outline-offset:1px}
+.menu-button:focus-visible::before{content:'▸';position:absolute;left:-23px;top:50%;transform:translateY(-50%);color:#f0cf6c;text-shadow:2px 2px #000;font-size:28px}
+.menu-button:disabled{opacity:.7;cursor:wait;color:#c0bf98}
+.menu-hint,.menu-footer{margin:14px 0 0;text-align:center;font-size:10px;font-weight:700;letter-spacing:.12em;color:#cdc8a1;text-shadow:1px 1px #000}
+.menu-footer{margin:0;line-height:1.5}
+.menu-card{padding:18px;background:#14200ef5;border:2px solid #a8a357;box-shadow:inset 0 0 0 2px #354325,0 4px 0 #090e07;box-sizing:border-box}
+.menu-card h2{margin:0 0 15px;color:#e8ca76;font-size:20px;text-align:center;letter-spacing:.07em}
+.menu-card dl{display:grid;grid-template-columns:auto 1fr;gap:12px 14px;margin:0 0 18px;font-family:system-ui,sans-serif;font-size:12px;line-height:1.4}
+.menu-card dt{font:900 11px/1.6 "Courier New",monospace;color:#e7ce8c}.menu-card dd{margin:0;color:#e5e5c8}
+.menu-card .menu-button{font-size:15px;margin-top:14px}
+.menu-setting{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:18px 0;font-size:12px;font-weight:900}
+.menu-setting select{min-height:36px;padding:5px 8px;color:#f2e4bb;background:#28361e;border:1px solid #a8a357;font:700 13px system-ui,sans-serif}
+.menu-setting input{width:22px;height:22px;accent-color:#e6c768}
+.menu-setting select:focus-visible,.menu-setting input:focus-visible{outline:2px solid #ffdf80;outline-offset:3px}
+.app.menu-open>.topbar,.app.menu-open>.toolbar,.app.menu-open>.help,.app.menu-open>.note{display:none}
+.app.menu-open{margin:0 auto}.app.menu-open .viewport{margin-top:0}
+.app.menu-open .game-hud,.app.menu-open .touch-controls{visibility:hidden}
+.menu-screen[data-panel]:not([data-panel="main"]) .menu-logo{width:min(330px,65%);max-height:150px}
+@media(max-width:720px),(pointer:coarse){
+ .menu-layout{gap:12px;padding:18px 20px}.menu-logo{width:min(440px,90%);max-height:220px}.menu-panel{width:min(380px,94%)}
+ .menu-badge{font-size:12px;padding:7px 8px}.menu-badge::before,.menu-badge::after{padding:0 7px}.menu-button{font-size:17px;min-height:48px}.menu-card{padding:14px}
+ .menu-card dl{font-size:11px;gap:9px 10px}.menu-card dt{font-size:10px}.menu-footer{font-size:9px}.menu-hint{font-size:9px;margin-top:12px}
+}
+@media(max-height:500px) and (orientation:landscape){
+ .menu-layout{gap:6px;padding:8px 24px}.menu-logo{width:180px;max-height:92px}.menu-badge{font-size:10px;padding:4px 12px}
+ .menu-panel{width:min(420px,84%)}.menu-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}.menu-actions .primary{grid-column:1/-1}
+ .menu-button{min-height:38px;font-size:13px;padding:6px 10px}.menu-hint{font-size:8px;margin-top:8px}.menu-footer{font-size:8px}
+ .menu-screen[data-panel]:not([data-panel="main"]) .menu-logo,.menu-screen[data-panel]:not([data-panel="main"]) .menu-badge{display:none}
+ .menu-card{padding:10px 14px}.menu-card h2{margin-bottom:8px;font-size:17px}.menu-card dl{gap:5px 10px;margin-bottom:10px;font-size:11px}.menu-card .menu-button{margin-top:8px;min-height:36px;font-size:13px}.menu-setting{margin:10px 0}
+}
