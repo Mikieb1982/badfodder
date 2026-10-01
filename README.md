@@ -19,6 +19,12 @@ A browser-based top-down tactical game inspired by classic squad-control games a
   3. Clear Marktplatz and Rathaus
 - Bad Belzig landmarks and street geometry adapted for tactical gameplay
 
+## Graphics
+
+The town uses original code-drawn pixel art in a limited earthy palette inspired by early 1990s tactical games. A 520 × 325 render buffer is enlarged with nearest-neighbour sampling. Terrain, roof tiles, trees and seven landmark silhouettes share the same pixel treatment. Soldiers use eight directional facings, four walking poses, firing, reload and fallen poses; civilians are unarmed.
+
+The static town is baked once into a scenery canvas before play. Zoom and camera tracking reuse this canvas, while units and combat effects animate separately. Roads, building footprints, collision geometry and POI coordinates remain in `town-map.js` unchanged. Existing landmark image files are retained but no longer loaded by the game.
+
 ## Controls
 
 - **Move**: select Move and click/tap the map
