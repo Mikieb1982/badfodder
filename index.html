@@ -380,6 +380,7 @@
       .hud-counters{right:10px}
     }
   </style>
+  <link rel="stylesheet" href="game-ui.css">
 </head>
 <body>
 <main class="app" id="gameRoot">
@@ -420,20 +421,28 @@
     <div id="loading" class="loading"><div><strong>Bad Belzig</strong><span>Preparing game…</span></div></div>
     <canvas id="game" width="1040" height="650" aria-label="Top-down tactical game using the established Bad Belzig map"></canvas>
     <div id="gameHud" class="game-hud" aria-label="Game status">
-      <div class="hud-mission"><strong id="hudStage">OBJECTIVE 1/3</strong><span id="hudMission">Preparing operation…</span></div>
-      <div class="hud-counters">
-        <div class="hud-counter">ENEMY<b id="hudEnemies">20</b></div>
-        <div class="hud-counter">GREN<b id="hudGrenades">5</b></div>
-        <div class="hud-counter">SQUAD<b id="hudSquad">4</b></div>
+      <div class="hud-topline">
+        <div class="hud-mission">
+          <div class="hud-kicker">BAD BELZIG <strong id="hudStage">OBJECTIVE 1/3</strong></div>
+          <span id="hudMission">Preparing operation…</span>
+          <div id="hudProgress" class="hud-progress" aria-label="Mission progress"><i></i><i></i><i></i></div>
+        </div>
+        <div class="hud-right">
+          <div class="hud-tools">
+            <button id="touchFull" type="button" aria-label="Full screen">FULL</button>
+            <button id="touchMap" type="button" aria-label="Tactical map">MAP</button>
+            <button id="touchPause" type="button" aria-label="Pause game">II</button>
+          </div>
+          <div class="hud-counters">
+            <div class="hud-counter"><b id="hudEnemies">20</b><span>HOSTILES</span></div>
+            <div class="hud-counter"><b id="hudGrenades">5</b><span>GRENADES</span></div>
+            <div class="hud-counter"><b id="hudSquad">4</b><span>SQUAD</span></div>
+          </div>
+        </div>
       </div>
-      <div id="hudSquadBar" class="hud-squad"></div>
+      <div class="hud-roster"><button id="hudAll" type="button">ALL<span>4 TROOPS</span></button><div id="hudSquadBar" class="hud-squad"></div></div>
     </div>
     <div id="touchControls" class="touch-controls" aria-label="Mobile game controls">
-      <div class="touch-top">
-        <button id="touchFull" type="button" aria-label="Full screen">FULL</button>
-        <button id="touchMap" type="button">MAP</button>
-        <button id="touchPause" type="button">II</button>
-      </div>
       <div class="touch-actions touch-gameplay">
         <button id="touchFire" class="touch-action" type="button" aria-label="Fire machine gun">FIRE</button>
         <button id="touchGrenade" class="touch-action" type="button" aria-label="Throw grenade">GRENADE</button>
@@ -448,15 +457,16 @@
     <div><strong>Move:</strong> left-click on desktop; use the bottom-right joystick on mobile.</div>
     <div><strong>Machine gun:</strong> hold right-click, or hold FIRE on mobile. Ammunition is unlimited.</div>
     <div><strong>Grenade:</strong> left + right mouse buttons, or tap GRENADE on mobile.</div>
-    <div><strong>Map:</strong> M or the mobile MAP button.</div>
-    <div><strong>Pause:</strong> Enter or the mobile pause button.</div>
-    <div><strong>Squad:</strong> tap the soldier buttons above the game to select one or All.</div>
+    <div><strong>Map:</strong> M or MAP in the HUD.</div>
+    <div><strong>Pause:</strong> Enter or the pause button in the HUD.</div>
+    <div><strong>Squad:</strong> select a squad portrait or ALL in the HUD. Keyboard: 1–4 or A.</div>
   </div>
   <div class="note">This uses the established Bad Belzig map geometry: 179 mapped roads, 906 building footprints and pixel landmarks. Map data © OpenStreetMap contributors, ODbL 1.0.</div>
 </main>
 
 <script src="town-map.js"></script>
 <script src="pixel-art.js"></script>
+<script src="scenery-cache.js"></script>
 <script>
 (() => {
   'use strict';
@@ -465,12 +475,9 @@
   const canvas=document.getElementById('game');
   const display=canvas.getContext('2d');
   const frame=document.createElement('canvas');
-  // Desktop keeps the full-resolution frame. Mobile uses a smaller internal buffer,
-  // then scales to the same 1040x650 logical view to reduce GPU and memory pressure.
-  frame.width=window.matchMedia&&window.matchMedia('(pointer:coarse)').matches?780:1040;
-  frame.height=window.matchMedia&&window.matchMedia('(pointer:coarse)').matches?488:650;
+  frame.width=1040;frame.height=650;
   let ctx=frame.getContext('2d');
-  let renderingStatic=false,scenery=null;
+  let renderingStatic=false,scenery=null,sceneryTiles=null,sceneryBounds=null;
   ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='low';
   display.imageSmoothingEnabled=true;
   const art=BadFodderArt;
@@ -504,8 +511,10 @@
   const hudGrenades=document.getElementById('hudGrenades');
   const hudSquad=document.getElementById('hudSquad');
   const hudSquadBar=document.getElementById('hudSquadBar');
+  const hudAll=document.getElementById('hudAll');
+  const hudProgress=document.getElementById('hudProgress');
 
-  const VIEW_W=1040, VIEW_H=650;
+  let VIEW_W=1040, VIEW_H=650;
   const TOUCH_DEVICE=(
     (window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)||
     (navigator.maxTouchPoints||0)>0||
@@ -528,6 +537,7 @@
   let started=false;
   let cursorWorld=null,rightHeld=false,bothLatched=false;
   let lastHudStats='',lastRosterSignature='';
+  const hudChips=new Map();
   let fallbackFullscreen=false;
   let squadFormation={active:false,leader:null,members:[],trail:[],destination:null,manualMoving:false};
   const touchState={
@@ -537,7 +547,8 @@
 
   function setStatus(text){
     if(statusEl.textContent!==text)statusEl.textContent=text;
-    if(hudMission.textContent!==text)hudMission.textContent=text;
+    const brief=text.startsWith('Stage 1:')?'Reach the Postdistanzsäule':text.startsWith('Stage 2:')?'Secure Burg Eisenhardt':text.startsWith('Stage 3:')?'Clear Marktplatz and Rathaus':text;
+    if(hudMission.textContent!==brief)hudMission.textContent=brief;
   }
 
   function hash(n){n=Math.imul(n^(n>>>16),2246822519);n=Math.imul(n^(n>>>13),3266489917);return(n^(n>>>16))>>>0}
@@ -844,6 +855,8 @@
 
   function syncFullscreenButton(){
     touchFull.textContent=isFullscreenActive()?'EXIT':'FULL';
+    touchFull.setAttribute('aria-label',isFullscreenActive()?'Exit full screen':'Full screen');
+    touchFull.setAttribute('aria-pressed',String(isFullscreenActive()));
     touchFull.classList.toggle('active',isFullscreenActive());
   }
 
@@ -857,7 +870,7 @@
       fallbackFullscreen=false;
       gameViewport.classList.remove('full-window');
       document.body.classList.remove('mobile-fullscreen-fallback');
-      syncFullscreenButton();
+      syncFullscreenButton();resizeGame();
       return;
     }
 
@@ -874,15 +887,18 @@
     gameViewport.classList.add('full-window');
     document.body.classList.add('mobile-fullscreen-fallback');
     window.scrollTo(0,0);
-    syncFullscreenButton();
+    syncFullscreenButton();resizeGame();
   }
 
   function syncTouchControlState(){
     touchControls.classList.toggle('blocked',mapOpen||paused||finished);
     touchMap.classList.toggle('active',mapOpen);
     touchMap.textContent=mapOpen?'BACK':'MAP';
+    touchMap.setAttribute('aria-label',mapOpen?'Close tactical map':'Tactical map');
+    touchMap.setAttribute('aria-pressed',String(mapOpen));
     touchPause.classList.toggle('active',paused);
-    touchPause.textContent=paused?'▶':'II';
+    touchPause.textContent=finished?'RETRY':paused?'▶':'II';
+    touchPause.setAttribute('aria-label',finished?'Restart mission':paused?'Resume game':'Pause game');
     syncFullscreenButton();
   }
 
@@ -915,6 +931,8 @@
     selection=sel;
     squad.forEach((s,i)=>s.selected=s.alive&&(sel==='all'||sel===i));
     selectAllBtn.classList.toggle('active',sel==='all');
+    hudAll.classList.toggle('selected',sel==='all');
+    hudAll.setAttribute('aria-pressed',String(sel==='all'));
     unitButtons.forEach((b,i)=>b.classList.toggle('active',sel===i));
     updateRoster();
   }
@@ -927,7 +945,7 @@
     lastRosterSignature=signature;
 
     rosterEl.innerHTML='';
-    hudSquadBar.innerHTML='';
+
 
     squad.forEach((s,i)=>{
       const d=document.createElement('div');
@@ -935,17 +953,20 @@
       d.innerHTML='<strong>'+(i+1)+' '+s.name+'</strong><div>'+(s.alive?'HP '+s.hp+'/'+s.maxHp:'DOWN')+'</div><div>'+(s.alive?'Machine gun ∞':'')+'</div>';
       rosterEl.appendChild(d);
 
-      const chip=document.createElement('button');
-      chip.type='button';
+      let chip=hudChips.get(i);
+      if(!chip){
+        chip=document.createElement('button');chip.type='button';
+        chip.addEventListener('click',()=>setSelection(i));hudChips.set(i,chip);hudSquadBar.appendChild(chip);
+      }
       chip.className='hud-unit'+(s.selected?' selected':'')+(s.alive?'':' down');
-      chip.setAttribute('aria-label',(s.alive?'Select ':'Down: ')+s.name);
-      chip.disabled=!s.alive;
-      const hp=Array.from({length:s.maxHp},(_,h)=>
-        '<i class="'+(h<s.hp?(s.hp<=2?'on low':'on'):'')+'"></i>'
-      ).join('');
-      chip.innerHTML='<span class="hud-name">'+(i+1)+' '+s.name+'</span><span class="hud-health">'+hp+'</span>';
-      chip.addEventListener('click',()=>setSelection(i));
-      hudSquadBar.appendChild(chip);
+      chip.setAttribute('aria-label',(s.alive?'Select ':'Down: ')+s.name+', health '+s.hp+' of '+s.maxHp);
+      chip.setAttribute('aria-pressed',String(s.selected));chip.disabled=!s.alive;
+      const hp=Array.from({length:s.maxHp},(_,h)=>'<i class="'+(h<s.hp?(s.hp<=2?'on low':'on'):'')+'"></i>').join('');
+      chip.innerHTML='<span class="hud-unit-info"><span class="hud-name"><em>'+(i+1)+'</em>'+s.name+'</span><span class="hud-health">'+hp+'</span><span class="hud-state">'+(s.alive?'HP '+s.hp+'/'+s.maxHp:'DOWN')+'</span></span>';
+      const portrait=document.createElement('canvas');portrait.width=32;portrait.height=32;portrait.className='hud-portrait';
+      const pg=portrait.getContext('2d');pg.imageSmoothingEnabled=false;pg.drawImage(art.soldier('squad',2,0,s.alive?'idle':'dead'),0,0);
+      chip.insertBefore(portrait,chip.firstChild);
+
     });
   }
 
@@ -1005,6 +1026,7 @@
     touchJoystick.classList.remove('active');
     touchFire.classList.remove('active');
     camera={x:S(620),y:S(1260)};
+    clampCamera();
     pauseBtn.textContent='Pause (Enter)';
     mapBtn.classList.remove('active');mapBtn.textContent='Map (M)';
     setSelection('all');updateHud();syncTouchControlState();
@@ -1012,7 +1034,9 @@
 
   function updateHud(force=false){
     const living=squad.filter(s=>s.alive);
-    hudStage.textContent='OBJECTIVE '+Math.min(3,missionStage+1)+'/3';
+    hudAll.querySelector('span').textContent=living.length+' TROOPS';
+    hudStage.textContent=finished?(win?'MISSION COMPLETE':'MISSION FAILED'):'OBJECTIVE '+Math.min(3,missionStage+1)+'/3';
+    hudProgress.querySelectorAll('i').forEach((p,i)=>{p.className=win||i<missionStage?'done':i===missionStage?'current':'';});
     const remaining=enemies.filter(e=>e.alive).length;
     const stats=[living.length,remaining,squadGrenades].join('|');
 
@@ -1779,12 +1803,20 @@
     throwGrenade(p.x,p.y);
   }
 
+  function clampCamera(){
+    // The play view must stay inside the map, even on wide screens at minimum zoom.
+    zoom=Math.max(zoom,VIEW_W/WORLD_W,VIEW_H/WORLD_H);
+    camera.x=Math.max(0,Math.min(Math.max(0,WORLD_W-VIEW_W/zoom),camera.x));
+    camera.y=Math.max(0,Math.min(Math.max(0,WORLD_H-VIEW_H/zoom),camera.y));
+  }
+
   function updateCamera(dt){
     const f=selectedUnits()[0]||squad.find(s=>s.alive);if(!f)return;
     const visibleW=VIEW_W/zoom,visibleH=VIEW_H/zoom;
     const tx=Math.max(0,Math.min(WORLD_W-visibleW,f.x-visibleW*.48));
     const ty=Math.max(0,Math.min(WORLD_H-visibleH,f.y-visibleH*.55));
     const k=Math.min(1,dt*4.3);camera.x+=(tx-camera.x)*k;camera.y+=(ty-camera.y)*k;
+    clampCamera();
   }
 
   function polygon(points,fill,stroke,width=1){
@@ -1821,7 +1853,8 @@
   function drawBuilding(b){
     const margin=S(40);
     const vw=VIEW_W/zoom,vh=VIEW_H/zoom;
-    if(!renderingStatic&&(b.maxX<camera.x-margin||b.minX>camera.x+vw+margin||b.maxY<camera.y-margin||b.minY>camera.y+vh+margin))return;
+    const bounds=sceneryBounds||{x:camera.x,y:camera.y,w:vw,h:vh};
+    if(b.maxX<bounds.x-margin||b.minX>bounds.x+bounds.w+margin||b.maxY<bounds.y-margin||b.minY>bounds.y+bounds.h+margin)return;
 
     const h=b.height;
     ctx.save();
@@ -1922,53 +1955,50 @@
   function drawVegetation(){
     treeDots.forEach(t=>{
       const vw=VIEW_W/zoom,vh=VIEW_H/zoom;
-      if(!renderingStatic&&(t.x<camera.x-S(20)||t.x>camera.x+vw+S(20)||t.y<camera.y-S(20)||t.y>camera.y+vh+S(20)))return;
+      const bounds=sceneryBounds||{x:camera.x,y:camera.y,w:vw,h:vh};
+      if(t.x<bounds.x-90||t.x>bounds.x+bounds.w+90||t.y<bounds.y-90||t.y>bounds.y+bounds.h+90)return;
       art.tree(ctx,t);
     });
   }
 
+  function paintScenery(target,x,y,scale=1,light=false){
+    const live=ctx;ctx=target.getContext('2d',{alpha:false});
+    if(!ctx)throw new Error('Unable to create scenery canvas');
+    try{
+      ctx.imageSmoothingEnabled=false;ctx.setTransform(scale,0,0,scale,-x*scale,-y*scale);
+      renderingStatic=true;sceneryBounds={x,y,w:target.width/scale,h:target.height/scale};
+      drawTerrain();roads.forEach(drawRoad);
+      if(!light)drawVegetation();
+      [...buildings].filter(b=>!b.landmarkFootprint).sort((a,b)=>a.maxY-b.maxY).forEach(drawBuilding);
+      drawLandmarks();
+    }finally{ctx=live;renderingStatic=false;sceneryBounds=null;}
+  }
   function bakeScenery(forceLight=false){
-    const light=forceLight||LOW_POWER;
-    const scale=light?.34:.5;
-
-    scenery=document.createElement('canvas');
-    scenery.width=Math.max(1,Math.round(WORLD_W*scale));
-    scenery.height=Math.max(1,Math.round(WORLD_H*scale));
-
-    const liveContext=ctx;
-    const bakeContext=scenery.getContext('2d',{alpha:false});
-    if(!bakeContext)throw new Error('Unable to create scenery canvas');
-
-    ctx=bakeContext;
-    ctx.imageSmoothingEnabled=true;
-    ctx.imageSmoothingQuality='low';
-    ctx.scale(scale,scale);
-    renderingStatic=true;
-
-    drawTerrain();
-    roads.forEach(drawRoad);
-
-    if(!light)drawVegetation();
-    else{
-      // Keep enough trees to preserve the character of the map without generating every canopy.
-      treeDots.forEach((t,i)=>{if(i%2===0)art.tree(ctx,t);});
-    }
-
-    [...buildings]
-      .filter(b=>!b.landmarkFootprint)
-      .sort((a,b)=>a.maxY-b.maxY)
-      .forEach(drawBuilding);
-
-    drawLandmarks();
-    renderingStatic=false;
-    ctx=liveContext;
+    // A small overview is only used by the tactical map. Play uses native tiles.
+    const scale=.25;scenery=document.createElement('canvas');
+    scenery.width=Math.ceil(WORLD_W*scale);scenery.height=Math.ceil(WORLD_H*scale);
+    paintScenery(scenery,0,0,scale,true);
+    sceneryTiles=new BadFodderScenery({width:WORLD_W,height:WORLD_H,gutter:2,limit:LOW_POWER?12:24,paint:(x,y,w,h)=>{
+      const tile=document.createElement('canvas');tile.width=w;tile.height=h;
+      paintScenery(tile,x,y,1,forceLight);return tile;
+    }});
   }
 
+  function resizeGame(){
+    const r=canvas.getBoundingClientRect();if(!r.width||!r.height)return;
+    const density=Math.min(2,window.devicePixelRatio||1);
+    const cap=LOW_POWER?1200:1600,scale=Math.min(density,cap/Math.max(r.width,r.height));
+    const width=Math.max(1,Math.round(r.width*scale)),height=Math.max(1,Math.round(r.height*scale));
+    if(canvas.width===width&&canvas.height===height&&frame.width===width&&frame.height===height)return;
+    VIEW_W=width;VIEW_H=height;canvas.width=frame.width=VIEW_W;canvas.height=frame.height=VIEW_H;
+    clampCamera();
+    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='low';display.imageSmoothingEnabled=false;
+  }
 
   function drawObjectiveZones(){
     [zones.post,zones.castle,zones.market].forEach((z,i)=>{
       const active=i===missionStage;
-      ctx.save();ctx.setLineDash([12,10]);ctx.strokeStyle=active?'#6e548d':'rgba(70,70,70,.22)';ctx.lineWidth=active?5:2;
+      ctx.save();ctx.setLineDash([12,10]);ctx.strokeStyle=active?'#e4cb83':'rgba(70,70,70,.22)';ctx.lineWidth=active?3:2;
       ctx.beginPath();ctx.arc(z.x,z.y,z.r,0,Math.PI*2);ctx.stroke();ctx.restore();
     });
   }
@@ -1977,10 +2007,10 @@
     ctx.save();
     ctx.fillStyle='rgba(15,22,18,.88)';ctx.fillRect(0,0,VIEW_W,VIEW_H);
 
-    const mapH=540;
+    const mapH=Math.max(80,Math.min(VIEW_H-180,(VIEW_W-110)*WORLD_H/WORLD_W));
     const mapW=mapH*(WORLD_W/WORLD_H);
     const x=(VIEW_W-mapW)/2;
-    const y=55;
+    const y=(VIEW_H-mapH)/2;
 
     ctx.fillStyle='#1f2b21';ctx.fillRect(x-14,y-14,mapW+28,mapH+28);
     ctx.strokeStyle='#d4c878';ctx.lineWidth=3;ctx.strokeRect(x-14,y-14,mapW+28,mapH+28);
@@ -2011,15 +2041,18 @@
 
   function drawSoldier(ent,team='squad'){
     const visual=art.pose(ent);
+    ctx.save();
+    (visual.dust||[]).forEach(p=>{ctx.globalAlpha=p.life/.22*.22;ctx.fillStyle='#b7a874';ctx.fillRect(p.x-2,p.y-1,4,2);});
+    ctx.restore();ctx.imageSmoothingEnabled=false;
     const flinch=ent.hitTimer>0?Math.sin(Math.min(1,ent.hitTimer/.16)*Math.PI)*1.5:0;
     ctx.save();
     ctx.globalAlpha=1;
     ctx.drawImage(
       art.soldier(team,visual.dir,visual.frame,visual.state,ent.variant||0),
-      ent.x+flinch-20,
-      ent.y-32,40,40
+      ent.x+flinch-16,
+      ent.y-26,32,32
     );
-    ctx.restore();
+    ctx.restore();ctx.imageSmoothingEnabled=true;
   }
 
   function drawBulletTracer(b){
@@ -2030,12 +2063,13 @@
   }
 
   function drawWorld(){
+    clampCamera();
     const frameScaleX=frame.width/VIEW_W,frameScaleY=frame.height/VIEW_H;
     ctx.setTransform(frameScaleX,0,0,frameScaleY,0,0);ctx.clearRect(0,0,VIEW_W,VIEW_H);
     ctx.fillStyle='#c7c9a8';ctx.fillRect(0,0,VIEW_W,VIEW_H);
 
     ctx.save();ctx.scale(zoom,zoom);ctx.translate(-camera.x,-camera.y);
-    ctx.drawImage(scenery,0,0,WORLD_W,WORLD_H);
+    sceneryTiles.draw(ctx,camera.x,camera.y,VIEW_W/zoom,VIEW_H/zoom);
     drawObjectiveZones();
 
     pickups.forEach(p=>{if(p.active)art.pickup(ctx,p);});
@@ -2114,9 +2148,9 @@
 
     if(paused||finished){
       ctx.fillStyle='rgba(25,31,28,.6)';ctx.fillRect(0,0,VIEW_W,VIEW_H);
-      ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='bold 34px Georgia';
+      ctx.fillStyle='#f0ecd9';ctx.textAlign='center';ctx.font='bold 34px system-ui';
       ctx.fillText(finished?(win?'MISSION COMPLETE':'MISSION FAILED'):'PAUSED',VIEW_W/2,VIEW_H/2-10);
-      ctx.font='16px system-ui';if(finished)ctx.fillText(win?'Bad Belzig secured.':'Press Restart to try again.',VIEW_W/2,VIEW_H/2+25);
+      ctx.font='16px system-ui';if(finished)ctx.fillText('Select RETRY to play again.',VIEW_W/2,VIEW_H/2+25);
     }
     display.setTransform(1,0,0,1,0,0);
     display.clearRect(0,0,VIEW_W,VIEW_H);
@@ -2258,7 +2292,7 @@
 
   touchFull.addEventListener('click',evt=>{evt.preventDefault();evt.stopPropagation();toggleMobileFullscreen();});
   touchMap.addEventListener('click',evt=>{evt.preventDefault();evt.stopPropagation();toggleMap();});
-  touchPause.addEventListener('click',evt=>{evt.preventDefault();evt.stopPropagation();togglePause();});
+  touchPause.addEventListener('click',evt=>{evt.preventDefault();evt.stopPropagation();if(finished)resetGame();else togglePause();});
 
   document.addEventListener('fullscreenchange',()=>{
     if(document.fullscreenElement!==gameViewport){
@@ -2266,10 +2300,11 @@
       gameViewport.classList.remove('full-window');
       document.body.classList.remove('mobile-fullscreen-fallback');
     }
-    syncFullscreenButton();
+    syncFullscreenButton();resizeGame();
   });
 
   selectAllBtn.addEventListener('click',()=>setSelection('all'));
+  hudAll.addEventListener('click',()=>setSelection('all'));
   unitButtons.forEach((b,i)=>b.addEventListener('click',()=>setSelection(i)));
   stopBtn.addEventListener('click',()=>{
     clearSquadFormation();
@@ -2341,6 +2376,7 @@
         bakeScenery(true);
       }
 
+      sceneryTiles.draw(ctx,camera.x,camera.y,VIEW_W/zoom,VIEW_H/zoom);
       started=true;
       loadingEl.classList.add('hidden');
       setStatus('Stage 1: move up Bahnhofstraße and reach the Postdistanzsäule.');
@@ -2355,6 +2391,9 @@
     }
   }
 
+  window.addEventListener('resize',resizeGame);
+  if(window.ResizeObserver)new ResizeObserver(resizeGame).observe(gameViewport);
+  resizeGame();
   requestAnimationFrame(tick);
   startGame();
 })();

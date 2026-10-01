@@ -27,3 +27,7 @@ a.alive=false;art.animate(a,.01);assert.equal(art.pose(a).state,'dead');assert.e
 art.animate(a,.1);assert.equal(art.pose(a).frame,1);art.animate(a,.1);assert.equal(art.pose(a).frame,2);
 art.animate(a,10);assert.equal(art.pose(a).frame,2,'Fallen pose stays settled');
 console.log('PASS: distance-based gait, blocked/idle actors, update-rate independence, shot timing, facing stability and collapse sequence.');
+const walker=actor();art.animate(walker,0);
+for(let i=0;i<50;i++){walker.x+=6;art.animate(walker,1/60);}
+assert(art.pose(walker).dust.length>0);assert(art.pose(walker).dust.length<=4);
+art.animate(walker,.3);assert.equal(art.pose(walker).dust.length,0,'Footstep dust settles while the actor is idle');
