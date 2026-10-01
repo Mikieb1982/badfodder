@@ -33,6 +33,8 @@ The static town is baked once into a scenery canvas before play. Zoom and camera
 
 ## Controls
 
+### Desktop
+
 - **Move soldiers**: left-click terrain to direct the selected squad
 - **Fire machine gun**: hold right-click and aim with the cursor; ammunition is unlimited
 - **Throw grenade**: press left + right mouse buttons together
@@ -41,6 +43,16 @@ The static town is baked once into a scenery canvas before play. Zoom and camera
 - **Restart mission**: press **Esc**
 - **1-4**: select an individual squad member
 - **A**: select all
+
+### Mobile
+
+- **Move**: use the virtual joystick at the bottom-right
+- **Fire**: hold the **FIRE** button at the bottom-left
+- **Grenade**: tap **GRENADE**; it throws in the squad leader's facing direction
+- **Map**: tap **MAP**
+- **Pause / resume**: tap the pause button
+- Squad selection remains available above the game
+- The touch layout supports portrait and landscape phones and coarse-pointer tablets
 
 Open `index.html` in a browser to play.
 
