@@ -65,15 +65,12 @@
       <button class="unitBtn" data-unit="3" type="button">4 Jansen</button>
     </div>
     <div class="controls">
-      <button id="moveBtn" class="active" type="button">Move</button>
-      <button id="fireBtn" type="button">Fire</button>
-      <button id="grenadeBtn" type="button">Grenade</button>
-      <button id="reloadBtn" type="button">Reload</button>
       <button id="stopBtn" type="button">Stop</button>
-      <button id="zoomOutBtn" type="button">− Map</button>
-      <button id="zoomInBtn" type="button">+ Map</button>
-      <button id="pauseBtn" type="button">Pause</button>
-      <button id="restartBtn" type="button">Restart</button>
+      <button id="mapBtn" type="button">Map (M)</button>
+      <button id="zoomOutBtn" type="button">− Zoom</button>
+      <button id="zoomInBtn" type="button">+ Zoom</button>
+      <button id="pauseBtn" type="button">Pause (Enter)</button>
+      <button id="restartBtn" type="button">Restart (Esc)</button>
     </div>
   </section>
 
@@ -85,9 +82,12 @@
   </div>
 
   <div class="help">
-    <div><strong>Move:</strong> select troops, choose Move, then click or tap the town.</div>
-    <div><strong>Fire:</strong> choose Fire and click or tap a target position.</div>
-    <div><strong>Mission:</strong> Postdistanzsäule → Burg Eisenhardt → Marktplatz.</div>
+    <div><strong>Move:</strong> left-click terrain to direct the selected squad.</div>
+    <div><strong>Machine gun:</strong> hold right-click toward the cursor. Ammunition is unlimited.</div>
+    <div><strong>Special weapon:</strong> press left + right mouse buttons together to throw a grenade.</div>
+    <div><strong>Map:</strong> press M.</div>
+    <div><strong>Pause:</strong> press Enter.</div>
+    <div><strong>Restart:</strong> press Esc.</div>
   </div>
   <div class="note">This uses the established Bad Belzig map geometry: 179 mapped roads, 906 building footprints and pixel landmarks. Map data © OpenStreetMap contributors, ODbL 1.0.</div>
 </main>
@@ -116,11 +116,8 @@
 
   const selectAllBtn=document.getElementById('selectAll');
   const unitButtons=Array.from(document.querySelectorAll('.unitBtn'));
-  const moveBtn=document.getElementById('moveBtn');
-  const fireBtn=document.getElementById('fireBtn');
-  const grenadeBtn=document.getElementById('grenadeBtn');
-  const reloadBtn=document.getElementById('reloadBtn');
   const stopBtn=document.getElementById('stopBtn');
+  const mapBtn=document.getElementById('mapBtn');
   const zoomOutBtn=document.getElementById('zoomOutBtn');
   const zoomInBtn=document.getElementById('zoomInBtn');
   const pauseBtn=document.getElementById('pauseBtn');
@@ -137,10 +134,11 @@
   const DOORS=['#486a67','#725849','#596950','#5c697b'];
 
 
-  let zoom=1,mode='move',selection='all',paused=false,finished=false,win=false,missionStage=0;
+  let zoom=1,selection='all',paused=false,mapOpen=false,finished=false,win=false,missionStage=0;
   let camera={x:S(620),y:S(1260)},last=performance.now(),squadGrenades=5;
   let bullets=[],thrown=[],effects=[],noise=[],squad=[],enemies=[],civilians=[],pickups=[];
   let started=false;
+  let cursorWorld=null,rightHeld=false,bothLatched=false;
 
   function hash(n){n=Math.imul(n^(n>>>16),2246822519);n=Math.imul(n^(n>>>13),3266489917);return(n^(n>>>16))>>>0}
   function unit(seed,salt){return hash((seed+Math.imul(salt,1013904223))>>>0)/4294967296}
@@ -251,12 +249,10 @@
   function pointInCircle(x,y,z){return Math.hypot(x-z.x,y-z.y)<=z.r}
   function selectedUnits(){return squad.filter((s,i)=>s.alive&&(selection==='all'||selection===i))}
 
-  function setMode(next){
-    mode=next;
-    [moveBtn,fireBtn,grenadeBtn].forEach(b=>b.classList.remove('active'));
-    if(next==='move')moveBtn.classList.add('active');
-    if(next==='fire')fireBtn.classList.add('active');
-    if(next==='grenade')grenadeBtn.classList.add('active');
+  function toggleMap(){
+    mapOpen=!mapOpen;
+    mapBtn.classList.toggle('active',mapOpen);
+    mapBtn.textContent=mapOpen?'Close Map (M)':'Map (M)';
   }
 
   function setSelection(sel){
@@ -272,7 +268,7 @@
     squad.forEach((s,i)=>{
       const d=document.createElement('div');
       d.className='card'+(s.selected?' selected':'');
-      d.innerHTML='<strong>'+(i+1)+' '+s.name+'</strong><div>'+(s.alive?'HP '+s.hp+'/'+s.maxHp:'DOWN')+'</div><div>'+(s.alive?'Ammo '+s.ammo+'/'+s.reserve:'')+'</div>';
+      d.innerHTML='<strong>'+(i+1)+' '+s.name+'</strong><div>'+(s.alive?'HP '+s.hp+'/'+s.maxHp:'DOWN')+'</div><div>'+(s.alive?'Machine gun ∞':'')+'</div>';
       rosterEl.appendChild(d);
     });
   }
@@ -314,10 +310,12 @@
     ];
 
     bullets=[];thrown=[];effects=[];noise=[];squadGrenades=5;missionStage=0;
-    finished=false;win=false;paused=false;selection='all';mode='move';zoom=1;
+    finished=false;win=false;paused=false;mapOpen=false;selection='all';zoom=1;
+    rightHeld=false;bothLatched=false;cursorWorld=null;
     camera={x:S(620),y:S(1260)};
-    pauseBtn.textContent='Pause';
-    setSelection('all');setMode('move');updateHud();
+    pauseBtn.textContent='Pause (Enter)';
+    mapBtn.classList.remove('active');mapBtn.textContent='Map (M)';
+    setSelection('all');updateHud();
   }
 
   function updateHud(){
@@ -376,17 +374,12 @@
 
   function squadFireAt(x,y){
     selectedUnits().forEach(s=>{
-      if(s.cooldown>0||s.reload>0||s.ammo<=0||lineBlocked(s.x,s.y,x,y))return;
+      if(s.cooldown>0||lineBlocked(s.x,s.y,x,y))return;
       updateFacing(s,x-s.x,y-s.y);
       s.fireTimer=.13;s.state='fire';
       fireBullet('squad',s.x,s.y,x+(Math.random()-.5)*14,y+(Math.random()-.5)*14);
-      s.ammo--;s.cooldown=.22;
+      s.cooldown=.12;
     });
-    updateRoster();
-  }
-
-  function reloadSelected(){
-    selectedUnits().forEach(s=>{if(s.reload<=0&&s.ammo<15&&s.reserve>0)s.reload=1.15});
   }
 
   function throwGrenade(x,y){
@@ -426,14 +419,6 @@
       s.cooldown=Math.max(0,s.cooldown-dt);
       s.flash=Math.max(0,s.flash-dt);
       s.fireTimer=Math.max(0,(s.fireTimer||0)-dt);
-
-      if(s.reload>0){
-        s.reload-=dt;
-        if(s.reload<=0){
-          const n=Math.min(15-s.ammo,s.reserve);
-          s.ammo+=n;s.reserve-=n;s.reload=0;updateRoster();
-        }
-      }
 
       let moving=false;
       if(s.target){
@@ -718,20 +703,38 @@
     });
   }
 
-  function drawMiniMap(){
-    const w=180,h=245,x=VIEW_W-w-12,y=12;
-    ctx.save();ctx.fillStyle='#293c28';ctx.fillRect(x,y,w,h);ctx.strokeStyle='#b6bd81';ctx.strokeRect(x,y,w,h);
-    const sx=w/WORLD_W,sy=h/WORLD_H;
-    ctx.strokeStyle='#738253';ctx.lineWidth=1.5;
-    roads.forEach(r=>{
-      if(r.points.length<2)return;
-      ctx.beginPath();ctx.moveTo(x+r.points[0][0]*sx,y+r.points[0][1]*sy);
-      r.points.slice(1).forEach(p=>ctx.lineTo(x+p[0]*sx,y+p[1]*sy));ctx.stroke();
+  function drawMapOverlay(){
+    ctx.save();
+    ctx.fillStyle='rgba(15,22,18,.88)';ctx.fillRect(0,0,VIEW_W,VIEW_H);
+
+    const mapH=540;
+    const mapW=mapH*(WORLD_W/WORLD_H);
+    const x=(VIEW_W-mapW)/2;
+    const y=55;
+
+    ctx.fillStyle='#1f2b21';ctx.fillRect(x-14,y-14,mapW+28,mapH+28);
+    ctx.strokeStyle='#d4c878';ctx.lineWidth=3;ctx.strokeRect(x-14,y-14,mapW+28,mapH+28);
+    ctx.imageSmoothingEnabled=false;
+    ctx.drawImage(scenery,x,y,mapW,mapH);
+
+    const sx=mapW/WORLD_W,sy=mapH/WORLD_H;
+    const objectives=[['POST',zones.post],['BURG',zones.castle],['MARKT',zones.market]];
+    objectives.forEach(([label,z],i)=>{
+      ctx.strokeStyle=i===missionStage?'#f2db69':'#c9bf93';ctx.lineWidth=i===missionStage?4:2;
+      ctx.beginPath();ctx.arc(x+z.x*sx,y+z.y*sy,8+(i===missionStage?3:0),0,Math.PI*2);ctx.stroke();
+      ctx.fillStyle='#fff0ad';ctx.font='bold 11px "Courier New",monospace';ctx.textAlign='left';
+      ctx.fillText(label,x+z.x*sx+11,y+z.y*sy+4);
     });
-    enemies.forEach(e=>{if(e.alive){ctx.fillStyle='#f2c87d';ctx.fillRect(x+e.x*sx-2,y+e.y*sy-2,4,4)}});
-    squad.forEach(s=>{if(s.alive){ctx.fillStyle='#90d5ed';ctx.beginPath();ctx.arc(x+s.x*sx,y+s.y*sy,3,0,Math.PI*2);ctx.fill()}});
-    const visibleW=VIEW_W/zoom,visibleH=VIEW_H/zoom;
-    ctx.strokeStyle='#edf0b7';ctx.strokeRect(x+camera.x*sx,y+camera.y*sy,visibleW*sx,visibleH*sy);
+
+    squad.forEach(s=>{
+      if(!s.alive)return;
+      ctx.fillStyle='#91d8ef';ctx.fillRect(x+s.x*sx-3,y+s.y*sy-3,6,6);
+    });
+
+    ctx.fillStyle='#f1e3ae';ctx.font='bold 24px "Courier New",monospace';ctx.textAlign='center';
+    ctx.fillText('BAD BELZIG - TACTICAL MAP',VIEW_W/2,31);
+    ctx.font='14px "Courier New",monospace';
+    ctx.fillText('Press M to return',VIEW_W/2,VIEW_H-20);
     ctx.restore();
   }
 
@@ -739,7 +742,7 @@
   function drawSoldier(ent,team='squad'){
     const dir=((Math.round((ent.dir||0)/(Math.PI/4))%8)+8)%8;
     // Civilian entities do not carry an alive flag.
-    const state=ent.alive===false?'dead':ent.reload>0?'reload':ent.state||'idle';
+    const state=ent.alive===false?'dead':ent.state||'idle';
     const pose=state==='walk'?Math.floor((ent.anim||0)*1.5)%4:0;
     ctx.drawImage(art.soldier(team,dir,pose,state,ent.variant||0),Math.round(ent.x/2)*2-24,Math.round(ent.y/2)*2-36,48,48);
   }
@@ -803,7 +806,8 @@
     });
 
     ctx.restore();
-    drawMiniMap();
+
+    if(mapOpen)drawMapOverlay();
 
     if(paused||finished){
       ctx.fillStyle='rgba(25,31,28,.6)';ctx.fillRect(0,0,VIEW_W,VIEW_H);
@@ -821,45 +825,106 @@
     return{x:px/zoom+camera.x,y:py/zoom+camera.y};
   }
 
+  canvas.addEventListener('contextmenu',evt=>evt.preventDefault());
+
+  canvas.addEventListener('pointermove',evt=>{
+    cursorWorld=pointerWorld(evt);
+  });
+
   canvas.addEventListener('pointerdown',evt=>{
-    if(!started||paused||finished)return;
+    if(!started||paused||finished||mapOpen)return;
+    canvas.setPointerCapture?.(evt.pointerId);
     const p=pointerWorld(evt);
-    for(let i=0;i<squad.length;i++){
-      const s=squad[i];
-      if(s.alive&&Math.hypot(s.x-p.x,s.y-p.y)<22){setSelection(i);return}
+    cursorWorld=p;
+
+    // Left + right together: special weapon. Trigger once per chord.
+    if((evt.buttons&1)&&(evt.buttons&2)){
+      evt.preventDefault();
+      rightHeld=false;
+      if(!bothLatched){
+        bothLatched=true;
+        selectedUnits().forEach(s=>s.target=null);
+        throwGrenade(p.x,p.y);
+      }
+      return;
     }
-    if(mode==='move')setMoveTargets(p);
-    else if(mode==='fire')squadFireAt(p.x,p.y);
-    else if(mode==='grenade')throwGrenade(p.x,p.y);
+
+    if(evt.button===2){
+      evt.preventDefault();
+      rightHeld=true;
+      squadFireAt(p.x,p.y);
+      return;
+    }
+
+    if(evt.button===0){
+      for(let i=0;i<squad.length;i++){
+        const s=squad[i];
+        if(s.alive&&Math.hypot(s.x-p.x,s.y-p.y)<22){setSelection(i);return}
+      }
+      setMoveTargets(p);
+    }
+  });
+
+  canvas.addEventListener('pointerup',evt=>{
+    cursorWorld=pointerWorld(evt);
+    rightHeld=(evt.buttons&2)!==0;
+    if((evt.buttons&3)!==3)bothLatched=false;
+  });
+
+  canvas.addEventListener('pointercancel',()=>{
+    rightHeld=false;bothLatched=false;
+  });
+
+  canvas.addEventListener('pointerleave',evt=>{
+    if(evt.buttons===0){rightHeld=false;bothLatched=false;}
   });
 
   selectAllBtn.addEventListener('click',()=>setSelection('all'));
   unitButtons.forEach((b,i)=>b.addEventListener('click',()=>setSelection(i)));
-  moveBtn.addEventListener('click',()=>setMode('move'));
-  fireBtn.addEventListener('click',()=>setMode('fire'));
-  grenadeBtn.addEventListener('click',()=>setMode('grenade'));
-  reloadBtn.addEventListener('click',reloadSelected);
   stopBtn.addEventListener('click',()=>selectedUnits().forEach(s=>s.target=null));
+  mapBtn.addEventListener('click',toggleMap);
   zoomOutBtn.addEventListener('click',()=>{zoom=Math.max(.55,zoom-.15)});
   zoomInBtn.addEventListener('click',()=>{zoom=Math.min(1.45,zoom+.15)});
-  pauseBtn.addEventListener('click',()=>{if(finished)return;paused=!paused;pauseBtn.textContent=paused?'Resume':'Pause'});
+  pauseBtn.addEventListener('click',()=>{
+    if(finished)return;
+    paused=!paused;
+    pauseBtn.textContent=paused?'Resume (Enter)':'Pause (Enter)';
+  });
   restartBtn.addEventListener('click',resetGame);
 
   root.tabIndex=0;
   root.addEventListener('keydown',e=>{
-    const tag=e.target&&e.target.tagName;if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')return;
-    if(e.key==='1')setSelection(0);if(e.key==='2')setSelection(1);if(e.key==='3')setSelection(2);if(e.key==='4')setSelection(3);
+    const tag=e.target&&e.target.tagName;
+    if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')return;
+
+    if(e.key==='1')setSelection(0);
+    if(e.key==='2')setSelection(1);
+    if(e.key==='3')setSelection(2);
+    if(e.key==='4')setSelection(3);
     if(e.key.toLowerCase()==='a')setSelection('all');
-    if(e.key.toLowerCase()==='m')setMode('move');
-    if(e.key.toLowerCase()==='f')setMode('fire');
-    if(e.key.toLowerCase()==='g')setMode('grenade');
-    if(e.key.toLowerCase()==='r')reloadSelected();
-    if(e.key===' '){e.preventDefault();paused=!paused;pauseBtn.textContent=paused?'Resume':'Pause'}
+
+    if(e.key.toLowerCase()==='m'){
+      e.preventDefault();
+      toggleMap();
+    }
+
+    if(e.key==='Enter'){
+      e.preventDefault();
+      if(finished)return;
+      paused=!paused;
+      pauseBtn.textContent=paused?'Resume (Enter)':'Pause (Enter)';
+    }
+
+    if(e.key==='Escape'){
+      e.preventDefault();
+      resetGame();
+    }
   });
 
   function tick(now){
     const dt=Math.min(.033,(now-last)/1000||0);last=now;
-    if(started&&!paused&&!finished){
+    if(started&&!paused&&!finished&&!mapOpen){
+      if(rightHeld&&cursorWorld&&!bothLatched)squadFireAt(cursorWorld.x,cursorWorld.y);
       updateSquad(dt);updateEnemies(dt);updateCivilians(dt);updateProjectiles(dt);updateCamera(dt);checkFailure();updateHud();
     }
     if(started)drawWorld();
