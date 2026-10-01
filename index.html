@@ -662,10 +662,12 @@
     return false;
   }
 
-  const PATH_CELL=36;
+  const NAV_RADIUS=6;
+  const PATH_CELL=12;
   const PATH_COLS=Math.ceil(WORLD_W/PATH_CELL);
   const PATH_ROWS=Math.ceil(WORLD_H/PATH_CELL);
   const pathBlockedCache=new Map();
+  const pathEdgeCache=new Map();
 
   function pathCellKey(gx,gy){return gx+'|'+gy}
 
@@ -681,28 +683,25 @@
     const key=pathCellKey(gx,gy);
     if(pathBlockedCache.has(key))return pathBlockedCache.get(key);
     const p=pathCellCenter(gx,gy);
-    const blocked=obstacleAt(p.x,p.y,14);
+    const blocked=obstacleAt(p.x,p.y,NAV_RADIUS);
     pathBlockedCache.set(key,blocked);
     return blocked;
   }
 
-  function nearestOpenCell(gx,gy){
-    if(!pathCellBlocked(gx,gy))return[gx,gy];
-    for(let radius=1;radius<=7;radius++){
-      for(let dx=-radius;dx<=radius;dx++){
-        for(const dy of[-radius,radius]){
-          const x=gx+dx,y=gy+dy;
-          if(!pathCellBlocked(x,y))return[x,y];
-        }
-      }
-      for(let dy=-radius+1;dy<=radius-1;dy++){
-        for(const dx of[-radius,radius]){
-          const x=gx+dx,y=gy+dy;
-          if(!pathCellBlocked(x,y))return[x,y];
-        }
-      }
+  function nearestOpenCell(gx,gy,from=null){
+    if(!pathCellBlocked(gx,gy)){
+      const p=pathCellCenter(gx,gy);
+      if(!from||routeClear(from.x,from.y,p.x,p.y,NAV_RADIUS))return[gx,gy];
     }
-    return null;
+    const candidates=[];
+    for(let dy=-7;dy<=7;dy++)for(let dx=-7;dx<=7;dx++){
+      const x=gx+dx,y=gy+dy;if(pathCellBlocked(x,y))continue;
+      const p=pathCellCenter(x,y);
+      if(from&&!routeClear(from.x,from.y,p.x,p.y,NAV_RADIUS))continue;
+      candidates.push({x,y,d:from?Math.hypot(p.x-from.x,p.y-from.y):Math.hypot(dx,dy)});
+    }
+    candidates.sort((a,b)=>a.d-b.d);
+    return candidates.length?[candidates[0].x,candidates[0].y]:null;
   }
 
   class MinHeap{
@@ -740,9 +739,9 @@
     get length(){return this.a.length}
   }
 
-  function routeClear(x1,y1,x2,y2,r=12){
+  function routeClear(x1,y1,x2,y2,r=NAV_RADIUS){
     const d=Math.hypot(x2-x1,y2-y1);
-    const steps=Math.max(1,Math.ceil(d/14));
+    const steps=Math.max(1,Math.ceil(d/4));
     for(let i=1;i<=steps;i++){
       const t=i/steps;
       if(obstacleAt(x1+(x2-x1)*t,y1+(y2-y1)*t,r))return false;
@@ -751,21 +750,23 @@
   }
 
   function findPath(sx,sy,tx,ty){
-    if(routeClear(sx,sy,tx,ty,12))return[{x:tx,y:ty}];
+    if(routeClear(sx,sy,tx,ty,NAV_RADIUS))return[{x:tx,y:ty}];
 
     const startRaw=[Math.floor(sx/PATH_CELL),Math.floor(sy/PATH_CELL)];
     const goalRaw=[Math.floor(tx/PATH_CELL),Math.floor(ty/PATH_CELL)];
-    const start=nearestOpenCell(startRaw[0],startRaw[1]);
+    const start=nearestOpenCell(startRaw[0],startRaw[1],{x:sx,y:sy});
     const goal=nearestOpenCell(goalRaw[0],goalRaw[1]);
     if(!start||!goal)return[];
 
+    const approachRadius=obstacleAt(tx,ty,NAV_RADIUS)?64:0;
     const startKey=pathCellKey(start[0],start[1]);
     const goalKey=pathCellKey(goal[0],goal[1]);
     const open=new MinHeap();
     const gScore=new Map([[startKey,0]]);
     const came=new Map();
     const closed=new Set();
-    const heuristic=(x,y)=>Math.hypot(goal[0]-x,goal[1]-y);
+    let approach=null,approachDistance=Infinity;
+    const heuristic=(x,y)=>Math.hypot(goal[0]-x,goal[1]-y)*1.2;
 
     open.push({x:start[0],y:start[1],f:heuristic(start[0],start[1])});
     const dirs=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
@@ -774,7 +775,8 @@
       const cur=open.pop();
       const ck=pathCellKey(cur.x,cur.y);
       if(closed.has(ck))continue;
-      if(ck===goalKey){
+      const cp=pathCellCenter(cur.x,cur.y);
+      if(ck===goalKey||(approachRadius&&Math.hypot(cp.x-tx,cp.y-ty)<=approachRadius)){
         const raw=[];
         let key=ck;
         while(key!==startKey){
@@ -783,16 +785,18 @@
           key=came.get(key);
           if(!key)break;
         }
+        raw.push(pathCellCenter(start[0],start[1]));
         raw.reverse();
-        if(routeClear(raw.length?raw[raw.length-1].x:sx,raw.length?raw[raw.length-1].y:sy,tx,ty,12))raw.push({x:tx,y:ty});
+        if(routeClear(raw.length?raw[raw.length-1].x:sx,raw.length?raw[raw.length-1].y:sy,tx,ty,NAV_RADIUS))raw.push({x:tx,y:ty});
 
         const smooth=[];
         let ax=sx,ay=sy,index=0;
         while(index<raw.length){
-          let far=index;
+          let far=-1;
           for(let j=raw.length-1;j>=index;j--){
-            if(routeClear(ax,ay,raw[j].x,raw[j].y,12)){far=j;break}
+            if(routeClear(ax,ay,raw[j].x,raw[j].y,NAV_RADIUS)){far=j;break}
           }
+          if(far<0)return[];
           smooth.push(raw[far]);
           ax=raw[far].x;ay=raw[far].y;index=far+1;
         }
@@ -800,6 +804,8 @@
       }
 
       closed.add(ck);
+      const currentPoint=pathCellCenter(cur.x,cur.y),distanceToTarget=Math.hypot(currentPoint.x-tx,currentPoint.y-ty);
+      if(distanceToTarget<approachDistance){approachDistance=distanceToTarget;approach=currentPoint;}
       const currentG=gScore.get(ck)??Infinity;
 
       for(const [dx,dy] of dirs){
@@ -808,6 +814,13 @@
         if(dx&&dy&&(pathCellBlocked(cur.x+dx,cur.y)||pathCellBlocked(cur.x,cur.y+dy)))continue;
         const nk=pathCellKey(nx,ny);
         if(closed.has(nk))continue;
+        const ai=cur.y*PATH_COLS+cur.x,bi=ny*PATH_COLS+nx;
+        const edge=Math.min(ai,bi)*(PATH_COLS*PATH_ROWS)+Math.max(ai,bi);
+        if(!pathEdgeCache.has(edge)){
+          const a=pathCellCenter(cur.x,cur.y),b=pathCellCenter(nx,ny);
+          pathEdgeCache.set(edge,routeClear(a.x,a.y,b.x,b.y,NAV_RADIUS));
+        }
+        if(!pathEdgeCache.get(edge))continue;
         const tentative=currentG+(dx&&dy?1.4142:1);
         if(tentative<(gScore.get(nk)??Infinity)){
           came.set(nk,ck);
@@ -816,6 +829,8 @@
         }
       }
     }
+    // A clicked roof or enclosed courtyard should lead to its reachable street frontage.
+    if(approach&&approachDistance<=160)return findPath(sx,sy,approach.x,approach.y);
     return[];
   }
 
@@ -823,7 +838,8 @@
     const path=findPath(ent.x,ent.y,tx,ty);
     ent.path=path;
     ent.pathIndex=0;
-    ent.target=path.length?{x:tx,y:ty}:null;
+    ent.target=path.length?{...path[path.length-1]}:null;
+    ent.stuckTime=0;
     return path.length>0;
   }
 
@@ -833,7 +849,8 @@
     }
     const p=ent.path[ent.pathIndex];
     const dx=p.x-ent.x,dy=p.y-ent.y,d=Math.hypot(dx,dy);
-    if(d<10){
+    if(d<=Math.max(1,speed*dt)&&routeClear(ent.x,ent.y,p.x,p.y,NAV_RADIUS)){
+      ent.x=p.x;ent.y=p.y;
       ent.pathIndex++;
       if(ent.pathIndex>=ent.path.length){
         ent.path=null;ent.target=null;return false;
@@ -841,7 +858,10 @@
       return true;
     }
     updateFacing(ent,dx,dy);
-    moveEntity(ent,dx/d*speed*dt,dy/d*speed*dt,12);
+    const oldX=ent.x,oldY=ent.y;
+    moveEntity(ent,dx/d*speed*dt,dy/d*speed*dt,NAV_RADIUS);
+    ent.stuckTime=Math.hypot(ent.x-oldX,ent.y-oldY)<.2?(ent.stuckTime||0)+dt:0;
+    if(ent.stuckTime>.45&&ent.target){const target={...ent.target};assignPath(ent,target.x,target.y);}
     return true;
   }
 
@@ -1278,7 +1298,7 @@
   }
 
   function safeFormationPoint(x,y){
-    if(!obstacleAt(x,y,14))return{x,y};
+    if(!obstacleAt(x,y,NAV_RADIUS))return{x,y};
     const open=nearestOpenCell(Math.floor(x/PATH_CELL),Math.floor(y/PATH_CELL));
     return open?pathCellCenter(open[0],open[1]):null;
   }
@@ -1304,10 +1324,11 @@
     const [side,back]=offsets[Math.min(slot,offsets.length-1)];
     const fx=Math.cos(leader.dir||0),fy=Math.sin(leader.dir||0);
     const rx=-fy,ry=fx;
-    return safeFormationPoint(
-      leader.x-fx*back+rx*side,
-      leader.y-fy*back+ry*side
-    );
+    const wedge=safeFormationPoint(leader.x-fx*back+rx*side,leader.y-fy*back+ry*side);
+    if(wedge&&routeClear(leader.x,leader.y,wedge.x,wedge.y,NAV_RADIUS))return wedge;
+    // Keep single file when there is no room to reform beside a wall or POI.
+    const trail=trailPointBehind(42*slot)||{x:leader.x,y:leader.y};
+    return safeFormationPoint(trail.x,trail.y);
   }
 
   function followFormationMember(s,dt){
@@ -1322,11 +1343,11 @@
     s.followRepath=Math.max(0,(s.followRepath||0)-dt);
     const catchUp=d>130?1.16:d>75?1.08:1;
 
-    if(routeClear(s.x,s.y,desired.x,desired.y,12)){
+    if(routeClear(s.x,s.y,desired.x,desired.y,NAV_RADIUS)){
       s.path=null;s.target=null;s.pathIndex=0;
       const dx=desired.x-s.x,dy=desired.y-s.y;
       updateFacing(s,dx,dy);
-      moveEntity(s,dx/d*185*catchUp*dt,dy/d*185*catchUp*dt,12);
+      moveEntity(s,dx/d*185*catchUp*dt,dy/d*185*catchUp*dt,NAV_RADIUS);
       return true;
     }
 
@@ -1412,7 +1433,7 @@
 
   function resolveSquadSpacing(){
     const living=squad.filter(s=>s.alive);
-    const min=28;
+    const min=NAV_RADIUS*2+2;
     for(let i=0;i<living.length;i++){
       for(let j=i+1;j<living.length;j++){
         const a=living[i],b=living[j];
@@ -1422,8 +1443,8 @@
         if(d<min){
           const push=Math.min(2.2,(min-d)*.18);
           const nx=dx/d,ny=dy/d;
-          moveEntity(a,-nx*push,-ny*push,12);
-          moveEntity(b,nx*push,ny*push,12);
+          moveEntity(a,-nx*push,-ny*push,NAV_RADIUS);
+          moveEntity(b,nx*push,ny*push,NAV_RADIUS);
         }
       }
     }
@@ -1599,7 +1620,7 @@
         const dx=tx-e.x,dy=ty-e.y,d=Math.hypot(dx,dy);
         if(d>4){
           moving=true;updateFacing(e,dx,dy);
-          moveEntity(e,dx/d*38*dt,dy/d*38*dt,12);
+          moveEntity(e,dx/d*38*dt,dy/d*38*dt,NAV_RADIUS);
         }
       }
 
@@ -1768,7 +1789,7 @@
     const dy=touchState.moveY*speed*dt;
 
     updateFacing(leader,touchState.moveX,touchState.moveY);
-    moveEntity(leader,dx,dy,12);
+    moveEntity(leader,dx,dy,NAV_RADIUS);
     leader.state='walk';
   }
 
