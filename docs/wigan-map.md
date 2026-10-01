@@ -16,11 +16,17 @@ The previous hand-positioned blocks have been replaced with OpenStreetMap street
 
 “Jumble Chop House” is interpreted as John Bull Chophouse. King Street is labelled as the nightlife street. Market Place and Standishgate also have map markers. The tactical map has a numbered legend, a north indicator, the squad position and the current objective. Pub markers identify their actual mapped building, while movement destinations and objectives use the public street frontage so soldiers are not sent into a roof.
 
-The three mission phases remain the station gateway, Market Place and Grand Arcade. The Arcade brief now directs players to its Standishgate entrance. The squad starts near North Western. Hostiles, civilians and supplies use reachable streets; the first hostile groups are separated from the spawn.
+The five mission phases are the station gateway, Tudor, Market Place, King Street and Grand Arcade. The Tudor and King Street sectors must be cleared before advancing; the final phase requires all remaining hostiles to be eliminated and the squad to reach the Arcade's Standishgate entrance. The squad starts near North Western. Hostiles, civilians and supplies use reachable streets; the first hostile groups are separated from the spawn. Defender groups follow their nearest geographic sector instead of mixing distant parts of town.
+
+The live view includes an objective compass and metre distance. The tactical map draws a route using the same collision-safe pathfinder as the squad. During the final clearance phase it marks remaining hostiles and guides the squad to the nearest contact; once the town is clear, guidance returns to Grand Arcade. The route is cached between meaningful changes in squad or target position.
+
+Wigan ammunition crates now add two grenades, up to a reserve of eight. A full reserve leaves the crate available for later. Medical crates restore four health and are retained when everyone nearby is healthy. This keeps the Tudor and King Street supplies useful during the mission.
 
 ## Presentation
 
-Wigan uses weathered red brick facades, cream window frames, slate gables, flat commercial roofs, paved pedestrian streets, quieter asphalt, rail sleepers and mapped platforms. Grand Arcade has a clipped glass roof lantern over its existing footprint. The existing articulated infantry, continuous walking gait, recoil, turning and collapse animation now load their painted assets in Wigan too; the old Wigan preload path had skipped them.
+Wigan uses weathered red brick facades, cream window frames, slate gables, flat commercial roofs, paved pedestrian streets, quieter asphalt, rail sleepers and mapped platforms. The Tudor has a red-brick ground floor and black-and-white upper facade; John Bull has painted brick and a green fascia; Moon Under Water has a stone-coloured frontage and pilasters. Stations have named fascias and glass awnings. King Street gets subdued plum-coloured nightclub frontages, while the centre gets shop windows and cafe fronts. Grand Arcade has a clipped glass roof lantern over its existing footprint. The existing articulated infantry, continuous walking gait, recoil, turning and collapse animation now load their painted assets in Wigan too; the old Wigan preload path had skipped them.
+
+`wigan-details.js` derives frontage orientation from the existing streets. Its 37 decorative lamps, benches, planters, bins and bollards are placed at curbs, away from intersections and landmark approaches. The furniture, generic shop names and awnings are art details, not surveyed features. They do not change collision or map geometry. Buildings and props share a depth-sorted static scenery pass. No additional generated images were needed for these facade details.
 
 Architecture is stylized. Heights, roof shapes and materials use mapped tags where available and reasonable art defaults otherwise. Street centre lines and building geometry come from the snapshot; road widths use OSM width tags or class-based defaults. This is a geographic town-centre game map, not a surveyed architectural reconstruction. No generated background image controls collision or replaces the map.
 
@@ -37,16 +43,19 @@ Sources checked:
 - [OpenStreetMap API geographic extract](https://api.openstreetmap.org/api/0.6/map?bbox=-2.641,53.541,-2.623,53.549), retrieved 1 October 2026.
 - [Wigan town-centre transport map](https://trythetrain.org.uk/wp-content/uploads/2025/03/Wigan-map-Digital-3.pdf), used to cross-check the two live railway stations and street relationships.
 - [John Bull Chophouse](https://johnbullchophousewigan.co.uk/), [Moon Under Water](https://www.jdwetherspoon.com/pubs/the-moon-under-water-wigan/) and [Grand Arcade](https://www.grand-arcade.co.uk/), used to cross-check the named destinations.
+- [Wigan Council's town-centre prospectus](https://www.wigan.gov.uk/Docs/PDF/Business/Property-and-Land/Developer-hub/Wigan-Town-Centre-Prospectus.pdf), New Market Street page, used as the Tudor facade reference. [Historic England's John Bull listing](https://historicengland.org.uk/listing/the-list/list-entry/1384460) confirms its painted-brick and slate treatment.
 
 ## Validation
 
 `npm test` passes. Wigan checks cover north-up coordinates, actual landmark feature IDs, clipped geometry, individual and full-squad movement to all ten street frontages, and 65 named town-centre street segments. Bad Belzig's eight POIs and 137 street destinations still pass. The stopped single-file formation was tightened to prevent the last soldier being stranded too far behind at a narrow destination.
 
-Headless Firefox checks cover desktop, phone portrait and touch landscape, including retina canvas scaling and phone fullscreen fallback. No page errors occurred. Actual game route updates completed each Wigan objective in sequence, persisted the win, and allowed retry; these controlled checks disable hostiles, so they verify progression rather than combat difficulty. Finishing Bad Belzig and pressing next reloads the Wigan map. MAP/BACK, the M key, the grenade key and retry work. Physical phone native fullscreen and combat balance have not been verified.
+Headless Firefox checks cover desktop, phone portrait and touch landscape, including retina canvas scaling and phone fullscreen fallback. No page errors occurred. Actual game route updates completed all five Wigan objectives in sequence, persisted the win, and allowed retry. A separate deterministic automated run kept all 18 hostiles active and used production movement, enemy AI, firing, projectiles and health updates; it completed all five objectives with all four soldiers surviving. This is an integration check using an automated player with perfect enemy-position knowledge, not a human difficulty assessment. The earlier Bad Belzig completion/next-map check remains valid. MAP/BACK and the final-contact route are also checked. Physical phone native fullscreen and human combat balance have not been verified.
+
+The active-enemy run exposed repeated whole-map searches when a defender selected an enclosed courtyard. Wigan now caches connected navigation regions, prepared during loading. A disconnected open target is rejected immediately; roof clicks still use a reachable outside approach. Tests cover closed courtyards, repeated rejected targets, roofs and a courtyard with a genuinely open alley, as well as the real map routes. The Bad Belzig navigation behaviour stays unchanged.
 
 The existing volume test double was updated for the newer slider elements. A missing saved volume previously became zero through `Number(null)`; it now retains the intended 22% default, while an explicitly saved zero remains silent.
 
-Review captures from the running game: [town centre](wigan-town-centre.webp), [Tudor](wigan-tudor.webp), [tactical map](wigan-tactical-map.webp), [phone](wigan-mobile.webp).
+Review captures from the running game: [town centre](wigan-town-centre.webp), [Tudor](wigan-tudor.webp), [King Street](wigan-king-street.webp), [tactical map](wigan-tactical-map.webp), [final contacts](wigan-final-contacts.webp), [phone](wigan-mobile.webp).
 
 ## Urban material generation prompt
 

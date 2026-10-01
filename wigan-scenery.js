@@ -29,15 +29,17 @@
    poly(g,side,color,'#514637',.7);
    g.save();poly(g,side,null);g.clip();g.globalAlpha=b.material==='painted-brick'?.32:.65;g.globalCompositeOperation='multiply';g.fillStyle=art.texture(g,'urban-brick');g.fillRect(b.minX-2,b.minY-h-mesh.rise-2,b.maxX-b.minX+4,b.maxY-b.minY+h+mesh.rise+4);g.restore();
    poly(g,side,dy>0?'#26342635':'#fff2c509');
+   BadFodderWiganDetails.base(g,b,wall);
    line(g,[[a[0],a[1]-h+2],[d[0],d[1]-h+2]],'#c4b598',1.7);
    line(g,[[a[0],a[1]-1],[d[0],d[1]-1]],'#50483a',2);
    const count=Math.min(10,Math.floor(len/16)),rows=Math.min(3,Math.max(1,Math.round(b.levels))),ux=dx/len,uy=dy/len;
    for(let row=0;row<rows;row++)for(let j=1;j<=count;j++){
     const t=j/(count+1),x=a[0]+dx*t,y=a[1]+dy*t-h*(row+.55)/rows,w=rows===1?7:5.8,wh=Math.min(8,h/rows*.58);
     const pane=[[x-ux*w/2,y-uy*w/2],[x+ux*w/2,y+uy*w/2],[x+ux*w/2,y+uy*w/2-wh],[x-ux*w/2,y-uy*w/2-wh]];
-    poly(g,pane,'#293b3a','#b9ae8d',1);line(g,[[x-ux*w/2,y-uy*w/2-wh+1],[x+ux*w/2,y+uy*w/2-wh+1]],'#718982',.8);
+    poly(g,pane,'#293b3a',b.landmark==='tudor'?'#48463b':'#b9ae8d',1);line(g,[[x-ux*w/2,y-uy*w/2-wh+1],[x+ux*w/2,y+uy*w/2-wh+1]],'#718982',.8);
     line(g,[[x,y],[x,y-wh]],'#9d9e85',.7);
    }
+   BadFodderWiganDetails.facade(g,b,wall,BadFodderWiganDetails.isFront(b,wall,walls));
   }
   if(flat){
    const roof=p.map(a=>[a[0],a[1]-h]);poly(g,roof,art.texture(g,'urban-roof'),'#535347',2.5);
@@ -94,17 +96,33 @@
   }
   g.restore();
  }
- function tactical(g,map,scenery,squad,objectives,stage,vw,vh,scale){
+ function guidance(g,map,hint,leader,vw,vh,scale){
+  const W=vw/scale,H=vh/scale;if(H<280)return;
+  const dx=hint.target.x-leader.x,dy=hint.target.y-leader.y,metres=Math.round(Math.hypot(dx,dy)/(2*map.projection.unitsPerMetre));
+  const reached=!hint.contact&&Math.hypot(dx,dy)<hint.target.r;
+  g.save();g.scale(scale,scale);const y=W<600?132:124;
+  const text=reached&&hint.phase.type==='secure-zone'?'Clear this sector':hint.caption+' · '+metres+' m';
+  g.font='700 11px system-ui,sans-serif';const w=Math.min(W-32,g.measureText(text).width+46);
+  g.fillStyle='#253b2bea';g.strokeStyle='#a69771';g.lineWidth=1;g.beginPath();g.roundRect(16,y,w,29,5);g.fill();g.stroke();
+  g.save();g.translate(31,y+14);g.rotate(Math.atan2(dy,dx));poly(g,[[7,0],[-3,-5],[-1,0],[-3,5]],hint.contact?'#e0a281':'#e9d294');g.restore();
+  g.fillStyle='#e8dfc6';g.textAlign='left';g.textBaseline='middle';g.fillText(text,45,y+14,w-34);g.restore();
+ }
+ function tactical(g,map,scenery,squad,objectives,stage,vw,vh,scale,hint,enemies){
   g.save();g.scale(scale,scale);const W=vw/scale,H=vh/scale,compact=W<600,sideLegend=!compact&&H<450;
   g.fillStyle='#18221a';g.fillRect(0,0,W,H);
-  const top=compact?78:58,legendH=compact?138:96,bottom=28;
+  const top=compact?96:58,legendH=compact?138:96,bottom=28;
   const mh=Math.max(50,sideLegend?Math.min(H-top-bottom,(W*.5-30)*map.height/map.width):Math.min(H-top-legendH-bottom,(W-36)*map.height/map.width)),mw=mh*map.width/map.height;
   const x=sideLegend?18:(W-mw)/2,y=top;
   g.imageSmoothingEnabled=true;g.drawImage(scenery,x,y,mw,mh);
   g.strokeStyle='#b5a781';g.lineWidth=2;g.strokeRect(x-2,y-2,mw+4,mh+4);
   g.font='700 13px system-ui,sans-serif';g.fillStyle='#f2e4bd';g.textAlign='left';g.fillText('WIGAN · TOWN CENTRE',18,compact?68:35);
+  g.font='11px system-ui,sans-serif';g.fillStyle='#bcbd9f';g.fillText('Route: '+hint.caption,18,compact?86:49);
   g.textAlign='right';g.font='700 10px system-ui,sans-serif';g.fillText('N ↑',x+mw-5,y+13);
   const sx=mw/map.width,sy=mh/map.height;
+  if(hint.path.length){g.save();g.setLineDash([5,3]);line(g,hint.path.map(p=>[x+p.x/2*sx,y+p.y/2*sy]),'#f5ce7c',2);g.restore();}
+  if(hint.contact)for(const e of enemies.filter(e=>e.alive)){
+   g.fillStyle='#c57962';g.beginPath();g.arc(x+e.x/2*sx,y+e.y/2*sy,3,0,TAU);g.fill();
+  }
   for(const [i,item] of map.labels.entries()){
    const p=map.pois[item.key],px=x+p.x*sx,py=y+p.y*sy;
    g.beginPath();g.arc(px,py,8,0,TAU);g.fillStyle='#202a23';g.fill();g.strokeStyle='#e5d09a';g.lineWidth=1;g.stroke();
@@ -119,8 +137,8 @@
    g.textAlign='left';g.font='700 10px system-ui,sans-serif';g.fillStyle='#e9d399';g.fillText(String(i+1).padStart(2,'0'),px,py);
    g.font='11px system-ui,sans-serif';g.fillStyle='#e7e4d5';g.fillText(map.pois[item.key].name,px+23,py,columnW-27);
   });
-  g.textAlign='center';g.fillStyle='#a9c0b0';g.font='10px system-ui,sans-serif';g.fillText('Gold ring: objective · Blue: squad · MAP / M to return',W/2,H-12);
+  g.textAlign='center';g.fillStyle='#a9c0b0';g.font='10px system-ui,sans-serif';g.fillText(hint.contact?'Gold: route · Red: hostiles · Blue: squad':'Gold: route / objective · Blue: squad · MAP / M to return',W/2,H-12);
   g.restore();
  }
- window.BadFodderWigan={road,building,ground,labels,tactical};
+ window.BadFodderWigan={road,building,ground,labels,guidance,tactical};
 })();

@@ -126,7 +126,7 @@ def build(src):
  for key,lat,lon,street,label in [('market',53.54615,-2.63205,'Market Place','MARKET PLACE'),('kingStreet',53.54448,-2.63068,'King Street','KING STREET · NIGHTLIFE'),('standishgate',53.5472,-2.6305,'Standishgate','STANDISHGATE')]:
   p=on_street(lat,lon,street,roads);pois[key]={'x':p[0],'y':p[1],'approach':p,'street':street,'name':label};labels.append({'key':key,'text':label,'kind':'street'})
  # Explicit source-frontage objectives avoid sending troops into station/mall roofs.
- z={key:{'x':pois[key]['approach'][0],'y':pois[key]['approach'][1],'r':radius} for key,radius in [('wallgate',70),('market',60),('grandArcade',70)]}
+ z={key:{'x':pois[key]['approach'][0],'y':pois[key]['approach'][1],'r':radius} for key,radius in [('wallgate',70),('tudor',55),('market',60),('kingStreet',60),('grandArcade',70)]}
  origin=pois['northWestern']['approach'];squad=[[round(origin[0]+i,2),round(origin[1]+j,2)] for i,j in [(-8,5),(8,5),(-8,21),(8,21)]]
  placements=[(53.5455,-2.6327,'Wallgate'),(53.54525,-2.6329,'Wallgate'),(53.5447,-2.6316,'King Street'),(53.5441,-2.6303,'King Street'),(53.54475,-2.634,'King Street West'),(53.5459,-2.6322,'Wallgate'),(53.5463,-2.6325,'Market Street'),(53.5464,-2.632,'Market Place'),(53.5460,-2.6308,'Millgate'),(53.5453,-2.6308,'Library Street'),(53.5468,-2.6305,'Standishgate'),(53.5471,-2.6305,'Standishgate'),(53.5475,-2.6307,'Standishgate'),(53.5472,-2.6292,'Crompton Street'),(53.5478,-2.6339,'New Market Street'),(53.5474,-2.6331,'Market Street'),(53.5467,-2.6339,'Hallgate'),(53.5465,-2.631,'Coopers Row')]
  enemies=[on_street(lat,lon,street,roads) for lat,lon,street in placements]

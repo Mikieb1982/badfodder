@@ -503,6 +503,7 @@
 <script src="pixel-art.js"></script>
 <script src="painted-art.js"></script>
 <script src="building-art.js"></script>
+<script src="wigan-details.js"></script>
 <script src="wigan-scenery.js"></script>
 <script src="scenery-cache.js"></script>
 <script src="menu-ui.js"></script>
@@ -569,6 +570,7 @@
   );
   const LOW_POWER=TOUCH_DEVICE;
   const SCALE=2;
+  const wiganDetails=MAP_DATA.key==='wigan'?BadFodderWiganDetails.prepare(MAP_DATA):null;
   document.querySelector('.subtitle').textContent=MAP_DATA.key==='wigan'?'Wigan Town Centre':'Operation Bad Belzig';
   canvas.setAttribute('aria-label','Top-down tactical game in '+(MAP_DATA.key==='wigan'?'Wigan town centre':'Bad Belzig'));
   const WORLD_W=MAP_DATA.width*SCALE;
@@ -591,6 +593,7 @@
   const hudChips=new Map();
   let fallbackFullscreen=false;
   let squadFormation={active:false,leader:null,members:[],trail:[],destination:null,manualMoving:false};
+  let wiganRouteCache={key:null,path:[]};
   const touchState={
     movePointer:null,moveX:0,moveY:0,moveMag:0,
     firePointer:null,fireHeld:false
@@ -631,7 +634,7 @@
     const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
     const seed=hash((i+1)*2654435761);
     return {
-      i,name:b.name||'',points:pts,solid:b.solid!==false,landmark:b.landmark||'',levels:b.levels||2,roofShape:b.roofShape||'gable',material:b.material||'stone',
+      i,name:b.name||'',points:pts,solid:b.solid!==false,landmark:b.landmark||'',levels:b.levels||2,roofShape:b.roofShape||'gable',material:b.material||'stone',detail:wiganDetails&&wiganDetails.buildings.get(b.osmId),
       minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys),
       height:MAP_DATA.key==='wigan'?S(4+(b.levels||2)*5):S(8+Math.floor(unit(seed,1)*5)),
       wall:WALLS[Math.floor(unit(seed,2)*WALLS.length)],
@@ -735,6 +738,8 @@
   const PATH_ROWS=Math.ceil(WORLD_H/PATH_CELL);
   const pathBlockedCache=new Map();
   const pathEdgeCache=new Map();
+  const pathComponents=MAP_DATA.key==='wigan'?new Int32Array(PATH_COLS*PATH_ROWS):null;
+  let nextPathComponent=0;
 
   function pathCellKey(gx,gy){return gx+'|'+gy}
 
@@ -753,6 +758,36 @@
     const blocked=obstacleAt(p.x,p.y,NAV_RADIUS);
     pathBlockedCache.set(key,blocked);
     return blocked;
+  }
+
+  function pathEdgeClear(ax,ay,bx,by){
+    const ai=ay*PATH_COLS+ax,bi=by*PATH_COLS+bx;
+    const edge=Math.min(ai,bi)*(PATH_COLS*PATH_ROWS)+Math.max(ai,bi);
+    if(!pathEdgeCache.has(edge)){
+      const a=pathCellCenter(ax,ay),b=pathCellCenter(bx,by);
+      pathEdgeCache.set(edge,routeClear(a.x,a.y,b.x,b.y,NAV_RADIUS));
+    }
+    return pathEdgeCache.get(edge);
+  }
+
+  function pathComponent(gx,gy){
+    if(!pathComponents)return 1;
+    if(pathCellBlocked(gx,gy))return -1;
+    const start=gy*PATH_COLS+gx;if(pathComponents[start])return pathComponents[start];
+    const id=++nextPathComponent,queue=new Int32Array(PATH_COLS*PATH_ROWS);let read=0,write=1;
+    queue[0]=start;pathComponents[start]=id;
+    const dirs=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+    while(read<write){
+      const cell=queue[read++],x=cell%PATH_COLS,y=Math.floor(cell/PATH_COLS);
+      for(const [dx,dy] of dirs){
+        const nx=x+dx,ny=y+dy;if(pathCellBlocked(nx,ny))continue;
+        const key=ny*PATH_COLS+nx;if(pathComponents[key])continue;
+        if(dx&&dy&&(pathCellBlocked(x+dx,y)||pathCellBlocked(x,y+dy)))continue;
+        if(!pathEdgeClear(x,y,nx,ny))continue;
+        pathComponents[key]=id;queue[write++]=key;
+      }
+    }
+    return id;
   }
 
   function nearestOpenCell(gx,gy,from=null){
@@ -822,8 +857,19 @@
     const startRaw=[Math.floor(sx/PATH_CELL),Math.floor(sy/PATH_CELL)];
     const goalRaw=[Math.floor(tx/PATH_CELL),Math.floor(ty/PATH_CELL)];
     const start=nearestOpenCell(startRaw[0],startRaw[1],{x:sx,y:sy});
-    const goal=nearestOpenCell(goalRaw[0],goalRaw[1]);
+    let goal=nearestOpenCell(goalRaw[0],goalRaw[1]);
     if(!start||!goal)return[];
+    // Detect an enclosed courtyard once, rather than searching the whole town every AI update.
+    if(pathComponents&&pathComponent(...start)!==pathComponent(...goal)){
+      if(!obstacleAt(tx,ty,NAV_RADIUS))return[];
+      const component=pathComponent(...start);let closest=null,distance=160;
+      for(let y=goalRaw[1]-20;y<=goalRaw[1]+20;y++)for(let x=goalRaw[0]-20;x<=goalRaw[0]+20;x++){
+        if(pathCellBlocked(x,y)||pathComponent(x,y)!==component)continue;
+        const p=pathCellCenter(x,y),d=Math.hypot(p.x-tx,p.y-ty);
+        if(d<distance){closest=[x,y];distance=d;}
+      }
+      if(!closest)return[];goal=closest;
+    }
 
     const approachRadius=obstacleAt(tx,ty,NAV_RADIUS)?64:0;
     const startKey=pathCellKey(start[0],start[1]);
@@ -881,13 +927,7 @@
         if(dx&&dy&&(pathCellBlocked(cur.x+dx,cur.y)||pathCellBlocked(cur.x,cur.y+dy)))continue;
         const nk=pathCellKey(nx,ny);
         if(closed.has(nk))continue;
-        const ai=cur.y*PATH_COLS+cur.x,bi=ny*PATH_COLS+nx;
-        const edge=Math.min(ai,bi)*(PATH_COLS*PATH_ROWS)+Math.max(ai,bi);
-        if(!pathEdgeCache.has(edge)){
-          const a=pathCellCenter(cur.x,cur.y),b=pathCellCenter(nx,ny);
-          pathEdgeCache.set(edge,routeClear(a.x,a.y,b.x,b.y,NAV_RADIUS));
-        }
-        if(!pathEdgeCache.get(edge))continue;
+        if(!pathEdgeClear(cur.x,cur.y,nx,ny))continue;
         const tentative=currentG+(dx&&dy?1.4142:1);
         if(tentative<(gScore.get(nk)??Infinity)){
           came.set(nk,ck);
@@ -1127,7 +1167,7 @@
       alert:false,lastSeen:null,aiState:'patrol',flash:0,
       dir:Math.PI/2,anim:i*.51,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0,path:null,pathIndex:0,repath:0,
       hitTimer:0,
-      groupId:Math.floor(i/3),
+      groupId:MAP_DATA.key==='wigan'?wiganSector(S(p[0]),S(p[1])):Math.floor(i/3),
       role:['anchor','left','right'][i%3],
       tacticTimer:.2+(i%3)*.18,tacticalPoint:null,
       burstCount:0,burstLimit:2+(i%2),burstPause:0,searchTimer:0
@@ -1151,6 +1191,7 @@
     cursorWorld=null;
     lastHudStats='';lastRosterSignature='';
     squadFormation={active:false,leader:null,members:[],trail:[],destination:null,manualMoving:false};
+    wiganRouteCache={key:null,path:[]};
     touchState.movePointer=null;touchState.moveX=0;touchState.moveY=0;touchState.moveMag=0;
     touchState.firePointer=null;touchState.fireHeld=false;
     pinchPointers.clear();pinchGesture=null;
@@ -1168,6 +1209,10 @@
 
   function phaseZone(phase){
     return phase&&phase.zone?zones[phase.zone]||null:null;
+  }
+
+  function wiganSector(x,y){
+    return Object.values(zones).map((z,i)=>({i,d:Math.hypot(x-z.x,y-z.y)})).sort((a,b)=>a.d-b.d)[0].i;
   }
 
   function phaseEvaluation(phase,living,remaining){
@@ -1685,8 +1730,16 @@
       for(const s of squad){
         if(!s.alive)continue;
         if(Math.hypot(s.x-p.x,s.y-p.y)<32){
-          if(p.type==='ammo'){setStatus(s.name+' found an ammunition crate.')}
-          else{s.hp=Math.min(s.maxHp,s.hp+4);setStatus(s.name+' used a medical crate.')}
+          if(p.type==='ammo'){
+            if(MAP_DATA.key==='wigan'){
+              const added=Math.min(2,8-squadGrenades);if(added<=0)continue;
+              squadGrenades+=added;setStatus(s.name+' collected '+added+' grenades.');
+            }else setStatus(s.name+' found an ammunition crate.');
+          }
+          else{
+            if(MAP_DATA.key==='wigan'&&s.hp>=s.maxHp)continue;
+            s.hp=Math.min(s.maxHp,s.hp+4);setStatus(s.name+' used a medical crate.');
+          }
           p.active=false;break;
         }
       }
@@ -2236,7 +2289,10 @@
       drawingRoads.forEach(drawRoad);
       if(MAP_DATA.key==='wigan')BadFodderWigan.ground(ctx,MAP_DATA,S,art);
       if(!light)drawVegetation();
-      [...buildings].filter(b=>!b.landmarkFootprint).sort((a,b)=>a.maxY-b.maxY).forEach(drawBuilding);
+      if(wiganDetails){
+        const objects=[...buildings.filter(b=>!b.landmarkFootprint).map(b=>({y:b.maxY,building:b})),...wiganDetails.props.map(p=>({y:p.y,prop:p}))];
+        objects.sort((a,b)=>a.y-b.y).forEach(o=>o.building?drawBuilding(o.building):BadFodderWiganDetails.furniture(ctx,[o.prop],sceneryBounds));
+      }else [...buildings].filter(b=>!b.landmarkFootprint).sort((a,b)=>a.maxY-b.maxY).forEach(drawBuilding);
       drawLandmarks();
     }finally{ctx=live;renderingStatic=false;sceneryBounds=null;}
   }
@@ -2278,9 +2334,31 @@
     });
   }
 
+  function wiganGuidanceTarget(){
+    const phase=(activeMission().phases||[])[missionStage],leader=squad.find(s=>s.alive);
+    if(!phase||!leader)return null;
+    const remaining=enemies.filter(e=>e.alive);
+    if(phase.type==='eliminate-and-reach'&&remaining.length){
+      const target=remaining.reduce((best,e)=>Math.hypot(e.x-leader.x,e.y-leader.y)<Math.hypot(best.x-leader.x,best.y-leader.y)?e:best);
+      return{target,phase,contact:true,caption:'Remaining hostiles'};
+    }
+    return{target:phaseZone(phase),phase,contact:false,caption:MAP_DATA.pois[phase.zone].name};
+  }
+
+  function wiganNavigationHint(){
+    const hint=wiganGuidanceTarget(),leader=squad.find(s=>s.alive);
+    if(!hint)return{caption:'Mission complete',path:[],contact:false};
+    const key=[missionStage,Math.round(leader.x/40),Math.round(leader.y/40),Math.round(hint.target.x/40),Math.round(hint.target.y/40),hint.contact].join('|');
+    if(wiganRouteCache.key!==key){
+      wiganRouteCache={key,path:[{x:leader.x,y:leader.y},...findPath(leader.x,leader.y,hint.target.x,hint.target.y)]};
+    }
+    return{...hint,path:wiganRouteCache.path};
+  }
+
   function drawMapOverlay(){
     if(MAP_DATA.key==='wigan'){
-      window.BadFodderWigan.tactical(ctx,MAP_DATA,scenery,squad,missionObjectives(),missionStage,VIEW_W,VIEW_H,canvasScale);
+      const hint=wiganNavigationHint();
+      window.BadFodderWigan.tactical(ctx,MAP_DATA,scenery,squad,missionObjectives(),missionStage,VIEW_W,VIEW_H,canvasScale,hint,enemies);
       return;
     }
     ctx.save();
@@ -2415,6 +2493,10 @@
 
     ctx.restore();
 
+    if(MAP_DATA.key==='wigan'&&!mapOpen&&!finished&&!menuOpen){
+      const hint=wiganGuidanceTarget(),leader=squad.find(s=>s.alive);
+      if(hint&&leader)BadFodderWigan.guidance(ctx,MAP_DATA,hint,leader,VIEW_W,VIEW_H,canvasScale);
+    }
     if(mapOpen)drawMapOverlay();
 
     if(paused||finished){
@@ -2797,6 +2879,11 @@
 
       // Let the loading screen render before starting the expensive scenery work.
       await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+
+      if(pathComponents){
+        if(loadingText)loadingText.textContent='Preparing Wigan street routes…';
+        pathComponent(Math.floor(squad[0].x/PATH_CELL),Math.floor(squad[0].y/PATH_CELL));
+      }
 
       try{
         bakeScenery(false);
