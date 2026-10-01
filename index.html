@@ -479,7 +479,8 @@
     squad=names.map((name,i)=>({
       name,x:startX+(i%2)*34,y:startY+Math.floor(i/2)*34,
       hp:5,maxHp:5,ammo:15,reserve:45,alive:true,selected:true,target:null,cooldown:0,reload:0,flash:0,
-      dir:-Math.PI/2,anim:i*.7,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0,path:null,pathIndex:0
+      dir:-Math.PI/2,anim:i*.7,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0,path:null,pathIndex:0,
+      fireHeat:0,hitTimer:0
     }));
 
     const hostileSpots=[
@@ -492,7 +493,8 @@
       x:S(p[0]),y:S(p[1]),homeX:S(p[0]),homeY:S(p[1]),
       hp:3,maxHp:3,alive:true,phase:i*.67,cooldown:.25+i*.04,
       alert:false,lastSeen:null,aiState:'patrol',flash:0,
-      dir:Math.PI/2,anim:i*.51,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0,path:null,pathIndex:0,repath:0
+      dir:Math.PI/2,anim:i*.51,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0,path:null,pathIndex:0,repath:0,
+      hitTimer:0
     })).filter(e=>!obstacleAt(e.x,e.y,12));
 
     const civilianSpots=[[610,760],[720,830],[870,740],[670,430],[780,550],[560,620],[950,900],[470,860],[830,250],[520,380],[600,1080],[740,1140]];
@@ -583,6 +585,36 @@
     ent.dir=Math.atan2(dy,dx);
   }
 
+  function alertNearbyEnemies(source,x,y,r=S(230)){
+    enemies.forEach(e=>{
+      if(!e.alive||e===source)return;
+      if(Math.hypot(e.x-x,e.y-y)>r)return;
+      e.alert=true;
+      e.aiState='combat';
+      e.lastSeen={x,y};
+      e.repath=0;
+    });
+  }
+
+  function applyDamage(target,amount,hitX,hitY){
+    if(!target.alive)return;
+    target.hp-=amount;
+    target.flash=.14;
+    target.hitTimer=.16;
+
+    const dx=target.x-hitX,dy=target.y-hitY,d=Math.hypot(dx,dy)||1;
+    moveEntity(target,dx/d*7,dy/d*7,target===undefined?10:12);
+
+    if(target.hp<=0){
+      target.alive=false;
+      target.state='dead';
+      target.deadTimer=0;
+      target.deathAngle=Math.atan2(dy,dx);
+      target.path=null;
+      target.target=null;
+    }
+  }
+
   function fireBullet(owner,sx,sy,tx,ty){
     const a=Math.atan2(ty-sy,tx-sx);
     bullets.push({owner,x:sx,y:sy,vx:Math.cos(a)*760,vy:Math.sin(a)*760,life:1.7});
@@ -593,37 +625,84 @@
   function squadFireAt(x,y){
     selectedUnits().forEach(s=>{
       if(s.cooldown>0||lineBlocked(s.x,s.y,x,y))return;
+
       updateFacing(s,x-s.x,y-s.y);
-      s.fireTimer=.13;s.state='fire';
-      fireBullet('squad',s.x,s.y,x+(Math.random()-.5)*14,y+(Math.random()-.5)*14);
-      s.cooldown=.12;
+      s.fireTimer=.11;s.state='fire';
+
+      const heat=Math.min(1,s.fireHeat||0);
+      const spread=5+heat*22;
+      const tx=x+(Math.random()-.5)*spread;
+      const ty=y+(Math.random()-.5)*spread;
+
+      fireBullet('squad',s.x,s.y,tx,ty);
+      s.fireHeat=Math.min(1,heat+.15);
+      s.cooldown=.085;
     });
   }
+
 
   function throwGrenade(x,y){
     const units=selectedUnits();
     if(!units.length||squadGrenades<=0)return;
     const s=units[0];
     if(Math.hypot(x-s.x,y-s.y)>S(190)){setStatus('Grenade target is out of range.');return}
+
     squadGrenades--;
-    thrown.push({x:s.x,y:s.y,tx:x,ty:y,t:0,duration:.65});
+    thrown.push({
+      x:s.x,y:s.y,startX:s.x,startY:s.y,tx:x,ty:y,
+      t:0,flight:.55,fuse:.42,z:0,landed:false
+    });
     updateHud(true);
   }
+
 
   function explode(x,y){
     effects.push({type:'blast',x,y,life:.55});
     noise.push({x,y,r:S(320),life:.7});
+
     enemies.forEach(e=>{
       if(!e.alive)return;
       const d=Math.hypot(e.x-x,e.y-y);
-      if(d<S(55)){e.hp-=d<S(26)?3:2;e.flash=.18;if(e.hp<=0){e.alive=false;e.state='dead';e.deadTimer=0;e.deathAngle=Math.atan2(e.y-y,e.x-x)}}
+      if(d>=S(58))return;
+      const shielded=lineBlocked(x,y,e.x,e.y);
+      const damage=shielded?1:(d<S(27)?3:2);
+      applyDamage(e,damage,x,y);
+      if(e.alive){
+        e.alert=true;e.aiState='combat';e.lastSeen={x,y};e.repath=0;
+      }
     });
+
     squad.forEach(s=>{
       if(!s.alive)return;
       const d=Math.hypot(s.x-x,s.y-y);
-      if(d<S(38)){s.hp-=d<S(20)?2:1;s.flash=.18;if(s.hp<=0){s.alive=false;s.state='dead';s.deadTimer=0;s.deathAngle=Math.atan2(s.y-y,s.x-x)}}
+      if(d>=S(40))return;
+      const shielded=lineBlocked(x,y,s.x,s.y);
+      const damage=shielded?0:(d<S(20)?2:1);
+      if(damage)applyDamage(s,damage,x,y);
     });
+
+    alertNearbyEnemies(null,x,y,S(360));
     updateHud(true);
+  }
+
+
+  function resolveSquadSpacing(){
+    const living=squad.filter(s=>s.alive);
+    const min=28;
+    for(let i=0;i<living.length;i++){
+      for(let j=i+1;j<living.length;j++){
+        const a=living[i],b=living[j];
+        let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);
+        if(d>=min)continue;
+        if(d<.01){dx=1;dy=0;d=1}
+        if(d<min){
+          const push=Math.min(2.2,(min-d)*.18);
+          const nx=dx/d,ny=dy/d;
+          moveEntity(a,-nx*push,-ny*push,12);
+          moveEntity(b,nx*push,ny*push,12);
+        }
+      }
+    }
   }
 
   function updateSquad(dt){
@@ -637,13 +716,18 @@
       s.cooldown=Math.max(0,s.cooldown-dt);
       s.flash=Math.max(0,s.flash-dt);
       s.fireTimer=Math.max(0,(s.fireTimer||0)-dt);
+      s.hitTimer=Math.max(0,(s.hitTimer||0)-dt);
+      s.fireHeat=Math.max(0,(s.fireHeat||0)-dt*.7);
 
-      const moving=followPath(s,185,dt);
+      const firingNow=s.fireTimer>0;
+      const moving=followPath(s,firingNow?128:185,dt);
 
       if(s.fireTimer>0)s.state='fire';
       else if(moving)s.state='walk';
       else s.state='idle';
     });
+
+    resolveSquadSpacing();
 
     pickups.forEach(p=>{
       if(!p.active)return;
@@ -669,6 +753,7 @@
       e.cooldown=Math.max(0,e.cooldown-dt);
       e.flash=Math.max(0,e.flash-dt);
       e.fireTimer=Math.max(0,(e.fireTimer||0)-dt);
+      e.hitTimer=Math.max(0,(e.hitTimer||0)-dt);
       e.repath=Math.max(0,(e.repath||0)-dt);
 
       const near=nearestLivingSquad(e);if(!near.unit)return;
@@ -676,7 +761,9 @@
       const hears=noise.some(n=>Math.hypot(e.x-n.x,e.y-n.y)<n.r);
 
       if(sees||hears){
+        const newlyAlerted=!e.alert;
         e.alert=true;e.aiState='combat';e.lastSeen={x:near.unit.x,y:near.unit.y};
+        if(newlyAlerted)alertNearbyEnemies(e,near.unit.x,near.unit.y,S(215));
       }
 
       let moving=false;
@@ -687,8 +774,12 @@
         if(sees&&near.d<S(135)&&e.cooldown<=0){
           updateFacing(e,near.unit.x-e.x,near.unit.y-e.y);
           e.fireTimer=.14;e.state='fire';
-          fireBullet('enemy',e.x,e.y,near.unit.x+(Math.random()-.5)*28,near.unit.y+(Math.random()-.5)*28);
-          e.cooldown=.72+Math.random()*.45;
+          const spread=18+Math.min(34,near.d*.08);
+          fireBullet('enemy',e.x,e.y,
+            near.unit.x+(Math.random()-.5)*spread,
+            near.unit.y+(Math.random()-.5)*spread
+          );
+          e.cooldown=.42+Math.random()*.42;
         }
 
         if(sees&&near.d>S(92)){
@@ -741,21 +832,45 @@
     bullets.forEach(b=>{
       b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
       if(b.life<=0)return;
-      if(obstacleAt(b.x,b.y,2)){b.life=0;effects.push({type:'impact',x:b.x,y:b.y,life:.14});return}
+      if(obstacleAt(b.x,b.y,2)){
+        b.life=0;
+        effects.push({type:'wall',x:b.x,y:b.y,life:.22});
+        return;
+      }
       const targets=b.owner==='squad'?enemies:squad;
       for(const t of targets){
         if(!t.alive)continue;
         if(Math.hypot(b.x-t.x,b.y-t.y)<14){
-          b.life=0;t.hp--;t.flash=.12;effects.push({type:'impact',x:t.x,y:t.y,life:.16});
-          if(t.hp<=0){t.alive=false;t.state='dead';t.deadTimer=0;t.deathAngle=Math.atan2(b.vy,b.vx);effects.push({type:'down',x:t.x,y:t.y,life:.55})}
+          b.life=0;
+          applyDamage(t,1,b.x-b.vx*.015,b.y-b.vy*.015);
+          effects.push({type:'impact',x:t.x,y:t.y,life:.16});
+          if(b.owner==='squad'){
+            const hitEnemy=t;
+            if(hitEnemy.alive){
+              hitEnemy.alert=true;hitEnemy.aiState='combat';
+              hitEnemy.lastSeen={x:b.x-b.vx*.03,y:b.y-b.vy*.03};
+              alertNearbyEnemies(hitEnemy,hitEnemy.lastSeen.x,hitEnemy.lastSeen.y,S(180));
+            }
+          }
           break;
         }
       }
     });
     bullets=bullets.filter(b=>b.life>0&&b.x>0&&b.y>0&&b.x<WORLD_W&&b.y<WORLD_H);
     thrown.forEach(g=>{
-      g.t+=dt;const k=Math.min(1,dt*6);g.x+=(g.tx-g.x)*k;g.y+=(g.ty-g.y)*k;
-      if(g.t>=g.duration&&!g.done){g.done=true;explode(g.tx,g.ty)}
+      if(!g.landed){
+        g.t+=dt;
+        const p=Math.min(1,g.t/g.flight);
+        g.x=g.startX+(g.tx-g.startX)*p;
+        g.y=g.startY+(g.ty-g.startY)*p;
+        g.z=Math.sin(Math.PI*p)*34;
+        if(p>=1){
+          g.landed=true;g.x=g.tx;g.y=g.ty;g.z=0;
+        }
+      }else{
+        g.fuse-=dt;
+        if(g.fuse<=0&&!g.done){g.done=true;explode(g.x,g.y)}
+      }
     });
     thrown=thrown.filter(g=>!g.done);
     effects.forEach(e=>e.life-=dt);effects=effects.filter(e=>e.life>0);
@@ -968,7 +1083,15 @@
     // Civilian entities do not carry an alive flag.
     const state=ent.alive===false?'dead':ent.state||'idle';
     const pose=state==='walk'?Math.floor((ent.anim||0)*1.5)%4:0;
-    ctx.drawImage(art.soldier(team,dir,pose,state,ent.variant||0),Math.round(ent.x/2)*2-24,Math.round(ent.y/2)*2-36,48,48);
+    const flinch=ent.hitTimer>0?Math.sin(ent.hitTimer*90)*3:0;
+    ctx.save();
+    ctx.globalAlpha=ent.hitTimer>0?.78:1;
+    ctx.drawImage(
+      art.soldier(team,dir,pose,state,ent.variant||0),
+      Math.round((ent.x+flinch)/2)*2-24,
+      Math.round(ent.y/2)*2-36,48,48
+    );
+    ctx.restore();
   }
 
   function drawBulletTracer(b){
@@ -1014,8 +1137,35 @@
     });
 
     bullets.forEach(drawBulletTracer);
-    thrown.forEach(g=>{ctx.fillStyle='#353b37';ctx.beginPath();ctx.arc(g.x,g.y,5,0,Math.PI*2);ctx.fill()});
+    thrown.forEach(g=>{
+      ctx.fillStyle='rgba(25,30,24,.32)';
+      ctx.beginPath();ctx.ellipse(g.x,g.y+4,6,3,0,0,Math.PI*2);ctx.fill();
+
+      ctx.fillStyle=g.landed&&g.fuse<.22?'#d8b852':'#353b37';
+      ctx.beginPath();ctx.arc(g.x,g.y-(g.z||0),5,0,Math.PI*2);ctx.fill();
+
+      if(!g.landed){
+        ctx.strokeStyle='rgba(239,226,176,.35)';
+        ctx.setLineDash([5,5]);
+        ctx.beginPath();ctx.moveTo(g.startX,g.startY);ctx.lineTo(g.tx,g.ty);ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    });
     effects.forEach(f=>{
+      if(f.type==='wall'){
+        const age=1-Math.min(1,f.life/.22);
+        for(let i=0;i<5;i++){
+          const a=i*1.45;
+          const d=4+age*13;
+          ctx.fillStyle=i%2?'#b8a77b':'#6f684f';
+          ctx.fillRect(
+            Math.round((f.x+Math.cos(a)*d)/2)*2,
+            Math.round((f.y+Math.sin(a)*d)/2)*2,
+            4,4
+          );
+        }
+        return;
+      }
       const life=f.type==='blast'?.55:.15;
       const age=1-Math.min(1,f.life/life);
       const radius=f.type==='blast'?12+age*55:6;
