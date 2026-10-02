@@ -236,7 +236,7 @@ function projectRuntimeObjects(record,projector){
     const withdraw=position(item.withdraw,id+' withdraw');
     return{
       id,label:item.label||'Police formation',
-      width:positive(item.width,id+' width'),
+      width:scaled(item.widthMetres,id+' widthMetres'),
       objective:item.objective,state:item.state||'approach',
       x:p.x,y:p.y,targetX:target.x,targetY:target.y,
       withdrawX:withdraw.x,withdrawY:withdraw.y,
