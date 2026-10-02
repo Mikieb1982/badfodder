@@ -513,6 +513,7 @@
 <script src="sfx.js"></script>
 <script src="combat-geometry.js"></script>
 <script src="navigation.js"></script>
+<script src="mission-rules.js"></script>
 <script src="campaign.js"></script>
 <script>
 (() => {
@@ -529,6 +530,7 @@
   display.imageSmoothingEnabled=true;
   const art=BadFodderArt;
   const combatGeometry=BadFodderCombatGeometry;
+  const missionRules=BadFodderMissionRules;
   const campaign=BadFodderCampaign;
   const initialMission=campaign.current();
   const MAP_DATA=(initialMission&&initialMission.playable&&initialMission.map==='wigan')?WIGAN_MAP:TOWN_MAP;
@@ -743,7 +745,7 @@
     NAV_RADIUS,PATH_CELL,PATH_COLS,PATH_ROWS,pathComponents
   }=navigation;
 
-  function pointInCircle(x,y,z){return Math.hypot(x-z.x,y-z.y)<=z.r}
+  const pointInCircle=missionRules.pointInCircle;
   function selectedUnits(){
     const units=squad.filter((s,i)=>s.alive&&(selection==='all'||selection===i));
     if(units.length)return units;
@@ -1031,60 +1033,17 @@
   }
 
   function phaseDefenders(phase){
-    if(!phase||!phase.defenderGroup)return null;
-    return enemies.filter(e=>e.alive&&e.objectiveGroup===phase.defenderGroup);
+    return missionRules.phaseDefenders(phase,enemies);
   }
 
-  function phaseEvaluation(phase,living,remaining){
-    if(!phase)return{complete:true,ready:true,status:'Mission complete.'};
-    const zone=phaseZone(phase);
-    const inZone=!!(zone&&living.some(s=>pointInCircle(s.x,s.y,zone)));
-
-    if(phase.type==='reach'){
-      return{complete:inZone,ready:inZone,inZone,status:phase.brief};
-    }
-
-    if(phase.type==='secure-zone'||phase.type==='eliminate-and-reach'){
-      const assigned=phaseDefenders(phase);
-      const radius=S(phase.radius||160);
-      const defenders=assigned||(
-        zone?enemies.filter(e=>e.alive&&Math.hypot(e.x-zone.x,e.y-zone.y)<radius):[]
-      );
-      const contestRadius=S(phase.contestRadius||75);
-      const contesters=zone&&defenders.length===0
-        ?enemies.filter(e=>e.alive&&Math.hypot(e.x-zone.x,e.y-zone.y)<contestRadius)
-        :[];
-      const ready=inZone&&defenders.length===0&&contesters.length===0;
-      let detail='';
-      if(defenders.length){
-        const label=phase.type==='eliminate-and-reach'?'final defender':'assigned defender';
-        detail=defenders.length+' '+label+(defenders.length===1?'':'s')+' remain.';
-      }else if(!inZone){
-        detail='Area clear — move the squad into the objective.';
-      }else if(contesters.length){
-        detail='Objective contested by '+contesters.length+' nearby hostile'+(contesters.length===1?'':'s')+'.';
-      }else{
-        detail=phase.hold?'Area clear — hold position.':'Area secured.';
-      }
-      return{
-        complete:ready&&!phase.hold,
-        ready,inZone,contested:contesters.length>0,
-        defenders:defenders.length,contesters:contesters.length,
-        status:phase.brief+' '+detail
-      };
-    }
-
-    if(phase.type==='eliminate'){
-      const ready=remaining===0;
-      return{complete:ready,ready,status:phase.brief+' '+remaining+' hostile'+(remaining===1?'':'s')+' remain.'};
-    }
-
-    // Future mission systems plug into these objective types without changing campaign data.
-    if(phase.type==='destroy')return{complete:false,ready:false,status:phase.brief};
-    if(phase.type==='rescue')return{complete:false,ready:false,status:phase.brief};
-    if(phase.type==='protect')return{complete:false,ready:false,status:phase.brief};
-
-    return{complete:false,ready:false,status:phase.brief||phase.title||'Complete the objective.'};
+  function phaseEvaluation(phase,living){
+    return missionRules.evaluatePhase({
+      phase,
+      living,
+      enemies,
+      zones,
+      scale:S(1)
+    });
   }
 
   function rebuildHudProgress(count){
@@ -1116,12 +1075,7 @@
   }
 
   function phaseStatus(phase,result){
-    if(!phase||!result)return'Mission complete.';
-    if(result.ready&&phase.hold){
-      const left=Math.max(0,phase.hold-phaseHoldTime);
-      return result.status+' Hold '+left.toFixed(1)+'s.';
-    }
-    return result.status;
+    return missionRules.phaseStatus(phase,result,phaseHoldTime);
   }
 
   function announceNextPhase(){
@@ -1153,17 +1107,10 @@
     const phase=phases[missionStage];
     if(!phase){completeCurrentMission();return}
     const living=squad.filter(s=>s.alive);
-    const remaining=enemies.filter(e=>e.alive).length;
-    const result=phaseEvaluation(phase,living,remaining);
-
-    if(phase.hold){
-      if(result.ready)phaseHoldTime=Math.min(phase.hold,phaseHoldTime+dt);
-      else phaseHoldTime=0;
-      if(phaseHoldTime>=phase.hold)advanceMissionPhase();
-      return;
-    }
-
-    if(result.complete)advanceMissionPhase();
+    const result=phaseEvaluation(phase,living);
+    const progression=missionRules.advanceHold(phase,result,phaseHoldTime,dt);
+    phaseHoldTime=progression.holdTime;
+    if(progression.complete)advanceMissionPhase();
   }
 
   function updateHud(force=false){
@@ -1199,7 +1146,7 @@
 
     const phase=phases[missionStage];
     if(!phase)return;
-    const result=phaseEvaluation(phase,living,remaining);
+    const result=phaseEvaluation(phase,living);
     setStatus('Phase '+(missionStage+1)+': '+phaseStatus(phase,result));
   }
 
