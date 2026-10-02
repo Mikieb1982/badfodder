@@ -54,6 +54,19 @@ const after=crowd.renderState();
 assert(after.some((p,i)=>Math.hypot(p.x-before[i].x,p.y-before[i].y)>.01),'Crowd did not react to live pressure');
 assert.deepEqual(before.map(p=>p.id),after.map(p=>p.id),'Crowd update changed stable IDs');
 
+const supportBarricade=aController.state.barricades.get('B');
+const supportFormation=aController.state.formations.get('police-1');
+aController.state.confidence=.85;
+supportFormation.state='dismantle';
+crowd.fixedUpdate(.1);
+const helperOwners=supportBarricade.occupiedWorkPositions.filter(owner=>typeof owner==='string'&&owner.startsWith('ambient-helper-'));
+assert.equal(helperOwners.length,1,'Helpers should use support capacity while keeping one player work position open');
+assert(supportBarricade.occupiedWorkPositions.includes(null),'Ambient helpers blocked every player work position');
+
+supportFormation.state='withdraw';
+crowd.fixedUpdate(.1);
+assert(!supportBarricade.occupiedWorkPositions.some(owner=>typeof owner==='string'&&owner.startsWith('ambient-helper-')),'Helpers did not release work positions after pressure ended');
+
 aController.state.confidence=.1;
 for(let i=0;i<10;i++)crowd.fixedUpdate(.1);
 const lowConfidence=crowd.renderState();
@@ -72,3 +85,4 @@ assert(blockedCrowd.people.every(p=>p.x>=180||Math.abs(p.x-200)<1e-6),'Crowd spa
 
 console.log('PASS: Cable Street crowd creates the configured 24 reactive residents and 8 close-support helpers from barricade geometry.');
 console.log('PASS: crowd placement is deterministic, stays inside runtime bounds and reacts to police pressure/confidence without hardcoded map coordinates.');
+console.log('PASS: high-confidence helpers temporarily occupy limited barricade support slots during dismantling pressure while preserving a player work position.');
