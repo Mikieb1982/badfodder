@@ -2,6 +2,8 @@
 (function(){
   'use strict';
 
+  const PRESENTATION_PROMPT_KEY='badfodder.presentation.prompted.v1';
+
   function ensureMobileManifest(){
     if(!document.querySelector('link[rel="manifest"]')){
       const link=document.createElement('link');
@@ -20,6 +22,14 @@
     }
   }
 
+  function wasPromptedThisSession(){
+    try{return sessionStorage.getItem(PRESENTATION_PROMPT_KEY)==='1'}catch(_){return false}
+  }
+
+  function rememberPromptThisSession(){
+    try{sessionStorage.setItem(PRESENTATION_PROMPT_KEY,'1')}catch(_){}
+  }
+
   function installMobilePresentation(root,actions){
     const mobile=(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)||(navigator.maxTouchPoints||0)>0;
     if(!mobile)return null;
@@ -27,7 +37,7 @@
     if(!viewport)return null;
 
     ensureMobileManifest();
-    let promptShown=false;
+    let promptShown=wasPromptedThisSession();
     let promptEl=null;
 
     async function lockLandscape(){
@@ -61,6 +71,7 @@
     function prompt(){
       if(promptShown||actions.isFullscreen())return false;
       promptShown=true;
+      rememberPromptThisSession();
       const overlay=document.createElement('div');
       overlay.className='presentation-prompt';
       overlay.setAttribute('role','dialog');
