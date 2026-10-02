@@ -846,6 +846,52 @@
     return squad.filter(s=>s.alive);
   }
 
+  function selectedHistoricalActor(){
+    const unit=selectedUnits()[0];
+    if(!unit)return null;
+    const index=squad.indexOf(unit);
+    return index>=0?{unit,id:'player-'+index}:null;
+  }
+
+  function updateHistoricalActionButton(){
+    if(!touchAction)return;
+    const selected=selectedHistoricalActor();
+    const enabled=!!(missionInteractionLayer&&selected&&!menuOpen&&!paused&&!finished&&!mapOpen);
+    touchAction.hidden=!missionInteractionLayer;
+    touchAction.disabled=!enabled;
+    touchAction.textContent=missionInteractionLayer&&selected?missionInteractionLayer.hint(selected.id):'ACTION';
+  }
+
+  function performHistoricalContextActionAt(x,y){
+    if(!missionInteractionLayer)return false;
+    const selected=selectedHistoricalActor();
+    if(!selected)return false;
+    const job=missionInteractionLayer.assignAt(selected.id,x,y);
+    if(!job){
+      setStatus('No contextual action available there.');
+      updateHistoricalActionButton();
+      return false;
+    }
+    setStatus(job.label||job.action.toUpperCase());
+    updateHistoricalActionButton();
+    return true;
+  }
+
+  function performHistoricalNearestAction(){
+    if(!missionInteractionLayer)return false;
+    const selected=selectedHistoricalActor();
+    if(!selected)return false;
+    const job=missionInteractionLayer.assignNearest(selected.id);
+    if(!job){
+      setStatus('Move closer to a material, resident or barricade.');
+      updateHistoricalActionButton();
+      return false;
+    }
+    setStatus(job.label||job.action.toUpperCase());
+    updateHistoricalActionButton();
+    return true;
+  }
+
 
   function isFullscreenActive(){
     return document.fullscreenElement===gameViewport||fallbackFullscreen;
@@ -905,6 +951,7 @@
     touchFire.disabled=!actionAllowed('firearms');
     touchGrenade.hidden=!actionAllowed('grenades');
     touchGrenade.disabled=!actionAllowed('grenades');
+    updateHistoricalActionButton();
     syncFullscreenButton();
   }
 
@@ -1103,6 +1150,7 @@
 
   function resetGame(){
     const mission=activeMission();
+    missionInteractionLayer=null;
     if(missionController&&!missionController.disposed)missionController.dispose();
     missionController=createActiveMissionController();
     if(missionController)missionController.attachNavigation(navigation);
@@ -1154,8 +1202,15 @@
     pickups=pickupSource.map(p=>({type:p.type,amount:p.amount,optional:!!p.optional,x:S(p.x),y:S(p.y),active:true}));
 
     if(missionController){
-      missionController.initialize({
-        actors:squad.map((s,i)=>({id:'player-'+i,name:s.name,active:s.alive}))
+      missionInteractionLayer=cableStreetInteractions.create({
+        controller:missionController,
+        runtime:cableStreetRuntime,
+        mission,
+        options:{scale:SCALE}
+      });
+      missionInteractionLayer.initialize({
+        actors:squad.map((s,i)=>({id:'player-'+i,name:s.name,x:s.x,y:s.y,active:s.alive})),
+        mapData:MAP_DATA
       });
     }
 
@@ -1290,7 +1345,9 @@
     const objectiveDefenders=currentPhase?phaseDefenders(currentPhase):null;
     const targetCount=objectiveDefenders?objectiveDefenders.length:remaining;
 
-    hudCampaign.textContent='MISSION '+String(mission.id).padStart(2,'0')+'/24 · '+mission.title.toUpperCase();
+    hudCampaign.textContent=missionLaunch.isHistorical()
+      ?'HISTORICAL · '+mission.title.toUpperCase()
+      :'MISSION '+String(mission.id).padStart(2,'0')+'/24 · '+mission.title.toUpperCase();
     hudAll.querySelector('span').textContent=living.length+' TROOPS';
     hudStage.textContent=finished?(win?'MISSION COMPLETE':'MISSION FAILED'):'OBJECTIVE '+Math.min(phaseCount,missionStage+1)+'/'+phaseCount;
     rebuildHudProgress(phaseCount);
@@ -1309,6 +1366,7 @@
     }
 
     updateRoster(force);
+    updateHistoricalActionButton();
     if(finished)return;
 
     const phase=phases[missionStage];
@@ -2898,6 +2956,10 @@
 
     if(evt.button===2){
       evt.preventDefault();
+      if(missionInteractionLayer){
+        performHistoricalContextActionAt(p.x,p.y);
+        return;
+      }
       if(!actionAllowed('firearms'))return;
       rightHeld=true;
       squadFireAt(p.x,p.y);
@@ -3056,6 +3118,18 @@
   });
   touchGrenade.addEventListener('pointercancel',()=>touchGrenade.classList.remove('active'));
 
+  touchAction.addEventListener('pointerdown',evt=>{
+    if(!missionInteractionLayer||!started||menuOpen||paused||finished||mapOpen)return;
+    evt.preventDefault();evt.stopPropagation();
+    touchAction.classList.add('active');
+    performHistoricalNearestAction();
+  });
+  const endTouchAction=evt=>{
+    evt.preventDefault();evt.stopPropagation();touchAction.classList.remove('active');
+  };
+  touchAction.addEventListener('pointerup',endTouchAction);
+  touchAction.addEventListener('pointercancel',()=>touchAction.classList.remove('active'));
+
   touchFull.addEventListener('click',evt=>{evt.preventDefault();evt.stopPropagation();toggleMobileFullscreen();});
   touchMap.addEventListener('click',evt=>{evt.preventDefault();evt.stopPropagation();toggleMap();});
   touchPause.addEventListener('click',evt=>{evt.preventDefault();evt.stopPropagation();if(finished){if(!advanceCampaign())resetGame();}else togglePause();});
@@ -3110,6 +3184,11 @@
       if(!e.repeat)throwGrenadeAtCursor();
       return;
     }
+    if(key==='e'&&missionInteractionLayer){
+      e.preventDefault();
+      if(!e.repeat)performHistoricalNearestAction();
+      return;
+    }
 
     if(e.repeat)return;
 
@@ -3161,7 +3240,14 @@
     updateSquad(dt);
 
     if(missionController){
-      missionController.fixedUpdate(dt);
+      if(missionInteractionLayer){
+        missionInteractionLayer.syncActors(squad.map((s,i)=>({
+          id:'player-'+i,name:s.name,x:s.x,y:s.y,active:s.alive
+        })));
+        missionInteractionLayer.fixedUpdate(dt);
+      }else{
+        missionController.fixedUpdate(dt);
+      }
       updateCivilians(dt);
       [...squad,...civilians].forEach(ent=>art.animate(ent,dt));
       updateCamera(dt);
