@@ -134,10 +134,12 @@ assert(index.includes("performHistoricalNearestAction"),'Keyboard/touch historic
 assert(index.includes('cable-street-director.js?v=20261002-cable-director-1'),'Cable Street phase director is not loaded by the browser runtime');
 assert(index.includes('cable-street-map.js?v=20261002-cable-map-slot-1'),'Cable Street runtime map slot is not loaded before bootstrap');
 assert(index.includes("...(window.CABLE_STREET_MAP?{'cable-street':window.CABLE_STREET_MAP}:{})"),'Cable Street runtime map is not conditionally registered');
-assert(index.includes('cable-street-crowd.js?v=20261002-cable-crowd-1'),'Cable Street crowd module is not loaded by the browser runtime');
+assert(index.includes('cable-street-crowd.js?v=20261002-cable-helpers-2'),'Cable Street crowd module is not loaded by the browser runtime');
 assert(index.includes('const cableStreetCrowd=BadFodderCableCrowd'),'Cable Street crowd global is not bound');
 assert(index.includes('missionCrowd=cableStreetCrowd.create'),'Cable Street crowd is not created during historical reset');
 assert(index.includes('missionCrowd.fixedUpdate(dt)'),'Cable Street crowd is not connected to fixed-step simulation');
+assert(fs.readFileSync(path.join(root,'cable-street-crowd.js'),'utf8').includes('syncHelperSupport'),'Cable Street functional helpers do not support the barricade');
+assert(index.includes("missionCrowd&&typeof missionCrowd.dispose==='function'"),'Cable Street helper support is not released during reset');
 assert(index.includes('cableStreetArt.drawCrowd(ctx,historicalCrowdState)'),'Cable Street crowd is not rendered in the historical world');
 assert(index.includes("if(MAP_DATA.key==='cable-street'){"),'Cable Street renderer does not use the historical urban art path');
 assert(index.includes('cableStreetArt.drawRoad(ctx,r,S,art)'),'Cable Street street edges are not delegated to historical art');
