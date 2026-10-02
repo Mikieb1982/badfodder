@@ -473,6 +473,7 @@
           </div>
         </div>
       </div>
+      <div id="hudNotice" class="hud-notice" role="status" aria-live="polite"></div>
       <div class="hud-roster"><button id="hudAll" type="button">ALL<span>4 TROOPS</span></button><div id="hudSquadBar" class="hud-squad"></div></div>
     </div>
     <div id="touchControls" class="touch-controls" aria-label="Mobile game controls">
@@ -556,6 +557,7 @@
   const touchFull=document.getElementById('touchFull');
   const gameViewport=canvas.parentElement;
   const hudMission=document.getElementById('hudMission');
+  const hudNotice=document.getElementById('hudNotice');
   const hudCampaign=document.getElementById('hudCampaign');
   const hudStage=document.getElementById('hudStage');
   const hudEnemies=document.getElementById('hudEnemies');
@@ -580,9 +582,15 @@
   const WORLD_H=MAP_DATA.height*SCALE;
   const S=n=>n*SCALE;
 
-  const WALLS=['#b7ac91','#a99c80','#d0c5a8','#a6a692','#bcb8a2','#c0ad91'];
-  const ROOFS=['#71695e','#817265','#655f56','#8a7b6d','#548291'];
+  const WALLS=['#d6c7a6','#c7b28f','#e0cfaa','#baa98b','#d7c5a0','#cdbd9e'];
+  const ROOFS=['#9b6048','#a86e4e','#8d5843','#b27450','#66706d'];
   const DOORS=['#486a67','#725849','#596950','#5c697b'];
+  const BAD_BELZIG_FAMILIES={
+    plaster:{walls:['#d8c7a3','#e2d2ad','#cbb994'],roofs:['#a96649','#985b43','#b1714e'],doors:['#496b66','#735747']},
+    cottage:{walls:['#e4d4b1','#d6c5a1','#f0dfbd'],roofs:['#a75f45','#b26b49','#8f5540'],doors:['#596950','#6c5749']},
+    timber:{walls:['#d5c9aa','#e1d6b8','#c8b994'],roofs:['#8f5945','#a36549','#765148'],doors:['#5b4c40','#48605a']},
+    stone:{walls:['#b8ae97','#c6bba2','#a99f8a'],roofs:['#66706d','#737571','#825f50'],doors:['#4f625a','#665346']}
+  };
 
 
   let zoom=1,selection='all',paused=false,mapOpen=false,finished=false,win=false,missionStage=0;
@@ -594,7 +602,7 @@
   let menu=null;
   let cursorWorld=null,lastCanvasPointer=null,rightHeld=false,bothLatched=false;
   let macFireHeld=false,keyboardFireHeld=false;
-  let lastHudStats='',lastRosterSignature='';
+  let lastHudStats='',lastRosterSignature='',hudNoticeUntil=0;
   const hudChips=new Map();
   let fallbackFullscreen=false;
   let squadFormation={active:false,leader:null,members:[],trail:[],destination:null,manualMoving:false};
@@ -618,9 +626,24 @@
 
   function setStatus(text){
     if(statusEl.textContent!==text)statusEl.textContent=text;
-    const phase=(activeMission().phases||[])[missionStage];
-    const brief=MAP_DATA.key==='wigan'&&/^Phase\s+\d+:/.test(text)&&phase?phase.title:text.replace(/^Phase\s+\d+:\s*/,'');
-    if(hudMission.textContent!==brief)hudMission.textContent=brief;
+    const phaseLine=/^Phase\s+\d+:/.test(text),missionLine=/^Mission (complete|failed)/i.test(text);
+    if(phaseLine||missionLine){
+      const phase=(activeMission().phases||[])[missionStage];
+      const brief=MAP_DATA.key==='wigan'&&phaseLine&&phase?phase.title:text.replace(/^Phase\s+\d+:\s*/,'');
+      if(hudMission.textContent!==brief)hudMission.textContent=brief;
+      return;
+    }
+    if(hudNotice){
+      hudNotice.textContent=text;
+      hudNotice.classList.add('show');
+      hudNoticeUntil=performance.now()+2400;
+    }
+  }
+
+  function updateHudNotice(now){
+    if(hudNotice&&hudNotice.classList.contains('show')&&now>=hudNoticeUntil){
+      hudNotice.classList.remove('show');
+    }
   }
 
   function hash(n){n=Math.imul(n^(n>>>16),2246822519);n=Math.imul(n^(n>>>13),3266489917);return(n^(n>>>16))>>>0}
@@ -628,6 +651,21 @@
   function tint(hex,d){
     const n=parseInt(hex.slice(1),16);
     return '#'+[16,8,0].map(s=>Math.max(0,Math.min(255,((n>>s)&255)+d)).toString(16).padStart(2,'0')).join('');
+  }
+
+  function badBelzigBuildingStyle(seed,b){
+    const roll=unit(seed,5);
+    const family=roll<.15?'timber':roll<.40?'cottage':roll<.86?'plaster':'stone';
+    const style=BAD_BELZIG_FAMILIES[family];
+    const walls=style.walls,roofs=style.roofs,doors=style.doors;
+    const baseHeight=family==='cottage'?7:family==='plaster'?10:family==='timber'?9:11;
+    const height=S(baseHeight+Math.floor(unit(seed,1)*(family==='cottage'?3:5)));
+    return{
+      family,height,
+      wall:walls[Math.floor(unit(seed,2)*walls.length)],
+      roof:roofs[Math.floor(unit(seed,3)*roofs.length)],
+      door:doors[Math.floor(unit(seed,4)*doors.length)]
+    };
   }
 
   const roads=MAP_DATA.roads.map(r=>({
@@ -648,13 +686,15 @@
     const pts=b.points.map(p=>[S(p[0]),S(p[1])]);
     const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
     const seed=hash((i+1)*2654435761);
+    const bb=MAP_DATA.key==='wigan'?null:badBelzigBuildingStyle(seed,b);
     return {
       i,name:b.name||'',points:pts,solid:b.solid!==false,landmark:b.landmark||'',levels:b.levels||2,roofShape:b.roofShape||'gable',material:b.material||'stone',detail:wiganDetails&&wiganDetails.buildings.get(b.osmId),
+      family:bb?bb.family:'urban',
       minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys),
-      height:MAP_DATA.key==='wigan'?S(4+(b.levels||2)*5):S(8+Math.floor(unit(seed,1)*5)),
-      wall:WALLS[Math.floor(unit(seed,2)*WALLS.length)],
-      roof:ROOFS[Math.floor(unit(seed,3)*ROOFS.length)],
-      door:DOORS[Math.floor(unit(seed,4)*DOORS.length)],
+      height:MAP_DATA.key==='wigan'?S(4+(b.levels||2)*5):bb.height,
+      wall:bb?bb.wall:WALLS[Math.floor(unit(seed,2)*WALLS.length)],
+      roof:bb?bb.roof:ROOFS[Math.floor(unit(seed,3)*ROOFS.length)],
+      door:bb?bb.door:DOORS[Math.floor(unit(seed,4)*DOORS.length)],
       landmarkFootprint:LANDMARK_BUILDING_NAMES.has((b.name||'').trim().toLowerCase())
     };
   });
@@ -2271,16 +2311,24 @@
         ctx.fillRect(Math.min(a[0],d[0])-1,Math.min(a[1],d[1])-h-mesh.rise-1,Math.abs(a[0]-d[0])+2,Math.abs(a[1]-d[1])+h+mesh.rise+2);ctx.restore();
       }
       const len=Math.hypot(d[0]-a[0],d[1]-a[1]);
-      if((len>S(16)||side.length>4)&&b.roof!=='#548291'){
-        ctx.save();polygon(side,null);ctx.clip();ctx.strokeStyle='#524738';ctx.lineWidth=2;ctx.beginPath();
+      if(b.family==='timber'&&(len>S(16)||side.length>4)){
+        ctx.save();polygon(side,null);ctx.clip();ctx.strokeStyle='#514638';ctx.lineWidth=2;ctx.beginPath();
         ctx.moveTo(a[0],a[1]-h*.2);ctx.lineTo(d[0],d[1]-h*.2);
         for(let j=0;j<=3;j++){const t=j/3,x=a[0]+(d[0]-a[0])*t,y=a[1]+(d[1]-a[1])*t;ctx.moveTo(x,y);ctx.lineTo(x,y-h);}
         ctx.moveTo(a[0],a[1]-h);ctx.lineTo((a[0]+d[0])/2,(a[1]+d[1])/2-h-mesh.rise);ctx.lineTo(d[0],d[1]-h);
         ctx.moveTo((a[0]+d[0])/2,(a[1]+d[1])/2);ctx.lineTo((a[0]+d[0])/2,(a[1]+d[1])/2-h-mesh.rise);
         ctx.stroke();ctx.restore();
+      }else if(b.family==='plaster'&&len>S(18)){
+        ctx.save();polygon(side,null);ctx.clip();ctx.strokeStyle='#8f806966';ctx.lineWidth=1.1;
+        for(const level of [.28,.62]){ctx.beginPath();ctx.moveTo(a[0],a[1]-h*level);ctx.lineTo(d[0],d[1]-h*level);ctx.stroke();}
+        ctx.restore();
+      }else if(b.family==='stone'&&len>S(16)){
+        ctx.save();polygon(side,null);ctx.clip();ctx.strokeStyle='#746e6055';ctx.lineWidth=.8;
+        for(let yy=.2;yy<.9;yy+=.22){ctx.beginPath();ctx.moveTo(a[0],a[1]-h*yy);ctx.lineTo(d[0],d[1]-h*yy);ctx.stroke();}
+        ctx.restore();
       }
       if((renderingStatic||zoom>.95)&&len>S(8)){
-        const n=Math.min(4,Math.floor(len/S(8)));
+        const n=Math.min(b.family==='cottage'?2:b.family==='plaster'?5:4,Math.floor(len/S(8)));
         for(let k=1;k<=n;k++){
           const t=k/(n+1),x=a[0]+(d[0]-a[0])*t,y=a[1]+(d[1]-a[1])*t-h*.48;
           ctx.fillStyle='#9e9279';ctx.beginPath();ctx.roundRect(x-S(1.35),y-S(1.9),S(2.7),S(3.8),S(.3));ctx.fill();
@@ -2335,7 +2383,11 @@
   }
 
   function landmarkImage(key,x,y,w,h){
+    ctx.save();
+    ctx.fillStyle='rgba(37,48,35,.22)';
+    ctx.beginPath();ctx.ellipse(x+S(4),y-S(2),w*.34,Math.max(S(4),w*.07),-.08,0,Math.PI*2);ctx.fill();
     ctx.drawImage(art.landmark(key),Math.round(x-w/2),Math.round(y-h),w,h);
+    ctx.restore();
   }
 
 
@@ -2379,6 +2431,70 @@
       const bounds=sceneryBounds||{x:camera.x,y:camera.y,w:vw,h:vh};
       if(t.x<bounds.x-90||t.x>bounds.x+bounds.w+90||t.y<bounds.y-90||t.y>bounds.y+bounds.h+90)return;
       art.tree(ctx,t);
+    });
+  }
+
+  function buildingOccludesActor(b,ent){
+    if(!ent.alive||b.landmarkFootprint)return false;
+    const mesh=b.artMesh||(b.artMesh=BadFodderBuildings.mesh(b.points,b.height));
+    const roofRise=mesh?mesh.rise:0,margin=S(7);
+    return ent.x>=b.minX-margin&&ent.x<=b.maxX+margin&&
+      ent.y>=b.minY-b.height-roofRise-margin&&ent.y<b.maxY+S(3);
+  }
+
+  function treeOccludesActor(t,ent){
+    if(!ent.alive)return false;
+    const w=36+t.r*1.6,h=w*1.25;
+    return ent.x>t.x-w*.48&&ent.x<t.x+w*.48&&ent.y>t.y-h+2&&ent.y<t.y+S(3);
+  }
+
+  function drawForegroundOccluders(actorEntries){
+    const occludedSquad=new Set(),buildingSet=new Set(),treeSet=new Set();
+    actorEntries.forEach(({ent,team})=>{
+      if(!ent.alive)return;
+      nearbyBuildings(ent.x,ent.y,S(48)).forEach(b=>{
+        if(buildingOccludesActor(b,ent)){
+          buildingSet.add(b);
+          if(team==='squad')occludedSquad.add(ent);
+        }
+      });
+      treeDots.forEach((t,i)=>{
+        if(treeOccludesActor(t,ent)){
+          treeSet.add(i);
+          if(team==='squad')occludedSquad.add(ent);
+        }
+      });
+    });
+
+    [...buildingSet].sort((a,b)=>a.maxY-b.maxY).forEach(b=>{
+      const fading=squad.some(s=>s.alive&&s.selected&&buildingOccludesActor(b,s));
+      ctx.save();ctx.globalAlpha=fading?.68:.98;drawBuilding(b);ctx.restore();
+    });
+    [...treeSet].sort((a,b)=>treeDots[a].y-treeDots[b].y).forEach(i=>{
+      const t=treeDots[i],fading=squad.some(s=>s.alive&&s.selected&&treeOccludesActor(t,s));
+      ctx.save();ctx.globalAlpha=fading?.62:.96;art.tree(ctx,t);ctx.restore();
+    });
+    return occludedSquad;
+  }
+
+  function drawIdentityMarker(ent,team){
+    if(!ent.alive)return;
+    ctx.save();ctx.lineWidth=1.6;
+    if(team==='squad'){
+      ctx.strokeStyle='rgba(220,239,232,.88)';
+      ctx.beginPath();ctx.moveTo(ent.x-6,ent.y+11);ctx.lineTo(ent.x,ent.y+14);ctx.lineTo(ent.x+6,ent.y+11);ctx.stroke();
+    }else if(team==='enemy'){
+      ctx.strokeStyle='rgba(243,204,145,.8)';
+      ctx.beginPath();ctx.moveTo(ent.x,ent.y-48);ctx.lineTo(ent.x-4,ent.y-42);ctx.lineTo(ent.x+4,ent.y-42);ctx.closePath();ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawOccludedSquadOutlines(units){
+    units.forEach(ent=>{
+      if(!ent.alive)return;
+      ctx.save();ctx.strokeStyle='rgba(232,225,173,.9)';ctx.lineWidth=1.6;ctx.setLineDash([4,3]);
+      ctx.beginPath();ctx.ellipse(ent.x,ent.y-15,10,16,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.restore();
     });
   }
 
@@ -2432,8 +2548,14 @@
 
   function drawObjectiveZones(){
     missionObjectives().forEach((o,i)=>{
-      const z=o.zone,active=i===missionStage;
-      ctx.save();ctx.setLineDash([12,10]);ctx.strokeStyle=active?'#e4cb83':'rgba(70,70,70,.22)';ctx.lineWidth=active?3:2;
+      const z=o.zone,active=i===missionStage,done=i<missionStage;
+      ctx.save();
+      if(active){
+        ctx.fillStyle='rgba(228,203,131,.07)';ctx.beginPath();ctx.arc(z.x,z.y,z.r,0,Math.PI*2);ctx.fill();
+        ctx.setLineDash([9,9]);ctx.strokeStyle='rgba(238,216,145,.82)';ctx.lineWidth=2.2;
+      }else{
+        ctx.setLineDash([5,12]);ctx.strokeStyle=done?'rgba(156,192,184,.22)':'rgba(90,96,78,.10)';ctx.lineWidth=1.2;
+      }
       ctx.beginPath();ctx.arc(z.x,z.y,z.r,0,Math.PI*2);ctx.stroke();ctx.restore();
     });
   }
@@ -2533,6 +2655,7 @@
   }
 
   function drawWorld(){
+    updateHudNotice(performance.now());
     clampCamera();
     const frameScaleX=frame.width/VIEW_W,frameScaleY=frame.height/VIEW_H;
     ctx.setTransform(frameScaleX,0,0,frameScaleY,0,0);ctx.clearRect(0,0,VIEW_W,VIEW_H);
@@ -2549,6 +2672,7 @@
     const actors=[...civilians.map(ent=>({ent,team:'civilian'})),...enemies.map(ent=>({ent,team:'enemy'})),...squad.map(ent=>({ent,team:'squad'}))];
     actors.sort((a,b)=>a.ent.y-b.ent.y);
     actors.forEach(({ent,team})=>{
+      drawIdentityMarker(ent,team);
       if(team==='squad'&&ent.selected&&ent.alive){
         ctx.strokeStyle='#eadb82';ctx.lineWidth=2;
         // Small ground brackets leave the silhouette and walking feet visible.
@@ -2584,6 +2708,10 @@
         ctx.setLineDash([]);
       }
     });
+
+    const occludedSquad=drawForegroundOccluders(actors);
+    drawOccludedSquadOutlines(occludedSquad);
+
     effects.forEach(f=>{
       if(f.type==='wall'){
         const age=1-Math.min(1,f.life/.22);
