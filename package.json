@@ -13,8 +13,7 @@
     "cable:authoring:check": "node tools/cable-street/validate-authoring.cjs authoring/cable-street",
     "cable:authoring:require-ready": "node tools/cable-street/validate-authoring.cjs authoring/cable-street --require-ready",
     "cable:calibrate": "node tools/cable-street/calibrate-grid.cjs authoring/cable-street/calibration.json",
-    "cable:compile-map": "node tools/cable-street/compile-trace.cjs authoring/cable-street",
-    "cable:map:compile": "node tools/cable-street/compile-map-package.cjs authoring/cable-street"
+    "cable:compile-map": "node tools/cable-street/compile-trace.cjs authoring/cable-street"
   },
   "devDependencies": {
     "firebase-tools": "^14.0.0"
