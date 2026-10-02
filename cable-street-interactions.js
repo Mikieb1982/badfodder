@@ -14,7 +14,8 @@
     reinforceSeconds:.65,
     assistSeconds:1.15,
     holdSeconds:2,
-    rescueExitSeconds:.8
+    rescueExitSeconds:.8,
+    pressureControlled:false
   });
 
   function finitePoint(value){
@@ -421,6 +422,7 @@
 
     function updateFormation(p,dt){
       if(!p||!finitePoint(p))return;
+      if(settings.pressureControlled&&!controller.state.pressureStarted)return;
       p.stateTime=(p.stateTime||0)+dt;
       if(p.state==='approach'){
         const left=moveToward(p,p.targetX,p.targetY,p.speed,dt);
