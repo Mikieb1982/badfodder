@@ -10,6 +10,8 @@ assert.equal(mission.integration,'historical');
 assert.equal(mission.campaignLinked,false);
 assert.equal(mission.playable,false,'Cable Street must not be marked playable before verified geography exists');
 assert.equal(mission.mapReady,false,'Cable Street map must remain explicitly unready');
+assert.equal(mission.map,undefined,'Unverified Cable Street map geometry must not be invented');
+assert.equal(mission.spawns,undefined,'Unverified Cable Street spawn coordinates must not be invented');
 assert.deepEqual(mission.phases.map(p=>p.id),['gathering','hold-approach','regroup','they-shall-not-pass']);
 assert.equal(mission.phases[3].proposedHoldSeconds,240);
 assert.equal(mission.actionProfile.firearms,false);
@@ -89,6 +91,8 @@ assert(index.includes('data-view="historical-cable"'),'Cable Street groundwork d
 assert(index.includes('MAP RECONSTRUCTION PENDING'),'Cable Street status does not disclose unverified geography');
 assert(menu.includes("this.get('menuHistorical').addEventListener"),'Historical Missions button is not wired');
 assert(menu.includes("this.get('menuHistoricalCable').addEventListener"),'Cable Street detail button is not wired');
+assert(index.includes('data-back-to="historical"'),'Cable Street detail screen does not return to Historical Missions');
+assert(menu.includes("b.dataset.backTo||'main'"),'Nested historical menu back navigation is not wired');
 
 console.log('PASS: Cable Street is a separate non-playable historical mission groundwork entry with four planned phases and no fabricated map.');
 console.log('PASS: barricade, material, rescue, crowd-confidence and police-formation mechanics preserve the blueprint invariants.');
