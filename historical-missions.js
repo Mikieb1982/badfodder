@@ -22,6 +22,10 @@
         evidenceRegister:'authoring/cable-street/evidence-register.json',
         calibrationRecord:'authoring/cable-street/calibration.json',
         tracePackage:'authoring/cable-street/trace.geojson',
+        reconciliationRecord:'authoring/cable-street/reconciliation.json',
+        eventOverlay:'authoring/cable-street/event-overlay.geojson',
+        contradictionReview:'authoring/cable-street/historical-review.json',
+        gameTransform:'authoring/cable-street/game-transform.json',
         requiredGates:['MAP-01','MAP-02','MAP-03','MAP-04','MAP-05','MAP-06'],
         productionGeometryReady:false
       },
