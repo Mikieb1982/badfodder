@@ -25,6 +25,15 @@ nav=Navigation.create({
   updateFacing
 });
 
+const mitigationFixture=Cable.createBarricade({id:'mitigation',maxIntegrity:100,integrity:100,workPositions:3});
+assert.equal(Interactions.pressureDamageMultiplier(mitigationFixture),1);
+Cable.reserveWorkPosition(mitigationFixture,'worker-a');
+assert(Math.abs(Interactions.pressureDamageMultiplier(mitigationFixture)-.72)<1e-9);
+Cable.reserveWorkPosition(mitigationFixture,'worker-b');
+assert(Math.abs(Interactions.pressureDamageMultiplier(mitigationFixture)-.44)<1e-9);
+Cable.reserveWorkPosition(mitigationFixture,'worker-c');
+assert(Math.abs(Interactions.pressureDamageMultiplier(mitigationFixture)-.3)<1e-9,'Hold mitigation must respect the maximum cap');
+
 const mission=Historical.get('cable-street-1936');
 const controller=Cable.createController({mission});
 controller.attachNavigation(nav);
@@ -165,5 +174,6 @@ assert.equal(mission.actionProfile.firearms,false);
 assert.equal(mission.actionProfile.grenades,false);
 
 console.log('PASS: synthetic Cable Street slice completes carry, world-space carry, reinforce, drop, assist/rescue and hold jobs.');
+console.log('PASS: active workers reduce police dismantling damage with a bounded mitigation cap.');
 console.log('PASS: one non-firearm police formation advances through approach, halt, dismantle, regroup and withdraw while breaching the live barricade.');
 console.log('PASS: render state exposes visible barricade/material/rescue/formation state without making the synthetic fixture a production map.');
