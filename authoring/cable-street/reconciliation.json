@@ -1,0 +1,16 @@
+{
+  "id": "cable-street-reconciliation-v1",
+  "missionId": "cable-street-1936",
+  "eventDate": "1936-10-04",
+  "status": "pending-feature-reconciliation",
+  "baselineSourceIds": ["S01"],
+  "nearPeriodSourceIds": ["S02", "S05"],
+  "decisionLabels": ["retain", "exclude", "uncertain", "fictional adaptation"],
+  "decisions": [],
+  "requirements": [
+    "Every movement-affecting traced feature receives a reconciliation decision.",
+    "Source-geometry confidence and 1936 event-date confidence remain separate.",
+    "An uncertain passage cannot become an essential route unless explicitly treated as a fictional gameplay adaptation.",
+    "Excluded geometry remains in the authoring record rather than silently disappearing."
+  ]
+}
