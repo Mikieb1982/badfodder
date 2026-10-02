@@ -15,7 +15,9 @@
     assistSeconds:1.15,
     holdSeconds:2,
     rescueExitSeconds:.8,
-    pressureControlled:false
+    pressureControlled:false,
+    holdMitigationPerWorker:.28,
+    maxHoldMitigation:.7
   });
 
   function finitePoint(value){
@@ -35,6 +37,15 @@
   }
   function clonePoints(points){
     return Array.isArray(points)?points.map(p=>[p[0],p[1]]):[];
+  }
+
+  function pressureDamageMultiplier(barricade,settings=DEFAULTS){
+    if(!barricade||!Array.isArray(barricade.occupiedWorkPositions))return 1;
+    const workers=barricade.occupiedWorkPositions.filter(Boolean).length;
+    const perWorker=Number.isFinite(settings.holdMitigationPerWorker)?Math.max(0,settings.holdMitigationPerWorker):0;
+    const maximum=Number.isFinite(settings.maxHoldMitigation)?Math.max(0,Math.min(1,settings.maxHoldMitigation)):0;
+    const mitigation=Math.min(maximum,workers*perWorker);
+    return Math.max(0,1-mitigation);
   }
 
   function create({controller,runtime,mission,options={}}={}){
@@ -446,7 +457,8 @@
           controller.state.events.push({type:'police-state',formationId:p.id,state:'regroup'});
           return;
         }
-        controller.damageBarricadeById(p.objective,p.damageRate*dt);
+        const multiplier=pressureDamageMultiplier(b,settings);
+        controller.damageBarricadeById(p.objective,p.damageRate*dt*multiplier);
         if(b.breached){
           runtime.setPoliceState(p,'regroup');p.stateTime=0;
           controller.state.events.push({type:'police-state',formationId:p.id,state:'regroup'});
@@ -518,5 +530,5 @@
     };
   }
 
-  return{create,DEFAULTS};
+  return{create,DEFAULTS,pressureDamageMultiplier};
 });
