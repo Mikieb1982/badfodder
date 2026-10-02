@@ -11,8 +11,9 @@ const actor=()=>({x:100,y:100,dir:0,alive:true,fireTimer:0});
 const a=actor();art.animate(a,0);
 for(let i=0;i<60;i++)art.animate(a,1/60);
 assert.equal(art.pose(a).state,'idle');assert.equal(art.pose(a).frame,0);
-a.x+=6;art.animate(a,1/60);
-assert.equal(art.pose(a).state,'walk');assert.equal(art.pose(a).frame,1);
+a.x+=3;art.animate(a,1/60);
+assert.equal(art.pose(a).state,'walk');assert.equal(art.pose(a).frame,0);
+const runner=actor();art.animate(runner,0);runner.x+=4;art.animate(runner,1/60);assert.equal(art.pose(runner).state,'run','High-speed movement uses the run presentation');
 art.animate(a,1/60);assert.equal(art.pose(a).state,'idle','Blocked actors must stop stepping');
 // Walking phase depends on distance, regardless of update frequency.
 const slow=actor(),fast=actor();art.animate(slow,0);art.animate(fast,0);
@@ -26,7 +27,7 @@ a.dir=.6;art.animate(a,1/60);assert.equal(art.pose(a).dir,1);
 a.alive=false;art.animate(a,.01);assert.equal(art.pose(a).state,'dead');assert.equal(art.pose(a).frame,0);
 art.animate(a,.1);assert.equal(art.pose(a).frame,1);art.animate(a,.1);assert.equal(art.pose(a).frame,2);
 art.animate(a,10);assert.equal(art.pose(a).frame,2,'Fallen pose stays settled');
-console.log('PASS: distance-based gait, blocked/idle actors, update-rate independence, shot timing, facing stability and collapse sequence.');
+console.log('PASS: distinct walk/run presentation, distance-based gait, update-rate independence, shot timing, facing stability and collapse sequence.');
 const walker=actor();art.animate(walker,0);
 for(let i=0;i<50;i++){walker.x+=6;art.animate(walker,1/60);}
 assert(art.pose(walker).dust.length>0);assert(art.pose(walker).dust.length<=4);
