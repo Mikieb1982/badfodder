@@ -426,14 +426,24 @@
         <p id="menuBadge" class="menu-badge" hidden></p>
         <div class="menu-panel" data-view="main">
           <nav class="menu-actions" aria-label="Game menu">
-            <button id="menuStart" class="menu-button primary" type="button" disabled>PREPARING MISSION…</button>
+            <button id="menuStart" class="menu-button primary" type="button" disabled>PREPARING CAMPAIGN…</button>
+            <button id="menuMissionSelect" class="menu-button" type="button" disabled>MISSION SELECT</button>
             <button id="menuResume" class="menu-button primary" type="button" hidden>RESUME</button>
             <button id="menuRestart" class="menu-button" type="button" hidden>RESTART MISSION</button>
             <button id="menuControls" class="menu-button" type="button">CONTROLS</button>
             <button id="menuOptions" class="menu-button" type="button">OPTIONS</button>
             <button id="menuMain" class="menu-button" type="button" hidden>MAIN MENU</button>
           </nav>
-          <p class="menu-hint">MOUSE · TOUCH · KEYBOARD</p>
+          <p class="menu-hint">CAMPAIGN PLAYS MISSIONS IN ORDER · MOUSE · TOUCH · KEYBOARD</p>
+        </div>
+        <div class="menu-panel menu-card" data-view="missions" hidden>
+          <h2>MISSION SELECT</h2>
+          <p class="menu-copy">Choose a standalone mission. This does not change campaign progress.</p>
+          <div class="menu-mission-list">
+            <button id="menuMissionBad" class="menu-button" type="button" disabled><span>MISSION 01</span>BAD BELZIG</button>
+            <button id="menuMissionWigan" class="menu-button" type="button" disabled><span>MISSION 02</span>WIGAN TOWN CENTRE</button>
+          </div>
+          <button class="menu-button" data-back type="button">BACK</button>
         </div>
         <div class="menu-panel menu-card" data-view="controls" hidden>
           <h2>CONTROLS</h2>
@@ -515,6 +525,7 @@
 <script src="navigation.js"></script>
 <script src="mission-rules.js"></script>
 <script src="campaign.js"></script>
+<script src="mission-launch.js"></script>
 <script>
 (() => {
   'use strict';
@@ -532,7 +543,9 @@
   const combatGeometry=BadFodderCombatGeometry;
   const missionRules=BadFodderMissionRules;
   const campaign=BadFodderCampaign;
-  const initialMission=campaign.current();
+  const missionLaunch=BadFodderMissionLaunch.create({storage:sessionStorage,missions:campaign.missions,campaign});
+  const activeMissionIndex=missionLaunch.currentIndex();
+  const initialMission=campaign.mission(activeMissionIndex);
   const MAP_DATA=(initialMission&&initialMission.playable&&initialMission.map==='wigan')?WIGAN_MAP:TOWN_MAP;
   const statusEl=document.getElementById('status');
   const squadCountEl=document.getElementById('squadCount');
@@ -541,6 +554,8 @@
   const grenadeCountEl=document.getElementById('grenadeCount');
   const rosterEl=document.getElementById('roster');
   const loadingEl=document.getElementById('loading');
+  const loadingTitle=loadingEl.querySelector('strong');
+  if(loadingTitle)loadingTitle.textContent=initialMission?.title||'Bad Fodder';
 
   const selectAllBtn=document.getElementById('selectAll');
   let unitButtons=Array.from(document.querySelectorAll('.unitBtn'));
@@ -719,7 +734,7 @@
   }
 
   function activeMission(){
-    const mission=campaign.current();
+    const mission=campaign.mission(activeMissionIndex);
     return mission&&mission.playable?mission:campaign.missions[0];
   }
 
@@ -846,6 +861,28 @@
     resetGame();menuOpen=false;paused=false;
     menu.close();syncTouchControlState();root.focus({preventScroll:true});
     refreshCursorWorld();
+  }
+
+  function startCampaignFromMenu(){
+    if(missionLaunch.isCampaign()&&activeMissionIndex===campaign.state.current){
+      beginMission();
+      return;
+    }
+    missionLaunch.useCampaign();
+    missionLaunch.requestAutoStart();
+    location.reload();
+  }
+
+  function startStandaloneMission(index){
+    const selected=campaign.missions[index];
+    if(!selected||!selected.playable)return;
+    if(missionLaunch.isSelection()&&activeMissionIndex===index){
+      beginMission();
+      return;
+    }
+    if(!missionLaunch.select(index))return;
+    missionLaunch.requestAutoStart();
+    location.reload();
   }
 
   function showTitle(){
@@ -1054,13 +1091,16 @@
   }
 
   function hasPlayableNextMission(){
-    const next=campaign.state.current+1;
+    if(!missionLaunch.isCampaign())return false;
+    const next=activeMissionIndex+1;
     return !!(campaign.missions[next]&&campaign.missions[next].playable);
   }
 
   function advanceCampaign(){
     if(!finished||!win||!hasPlayableNextMission())return false;
-    campaign.setCurrent(campaign.state.current+1);
+    campaign.setCurrent(activeMissionIndex+1);
+    missionLaunch.useCampaign();
+    missionLaunch.requestAutoStart();
     location.reload();
     return true;
   }
@@ -1068,7 +1108,7 @@
   function completeCurrentMission(){
     if(finished)return;
     finished=true;win=true;
-    campaign.complete(campaign.state.current);
+    if(missionLaunch.isCampaign())campaign.complete(activeMissionIndex);
     hudStage.textContent='MISSION COMPLETE';
     setStatus('Mission complete. '+activeMission().title+' complete.');
     syncTouchControlState();
@@ -2973,6 +3013,7 @@
       setStatus('Phase 1: '+(firstPhase?(firstPhase.brief||firstPhase.title):'Begin mission.'));
       syncTouchControlState();
       updateHud(true);
+      if(missionLaunch.consumeAutoStart())beginMission();
     }catch(err){
       console.error('Bad Fodder failed to start',err);
       started=false;
@@ -2984,7 +3025,7 @@
   }
 
   menu=new BadFodderMenu({
-    root,screen:document.getElementById('menuScreen'),start:beginMission,resume:resumeMission,restart:beginMission,main:showTitle,
+    root,screen:document.getElementById('menuScreen'),start:startCampaignFromMenu,selectMission:startStandaloneMission,resume:resumeMission,restart:beginMission,main:showTitle,
     fullscreen:toggleMobileFullscreen,isFullscreen:isFullscreenActive,
     zoom:value=>{preferredZoom=zoom=Number(value);clampCamera();},dust:value=>{showDust=value;},dustEnabled:showDust
   });
