@@ -100,8 +100,12 @@
           role:helper?'helper':'resident',
           x:p.x,y:p.y,homeX:p.x,homeY:p.y,
           phase:random()*Math.PI*2,
+          animPhase:random()*Math.PI*2,
+          animState:'idle',
+          gestureTimer:.8+random()*3.2,
+          speedVisual:0,
           speed:(helper?22:18)+random()*10,
-          variant:i%6,
+          variant:i%8,
           dir:random()*Math.PI*2
         });
       }
@@ -171,14 +175,23 @@
     function updatePerson(person,dt,confidence){
       const a=anchor();
       const pressure=closestFormation(person);
+      const oldX=person.x,oldY=person.y;
       let tx=person.homeX,ty=person.homeY;
       const b=mainBarricade();
       const helping=person.role==='helper'&&b&&!b.breached&&confidence>=settings.helperSupportThreshold&&
         [...controller.state.formations.values()].some(f=>f.state==='dismantle');
+
       if(helping&&b.workPoints&&b.workPoints.length){
         const p=b.workPoints[(Number(person.id.split('-').at(-1))||0)%b.workPoints.length];
         const dx=p.x-person.x,dy=p.y-person.y,d=Math.hypot(dx,dy),step=Math.min(d,person.speed*dt);
-        if(d>1){const nx=person.x+dx/d*step,ny=person.y+dy/d*step;if(!blocked||!blocked(nx,ny,4)){person.x=nx;person.y=ny;person.dir=Math.atan2(dy,dx)}}
+        if(d>1){
+          const nx=person.x+dx/d*step,ny=person.y+dy/d*step;
+          if(!blocked||!blocked(nx,ny,4)){person.x=nx;person.y=ny;person.dir=Math.atan2(dy,dx)}
+        }
+        const moved=Math.hypot(person.x-oldX,person.y-oldY);
+        person.speedVisual=dt>0?moved/dt:0;
+        person.animPhase+=dt*(d>3?4.8:2.2);
+        person.animState=d>9?'support':'brace';
         return;
       }
 
@@ -200,11 +213,32 @@
       ty=clamp(ty,settings.edgePadding,worldHeight-settings.edgePadding);
 
       const dx=tx-person.x,dy=ty-person.y,d=Math.hypot(dx,dy);
-      if(d<.5)return;
-      const step=Math.min(d,person.speed*dt);
-      const nx=person.x+dx/d*step,ny=person.y+dy/d*step;
-      if(typeof blocked!=='function'||!blocked(nx,ny,4)){
-        person.x=nx;person.y=ny;person.dir=Math.atan2(dy,dx);
+      if(d>=.5){
+        const speed=pressure.formation&&pressure.distance<settings.policeAvoidRadius*.72?person.speed*1.75:person.speed;
+        const step=Math.min(d,speed*dt);
+        const nx=person.x+dx/d*step,ny=person.y+dy/d*step;
+        if(typeof blocked!=='function'||!blocked(nx,ny,4)){
+          person.x=nx;person.y=ny;person.dir=Math.atan2(dy,dx);
+        }
+      }
+
+      const moved=Math.hypot(person.x-oldX,person.y-oldY);
+      person.speedVisual=dt>0?moved/dt:0;
+      person.animPhase+=dt*(moved>.08?(pressure.distance<settings.policeAvoidRadius*.72?7.2:4.2):1.1);
+      if(moved>.08){
+        person.animState=pressure.formation&&pressure.distance<settings.policeAvoidRadius*.72?'panic':'walk';
+        person.gestureTimer=Math.max(.8,person.gestureTimer);
+      }else{
+        person.gestureTimer-=dt;
+        if(person.gestureTimer<=0){
+          person.animState='gesture';
+          person.gestureTimer=1.2+((person.variant+1)%5)*.42;
+        }else if(person.animState==='gesture'&&person.gestureTimer>.55){
+          // Keep the gesture visible briefly, then return to a quiet idle.
+          person.animState='gesture';
+        }else{
+          person.animState='idle';
+        }
       }
     }
 
