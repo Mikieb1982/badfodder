@@ -540,6 +540,7 @@
 <script src="town-map.js"></script>
 <script src="bad-belzig-data.js"></script>
 <script src="wigan-map.js"></script>
+<script src="cable-street-map.js?v=20261002-cable-map-slot-1"></script>
 <script src="pixel-art.js"></script>
 <script src="painted-art.js"></script>
 <script src="building-art.js"></script>
@@ -597,7 +598,8 @@
   const initialMission=missionLaunch.current();
   const mapRegistry=missionBootstrap.createMapRegistry({
     'bad-belzig':TOWN_MAP,
-    'wigan':WIGAN_MAP
+    'wigan':WIGAN_MAP,
+    ...(window.CABLE_STREET_MAP?{'cable-street':window.CABLE_STREET_MAP}:{})
   });
   const MAP_DATA=missionBootstrap.resolveMap(initialMission,mapRegistry);
   const ACTION_PROFILE=missionBootstrap.actionProfile(initialMission);
