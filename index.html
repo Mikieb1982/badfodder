@@ -2116,8 +2116,10 @@
         applyDamage(t,1,ax,ay);
         effects.push({type:'impact',x:t.x,y:t.y,life:.16});
         if(b.owner==='squad'&&t.alive){
+          const newlyAlerted=!t.alert;
           t.alert=true;t.aiState='combat';
           t.lastSeen={x:b.x,y:b.y};
+          if(newlyAlerted)prepareEnemyReaction(t,.22,'!');
           alertNearbyEnemies(t,t.lastSeen.x,t.lastSeen.y,S(180));
         }
         return;
