@@ -1,0 +1,14 @@
+{
+  "type": "FeatureCollection",
+  "properties": {
+    "id": "cable-street-christian-street-trace-v1",
+    "missionId": "cable-street-1936",
+    "status": "empty-awaiting-calibrated-trace",
+    "productionReady": false,
+    "crs": "EPSG:27700",
+    "boundaryId": "cable-street-christian-street-slice-v1",
+    "evidenceRegister": "evidence-register.json",
+    "calibration": "calibration.json"
+  },
+  "features": []
+}
