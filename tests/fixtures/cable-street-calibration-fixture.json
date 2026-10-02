@@ -1,0 +1,71 @@
+{
+  "id": "synthetic-affine-fixture",
+  "status": "awaiting-control-points",
+  "sourceId": "SYNTH",
+  "masterCrs": "EPSG:27700",
+  "sourceCrop": {
+    "x": 0,
+    "y": 0,
+    "width": 1200,
+    "height": 900
+  },
+  "controls": [
+    {
+      "id": "c1",
+      "image": [
+        100,
+        100
+      ],
+      "grid": [
+        534200,
+        180800
+      ]
+    },
+    {
+      "id": "c2",
+      "image": [
+        900,
+        100
+      ],
+      "grid": [
+        534600,
+        180800
+      ]
+    },
+    {
+      "id": "c3",
+      "image": [
+        100,
+        700
+      ],
+      "grid": [
+        534200,
+        181100
+      ]
+    },
+    {
+      "id": "c4",
+      "image": [
+        900,
+        700
+      ],
+      "grid": [
+        534600,
+        181100
+      ]
+    }
+  ],
+  "checkControls": [
+    {
+      "id": "check-1",
+      "image": [
+        500,
+        400
+      ],
+      "grid": [
+        534400,
+        180950
+      ]
+    }
+  ]
+}
