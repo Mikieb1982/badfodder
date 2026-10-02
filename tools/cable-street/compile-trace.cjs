@@ -141,7 +141,127 @@ function projectOverlayFeature(feature,projector){
   });
 }
 
-function compileAuthoring({trace,schema,projection,eventOverlay=null,mapKey='cable-street',gates=null}={}){
+
+const RUNTIME_MATERIAL_TYPES=new Set(['cart','crates','timber','furniture','barrel']);
+const RUNTIME_POLICE_STATES=new Set(['approach','halt','dismantle','regroup','withdraw']);
+
+function centroid(points){
+  if(!Array.isArray(points)||!points.length)return null;
+  let x=0,y=0;
+  for(const p of points){x+=p[0];y+=p[1]}
+  return{x:round(x/points.length),y:round(y/points.length)};
+}
+
+function projectRuntimeObjects(record,projector){
+  const empty={barricades:[],materials:[],civilians:[],formations:[]};
+  if(!record||record.status!=='ready')return{ready:false,objects:empty};
+  if(record.crs!==projector.metadata.masterCrs)throw new Error('Runtime object CRS does not match the Cable Street runtime projection.');
+  const source=record.objects||{};
+  for(const key of Object.keys(empty)){
+    if(!Array.isArray(source[key]))throw new Error('Runtime objects require an array for '+key+'.');
+  }
+
+  const ids=new Set();
+  function stableId(item,label){
+    if(!item||!nonEmptyString(item.id))throw new Error(label+' requires a stable id.');
+    if(ids.has(item.id))throw new Error('Duplicate runtime object id: '+item.id);
+    ids.add(item.id);
+    return item.id;
+  }
+  function positive(v,label){
+    if(!finiteNumber(v)||v<=0)throw new Error(label+' must be positive.');
+    return v;
+  }
+  function scaled(v,label){
+    return round(positive(v,label)*projector.metadata.metresToWorldUnits);
+  }
+  function position(value,label){
+    validateCoordinate(value,label);
+    const p=projector.project(value);
+    return{x:p[0],y:p[1]};
+  }
+
+  const barricades=source.barricades.map(item=>{
+    const id=stableId(item,'Barricade');
+    const polygon=normalizeRing(item.polygon,id+' polygon');
+    const points=polygon.map(projector.project);
+    const centre=item.position?position(item.position,id+' position'):centroid(points);
+    const maxIntegrity=positive(item.maxIntegrity,id+' maxIntegrity');
+    if(!finiteNumber(item.integrity)||item.integrity<0||item.integrity>maxIntegrity)throw new Error(id+' integrity is outside its valid range.');
+    if(!Number.isInteger(item.workPositions)||item.workPositions<1)throw new Error(id+' workPositions must be a positive integer.');
+    return{
+      id,label:item.label||id,
+      maxIntegrity,integrity:item.integrity,
+      constructionTier:Number.isInteger(item.constructionTier)?item.constructionTier:0,
+      workPositions:item.workPositions,
+      x:centre.x,y:centre.y,points,
+      interactionRadius:scaled(item.interactionRadiusMetres,id+' interactionRadiusMetres'),
+      historicalStatus:item.historicalStatus||null,
+      sourceIds:Array.isArray(item.sourceIds)?[...item.sourceIds]:[],
+      interpretationNote:item.interpretationNote||''
+    };
+  });
+  const barricadeIds=new Set(barricades.map(x=>x.id));
+
+  const materials=source.materials.map(item=>{
+    const id=stableId(item,'Material');
+    if(!RUNTIME_MATERIAL_TYPES.has(item.type))throw new Error('Unknown Cable Street runtime material type: '+item.type);
+    const p=position(item.position,id+' position');
+    return{
+      id,type:item.type,label:item.label||item.type,
+      x:p.x,y:p.y,
+      interactionRadius:scaled(item.interactionRadiusMetres,id+' interactionRadiusMetres'),
+      historicalStatus:item.historicalStatus||null
+    };
+  });
+
+  const civilians=source.civilians.map(item=>{
+    const id=stableId(item,'Civilian');
+    const p=position(item.position,id+' position');
+    return{
+      id,label:item.label||'Resident',x:p.x,y:p.y,
+      optional:item.optional!==false,
+      interactionRadius:scaled(item.interactionRadiusMetres,id+' interactionRadiusMetres'),
+      exitSeconds:positive(item.exitSeconds,id+' exitSeconds'),
+      historicalStatus:item.historicalStatus||null
+    };
+  });
+
+  const formations=source.formations.map(item=>{
+    const id=stableId(item,'Police formation');
+    if(!barricadeIds.has(item.objective))throw new Error(id+' references unknown barricade objective '+item.objective+'.');
+    if(!RUNTIME_POLICE_STATES.has(item.state||'approach'))throw new Error(id+' has an invalid police state.');
+    const p=position(item.position,id+' position');
+    const target=position(item.target,id+' target');
+    const withdraw=position(item.withdraw,id+' withdraw');
+    return{
+      id,label:item.label||'Police formation',
+      width:positive(item.width,id+' width'),
+      objective:item.objective,state:item.state||'approach',
+      x:p.x,y:p.y,targetX:target.x,targetY:target.y,
+      withdrawX:withdraw.x,withdrawY:withdraw.y,
+      speed:scaled(item.speedMetresPerSecond,id+' speedMetresPerSecond'),
+      stopDistance:scaled(item.stopDistanceMetres,id+' stopDistanceMetres'),
+      haltSeconds:positive(item.haltSeconds,id+' haltSeconds'),
+      regroupSeconds:positive(item.regroupSeconds,id+' regroupSeconds'),
+      damageRate:positive(item.damageRate,id+' damageRate'),
+      historicalStatus:item.historicalStatus||null
+    };
+  });
+
+  const req=record.requirements||{};
+  if(Number.isInteger(req.mainBarricades)&&barricades.length<req.mainBarricades)throw new Error('SLICE-02 requires more authored barricades.');
+  if(Array.isArray(req.materialTypes)){
+    const types=new Set(materials.map(x=>x.type));
+    for(const type of req.materialTypes)if(!types.has(type))throw new Error('SLICE-02 is missing required material type '+type+'.');
+  }
+  if(Number.isInteger(req.rescueInteractions)&&civilians.length<req.rescueInteractions)throw new Error('SLICE-02 requires more rescue interactions.');
+  if(Number.isInteger(req.policeFormations)&&formations.length<req.policeFormations)throw new Error('SLICE-02 requires more police formations.');
+
+  return{ready:true,objects:{barricades,materials,civilians,formations}};
+}
+
+function compileAuthoring({trace,schema,projection,eventOverlay=null,runtimeObjects=null,mapKey='cable-street',gates=null}={}){
   if(!trace||trace.type!=='FeatureCollection'||!Array.isArray(trace.features))throw new Error('Cable Street trace must be a GeoJSON FeatureCollection.');
   if(!schema||!Array.isArray(schema.layers)||!Array.isArray(schema.confidenceLabels))throw new Error('Cable Street authoring schema is unavailable.');
   const crs=trace.properties&&trace.properties.crs;
@@ -193,6 +313,16 @@ function compileAuthoring({trace,schema,projection,eventOverlay=null,mapKey='cab
     }
   }
 
+  const runtime=projectRuntimeObjects(runtimeObjects,projector);
+  for(const group of Object.values(runtime.objects)){
+    for(const item of group){
+      if(Array.isArray(item.points))allProjected.push(...item.points);
+      else if(Number.isFinite(item.x)&&Number.isFinite(item.y))allProjected.push([item.x,item.y]);
+      if(Number.isFinite(item.targetX)&&Number.isFinite(item.targetY))allProjected.push([item.targetX,item.targetY]);
+      if(Number.isFinite(item.withdrawX)&&Number.isFinite(item.withdrawY))allProjected.push([item.withdrawX,item.withdrawY]);
+    }
+  }
+
   const maxX=Math.max(...allProjected.map(p=>p[0]));
   const maxY=Math.max(...allProjected.map(p=>p[1]));
   const padding=projector.metadata.padding;
@@ -203,14 +333,14 @@ function compileAuthoring({trace,schema,projection,eventOverlay=null,mapKey='cab
     buildings,roads,railways,
     eventZones:[...tracedEventZones,...overlayEventZones],
     gameplayAdjustments,
-    historicalObjects:{barricades:[],materials:[],civilians:[],formations:[]},
+    historicalObjects:runtime.objects,
     projection:projector.metadata,
     authoring:{
       traceId:trace.properties&&trace.properties.id||null,
       featureCount:trace.features.length,
       gates:gates?{...gates}:null,
       productionReady:gates?Object.values(gates).every(Boolean):trace.properties&&trace.properties.productionReady===true,
-      runtimeObjectsReady:false
+      runtimeObjectsReady:runtime.ready
     }
   };
 }
@@ -223,7 +353,9 @@ function compileDirectory(baseDir){
   const trace=readJson(path.join(baseDir,'trace.geojson'));
   const projection=readJson(path.join(baseDir,'runtime-projection.json'));
   const eventOverlay=readJson(path.join(baseDir,'event-overlay.geojson'));
-  return compileAuthoring({trace,schema,projection,eventOverlay,mapKey:'cable-street',gates:report.gates});
+  const runtimeObjectsPath=path.join(baseDir,'runtime-objects.json');
+  const runtimeObjects=fs.existsSync(runtimeObjectsPath)?readJson(runtimeObjectsPath):null;
+  return compileAuthoring({trace,schema,projection,eventOverlay,runtimeObjects,mapKey:'cable-street',gates:report.gates});
 }
 
 function main(argv){
@@ -240,4 +372,4 @@ if(require.main===module){
   try{main(process.argv)}
   catch(err){process.stderr.write(String(err&&err.message||err)+'\n');process.exitCode=1}
 }
-module.exports={geometryParts,createProjector,compileAuthoring,compileDirectory};
+module.exports={geometryParts,createProjector,projectRuntimeObjects,compileAuthoring,compileDirectory};
