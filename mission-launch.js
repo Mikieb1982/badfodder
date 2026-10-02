@@ -59,8 +59,10 @@
     function currentIndex(){
       if(isSelection())return launch.index;
       if(isHistorical())return null;
-      const index=Number(campaign.state.current)||0;
-      return Math.max(0,Math.min(missions.length-1,index));
+      const requested=Math.max(0,Math.min(missions.length-1,Number(campaign.state.current)||0));
+      if(missions[requested]&&missions[requested].playable)return requested;
+      for(let i=requested;i>=0;i--)if(missions[i]&&missions[i].playable)return i;
+      return missions.findIndex(m=>m&&m.playable);
     }
 
     function currentId(){
@@ -77,6 +79,8 @@
 
     function useCampaign(){
       launch={mode:'campaign',index:null,id:null};
+      const resolved=currentIndex();
+      if(resolved>=0&&resolved!==campaign.state.current)campaign.setCurrent(resolved);
       persist();
       return current();
     }
