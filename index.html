@@ -499,6 +499,7 @@
 </main>
 
 <script src="town-map.js"></script>
+<script src="bad-belzig-data.js"></script>
 <script src="wigan-map.js"></script>
 <script src="pixel-art.js"></script>
 <script src="painted-art.js"></script>
@@ -752,7 +753,7 @@
   const PATH_ROWS=Math.ceil(WORLD_H/PATH_CELL);
   const pathBlockedCache=new Map();
   const pathEdgeCache=new Map();
-  const pathComponents=MAP_DATA.key==='wigan'?new Int32Array(PATH_COLS*PATH_ROWS):null;
+  const pathComponents=new Int32Array(PATH_COLS*PATH_ROWS);
   let nextPathComponent=0;
 
   function pathCellKey(gx,gy){return gx+'|'+gy}
@@ -1155,11 +1156,44 @@
 
 
 
+  function objectiveGroupForEnemy(index){
+    const groups=MAP_DATA.defenderGroups||{};
+    for(const [name,indices] of Object.entries(groups)){
+      if(Array.isArray(indices)&&indices.includes(index))return name;
+    }
+    return null;
+  }
+
+  function validateSpawn(label,x,y,r,startComponent){
+    if(!Number.isFinite(x)||!Number.isFinite(y))throw new Error(label+' has invalid coordinates.');
+    if(obstacleAt(x,y,r))throw new Error(label+' is inside blocked scenery.');
+
+    const gx=Math.floor(x/PATH_CELL),gy=Math.floor(y/PATH_CELL);
+    const component=pathComponent(gx,gy);
+    if(component<1||component!==startComponent)throw new Error(label+' is not reachable from the squad start.');
+  }
+
+  function validateMissionSpawns(){
+    if(!squad.length)throw new Error('Mission has no squad spawn.');
+    const leader=squad[0];
+    const startComponent=pathComponent(Math.floor(leader.x/PATH_CELL),Math.floor(leader.y/PATH_CELL));
+    if(startComponent<1)throw new Error('Squad start is not in a navigable area.');
+
+    squad.forEach((s,i)=>validateSpawn('Squad spawn '+(i+1),s.x,s.y,NAV_RADIUS,startComponent));
+    enemies.forEach((e,i)=>validateSpawn('Enemy spawn '+(i+1),e.x,e.y,NAV_RADIUS,startComponent));
+    civilians.forEach((p,i)=>validateSpawn('Civilian spawn '+(i+1),p.x,p.y,4,startComponent));
+    pickups.forEach((p,i)=>validateSpawn('Supply spawn '+(i+1),p.x,p.y,4,startComponent));
+  }
+
   function resetGame(){
     const mission=activeMission();
+    const missionSpawns=MAP_DATA.spawns;
+    if(!missionSpawns||!Array.isArray(missionSpawns.squad)||!Array.isArray(missionSpawns.enemies)||!Array.isArray(missionSpawns.civilians)||!Array.isArray(missionSpawns.pickups)){
+      throw new Error('Mission map is missing required spawn data.');
+    }
     const rosterNames=['Müller','Becker','Klein','Jansen','Fischer','Wagner','Schulz','Koch'];
     const names=rosterNames.slice(0,Math.max(1,Math.min(8,mission.squadSize||4)));
-    const mapSquad=MAP_DATA.spawns&&MAP_DATA.spawns.squad;
+    const mapSquad=missionSpawns.squad;
     const startX=S(786),startY=S(1450);
     squad=names.map((name,i)=>{
       const spawn=mapSquad&&mapSquad[i]?mapSquad[i]:[786+(i%2)*17,1450+Math.floor(i/2)*17];
@@ -1173,12 +1207,7 @@
     rebuildUnitButtons();
     squadMaxEl.textContent=String(squad.length);
 
-    const hostileSpots=MAP_DATA.spawns&&MAP_DATA.spawns.enemies?MAP_DATA.spawns.enemies:[
-      [770,1285],[700,1230],[550,1190],[390,1160],[330,1085],
-      [430,980],[560,965],[735,1000],[845,930],[850,815],
-      [760,735],[650,700],[600,590],[690,540],[760,475],
-      [855,485],[905,390],[795,305],[690,270],[470,345]
-    ];
+    const hostileSpots=missionSpawns.enemies;
     enemies=hostileSpots.map((p,i)=>({
       x:S(p[0]),y:S(p[1]),homeX:S(p[0]),homeY:S(p[1]),
       hp:3,maxHp:3,alive:true,phase:i*.67,cooldown:.25+i*.04,
@@ -1186,21 +1215,22 @@
       dir:Math.PI/2,anim:i*.51,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0,path:null,pathIndex:0,repath:0,
       hitTimer:0,
       groupId:MAP_DATA.key==='wigan'?wiganSector(S(p[0]),S(p[1])):Math.floor(i/3),
+      objectiveGroup:objectiveGroupForEnemy(i),
       role:['anchor','left','right'][i%3],
       tacticTimer:.2+(i%3)*.18,tacticalPoint:null,
       burstCount:0,burstLimit:2+(i%2),burstPause:0,searchTimer:0
-    })).filter(e=>!obstacleAt(e.x,e.y,12));
+    }));
 
-    const civilianSpots=MAP_DATA.spawns&&MAP_DATA.spawns.civilians?MAP_DATA.spawns.civilians:[[610,760],[720,830],[870,740],[670,430],[780,550],[560,620],[950,900],[470,860],[830,250],[520,380],[600,1080],[740,1140]];
+    const civilianSpots=missionSpawns.civilians;
     civilians=civilianSpots.map((p,i)=>({
       x:S(p[0]),y:S(p[1]),homeX:S(p[0]),homeY:S(p[1]),phase:i*.8,speed:32+(i%3)*5,
       dir:(i%4)*Math.PI*.5,anim:i*.43,state:'walk',variant:i%4
-    })).filter(c=>!obstacleAt(c.x,c.y,8));
+    }));
 
-    const pickupSource=MAP_DATA.spawns&&MAP_DATA.spawns.pickups?MAP_DATA.spawns.pickups:[
-      {type:'ammo',x:760,y:1210},{type:'med',x:470,y:1115},{type:'ammo',x:720,y:820},{type:'med',x:615,y:590},{type:'ammo',x:845,y:500}
-    ];
-    pickups=pickupSource.map(p=>({type:p.type,x:S(p.x),y:S(p.y),active:true}));
+    const pickupSource=missionSpawns.pickups;
+    pickups=pickupSource.map(p=>({type:p.type,amount:p.amount,x:S(p.x),y:S(p.y),active:true}));
+
+    validateMissionSpawns();
 
     [...squad,...enemies,...civilians].forEach(ent=>art.animate(ent,0));
     bullets=[];thrown=[];effects=[];noise=[];squadGrenades=5;missionStage=0;
@@ -1235,6 +1265,11 @@
     return Object.values(zones).map((z,i)=>({i,d:Math.hypot(x-z.x,y-z.y)})).sort((a,b)=>a.d-b.d)[0].i;
   }
 
+  function phaseDefenders(phase){
+    if(!phase||!phase.defenderGroup)return null;
+    return enemies.filter(e=>e.alive&&e.objectiveGroup===phase.defenderGroup);
+  }
+
   function phaseEvaluation(phase,living,remaining){
     if(!phase)return{complete:true,status:'Mission complete.'};
     const zone=phaseZone(phase);
@@ -1245,11 +1280,14 @@
     }
 
     if(phase.type==='secure-zone'){
+      const assigned=phaseDefenders(phase);
       const radius=S(phase.radius||160);
-      const localEnemies=zone?enemies.filter(e=>e.alive&&Math.hypot(e.x-zone.x,e.y-zone.y)<radius):[];
+      const defenders=assigned||(
+        zone?enemies.filter(e=>e.alive&&Math.hypot(e.x-zone.x,e.y-zone.y)<radius):[]
+      );
       return{
-        complete:!!inZone&&localEnemies.length===0,
-        status:phase.brief+' '+localEnemies.length+' hostile'+(localEnemies.length===1?'':'s')+' remain in the sector.'
+        complete:!!inZone&&defenders.length===0,
+        status:phase.brief+' '+defenders.length+' assigned defender'+(defenders.length===1?'':'s')+' remain.'
       };
     }
 
@@ -1258,9 +1296,11 @@
     }
 
     if(phase.type==='eliminate-and-reach'){
+      const assigned=phaseDefenders(phase);
+      const defenders=assigned||enemies.filter(e=>e.alive);
       return{
-        complete:remaining===0&&!!inZone,
-        status:phase.brief+' '+remaining+' hostile'+(remaining===1?'':'s')+' remain.'
+        complete:defenders.length===0&&!!inZone,
+        status:phase.brief+' '+defenders.length+' final defender'+(defenders.length===1?'':'s')+' remain.'
       };
     }
 
@@ -1762,15 +1802,18 @@
       for(const s of squad){
         if(!s.alive)continue;
         if(Math.hypot(s.x-p.x,s.y-p.y)<32){
-          if(p.type==='ammo'){
-            if(MAP_DATA.key==='wigan'){
-              const added=Math.min(2,8-squadGrenades);if(added<=0)continue;
-              squadGrenades+=added;setStatus(s.name+' collected '+added+' grenades.');
-            }else setStatus(s.name+' found an ammunition crate.');
-          }
-          else{
-            if(MAP_DATA.key==='wigan'&&s.hp>=s.maxHp)continue;
-            s.hp=Math.min(s.maxHp,s.hp+4);setStatus(s.name+' used a medical crate.');
+          if(p.type==='grenade'){
+            const added=Math.min(p.amount||2,8-squadGrenades);
+            if(added<=0)continue;
+            squadGrenades+=added;
+            setStatus(s.name+' collected '+added+' grenade'+(added===1?'':'s')+'.');
+          }else if(p.type==='med'){
+            if(s.hp>=s.maxHp)continue;
+            const before=s.hp;
+            s.hp=Math.min(s.maxHp,s.hp+(p.amount||4));
+            setStatus(s.name+' recovered '+(s.hp-before)+' health.');
+          }else{
+            continue;
           }
           p.active=false;break;
         }
@@ -2387,19 +2430,22 @@
     });
   }
 
-  function wiganGuidanceTarget(){
+  function guidanceTarget(){
     const phase=(activeMission().phases||[])[missionStage],leader=squad.find(s=>s.alive);
     if(!phase||!leader)return null;
-    const remaining=enemies.filter(e=>e.alive);
-    if(phase.type==='eliminate-and-reach'&&remaining.length){
-      const target=remaining.reduce((best,e)=>Math.hypot(e.x-leader.x,e.y-leader.y)<Math.hypot(best.x-leader.x,best.y-leader.y)?e:best);
-      return{target,phase,contact:true,caption:'Remaining hostiles'};
+
+    const defenders=phaseDefenders(phase);
+    if(defenders&&defenders.length){
+      const target=defenders.reduce((best,e)=>Math.hypot(e.x-leader.x,e.y-leader.y)<Math.hypot(best.x-leader.x,best.y-leader.y)?e:best);
+      return{target,phase,contact:true,caption:defenders.length+' assigned defender'+(defenders.length===1?'':'s')+' remain'};
     }
-    return{target:phaseZone(phase),phase,contact:false,caption:MAP_DATA.pois[phase.zone].name};
+
+    const zone=phaseZone(phase);
+    return zone?{target:zone,phase,contact:false,caption:phase.title||'Objective'}:null;
   }
 
-  function wiganNavigationHint(){
-    const hint=wiganGuidanceTarget(),leader=squad.find(s=>s.alive);
+  function navigationHint(){
+    const hint=guidanceTarget(),leader=squad.find(s=>s.alive);
     if(!hint)return{caption:'Mission complete',path:[],contact:false};
     const key=[missionStage,Math.round(leader.x/40),Math.round(leader.y/40),Math.round(hint.target.x/40),Math.round(hint.target.y/40),hint.contact].join('|');
     if(wiganRouteCache.key!==key){
@@ -2410,7 +2456,7 @@
 
   function drawMapOverlay(){
     if(MAP_DATA.key==='wigan'){
-      const hint=wiganNavigationHint();
+      const hint=navigationHint();
       window.BadFodderWigan.tactical(ctx,MAP_DATA,scenery,squad,missionObjectives(),missionStage,VIEW_W,VIEW_H,canvasScale,hint,enemies);
       return;
     }
@@ -2441,6 +2487,15 @@
       if(!s.alive)return;
       ctx.fillStyle='#91d8ef';ctx.fillRect(x+s.x*sx-3,y+s.y*sy-3,6,6);
     });
+
+    const hint=navigationHint();
+    if(hint&&hint.contact&&hint.target){
+      const hx=x+hint.target.x*sx,hy=y+hint.target.y*sy;
+      ctx.strokeStyle='#f0b36a';ctx.lineWidth=3;
+      ctx.beginPath();ctx.arc(hx,hy,9,0,Math.PI*2);ctx.stroke();
+      ctx.fillStyle='#f4d7a1';ctx.font='bold 12px "Courier New",monospace';ctx.textAlign='center';
+      ctx.fillText(hint.caption,VIEW_W/2,VIEW_H-45);
+    }
 
     ctx.fillStyle='#f1e3ae';ctx.font='bold 24px "Courier New",monospace';ctx.textAlign='center';
     ctx.fillText((MAP_DATA.title||activeMission().title).toUpperCase()+' - TACTICAL MAP',VIEW_W/2,31);
@@ -2547,7 +2602,7 @@
     ctx.restore();
 
     if(MAP_DATA.key==='wigan'&&!mapOpen&&!finished&&!menuOpen){
-      const hint=wiganGuidanceTarget(),leader=squad.find(s=>s.alive);
+      const hint=guidanceTarget(),leader=squad.find(s=>s.alive);
       if(hint&&leader)BadFodderWigan.guidance(ctx,MAP_DATA,hint,leader,VIEW_W,VIEW_H,canvasScale);
     }
     if(mapOpen)drawMapOverlay();
@@ -2988,7 +3043,7 @@
       await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
 
       if(pathComponents){
-        if(loadingText)loadingText.textContent='Preparing Wigan street routes…';
+        if(loadingText)loadingText.textContent='Preparing navigation routes…';
         pathComponent(Math.floor(squad[0].x/PATH_CELL),Math.floor(squad[0].y/PATH_CELL));
       }
 
