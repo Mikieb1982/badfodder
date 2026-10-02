@@ -44,6 +44,9 @@ window.BadFodderMenu=class{
   fail(){
     this.get('menuStart').disabled=true;
     this.get('menuStart').textContent='CAMPAIGN UNAVAILABLE';
+    this.get('menuMissionSelect').disabled=false;
+    this.get('menuMissionBad').disabled=false;
+    this.get('menuMissionWigan').disabled=false;
     this.get('menuHelp').textContent='The current mission failed to load. You can still try another mission from Mission Select.';
   }
   syncFullscreen(){this.get('menuFull').textContent=this.actions.isFullscreen()?'EXIT FULL SCREEN':'FULL SCREEN';}
