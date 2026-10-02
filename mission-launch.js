@@ -1,4 +1,4 @@
-/* Launch mode for campaign play versus standalone mission selection.
+/* Launch mode for campaign, standalone and historical missions.
    Browser: window.BadFodderMissionLaunch
    Node: require('./mission-launch.js') */
 (function(root,factory){
@@ -11,41 +11,73 @@
   const KEY='badfodder.launch.v1';
   const AUTO_KEY='badfodder.launch.autostart.v1';
 
-  function create({storage,missions,campaign}){
+  function create({storage,missions,campaign,historicalMissions=[]}){
     if(!storage)throw new Error('Mission launch requires session storage.');
-    if(!Array.isArray(missions))throw new Error('Mission launch requires mission definitions.');
+    if(!Array.isArray(missions))throw new Error('Mission launch requires campaign mission definitions.');
+    if(!Array.isArray(historicalMissions))throw new Error('Mission launch requires a historical mission list.');
     if(!campaign)throw new Error('Mission launch requires campaign state.');
+
+    const historicalById=new Map(
+      historicalMissions
+        .filter(m=>m&&typeof m.id==='string'&&m.id)
+        .map(m=>[m.id,m])
+    );
+
+    function historicalAvailable(mission){
+      return !!(mission&&mission.playable&&mission.mapReady!==false&&mission.map);
+    }
 
     function read(){
       try{
         const raw=JSON.parse(storage.getItem(KEY)||'null');
         if(raw&&raw.mode==='select'&&Number.isInteger(raw.index)){
           const selected=missions[raw.index];
-          if(selected&&selected.playable)return{mode:'select',index:raw.index};
+          if(selected&&selected.playable)return{mode:'select',index:raw.index,id:null};
+        }
+        if(raw&&raw.mode==='historical'&&typeof raw.id==='string'){
+          const selected=historicalById.get(raw.id);
+          if(historicalAvailable(selected))return{mode:'historical',index:null,id:raw.id};
         }
       }catch(_){}
-      return{mode:'campaign',index:null};
+      return{mode:'campaign',index:null,id:null};
     }
 
     let launch=read();
 
+    function persist(){
+      try{
+        if(launch.mode==='campaign')storage.removeItem(KEY);
+        else storage.setItem(KEY,JSON.stringify(launch));
+      }catch(_){}
+    }
+
     function mode(){return launch.mode}
     function isCampaign(){return launch.mode==='campaign'}
     function isSelection(){return launch.mode==='select'}
+    function isHistorical(){return launch.mode==='historical'}
 
     function currentIndex(){
       if(isSelection())return launch.index;
+      if(isHistorical())return null;
       const index=Number(campaign.state.current)||0;
       return Math.max(0,Math.min(missions.length-1,index));
     }
 
+    function currentId(){
+      if(isHistorical())return launch.id;
+      const mission=current();
+      return mission?mission.id:null;
+    }
+
     function current(){
-      return missions[currentIndex()]||missions[0];
+      if(isHistorical())return historicalById.get(launch.id)||null;
+      const index=currentIndex();
+      return missions[index]||missions[0]||null;
     }
 
     function useCampaign(){
-      launch={mode:'campaign',index:null};
-      try{storage.removeItem(KEY)}catch(_){}
+      launch={mode:'campaign',index:null,id:null};
+      persist();
       return current();
     }
 
@@ -53,8 +85,17 @@
       index=index|0;
       const selected=missions[index];
       if(!selected||!selected.playable)return false;
-      launch={mode:'select',index};
-      try{storage.setItem(KEY,JSON.stringify(launch))}catch(_){}
+      launch={mode:'select',index,id:null};
+      persist();
+      return true;
+    }
+
+    function selectHistorical(id){
+      if(typeof id!=='string'||!id)return false;
+      const selected=historicalById.get(id);
+      if(!historicalAvailable(selected))return false;
+      launch={mode:'historical',index:null,id};
+      persist();
       return true;
     }
 
@@ -72,8 +113,9 @@
     }
 
     return{
-      mode,isCampaign,isSelection,currentIndex,current,
-      useCampaign,select,requestAutoStart,consumeAutoStart,
+      mode,isCampaign,isSelection,isHistorical,currentIndex,currentId,current,
+      useCampaign,select,selectHistorical,requestAutoStart,consumeAutoStart,
+      historicalAvailable,
       keys:{launch:KEY,autoStart:AUTO_KEY}
     };
   }
