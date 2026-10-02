@@ -31,11 +31,19 @@ function scaledBuildings(TOWN_MAP){
     return{i,solid:b.solid!==false,points,minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys)};
   });
 }
-const q=Navigation.create({
+let q;
+const navUpdateFacing=(ent,dx,dy)=>{if(Math.abs(dx)>.001||Math.abs(dy)>.001)ent.dir=Math.atan2(dy,dx)};
+const navMoveEntity=(ent,dx,dy,r=6)=>{
+  const nx=Math.max(r,Math.min(map.width*2-r,ent.x+dx));if(!q.obstacleAt(nx,ent.y,r))ent.x=nx;
+  const ny=Math.max(r,Math.min(map.height*2-r,ent.y+dy));if(!q.obstacleAt(ent.x,ny,r))ent.y=ny;
+};
+q=Navigation.create({
   worldWidth:map.width*2,
   worldHeight:map.height*2,
   buildings:scaledBuildings(map),
-  mapKey:map.key
+  mapKey:map.key,
+  moveEntity:navMoveEntity,
+  updateFacing:navUpdateFacing
 });
 
 const start=map.spawns.squad[0],startComponent=q.pathComponent(Math.floor(start[0]*2/q.PATH_CELL),Math.floor(start[1]*2/q.PATH_CELL));
