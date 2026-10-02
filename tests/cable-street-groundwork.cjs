@@ -139,7 +139,7 @@ const menu=fs.readFileSync(path.join(root,'menu-ui.js'),'utf8');
 assert(index.includes('id="menuHistorical"'),'Historical Missions main-menu option missing');
 assert(index.includes('data-view="historical"'),'Historical Missions panel missing');
 assert(index.includes('data-view="historical-cable"'),'Cable Street groundwork detail panel missing');
-assert(index.includes('compact reconstruction'),'Cable Street must describe the map interpretation');
+assert(index.includes('Prevent the route through Cable Street from being opened.'),'Cable Street detail panel must retain the concise mission objective');
 assert(menu.includes("this.get('menuHistorical').addEventListener"),'Historical Missions button is not wired');
 assert(menu.includes("this.get('menuHistoricalCable').addEventListener"),'Cable Street detail button is not wired');
 assert(index.includes('id="menuHistoricalCablePlay"'),'Cable Street detail screen has no guarded Play control');
