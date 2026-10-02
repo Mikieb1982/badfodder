@@ -560,7 +560,8 @@
 <script src="cable-street-runtime.js?v=20261002-cable-interactions-4"></script>
 <script src="cable-street-interactions.js?v=20261002-cable-interactions-4"></script>
 <script src="cable-street-director.js?v=20261002-cable-director-1"></script>
-<script src="cable-street-art.js?v=20261002-cable-interactions-4"></script>
+<script src="cable-street-crowd.js?v=20261002-cable-crowd-1"></script>
+<script src="cable-street-art.js?v=20261002-cable-crowd-1"></script>
 <script>
 (() => {
   'use strict';
@@ -583,6 +584,7 @@
   const cableStreetRuntime=BadFodderCableStreet;
   const cableStreetInteractions=BadFodderCableInteractions;
   const cableStreetDirector=BadFodderCableDirector;
+  const cableStreetCrowd=BadFodderCableCrowd;
   const cableStreetArt=BadFodderCableArt;
   const missionBootstrap=BadFodderMissionBootstrap;
   const missionLaunch=BadFodderMissionLaunch.create({
@@ -676,7 +678,7 @@
   let macFireHeld=false,keyboardFireHeld=false;
   let lastHudStats='',lastRosterSignature='',hudNoticeUntil=0;
   let runtimeFaultCount=0,runtimeFaultAt=0,runtimeSafeStop=false;
-  let missionController=null,missionInteractionLayer=null,missionDirector=null;
+  let missionController=null,missionInteractionLayer=null,missionDirector=null,missionCrowd=null;
   const hudChips=new Map();
   let fallbackFullscreen=false;
   let squadFormation={active:false,leader:null,members:[],trail:[],destination:null,manualMoving:false};
@@ -1154,6 +1156,7 @@
     const mission=activeMission();
     missionInteractionLayer=null;
     missionDirector=null;
+    missionCrowd=null;
     if(missionController&&!missionController.disposed)missionController.dispose();
     missionController=createActiveMissionController();
     if(missionController)missionController.attachNavigation(navigation);
@@ -1218,6 +1221,13 @@
       missionDirector=cableStreetDirector.create({
         controller:missionController,
         mission
+      });
+      missionCrowd=cableStreetCrowd.create({
+        mission,
+        controller:missionController,
+        worldWidth:WORLD_W,
+        worldHeight:WORLD_H,
+        blocked:(x,y,r)=>obstacleAt(x,y,r)
       });
     }
 
@@ -2744,6 +2754,8 @@
     drawObjectiveZones();
     drawOptionalEncounters();
     const historicalRenderState=missionInteractionLayer?missionInteractionLayer.renderState():null;
+    const historicalCrowdState=missionCrowd?missionCrowd.renderState():null;
+    if(historicalCrowdState)cableStreetArt.drawCrowd(ctx,historicalCrowdState);
     if(historicalRenderState)cableStreetArt.drawGround(ctx,historicalRenderState);
 
     pickups.forEach(p=>{
@@ -3288,6 +3300,7 @@
         missionStage=historicalProgress.phaseIndex;
         if(historicalProgress.completed)completeCurrentMission();
       }
+      if(missionCrowd)missionCrowd.fixedUpdate(dt);
       updateCivilians(dt);
       [...squad,...civilians].forEach(ent=>art.animate(ent,dt));
       updateCamera(dt);
