@@ -102,6 +102,34 @@
     ctx.restore();
   }
 
+
+  function drawCrowd(ctx,people){
+    if(!ctx||!Array.isArray(people))return;
+    const ordered=[...people].sort((a,b)=>(a.y||0)-(b.y||0));
+    for(const p of ordered){
+      if(!Number.isFinite(p.x)||!Number.isFinite(p.y))continue;
+      ctx.save();ctx.translate(p.x,p.y);
+      const helper=p.role==='helper';
+      ctx.fillStyle='rgba(24,24,20,.18)';
+      ctx.beginPath();ctx.ellipse(0,5,5,2.5,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=helper?'#a99666':'#b8ad90';
+      ctx.beginPath();ctx.arc(0,-6,2.8,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=helper?'#665b48':'#777064';
+      ctx.fillRect(-2.2,-3,4.4,8);
+      const sway=Math.sin((p.phase||0)+(p.x+p.y)*.01)*1.4;
+      ctx.strokeStyle=helper?'#504735':'#5d594f';ctx.lineWidth=1.1;
+      ctx.beginPath();
+      ctx.moveTo(-1.5,1);ctx.lineTo(-4+sway,6);
+      ctx.moveTo(1.5,1);ctx.lineTo(4+sway,6);
+      ctx.stroke();
+      if(helper){
+        ctx.fillStyle='rgba(231,215,161,.72)';
+        ctx.fillRect(-1.5,-12,3,2);
+      }
+      ctx.restore();
+    }
+  }
+
   function drawJobMarkers(ctx,state){
     for(const job of state.jobs||[]){
       if(job.status!=='waiting'&&job.status!=='working')continue;
@@ -146,5 +174,5 @@
     ctx.restore();
   }
 
-  return{drawGround,drawCarried,drawHint};
+  return{drawGround,drawCarried,drawCrowd,drawHint};
 });
