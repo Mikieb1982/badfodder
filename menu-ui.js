@@ -20,20 +20,15 @@
     }
   }
 
-  function installMobilePresentation(root){
+  function installMobilePresentation(root,actions){
     const mobile=(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)||(navigator.maxTouchPoints||0)>0;
     if(!mobile)return null;
     const viewport=root&&root.querySelector?root.querySelector('.viewport'):document.querySelector('.viewport');
     if(!viewport)return null;
 
     ensureMobileManifest();
-    let promoting=false;
-
-    function applyFallback(){
-      viewport.classList.add('full-window');
-      document.body.classList.add('mobile-fullscreen-fallback');
-      try{window.scrollTo(0,0)}catch(_){}
-    }
+    let promptShown=false;
+    let promptEl=null;
 
     async function lockLandscape(){
       const orientation=window.screen&&window.screen.orientation;
@@ -41,44 +36,68 @@
       try{await orientation.lock('landscape');return true}catch(_){return false}
     }
 
-    async function promoteNative(){
-      if(document.fullscreenElement===viewport){await lockLandscape();return true}
-      if(promoting)return false;
-      promoting=true;
-      try{
-        if(typeof viewport.requestFullscreen==='function'){
-          await viewport.requestFullscreen({navigationUI:'hide'});
-          viewport.classList.remove('full-window');
-          document.body.classList.remove('mobile-fullscreen-fallback');
-          await lockLandscape();
-          return true;
-        }
-      }catch(_){}
-      finally{promoting=false}
-      applyFallback();
-      await lockLandscape();
-      return false;
+    function unlockLandscape(){
+      const orientation=window.screen&&window.screen.orientation;
+      if(!orientation||typeof orientation.unlock!=='function')return false;
+      try{orientation.unlock();return true}catch(_){return false}
     }
 
-    // Fill the mobile viewport immediately. Installed web apps may also rotate immediately.
-    applyFallback();
-    lockLandscape();
-    promoteNative();
+    async function enter(){
+      if(!actions.isFullscreen())await actions.fullscreen();
+      if(actions.isFullscreen())await lockLandscape();
+      return actions.isFullscreen();
+    }
 
-    // Normal browser tabs require a trusted gesture for native fullscreen.
-    // Upgrade the immediate full-window view on the first touch/key press.
-    const retry=()=>{if(document.fullscreenElement!==viewport)promoteNative();else lockLandscape()};
-    window.addEventListener('pointerdown',retry,{capture:true,passive:true});
-    window.addEventListener('keydown',retry,{capture:true});
+    async function exit(){
+      if(actions.isFullscreen())await actions.fullscreen();
+      unlockLandscape();
+      return !actions.isFullscreen();
+    }
+
+    function closePrompt(){
+      if(promptEl){promptEl.remove();promptEl=null}
+    }
+
+    function prompt(){
+      if(promptShown||actions.isFullscreen())return false;
+      promptShown=true;
+      const overlay=document.createElement('div');
+      overlay.className='presentation-prompt';
+      overlay.setAttribute('role','dialog');
+      overlay.setAttribute('aria-modal','true');
+      overlay.setAttribute('aria-labelledby','presentationPromptTitle');
+      overlay.innerHTML=`
+        <div class="presentation-prompt-card menu-card">
+          <h2 id="presentationPromptTitle">FULL SCREEN + LANDSCAPE?</h2>
+          <p class="presentation-prompt-copy">Bad Fodder plays best in full screen with your phone turned sideways.</p>
+          <div class="presentation-prompt-actions">
+            <button class="menu-button primary" type="button" data-presentation-accept>GO FULL SCREEN</button>
+            <button class="menu-button" type="button" data-presentation-skip>NOT NOW</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      promptEl=overlay;
+      const accept=overlay.querySelector('[data-presentation-accept]');
+      const skip=overlay.querySelector('[data-presentation-skip]');
+      accept.addEventListener('click',async()=>{
+        accept.disabled=true;
+        await enter();
+        closePrompt();
+      });
+      skip.addEventListener('click',closePrompt);
+      requestAnimationFrame(()=>accept.focus({preventScroll:true}));
+      return true;
+    }
+
     document.addEventListener('fullscreenchange',()=>{
-      if(document.fullscreenElement===viewport){
-        viewport.classList.remove('full-window');
-        document.body.classList.remove('mobile-fullscreen-fallback');
-        lockLandscape();
-      }else applyFallback();
+      if(actions.isFullscreen())lockLandscape();
+      else unlockLandscape();
+    });
+    window.addEventListener('orientationchange',()=>{
+      if(actions.isFullscreen())lockLandscape();
     });
 
-    return{lockLandscape,promoteNative};
+    return{prompt,enter,exit,lockLandscape,unlockLandscape};
   }
 
   window.BadFodderMobilePresentation={install:installMobilePresentation};
@@ -87,7 +106,7 @@
 window.BadFodderMenu=class{
   constructor(actions){
     this.actions=actions;this.root=actions.root;this.screen=actions.screen;this.mode='title';this.panel='main';this.loaded=false;
-    this.mobilePresentation=window.BadFodderMobilePresentation?.install(this.root)||null;
+    this.mobilePresentation=window.BadFodderMobilePresentation?.install(this.root,actions)||null;
     this.get=id=>this.screen.querySelector('#'+id);
     for(const [id,action] of [['menuStart','start'],['menuResume','resume'],['menuRestart','restart'],['menuMain','main']])this.get(id).addEventListener('click',()=>actions[action]());
     this.get('menuMissionSelect').addEventListener('click',()=>this.showPanel('missions'));
@@ -104,12 +123,15 @@ window.BadFodderMenu=class{
     this.get('menuDust').checked=actions.dustEnabled;
     this.get('menuDust').addEventListener('change',e=>actions.dust(e.target.checked));
     this.get('menuFull').addEventListener('click',async()=>{
-      await actions.fullscreen();
-      if(actions.isFullscreen())await this.mobilePresentation?.lockLandscape();
+      if(this.mobilePresentation){
+        if(actions.isFullscreen())await this.mobilePresentation.exit();
+        else await this.mobilePresentation.enter();
+      }else await actions.fullscreen();
       this.syncFullscreen();
     });
     document.addEventListener('fullscreenchange',()=>this.syncFullscreen());
     this.screen.addEventListener('keydown',e=>this.keydown(e));
+    setTimeout(()=>this.mobilePresentation?.prompt(),0);
   }
   show(mode){
     this.mode=mode;this.screen.hidden=false;this.screen.dataset.mode=mode;this.root.classList.add('menu-open');
