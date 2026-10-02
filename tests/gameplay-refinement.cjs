@@ -1,6 +1,7 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict');
 const root=path.join(__dirname,'..');
+const MissionRules=require('../mission-rules.js');
 const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const campaignSource=fs.readFileSync(path.join(root,'campaign.js'),'utf8');
 const wiganSource=fs.readFileSync(path.join(root,'wigan-map.js'),'utf8');
@@ -32,8 +33,9 @@ const hudEnd=index.indexOf('  function moveEntity(',hudStart);
 const hud=index.slice(hudStart,hudEnd);
 assert(!hud.includes('missionStage++'),'HUD must not advance mission progression');
 assert(index.includes('function updateMissionProgress(dt)'));
-assert(index.includes('phaseHoldTime=Math.min(phase.hold,phaseHoldTime+dt)'));
+const holdProbe=MissionRules.advanceHold({hold:1},{ready:true},0,.25);assert.equal(holdProbe.holdTime,.25);assert(!holdProbe.complete);
 assert(index.includes('updateMissionProgress(dt);'));
+assert(index.includes('missionRules.advanceHold(phase,result,phaseHoldTime,dt)'));
 assert(index.includes('reactionTimer<=0'),'Enemies can fire before reaction delay finishes');
 assert(index.includes("prepareEnemyReaction(e,sees?.48:.58,sees?'!':'?')"));
 assert(index.includes("prepareEnemyReaction(t,.22,'!')"));
