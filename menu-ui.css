@@ -43,10 +43,17 @@
 .app.menu-open{margin:0 auto}.app.menu-open .viewport{margin-top:0}
 .app.menu-open .game-hud,.app.menu-open .touch-controls{visibility:hidden}
 .menu-screen[data-panel]:not([data-panel="main"]) .menu-logo{width:min(330px,65%);max-height:150px}
+.presentation-prompt{position:fixed;inset:0;z-index:20000;display:grid;place-items:center;padding:20px;background:#071008e6;backdrop-filter:blur(3px);font-family:"Courier New",monospace}
+.presentation-prompt-card{width:min(430px,94vw);padding:22px 20px;background:#14200ff5;box-shadow:inset 0 0 0 2px #354325,0 12px 36px #000a}
+.presentation-prompt-card h2{margin:0 0 10px;color:#f0d47b;font-size:clamp(18px,5vw,25px);line-height:1.15}
+.presentation-prompt-copy{margin:0 0 18px;color:#ded8ba;font:13px/1.45 system-ui,sans-serif;text-align:center}
+.presentation-prompt-actions{display:flex;flex-direction:column;gap:10px}
+.presentation-prompt-actions .menu-button{margin:0;font-size:15px}
 @media(max-width:720px),(pointer:coarse){
  .menu-layout{gap:12px;padding:18px 20px}.menu-logo{width:min(440px,90%);max-height:220px}.menu-panel{width:min(380px,94%)}
  .menu-badge{font-size:12px;padding:7px 8px}.menu-badge::before,.menu-badge::after{padding:0 7px}.menu-button{font-size:17px;min-height:48px}.menu-card{padding:14px}
  .menu-card dl{font-size:11px;gap:9px 10px}.menu-card dt{font-size:10px}.menu-footer{font-size:9px}.menu-hint{font-size:9px;margin-top:12px}
+ .presentation-prompt{padding:14px}.presentation-prompt-card{width:min(390px,94vw);padding:18px 16px}.presentation-prompt-copy{font-size:12px}
 }
 @media(max-height:500px) and (orientation:landscape){
  .menu-layout{gap:6px;padding:8px 24px}.menu-logo{width:180px;max-height:92px}.menu-badge{font-size:10px;padding:4px 12px}
@@ -54,4 +61,5 @@
  .menu-button{min-height:38px;font-size:13px;padding:6px 10px}.menu-hint{font-size:8px;margin-top:8px}.menu-footer{font-size:8px}
  .menu-screen[data-panel]:not([data-panel="main"]) .menu-logo,.menu-screen[data-panel]:not([data-panel="main"]) .menu-badge{display:none}
  .menu-card{padding:10px 14px}.menu-card h2{margin-bottom:8px;font-size:17px}.menu-card dl{gap:5px 10px;margin-bottom:10px;font-size:11px}.menu-card .menu-button{margin-top:8px;min-height:36px;font-size:13px}.menu-setting{margin:10px 0}
+ .presentation-prompt-card{width:min(520px,88vw);padding:12px 16px}.presentation-prompt-card h2{font-size:18px;margin-bottom:6px}.presentation-prompt-copy{font-size:11px;margin-bottom:10px}.presentation-prompt-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 }
