@@ -244,6 +244,9 @@ function projectRuntimeObjects(record,projector){
       stopDistance:scaled(item.stopDistanceMetres,id+' stopDistanceMetres'),
       haltSeconds:positive(item.haltSeconds,id+' haltSeconds'),
       regroupSeconds:positive(item.regroupSeconds,id+' regroupSeconds'),
+      dismantleSeconds:Number.isFinite(item.dismantleSeconds)
+        ?positive(item.dismantleSeconds,id+' dismantleSeconds')
+        :4.5,
       damageRate:positive(item.damageRate,id+' damageRate'),
       historicalStatus:item.historicalStatus||null
     };
