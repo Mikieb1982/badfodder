@@ -46,6 +46,12 @@ assert.equal(Cable.reserveWorkPosition(barricade,'helper-c'),-1,'Helpers must no
 assert(Cable.releaseWorkPosition(barricade,'helper-a'));
 assert.equal(Cable.reserveWorkPosition(barricade,'helper-c'),0);
 
+const reservedCart=Cable.createMaterial({id:'cart-reserved',type:'cart'});
+assert(Cable.reserveMaterial(reservedCart,'helper-a'));
+assert(Cable.releaseMaterialReservation(reservedCart,'helper-a'),'Reservation must be cancellable before pickup');
+assert.equal(reservedCart.reservedBy,null,'Cancelled reservation remains stranded');
+assert(Cable.reserveMaterial(reservedCart,'helper-b'),'Released material must become available to another actor');
+
 const timber=Cable.createMaterial({id:'timber-1',type:'timber'});
 assert.equal(timber.value,15);
 assert(Cable.carryMaterial(timber,'muller'));
@@ -57,6 +63,20 @@ const delivered=Cable.deliverMaterial(timber,barricade,'becker');
 assert(delivered>0);
 assert.equal(timber.consumed,true);
 assert.equal(Cable.deliverMaterial(timber,barricade,'becker'),0,'Delivered material cannot be consumed twice');
+
+const nullDelivery=Cable.createMaterial({id:'crate-null',type:'crates'});
+const nullBefore=barricade.integrity;
+assert.equal(Cable.deliverMaterial(nullDelivery,barricade,null),0,'Null actor must not deliver an uncarried material');
+assert.equal(barricade.integrity,nullBefore,'Rejected null delivery mutated barricade integrity');
+assert.equal(nullDelivery.consumed,false,'Rejected null delivery consumed material');
+
+const nearlyFull=Cable.createBarricade({id:'partial',maxIntegrity:100,integrity:95,constructionTier:1});
+const partialCart=Cable.createMaterial({id:'partial-cart',type:'cart'});
+assert(Cable.carryMaterial(partialCart,'helper-a'));
+assert.equal(Cable.deliverMaterial(partialCart,nearlyFull,'helper-a'),5,'Delivery should use only available barricade capacity');
+assert.equal(partialCart.remainingValue,15,'Unused material value should remain after partial delivery');
+assert.equal(partialCart.consumed,false,'Partially used material should not be destroyed');
+assert.equal(partialCart.carriedBy,'helper-a','Partially used material should remain with its carrier');
 
 for(const [type,value] of Object.entries({cart:20,crates:10,timber:15,furniture:8,barrel:10})){
   assert.equal(Cable.createMaterial({id:'x-'+type,type}).value,value);
@@ -83,6 +103,36 @@ assert(!Cable.advanceHold(hold,2,4));
 assert(Cable.advanceHold(hold,2,4));
 assert.equal(hold.completed,true);
 
+const invalidHold=Cable.createPhaseState();
+assert(Cable.startPressure(invalidHold));
+assert.equal(Cable.advanceHold(invalidHold,1,undefined),false,'Undefined target duration must be rejected');
+assert.equal(invalidHold.holdSeconds,0,'Invalid duration corrupted hold timer');
+assert.equal(Cable.advanceHold(invalidHold,1,0),false,'Zero target duration must be rejected');
+assert.equal(Cable.advanceHold(invalidHold,1,-5),false,'Negative target duration must be rejected');
+assert.equal(Cable.advanceHold(invalidHold,1,Infinity),false,'Non-finite target duration must be rejected');
+
+assert.throws(()=>Cable.createBarricade({id:'bad',maxIntegrity:100,integrity:NaN}),/finite/);
+assert.throws(()=>Cable.createBarricade({id:'tier',maxIntegrity:100,constructionTier:Cable.MAX_CONSTRUCTION_TIER+1}),/constructionTier/);
+
+const missionController=Cable.createController({mission});
+const controllerBarricade=Cable.createBarricade({id:'controller-b',maxIntegrity:100,integrity:20,workPositions:1});
+const controllerMaterial=Cable.createMaterial({id:'controller-timber',type:'timber'});
+missionController.initialize({
+  actors:[{id:'actor-a',name:'A'},{id:'actor-b',name:'B'}],
+  barricades:[controllerBarricade],
+  materials:[controllerMaterial]
+});
+assert(missionController.reserveForActor('actor-a','controller-timber'));
+assert(missionController.carryForActor('actor-a','controller-timber'));
+assert(!missionController.carryForActor('actor-b','controller-timber'),'Second actor must not acquire an already-carried material');
+assert(missionController.fixedUpdate(1/60));
+assert(missionController.cancelActor('actor-a'),'Actor cancellation should clean jobs/resources');
+assert.equal(controllerMaterial.carriedBy,null);
+assert.equal(controllerMaterial.reservedBy,null);
+assert(missionController.dispose());
+assert(missionController.disposed);
+assert.throws(()=>missionController.fixedUpdate(1/60),/disposed/);
+
 const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const menu=fs.readFileSync(path.join(root,'menu-ui.js'),'utf8');
 assert(index.includes('id="menuHistorical"'),'Historical Missions main-menu option missing');
@@ -95,4 +145,4 @@ assert(index.includes('data-back-to="historical"'),'Cable Street detail screen d
 assert(menu.includes("b.dataset.backTo||'main'"),'Nested historical menu back navigation is not wired');
 
 console.log('PASS: Cable Street is a separate non-playable historical mission groundwork entry with four planned phases and no fabricated map.');
-console.log('PASS: barricade, material, rescue, crowd-confidence and police-formation mechanics preserve the blueprint invariants.');
+console.log('PASS: Cable Street helpers reject invalid ownership/timers, release cancelled reservations, preserve partial materials and clean actor/controller state.');
