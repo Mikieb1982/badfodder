@@ -119,6 +119,12 @@ assert.equal(runtimeProjection.masterCrs,'EPSG:27700');
 assert.equal(runtimeProjection.originEastingNorthing,null);
 assert.equal(runtimeProjection.metresToWorldUnits,null);
 
+const runtimeObjects=JSON.parse(fs.readFileSync(path.join(authoringDir,'runtime-objects.json'),'utf8'));
+assert.equal(runtimeObjects.status,'awaiting-approved-map');
+assert.equal(runtimeObjects.crs,'EPSG:27700');
+assert.deepEqual(runtimeObjects.requirements.materialTypes,['timber','crates','furniture']);
+assert.deepEqual(runtimeObjects.objects,{barricades:[],materials:[],civilians:[],formations:[]});
+
 const mission=Historical.get('cable-street-1936');
 assert(mission&&mission.mapResearch);
 assert.equal(mission.mapResearch.boundaryId,boundary.id);
@@ -130,10 +136,11 @@ assert.equal(mission.mapResearch.eventOverlay,'authoring/cable-street/event-over
 assert.equal(mission.mapResearch.contradictionReview,'authoring/cable-street/historical-review.json');
 assert.equal(mission.mapResearch.uncertaintyLog,'authoring/cable-street/uncertainty-log.json');
 assert.equal(mission.mapResearch.runtimeProjection,'authoring/cable-street/runtime-projection.json');
+assert.equal(mission.mapResearch.runtimeObjects,'authoring/cable-street/runtime-objects.json');
 assert.equal(mission.mapReady,false);
 assert.equal(mission.playable,false);
 assert.equal(mission.map,undefined,'Authoring groundwork must not prematurely add a production map key');
 
 console.log('PASS: Cable Street authoring package freezes the Christian Street research boundary and catalogues S01-S06 without inventing production geometry.');
 console.log('PASS: affine calibration tooling recovers known EPSG:27700 control/check points and rejects degenerate control sets.');
-console.log('PASS: readiness validation keeps MAP-03 through MAP-06 and the runtime projection locked until real calibration, reconciliation, event overlay and review exist.');
+console.log('PASS: readiness validation keeps MAP-03 through MAP-06, runtime projection and SLICE-02 object placement locked until approved evidence exists.');
