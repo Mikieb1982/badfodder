@@ -27,6 +27,7 @@
         contradictionReview:'authoring/cable-street/historical-review.json',
         uncertaintyLog:'authoring/cable-street/uncertainty-log.json',
         runtimeProjection:'authoring/cable-street/runtime-projection.json',
+        runtimeObjects:'authoring/cable-street/runtime-objects.json',
         requiredGates:['MAP-01','MAP-02','MAP-03','MAP-04','MAP-05','MAP-06'],
         productionGeometryReady:false
       },
