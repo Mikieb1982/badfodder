@@ -548,13 +548,14 @@
 <script src="music.js"></script>
 <script src="sfx.js"></script>
 <script src="combat-geometry.js"></script>
-<script src="navigation.js?v=20261002-stability-3"></script>
+<script src="navigation.js?v=20261002-cable-nav-3"></script>
 <script src="mission-rules.js"></script>
+<script src="mission-route-validation.js?v=20261002-cable-nav-3"></script>
 <script src="campaign.js"></script>
 <script src="mission-bootstrap.js?v=20261002-cable-foundation-2"></script>
 <script src="mission-launch.js?v=20261002-cable-foundation-2"></script>
 <script src="historical-missions.js?v=20261002-cable-groundwork-1"></script>
-<script src="cable-street-runtime.js?v=20261002-cable-foundation-2"></script>
+<script src="cable-street-runtime.js?v=20261002-cable-nav-3"></script>
 <script>
 (() => {
   'use strict';
@@ -571,6 +572,7 @@
   const art=BadFodderArt;
   const combatGeometry=BadFodderCombatGeometry;
   const missionRules=BadFodderMissionRules;
+  const routeValidation=BadFodderRouteValidation;
   const campaign=BadFodderCampaign;
   const historicalMissions=BadFodderHistoricalMissions;
   const cableStreetRuntime=BadFodderCableStreet;
@@ -1062,6 +1064,22 @@
 
   function validateMissionConnectivity(){
     if(!squad.length)throw new Error('Mission has no squad spawn.');
+
+    if(missionController&&Array.isArray(MAP_DATA.routeRequirements)&&MAP_DATA.routeRequirements.length){
+      const toPoint=value=>{
+        if(Array.isArray(value)&&value.length>=2)return{x:S(value[0]),y:S(value[1])};
+        if(value&&Number.isFinite(value.x)&&Number.isFinite(value.y))return{x:S(value.x),y:S(value.y)};
+        return null;
+      };
+      const requirements=MAP_DATA.routeRequirements.map(req=>({
+        ...req,
+        from:toPoint(req.from),
+        to:toPoint(req.to)
+      }));
+      routeValidation.assertRouteRequirements(navigation,requirements,{endpointTolerance:S(12)});
+      return;
+    }
+
     const leader=squad[0];
     const startComponent=pathComponent(Math.floor(leader.x/PATH_CELL),Math.floor(leader.y/PATH_CELL));
     if(startComponent<1)throw new Error('Squad start is not in a navigable area.');
@@ -1080,6 +1098,7 @@
     const mission=activeMission();
     if(missionController&&!missionController.disposed)missionController.dispose();
     missionController=createActiveMissionController();
+    if(missionController)missionController.attachNavigation(navigation);
     const missionSpawns=MAP_DATA.spawns;
     if(!missionSpawns||!Array.isArray(missionSpawns.squad)||!Array.isArray(missionSpawns.enemies)||!Array.isArray(missionSpawns.civilians)||!Array.isArray(missionSpawns.pickups)){
       throw new Error('Mission map is missing required spawn data.');
