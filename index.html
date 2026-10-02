@@ -1164,25 +1164,33 @@
     return null;
   }
 
-  function validateSpawn(label,x,y,r,startComponent){
+  function validateSpawnGeometry(label,x,y,r){
     if(!Number.isFinite(x)||!Number.isFinite(y))throw new Error(label+' has invalid coordinates.');
     if(obstacleAt(x,y,r))throw new Error(label+' is inside blocked scenery.');
-
-    const gx=Math.floor(x/PATH_CELL),gy=Math.floor(y/PATH_CELL);
-    const component=pathComponent(gx,gy);
-    if(component<1||component!==startComponent)throw new Error(label+' is not reachable from the squad start.');
   }
 
   function validateMissionSpawns(){
+    if(!squad.length)throw new Error('Mission has no squad spawn.');
+    squad.forEach((s,i)=>validateSpawnGeometry('Squad spawn '+(i+1),s.x,s.y,NAV_RADIUS));
+    enemies.forEach((e,i)=>validateSpawnGeometry('Enemy spawn '+(i+1),e.x,e.y,NAV_RADIUS));
+    civilians.forEach((p,i)=>validateSpawnGeometry('Civilian spawn '+(i+1),p.x,p.y,4));
+    pickups.forEach((p,i)=>validateSpawnGeometry('Supply spawn '+(i+1),p.x,p.y,4));
+  }
+
+  function validateMissionConnectivity(){
     if(!squad.length)throw new Error('Mission has no squad spawn.');
     const leader=squad[0];
     const startComponent=pathComponent(Math.floor(leader.x/PATH_CELL),Math.floor(leader.y/PATH_CELL));
     if(startComponent<1)throw new Error('Squad start is not in a navigable area.');
 
-    squad.forEach((s,i)=>validateSpawn('Squad spawn '+(i+1),s.x,s.y,NAV_RADIUS,startComponent));
-    enemies.forEach((e,i)=>validateSpawn('Enemy spawn '+(i+1),e.x,e.y,NAV_RADIUS,startComponent));
-    civilians.forEach((p,i)=>validateSpawn('Civilian spawn '+(i+1),p.x,p.y,4,startComponent));
-    pickups.forEach((p,i)=>validateSpawn('Supply spawn '+(i+1),p.x,p.y,4,startComponent));
+    const check=(label,x,y)=>{
+      const component=pathComponent(Math.floor(x/PATH_CELL),Math.floor(y/PATH_CELL));
+      if(component<1||component!==startComponent)throw new Error(label+' is not reachable from the squad start.');
+    };
+    squad.forEach((s,i)=>check('Squad spawn '+(i+1),s.x,s.y));
+    enemies.forEach((e,i)=>check('Enemy spawn '+(i+1),e.x,e.y));
+    civilians.forEach((p,i)=>check('Civilian spawn '+(i+1),p.x,p.y));
+    pickups.forEach((p,i)=>check('Supply spawn '+(i+1),p.x,p.y));
   }
 
   function resetGame(){
@@ -3045,6 +3053,7 @@
       if(pathComponents){
         if(loadingText)loadingText.textContent='Preparing navigation routes…';
         pathComponent(Math.floor(squad[0].x/PATH_CELL),Math.floor(squad[0].y/PATH_CELL));
+        validateMissionConnectivity();
       }
 
       try{
