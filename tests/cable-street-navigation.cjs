@@ -2,6 +2,8 @@
 const assert=require('node:assert/strict');
 const Navigation=require('../navigation.js');
 const RouteValidation=require('../mission-route-validation.js');
+const Cable=require('../cable-street-runtime.js');
+const Historical=require('../historical-missions.js');
 const fixture=require('./fixtures/cable-street-navigation-fixture.cjs');
 
 let nav;
@@ -116,6 +118,61 @@ assert(metrics.dynamicInvalidations>=4,'Expected dynamic obstacle changes were n
 assert(metrics.navigationVersion===nav.navigationVersion);
 assert(metrics.blockedCache>=0&&metrics.edgeCache>=0);
 
+function makeControllerNav(){
+  let q;
+  const update=(ent,dx,dy)=>{if(Math.abs(dx)>.001||Math.abs(dy)>.001)ent.dir=Math.atan2(dy,dx)};
+  const move=(ent,dx,dy,r=6)=>{
+    const nx=Math.max(r,Math.min(fixture.worldWidth-r,ent.x+dx));
+    if(!q.obstacleAt(nx,ent.y,r))ent.x=nx;
+    const ny=Math.max(r,Math.min(fixture.worldHeight-r,ent.y+dy));
+    if(!q.obstacleAt(ent.x,ny,r))ent.y=ny;
+  };
+  q=Navigation.create({
+    worldWidth:fixture.worldWidth,
+    worldHeight:fixture.worldHeight,
+    buildings:fixture.buildings,
+    mapKey:'cable-controller-fixture',
+    moveEntity:move,
+    updateFacing:update
+  });
+  return q;
+}
+
+const controllerNav=makeControllerNav();
+const cableMission=Historical.get('cable-street-1936');
+const controller=Cable.createController({mission:cableMission});
+const controlledBarricade=Cable.createBarricade({
+  id:'B',maxIntegrity:30,integrity:10,constructionTier:1,workPositions:1
+});
+controller.initialize({actors:[{id:'player-0'}],barricades:[controlledBarricade]});
+assert(controller.attachNavigation(controllerNav));
+assert.equal(
+  controller.registerBarricadeGeometry('B',{points:fixture.barricade.points}),
+  'cable-barricade:B'
+);
+assert(controllerNav.obstacleAt(180,90,2),'Controller-registered barricade does not block navigation');
+const navVersionBeforeDamage=controllerNav.navigationVersion;
+assert.equal(controller.damageBarricadeById('B',5),5);
+assert.equal(controlledBarricade.breached,false);
+assert.equal(controllerNav.navigationVersion,navVersionBeforeDamage,'Non-breaching damage should not invalidate navigation');
+assert.equal(controller.damageBarricadeById('B',5),5);
+assert.equal(controlledBarricade.breached,true);
+assert(controllerNav.navigationVersion>navVersionBeforeDamage,'Breach did not invalidate navigation');
+assert(!controllerNav.obstacleAt(180,90,2),'Breached controller barricade still blocks navigation');
+const breachEvent=controller.state.events.at(-1);
+assert.deepEqual(breachEvent,{type:'barricade-breach-change',barricadeId:'B',breached:true});
+
+const versionBeforeRebuild=controllerNav.navigationVersion;
+assert.equal(controller.reinforceBarricadeById('B',6,{tierIncrease:1}),6);
+assert.equal(controlledBarricade.breached,false);
+assert(controllerNav.navigationVersion>versionBeforeRebuild,'Rebuilding after breach did not invalidate navigation');
+assert(controllerNav.obstacleAt(180,90,2),'Rebuilt controller barricade did not restore collision');
+assert.equal(controller.state.events.at(-1).breached,false);
+
+assert(controller.dispose());
+assert.equal(controllerNav.getDynamicObstacle('cable-barricade:B'),null,'Controller disposal left a dynamic barricade registered');
+
 console.log('PASS: dynamic barricades close/reopen movement and invalidate path cells, edges and connected components.');
 console.log('PASS: stale actor routes re-plan automatically and resume the original destination after a breach.');
 console.log('PASS: phase-aware route validation accepts separated police/defender regions while enforcing required retreat and support routes.');
+console.log('PASS: Cable Street controller breach/rebuild transitions toggle the same registered navigation obstacle and clean it up on disposal.');
