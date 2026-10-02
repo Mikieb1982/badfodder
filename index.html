@@ -506,7 +506,7 @@
           <div class="hud-counters">
             <div class="hud-counter"><b id="hudEnemies">20</b><span id="hudEnemyLabel">TARGETS</span></div>
             <div class="hud-counter"><b id="hudGrenades">5</b><span id="hudGrenadeLabel">GRENADES</span></div>
-            <div class="hud-counter"><b id="hudSquad">4</b><span>SQUAD</span></div>
+            <div class="hud-counter"><b id="hudSquad">4</b><span id="hudSquadLabel">SQUAD</span></div>
           </div>
         </div>
       </div>
@@ -642,6 +642,7 @@
   const hudGrenades=document.getElementById('hudGrenades');
   const hudGrenadeLabel=document.getElementById('hudGrenadeLabel');
   const hudSquad=document.getElementById('hudSquad');
+  const hudSquadLabel=document.getElementById('hudSquadLabel');
   const hudSquadBar=document.getElementById('hudSquadBar');
   const hudAll=document.getElementById('hudAll');
   const hudProgress=document.getElementById('hudProgress');
@@ -1323,9 +1324,14 @@
   function completeCurrentMission(){
     if(finished)return;
     finished=true;win=true;
+    const mission=activeMission();
     if(missionLaunch.isCampaign())campaign.complete(activeMissionIndex);
     hudStage.textContent='MISSION COMPLETE';
-    setStatus('Mission complete. '+activeMission().title+' complete.');
+    const completion=missionLaunch.isHistorical()&&mission.successHeadline
+      ?mission.successHeadline
+      :mission.title+' complete.';
+    setStatus('Mission complete. '+completion);
+    if(missionLaunch.isHistorical())hudMission.textContent=completion;
     syncTouchControlState();
   }
 
@@ -1381,7 +1387,9 @@
     hudCampaign.textContent=missionLaunch.isHistorical()
       ?'HISTORICAL · '+mission.title.toUpperCase()
       :'MISSION '+String(mission.id).padStart(2,'0')+'/24 · '+mission.title.toUpperCase();
-    hudAll.querySelector('span').textContent=living.length+' TROOPS';
+    const historicalMode=missionLaunch.isHistorical();
+    hudAll.querySelector('span').textContent=living.length+(historicalMode?' VOLUNTEERS':' TROOPS');
+    hudSquadLabel.textContent=historicalMode?'VOLUNTEERS':'SQUAD';
     hudStage.textContent=finished?(win?'MISSION COMPLETE':'MISSION FAILED'):'OBJECTIVE '+Math.min(phaseCount,missionStage+1)+'/'+phaseCount;
     rebuildHudProgress(phaseCount);
     hudProgress.querySelectorAll('i').forEach((p,i)=>{p.className=win||i<missionStage?'done':i===missionStage?'current':'';});
