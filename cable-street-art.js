@@ -22,7 +22,7 @@
   const npcActors=new Map();
   const policeActors=new Map();
 
-  function sharedActor(cache,key,p,art,team,clock,{scale=1,filter='none'}={}){
+  function sharedActor(ctx,cache,key,p,art,team,clock,{scale=1,filter='none'}={}){
     if(!art||typeof art.drawActor!=='function'||typeof art.animate!=='function')return false;
     let ent=cache.get(key);
     if(!ent){
@@ -284,7 +284,7 @@
       dir:Number.isFinite(p.dir)?p.dir:(assisted&&Number.isFinite(p.exitX)&&Number.isFinite(p.exitY)?Math.atan2(p.exitY-p.y,p.exitX-p.x):0),
       variant
     };
-    const rendered=sharedActor(npcActors,'civilian:'+p.id,visual,art,'civilian',clock,{scale:.96});
+    const rendered=sharedActor(ctx,npcActors,'civilian:'+p.id,visual,art,'civilian',clock,{scale:.96});
     if(!rendered){
       const sway=Math.sin(clock*2.2+(seed%31))*.7;
       ctx.save();ctx.translate(p.x,p.y+sway);
@@ -355,7 +355,7 @@
       if(!Number.isFinite(p.x)||!Number.isFinite(p.y))continue;
       if(art){
         const scale=p.role==='helper'?.94:.9;
-        const rendered=sharedActor(npcActors,'crowd:'+p.id,p,art,'civilian',clock,{scale});
+        const rendered=sharedActor(ctx,npcActors,'crowd:'+p.id,p,art,'civilian',clock,{scale});
         if(rendered){
           if(p.role==='helper'){
             ctx.save();
@@ -396,7 +396,7 @@
           variant:i%4
         };
         sharedActor(
-          policeActors,
+          ctx,policeActors,
           'police:'+p.id+':'+i,
           officer,
           art,'enemy',clock,
