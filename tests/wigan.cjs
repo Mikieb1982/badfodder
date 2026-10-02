@@ -1,6 +1,7 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),vm=require('node:vm');
 const Navigation=require('../navigation.js');
+const MissionRules=require('../mission-rules.js');
 const root=path.join(__dirname,'..'),source=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const map=new Function(fs.readFileSync(path.join(root,'wigan-map.js'),'utf8')+';return WIGAN_MAP;')();
 function body(name){const start=source.indexOf('  function '+name+'('),open=source.indexOf('{',start);let depth=1,end=open+1;for(;depth&&end<source.length;end++){if(source[end]==='{')depth++;if(source[end]==='}')depth--;}return source.slice(start,end);}
@@ -66,23 +67,28 @@ assert.deepEqual(Array.from(map.defenderGroups.kingStreet),[2,3]);
 assert(!map.defenderGroups.wallgate.includes(2)&&!map.defenderGroups.wallgate.includes(3),'Optional King Street defenders still block station completion');
 const kingSupply=map.spawns.pickups.find(p=>p.optional);
 assert(kingSupply&&kingSupply.type==='grenade'&&kingSupply.amount===3,'King Street optional reward is not a useful grenade cache');
-const evaluator=new Function('map','const S=n=>n*2;const zones=Object.fromEntries(Object.entries(map.zones).map(([k,z])=>[k,{x:z.x*2,y:z.y*2,r:z.r*2}]));let enemies=[];'+body('pointInCircle')+body('phaseZone')+body('phaseDefenders')+body('phaseEvaluation')+';return{phaseEvaluation,setEnemies(e){enemies=e}};')(map);
+const evalZones=Object.fromEntries(Object.entries(map.zones).map(([k,z])=>[k,{x:z.x*2,y:z.y*2,r:z.r*2}]));
+let evaluationEnemies=[];
+const evaluator={
+ setEnemies(e){evaluationEnemies=e},
+ phaseEvaluation(phase,living){return MissionRules.evaluatePhase({phase,living,enemies:evaluationEnemies,zones:evalZones,scale:2})}
+};
 for(const phase of mission.phases){
  const z=map.zones[phase.zone],at={x:z.x*2,y:z.y*2};
  evaluator.setEnemies([]);
- const clear=evaluator.phaseEvaluation(phase,[at],0);
+ const clear=evaluator.phaseEvaluation(phase,[at]);
  assert(clear.ready,phase.zone+' is not ready at its cleared frontage');
  assert(!clear.complete,phase.zone+' skips its secure hold');
- assert(!evaluator.phaseEvaluation(phase,[{x:0,y:0}],0).ready,'An objective becomes ready before arrival');
+ assert(!evaluator.phaseEvaluation(phase,[{x:0,y:0}]).ready,'An objective becomes ready before arrival');
 
  const assigned={...at,alive:true,objectiveGroup:phase.defenderGroup};
- evaluator.setEnemies([assigned]);assert(!evaluator.phaseEvaluation(phase,[at],1).ready,'An assigned defender is ignored');
+ evaluator.setEnemies([assigned]);assert(!evaluator.phaseEvaluation(phase,[at]).ready,'An assigned defender is ignored');
 
  const far={x:0,y:0,alive:true,objectiveGroup:'unrelated'};
- evaluator.setEnemies([far]);assert(evaluator.phaseEvaluation(phase,[at],1).ready,'A distant unrelated enemy blocks the objective');
+ evaluator.setEnemies([far]);assert(evaluator.phaseEvaluation(phase,[at]).ready,'A distant unrelated enemy blocks the objective');
 
  const local={...at,alive:true,objectiveGroup:'unrelated'};
- evaluator.setEnemies([local]);assert(!evaluator.phaseEvaluation(phase,[at],1).ready,'A local unrelated enemy fails to contest the objective');
+ evaluator.setEnemies([local]);assert(!evaluator.phaseEvaluation(phase,[at]).ready,'A local unrelated enemy fails to contest the objective');
 }
 f.reset();f.addPickup('grenade');f.updateSquad(0);assert.equal(f.grenades,7);assert(!f.pickups[0].active);
 f.addPickup('grenade');f.updateSquad(0);assert.equal(f.grenades,8);f.addPickup('grenade');f.updateSquad(0);assert(f.pickups.at(-1).active,'A full grenade reserve wastes a supply crate');
