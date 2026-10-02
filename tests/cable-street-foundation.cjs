@@ -139,13 +139,17 @@ assert(index.includes('const cableStreetCrowd=BadFodderCableCrowd'),'Cable Stree
 assert(index.includes('missionCrowd=cableStreetCrowd.create'),'Cable Street crowd is not created during historical reset');
 assert(index.includes('missionCrowd.fixedUpdate(dt)'),'Cable Street crowd is not connected to fixed-step simulation');
 assert(index.includes('cableStreetArt.drawCrowd(ctx,historicalCrowdState)'),'Cable Street crowd is not rendered in the historical world');
+assert(index.includes("if(MAP_DATA.key==='cable-street'){"),'Cable Street renderer does not use the historical urban art path');
+assert(index.includes('cableStreetArt.drawRoad(ctx,r,S,art)'),'Cable Street street edges are not delegated to historical art');
+assert(index.includes("MAP_DATA.key!=='bad-belzig'"),'Non-Bad-Belzig maps can still enter the Bad Belzig landmark renderer');
+
 
 assert(index.includes('const cableStreetDirector=BadFodderCableDirector'),'Cable Street phase director global is not bound');
 assert(index.includes('missionDirector=cableStreetDirector.create'),'Cable Street phase director is not created during historical reset');
 assert(index.includes('missionDirector.fixedUpdate(dt)'),'Cable Street phase director is not connected to fixed-step simulation');
 assert(index.includes('const historicalProgress=missionDirector.snapshot()'),'Historical HUD/progression does not read the Cable Street director');
 assert(index.includes("cable-street-interactions.js?v=20261002-cable-interactions-4"),'Historical interaction module is not cache-busted');
-assert(index.includes("cable-street-art.js?v=20261002-cable-crowd-1"),'Historical art module is not cache-busted');
+assert(index.includes("cable-street-art.js?v=20261002-cable-urban-2"),'Historical art module is not cache-busted');
 
 
 console.log('PASS: historical launch resolves stable IDs without altering campaign progress and rejects locked/stale historical selections.');
