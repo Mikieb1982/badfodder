@@ -41,6 +41,10 @@ const director=Director.create({
 let snap=director.snapshot();
 assert.equal(snap.phaseId,'gathering');
 assert.equal(snap.completed,false);
+assert.equal(snap.barricadeIntegrity,20);
+assert.equal(snap.barricadeMaxIntegrity,30);
+assert(Math.abs(snap.barricadeRatio-(2/3))<1e-9);
+
 
 // Gathering does not advance just because the player reaches the defence.
 director.fixedUpdate(.01);
