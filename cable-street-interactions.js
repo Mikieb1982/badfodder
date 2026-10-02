@@ -402,6 +402,7 @@
       if(job.action==='assist'){
         if(runtime.assistCivilian(target,job.actorId)){
           target.exitTimer=Number.isFinite(target.exitSeconds)?target.exitSeconds:settings.rescueExitSeconds;
+          target.justAssisted=true;
           controller.state.events.push({type:'civilian-assisted',civilianId:target.id,actorId:job.actorId});
           finishJob(job,true);
         }else finishJob(job,false);
@@ -465,6 +466,7 @@
     function updateRescues(dt){
       controller.state.civilians.forEach(p=>{
         if(p.status!=='assisted'||!Number.isFinite(p.exitTimer))return;
+        if(p.justAssisted){p.justAssisted=false;return}
         p.exitTimer=Math.max(0,p.exitTimer-dt);
         if(p.exitTimer<=0&&runtime.evacuateCivilian(p)){
           controller.state.events.push({type:'civilian-exited',civilianId:p.id});
