@@ -153,6 +153,8 @@ const map=Compiler.compileAuthoring({trace,schema,projection,eventOverlay,runtim
 assert.equal(map.key,'fixture-cable');
 assert.equal(map.buildings.length,1);
 assert.equal(map.roads.length,1);
+assert.equal(map.roads[0].kind,'historical-carriageway-edge');
+assert.equal(map.roads[0].featureKind,'street-edge');
 assert.equal(map.railways.length,1);
 assert.equal(map.gameplayAdjustments.length,1);
 assert.equal(map.eventZones.length,1);
