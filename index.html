@@ -556,8 +556,8 @@
 <script src="cable-street-runtime.js?v=20261002-playable-1"></script>
 <script src="cable-street-interactions.js?v=20261002-playable-1"></script>
 <script src="cable-street-director.js?v=20261002-playable-1"></script>
-<script src="cable-street-crowd.js?v=20261002-playable-1"></script>
-<script src="cable-street-art.js?v=20261002-playable-1"></script>
+<script src="cable-street-crowd.js?v=20261002-visual-polish-1"></script>
+<script src="cable-street-art.js?v=20261002-visual-polish-1"></script>
 <script>
 (() => {
   'use strict';
@@ -2485,6 +2485,7 @@
       polygon([[x-6,y-5],[x,y-11],[x+7,y-5]],'#5c5b50','#b6aa91',.8);
       ctx.fillStyle='#2f3835';ctx.fillRect(x-2,y-4,4,5);ctx.strokeStyle='#c0b495';ctx.lineWidth=.8;ctx.strokeRect(x-2.5,y-4.5,5,6);
     }
+    if(MAP_DATA.key==='cable-street')cableStreetArt.drawFacadeDetails(ctx,b,zoom);
     ctx.restore();
   }
 
@@ -2639,6 +2640,7 @@
       renderingStatic=true;sceneryBounds={x,y,w:target.width/scale,h:target.height/scale};
       drawTerrain();
       drawingRoads.forEach(drawRoad);
+      if(MAP_DATA.key==='cable-street')cableStreetArt.drawStreetProps(ctx,MAP_DATA,S,sceneryBounds);
       if(MAP_DATA.key==='wigan')BadFodderWigan.ground(ctx,MAP_DATA,S,art);
       if(!light)drawVegetation();
       if(wiganDetails){
@@ -2796,7 +2798,7 @@
   }
 
 
-  function drawSoldier(ent,team='squad'){
+  function drawSoldier(ent,team='squad',historicalState=null,historicalClock=0){
     const visual=art.pose(ent);
     ctx.save();
     if(showDust)(visual.dust||[]).forEach(p=>{
@@ -2805,7 +2807,10 @@
       ctx.beginPath();ctx.ellipse(p.x,p.y,2+age*3,1+age,0,0,Math.PI*2);ctx.fill();
     });
     ctx.restore();
-    art.drawActor(ctx,ent,team);
+    if(missionController&&team==='squad'){
+      const index=squad.indexOf(ent);
+      cableStreetArt.drawVolunteer(ctx,ent,art,{state:historicalState,index,clock:historicalClock});
+    }else art.drawActor(ctx,ent,team);
   }
 
   function drawBulletTracer(b){
@@ -2817,6 +2822,7 @@
 
   function drawWorld(){
     updateHudNotice(performance.now());
+    const historicalClock=performance.now()/1000;
     clampCamera();
     const frameScaleX=frame.width/VIEW_W,frameScaleY=frame.height/VIEW_H;
     ctx.setTransform(frameScaleX,0,0,frameScaleY,0,0);ctx.clearRect(0,0,VIEW_W,VIEW_H);
@@ -2829,9 +2835,9 @@
     drawOptionalEncounters();
     const historicalRenderState=missionInteractionLayer?missionInteractionLayer.renderState():null;
     const historicalCrowdState=missionCrowd?missionCrowd.renderState():null;
-    if(historicalCrowdState)cableStreetArt.drawCrowd(ctx,historicalCrowdState);
-    if(historicalRenderState){cableStreetArt.drawGround(ctx,historicalRenderState);
-      if(MAP_DATA.regroupPoint&&missionStage===2)cableStreetArt.drawRegroup(ctx,{x:S(MAP_DATA.regroupPoint.x),y:S(MAP_DATA.regroupPoint.y)});
+    if(historicalCrowdState)cableStreetArt.drawCrowd(ctx,historicalCrowdState,historicalClock);
+    if(historicalRenderState){cableStreetArt.drawGround(ctx,historicalRenderState,historicalClock);
+      if(MAP_DATA.regroupPoint&&missionStage===2)cableStreetArt.drawRegroup(ctx,{x:S(MAP_DATA.regroupPoint.x),y:S(MAP_DATA.regroupPoint.y)},historicalClock);
     }
 
     pickups.forEach(p=>{
@@ -2855,7 +2861,7 @@
           ctx.beginPath();ctx.moveTo(ent.x+side*12,ent.y-2);ctx.lineTo(ent.x+side*12,ent.y+8);ctx.lineTo(ent.x+side*8,ent.y+8);ctx.stroke();
         }
       }
-      drawSoldier(ent,missionController&&team==='squad'?'civilian':team);
+      drawSoldier(ent,team,historicalRenderState,historicalClock);
       if(team==='enemy'&&ent.alert&&ent.alive){
         if((ent.cueTimer||0)>0){
           const pulse=.72+Math.sin((ent.cueTimer||0)*18)*.12;
@@ -2880,7 +2886,8 @@
     });
 
     if(historicalRenderState){
-      cableStreetArt.drawCarried(ctx,historicalRenderState);
+      cableStreetArt.drawCarried(ctx,historicalRenderState,historicalClock);
+      cableStreetArt.drawEffects(ctx,historicalRenderState,historicalClock);
       const selected=selectedHistoricalActor();
       if(selected){
         const label=missionInteractionLayer.hint(selected.id);
@@ -2931,6 +2938,11 @@
     });
 
     ctx.restore();
+
+    if(MAP_DATA.key==='cable-street'&&historicalRenderState){
+      const pressure=(historicalRenderState.formations||[]).some(f=>f.state==='dismantle')?1:0;
+      cableStreetArt.drawAtmosphere(ctx,{viewWidth:VIEW_W,viewHeight:VIEW_H,clock:historicalClock,pressure});
+    }
 
     if(MAP_DATA.key==='wigan'&&!mapOpen&&!finished&&!menuOpen){
       const hint=guidanceTarget(),leader=squad.find(s=>s.alive);
