@@ -871,6 +871,10 @@
   function resumeMission(){
     window.BadFodderSfx?.unlock();
     if(!started||finished)return;
+    if(runtimeSafeStop){
+      beginMission();
+      return;
+    }
     paused=false;menuOpen=false;
     pauseBtn.textContent='Pause (Enter)';
     menu.close();syncTouchControlState();root.focus({preventScroll:true});
@@ -3052,11 +3056,8 @@
       paused=true;menuOpen=true;
       setStatus('Runtime recovery paused the mission after repeated errors.');
       if(menu){
-        menu.show('pause');
-        const badge=document.getElementById('menuBadge');
-        const help=document.getElementById('menuHelp');
-        if(badge){badge.hidden=false;badge.textContent='RUNTIME RECOVERY';}
-        if(help)help.textContent='The game caught a repeated runtime error instead of freezing. Restart the mission.';
+        const detail=err&&err.message?String(err.message).slice(0,140):'Unknown runtime error';
+        menu.showRecovery('The mission hit a repeated runtime error: '+detail+'. Restart the mission.');
       }
       syncTouchControlState();
     }
