@@ -53,6 +53,8 @@ assert(crowd.fixedUpdate(.5));
 const after=crowd.renderState();
 assert(after.some((p,i)=>Math.hypot(p.x-before[i].x,p.y-before[i].y)>.01),'Crowd did not react to live pressure');
 assert.deepEqual(before.map(p=>p.id),after.map(p=>p.id),'Crowd update changed stable IDs');
+assert(after.every(p=>typeof p.animState==='string'),'Crowd render state is missing animation states');
+assert(after.every(p=>Number.isFinite(p.animPhase)),'Crowd render state is missing animation phase data');
 
 const supportBarricade=aController.state.barricades.get('B');
 const supportFormation=aController.state.formations.get('police-1');
