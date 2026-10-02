@@ -86,11 +86,21 @@ const runtimeObjects={
   status:'ready',
   crs:'EPSG:27700',
   requirements:{
+    squadSpawns:4,
     mainBarricades:1,
     materialTypes:['timber','crates','furniture'],
     rescueInteractions:1,
     policeFormations:1
   },
+  squadSpawns:[
+    [534520,180960],[534525,180960],[534520,180955],[534525,180955]
+  ],
+  routeRequirements:[
+    {
+      id:'player-to-defence',phase:'gathering',side:'defender',expect:'reachable',
+      from:[534520,180960],to:[534565,180985]
+    }
+  ],
   objects:{
     barricades:[
       {
@@ -153,6 +163,17 @@ assert.equal(map.buildings[0].kind,'building');
 assert.equal(map.buildings[0].layer,'building-envelope');
 assert.equal(map.buildings[0].eventDateConfidence,'inferred');
 assert.equal(map.eventZones[0].role,'barricade-vicinity');
+assert.equal(map.title,'Cable Street');
+assert.deepEqual(map.areas,[]);
+assert.deepEqual(map.pois,{});
+assert.equal(map.spawns.squad.length,4);
+assert.deepEqual(map.spawns.enemies,[]);
+assert.deepEqual(map.spawns.civilians,[]);
+assert.deepEqual(map.spawns.pickups,[]);
+assert.equal(map.routeRequirements.length,1);
+assert.deepEqual(map.routeRequirements[0].from,{x:60,y:100});
+assert.deepEqual(map.routeRequirements[0].to,{x:150,y:50});
+assert(Object.keys(map.zones).includes('event-b'));
 assert(map.width>map.buildings[0].maxX);
 assert(map.height>map.buildings[0].maxY);
 assert.equal(map.authoring.runtimeObjectsReady,true);
@@ -182,6 +203,13 @@ badRuntimeObjects.objects.formations[0].objective='missing-barricade';
 assert.throws(
   ()=>Compiler.compileAuthoring({trace,schema,projection,eventOverlay,runtimeObjects:badRuntimeObjects}),
   /references unknown barricade objective/
+);
+
+const missingSpawnObjects=JSON.parse(JSON.stringify(runtimeObjects));
+missingSpawnObjects.squadSpawns.length=1;
+assert.throws(
+  ()=>Compiler.compileAuthoring({trace,schema,projection,eventOverlay,runtimeObjects:missingSpawnObjects}),
+  /requires more authored squad spawns/
 );
 
 assert.throws(
