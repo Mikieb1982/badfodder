@@ -41,6 +41,9 @@
     if(!runtime)throw new Error('Cable Street interactions require the Cable Street runtime.');
     if(!mission||mission.id!=='cable-street-1936')throw new Error('Cable Street interactions require the Cable Street mission.');
     const settings={...DEFAULTS,...options};
+    const worldScale=Number.isFinite(options.scale)&&options.scale>0?options.scale:1;
+    const scaleValue=n=>Number.isFinite(n)?n*worldScale:n;
+    const scalePoints=points=>Array.isArray(points)?points.map(p=>[scaleValue(p[0]),scaleValue(p[1])]):[];
     let initialized=false;
     let jobSequence=0;
 
@@ -88,11 +91,12 @@
           constructionTier:def.constructionTier||0,
           workPositions:def.workPositions||0
         });
-        const center=finitePoint(def)?{x:def.x,y:def.y}:centroid(def.points);
+        const rawCenter=finitePoint(def)?{x:def.x,y:def.y}:centroid(def.points);
+        const center=rawCenter?{x:scaleValue(rawCenter.x),y:scaleValue(rawCenter.y)}:null;
         Object.assign(b,{
           x:center&&center.x,
           y:center&&center.y,
-          points:clonePoints(def.points),
+          points:scalePoints(def.points),
           label:def.label||def.id,
           interactionRadius:def.interactionRadius,
           historicalStatus:def.historicalStatus||null
@@ -102,7 +106,7 @@
       const materials=(source.materials||[]).map(def=>{
         const m=runtime.createMaterial({id:def.id,type:def.type});
         Object.assign(m,{
-          x:def.x,y:def.y,
+          x:scaleValue(def.x),y:scaleValue(def.y),
           label:def.label||def.type,
           interactionRadius:def.interactionRadius
         });
@@ -111,7 +115,7 @@
       const civilians=(source.civilians||[]).map(def=>{
         const p=runtime.createCivilian({id:def.id,optional:def.optional!==false});
         Object.assign(p,{
-          x:def.x,y:def.y,
+          x:scaleValue(def.x),y:scaleValue(def.y),
           label:def.label||'Resident',
           interactionRadius:def.interactionRadius,
           exitSeconds:Number.isFinite(def.exitSeconds)?def.exitSeconds:settings.rescueExitSeconds,
@@ -127,11 +131,11 @@
           state:def.state||'approach'
         });
         Object.assign(p,{
-          x:def.x,y:def.y,
-          targetX:def.targetX,targetY:def.targetY,
-          withdrawX:def.withdrawX,withdrawY:def.withdrawY,
-          speed:Number.isFinite(def.speed)?def.speed:34,
-          stopDistance:Number.isFinite(def.stopDistance)?def.stopDistance:18,
+          x:scaleValue(def.x),y:scaleValue(def.y),
+          targetX:scaleValue(def.targetX),targetY:scaleValue(def.targetY),
+          withdrawX:scaleValue(def.withdrawX),withdrawY:scaleValue(def.withdrawY),
+          speed:Number.isFinite(def.speed)?def.speed*worldScale:34*worldScale,
+          stopDistance:Number.isFinite(def.stopDistance)?def.stopDistance*worldScale:18*worldScale,
           haltSeconds:Number.isFinite(def.haltSeconds)?def.haltSeconds:.7,
           regroupSeconds:Number.isFinite(def.regroupSeconds)?def.regroupSeconds:.8,
           damageRate:Number.isFinite(def.damageRate)?def.damageRate:5,
