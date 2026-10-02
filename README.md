@@ -86,6 +86,16 @@ The navigation regression suite runs individual and four-person squad movement t
 
 Open `index.html` in a browser to play.
 
+## Cable Street
+
+Choose **Historical Missions → Cable Street → Play Cable Street**. This nonviolent mission uses four civilian volunteers in a compact Christian Street reconstruction. Gather materials, reinforce the barricade, assist the waiting resident, hold the first police wave, move to the blue regroup marker and defend through the final four-minute hold. A breached barricade can be rebuilt; leaving it breached for 30 seconds ends the mission.
+
+On desktop, right-click an object to approach and act, or press **E** nearby. Select individuals with **1–4** or their portraits. **HOLD** continues until the volunteer moves or cancels. **X** drops carried material or cancels work. On touch, tap an object to approach and act, tap terrain to move, or use the joystick and **ACTION** / **DROP / CANCEL** buttons. Firearms and grenade controls are hidden for this mission.
+
+The street baseline comes from a calibrated 1916 map, checked against a 1937 aerial. Terrace details, scenario closures and object placements are simplified or fictional gameplay adaptations; the barricade vicinity is approximate. Source provenance and rebuild instructions are in [Cable Street authoring](authoring/cable-street/README.md).
+
+Run `npm run cable:verify-release` to validate the production layout and `npm test` for all regressions, including a complete Cable Street playthrough. Rebuild geometry with `npm run cable:build-runtime-map`.
+
 ## Map data
 
 Road and landmark positions are derived from OpenStreetMap data.

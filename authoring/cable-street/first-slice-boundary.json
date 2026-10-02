@@ -23,7 +23,33 @@
     "S03",
     "S04"
   ],
-  "exactCropGeometry": null,
+  "exactCropGeometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          534387.905,
+          180972.727
+        ],
+        [
+          534681.641,
+          180972.727
+        ],
+        [
+          534681.641,
+          180803.896
+        ],
+        [
+          534387.905,
+          180803.896
+        ],
+        [
+          534387.905,
+          180972.727
+        ]
+      ]
+    ]
+  },
   "exactBarricadeCoordinate": null,
   "notes": [
     "The exact crop extent remains adjustable during calibration.",

@@ -105,6 +105,26 @@ function verifyMap(map,{requiredRouteIds=REQUIRED_ROUTE_IDS}={}){
         });
       }
       routeReport=RouteValidation.validateRouteRequirements(navigation,routeRequirements);
+      const start=spawns.squad[0];
+      if(start){
+        for(const target of [...materials,...civilians]){
+          if(!Number.isFinite(target.x)||!Number.isFinite(target.y))continue;
+          const path=navigation.findPath(start[0],start[1],target.x,target.y);
+          const end=path.at(-1);
+          if(!end||Math.hypot(end.x-target.x,end.y-target.y)>Math.max(12,target.interactionRadius||0))problems.push('Interaction '+target.id+' is unreachable from the squad start.');
+        }
+      }
+      for(const f of formations){
+        if(!Number.isFinite(f.x)||!Number.isFinite(f.targetX))continue;
+        const radius=Math.max(6,f.width/2);
+        if(!navigation.routeClear(f.x,f.y,f.targetX,f.targetY,radius)||
+           !navigation.routeClear(f.targetX,f.targetY,f.withdrawX,f.withdrawY,radius))problems.push('Police formation '+f.id+' does not fit its approach/withdrawal corridor.');
+      }
+      for(const c of civilians){
+        if(!Number.isFinite(c.exitX))continue;
+        const path=navigation.findPath(c.x,c.y,c.exitX,c.exitY),end=path.at(-1);
+        if(!end||Math.hypot(end.x-c.exitX,end.y-c.exitY)>12)problems.push('Evacuation '+c.id+' has no safe exit route.');
+      }
       if(!routeReport.ok){
         for(const failed of routeReport.failed){
           problems.push('Route '+failed.id+' expected '+failed.expected+' but was '+(failed.reachable?'reachable':'blocked')+'.');

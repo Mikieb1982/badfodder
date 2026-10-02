@@ -74,13 +74,16 @@
     }
 
     function spawnPoint(index,isHelper){
-      const a=anchor();
+      const b=mainBarricade(),base=anchor();
+      const work=isHelper&&b&&b.workPoints?.length?b.workPoints[index%b.workPoints.length]:null;
+      const a=work||base;
       const inner=isHelper?settings.innerRadius*.65:settings.innerRadius;
       const outer=isHelper?settings.outerRadius*.62:settings.outerRadius;
       for(let attempt=0;attempt<40;attempt++){
         const angle=random()*Math.PI*2+(index%5)*.11;
         const radius=inner+(outer-inner)*Math.sqrt(random());
         const p=openPoint(a.x+Math.cos(angle)*radius,a.y+Math.sin(angle)*radius,4);
+        if(p&&work&&(p.x-base.x)*(work.x-base.x)+(p.y-base.y)*(work.y-base.y)<0)continue;
         if(p)return p;
       }
       return openPoint(a.x+(index%7-3)*10,a.y+(Math.floor(index/7)%5-2)*10,3)||a;
@@ -156,6 +159,8 @@
       });
       for(const id of helperIds){
         if(slots.includes(id))continue;
+        const person=people.find(p=>p.id===id);
+        if(b.workPoints&&b.workPoints.length&&(!person||Math.hypot(person.x-b.workPoints[0].x,person.y-b.workPoints[0].y)>20))continue;
         const open=slots.indexOf(null);
         if(open<0)break;
         slots[open]=id;
@@ -167,6 +172,15 @@
       const a=anchor();
       const pressure=closestFormation(person);
       let tx=person.homeX,ty=person.homeY;
+      const b=mainBarricade();
+      const helping=person.role==='helper'&&b&&!b.breached&&confidence>=settings.helperSupportThreshold&&
+        [...controller.state.formations.values()].some(f=>f.state==='dismantle');
+      if(helping&&b.workPoints&&b.workPoints.length){
+        const p=b.workPoints[(Number(person.id.split('-').at(-1))||0)%b.workPoints.length];
+        const dx=p.x-person.x,dy=p.y-person.y,d=Math.hypot(dx,dy),step=Math.min(d,person.speed*dt);
+        if(d>1){const nx=person.x+dx/d*step,ny=person.y+dy/d*step;if(!blocked||!blocked(nx,ny,4)){person.x=nx;person.y=ny;person.dir=Math.atan2(dy,dx)}}
+        return;
+      }
 
       if(pressure.formation&&pressure.distance<settings.policeAvoidRadius){
         const dx=person.x-pressure.formation.x,dy=person.y-pressure.formation.y;

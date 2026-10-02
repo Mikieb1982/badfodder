@@ -56,7 +56,7 @@ window.BadFodderMenu=class{
       play.textContent=ready?'PLAY CABLE STREET':'MAP NOT READY';
       play.setAttribute('aria-disabled',String(!ready));
     }
-    if(status)status.textContent=ready?'READY · VERIFIED MAP PACKAGE LOADED':'GROUNDWORK · MAP RECONSTRUCTION PENDING';
+    if(status)status.textContent=ready?'READY · CHRISTIAN STREET DEFENCE':'GROUNDWORK · MAP RECONSTRUCTION PENDING';
     return !!ready;
   }
   ready(){

@@ -245,10 +245,10 @@ assert.throws(
 );
 
 assert.throws(
-  ()=>Compiler.compileDirectory(path.join(root,'authoring/cable-street')),
+  ()=>Compiler.compileDirectory(require('./fixtures/cable-street-pending-authoring.cjs')()),
   /not MAP-01 to MAP-06 ready/
 );
 
 console.log('PASS: Cable Street compiler converts current layer/kind authoring data into deterministic runtime geometry.');
 console.log('PASS: compiler preserves evidence metadata, projects event areas and validates/project SLICE-02 barricade, material, rescue and police placements.');
-console.log('PASS: the real Cable Street map remains blocked until MAP-01 through MAP-06 and the runtime projection are ready.');
+console.log('PASS: a pending Cable Street package remains blocked until MAP-01 through MAP-06 and the runtime projection are ready.');

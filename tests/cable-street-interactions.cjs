@@ -34,7 +34,7 @@ assert(Math.abs(Interactions.pressureDamageMultiplier(mitigationFixture)-.44)<1e
 Cable.reserveWorkPosition(mitigationFixture,'worker-c');
 assert(Math.abs(Interactions.pressureDamageMultiplier(mitigationFixture)-.3)<1e-9,'Hold mitigation must respect the maximum cap');
 
-const mission=Historical.get('cable-street-1936');
+const mission={...Historical.get('cable-street-1936'),continuousHold:false};
 const controller=Cable.createController({mission});
 controller.attachNavigation(nav);
 const interactions=Interactions.create({

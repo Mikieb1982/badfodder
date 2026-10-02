@@ -93,6 +93,7 @@ h1{font:800 27px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppe
 .hud-notice.show{opacity:1;transform:translate(-50%,0)}
 
 .touch-controls{inset:0}
+.touch-controls button[hidden]{display:none!important}
 .touch-joystick{width:112px;height:112px;right:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));border:1px solid #d6d9b899;background:#192c1d40;box-shadow:inset 0 0 0 10px #75856a12;opacity:.5}
 .touch-joystick.active{opacity:1;background:#263a2780}
 .touch-stick{width:48px;height:48px;margin:-24px;border:1px solid #ede4bc;background:#4b604ce6;box-shadow:0 2px 7px #0004}
@@ -101,6 +102,7 @@ h1{font:800 27px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppe
 #touchFire{width:74px;height:74px;font-size:12px}
 #touchGrenade{width:60px;height:60px;font-size:9px}
 #touchAction{min-width:82px;height:64px;padding:0 12px;font-size:10px}
+#touchDrop{min-width:64px;min-height:56px;padding:0 10px;font-size:10px}
 .touch-action.active{transform:scale(.98);background:#607148;border-color:#f5dfa2}
 
 .help{display:flex;flex-wrap:wrap;gap:8px 20px;font:11px/1.5 system-ui,sans-serif;color:#9da996;margin:14px 0 0}

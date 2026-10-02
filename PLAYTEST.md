@@ -40,6 +40,22 @@ Run both missions on a physical phone, preferably once in portrait and once in l
 - Confirm HUD, joystick and action buttons do not overlap in landscape.
 - Complete both missions from start to finish.
 
+## Cable Street
+
+- Select Historical Missions → Cable Street and confirm PLAY is available.
+- Confirm the squad uses civilian volunteers and FIRE / GRENADE are hidden.
+- Right-click a material, or tap it on touch, and confirm the selected volunteer walks over and carries it.
+- Use E / ACTION nearby and X / DROP / CANCEL to release work or material.
+- Deliver material to the barricade, assist the waiting resident and watch the resident reach the east exit.
+- Start HOLD and confirm it stays active; move away and confirm that volunteer no longer mitigates police damage.
+- Complete preparation, the first wave, regroup at the blue marker and the final four-minute hold.
+- Rebuild a breached barricade and confirm it blocks movement again. Leave a breach for 30 seconds and confirm failure / retry.
+- Pause/resume and restart in each phase; confirm no duplicate barricades, residents or crowd.
+- On a phone, test joystick plus ACTION, tap-to-act, pinch zoom, portrait/landscape and interrupted input.
+- Confirm buildings do not hide the selected volunteer or important material labels.
+
+Automated production-map simulation and DOM/canvas startup checks are available; physical device and real-browser checks should be recorded after deployment.
+
 ## Visual checks
 
 - Soldiers should pass behind foreground buildings/trees without becoming impossible to locate.

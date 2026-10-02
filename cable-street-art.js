@@ -31,7 +31,7 @@
     const doors=['#3f4a48','#4b4039','#38464b','#59473d'];
     return{
       family:'east-end-brick',
-      height:scale(10+Math.floor(seededUnit(seed,1)*7)),
+      height:scale(4+Math.floor(seededUnit(seed,1)*3)),
       wall:walls[Math.floor(seededUnit(seed,2)*walls.length)],
       roof:roofs[Math.floor(seededUnit(seed,3)*roofs.length)],
       door:doors[Math.floor(seededUnit(seed,4)*doors.length)]
@@ -126,7 +126,7 @@
 
   function drawFormation(ctx,p){
     if(!Number.isFinite(p.x)||!Number.isFinite(p.y))return;
-    ctx.save();ctx.translate(p.x,p.y);
+    ctx.save();ctx.translate(p.x,p.y);ctx.rotate((p.dir||0)+Math.PI/2);
     const width=Math.max(18,Number(p.width)||24);
     ctx.strokeStyle='rgba(43,49,50,.9)';ctx.lineWidth=3;
     ctx.beginPath();ctx.moveTo(-width/2,0);ctx.lineTo(width/2,0);ctx.stroke();
@@ -213,5 +213,24 @@
     ctx.restore();
   }
 
-  return{buildingStyle,drawRoad,drawGround,drawCarried,drawCrowd,drawHint};
+  function drawScenery(ctx,map,S){
+    const area=(map.gameplayAdjustments||[]).find(a=>a.id==='coal-depot-closed');
+    if(!area)return;
+    const pts=area.points.map(p=>[S(p[0]),S(p[1])]);
+    ctx.save();ctx.beginPath();ctx.moveTo(...pts[0]);for(const p of pts.slice(1))ctx.lineTo(...p);ctx.closePath();
+    ctx.fillStyle='#85817a';ctx.fill();ctx.strokeStyle='#4b4f4c';ctx.lineWidth=4;ctx.stroke();ctx.clip();
+    const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+    for(let x=minX+35;x<maxX;x+=66){
+      ctx.fillStyle='#444744';ctx.beginPath();ctx.ellipse(x,maxY-25,24,11,0,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='#62655e';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x-17,maxY-29);ctx.lineTo(x,maxY-40);ctx.lineTo(x+18,maxY-28);ctx.stroke();
+    }
+    ctx.fillStyle='#e1d5b4';ctx.font='bold 11px system-ui';ctx.textAlign='center';ctx.fillText('COAL DEPOT', (minX+maxX)/2,(minY+maxY)/2);ctx.restore();
+  }
+
+  function drawRegroup(ctx,p){
+    ctx.save();ctx.strokeStyle='#95c7ed';ctx.lineWidth=3;ctx.setLineDash([8,5]);
+    ctx.beginPath();ctx.arc(p.x,p.y,32,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#e3f2ff';ctx.font='bold 12px system-ui';ctx.textAlign='center';ctx.fillText('REGROUP',p.x,p.y-42);ctx.restore();
+  }
+  return{buildingStyle,drawRoad,drawGround,drawCarried,drawCrowd,drawHint,drawRegroup,drawScenery};
 });

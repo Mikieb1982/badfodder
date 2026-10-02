@@ -382,7 +382,7 @@
       .hud-counters{right:10px}
     }
   </style>
-  <link rel="stylesheet" href="game-ui.css">
+  <link rel="stylesheet" href="game-ui.css?v=20261002-playable-1">
   <link rel="stylesheet" href="menu-ui.css">
 </head>
 <body>
@@ -451,7 +451,7 @@
           <p class="menu-copy">Separate historical scenarios. These do not alter campaign progress.</p>
           <div class="menu-mission-list">
             <button id="menuHistoricalCable" class="menu-button" type="button">
-              <span>SPECIAL MISSION · GROUNDWORK</span>
+              <span>SPECIAL MISSION · PLAYABLE</span>
               CABLE STREET
             </button>
           </div>
@@ -460,16 +460,16 @@
         <div class="menu-panel menu-card menu-historical-card" data-view="historical-cable" hidden>
           <h2>CABLE STREET</h2>
           <p class="menu-historical-date">LONDON · 4 OCTOBER 1936</p>
-          <p id="menuHistoricalCableStatus" class="menu-historical-status">GROUNDWORK · MAP RECONSTRUCTION PENDING</p>
+          <p id="menuHistoricalCableStatus" class="menu-historical-status">READY · CHRISTIAN STREET DEFENCE</p>
           <p class="menu-copy">A separate historical mission built around maintaining obstructions, assisting residents, carrying materials and managing withdrawal rather than a standard military firefight.</p>
           <ol class="menu-phase-list">
             <li><strong>Gathering</strong><span>Inspect the defence, deliver material and assist a resident.</span></li>
-            <li><strong>Hold the approach</strong><span>Maintain the forward obstruction while the principal defence is prepared.</span></li>
-            <li><strong>Regroup</strong><span>Fall back, assist civilians and restore support access.</span></li>
+            <li><strong>Hold the approach</strong><span>Hold the barricade against the first police pressure.</span></li>
+            <li><strong>Regroup</strong><span>Move back to the marked regroup point and restore the defence.</span></li>
             <li><strong>They Shall Not Pass</strong><span>Keep the final route blocked until the hold is complete.</span></li>
           </ol>
-          <p class="menu-copy">The mechanics framework is now in development. Playable street geometry will only be added after the period map has been verified.</p>
-          <button id="menuHistoricalCablePlay" class="menu-button primary" type="button" disabled>MAP NOT READY</button>
+          <p class="menu-copy">A compact reconstruction from a 1916 street plan and near-period evidence. Volunteers, supplies and task timings are fictional. Right-click an object to approach and act; E or ACTION works nearby. X or DROP cancels carrying.</p>
+          <button id="menuHistoricalCablePlay" class="menu-button primary" type="button">PLAY CABLE STREET</button>
           <button class="menu-button" data-back data-back-to="historical" type="button">BACK</button>
         </div>
         <div class="menu-panel menu-card" data-view="controls" hidden>
@@ -518,6 +518,7 @@
         <button id="touchFire" class="touch-action" type="button" aria-label="Fire machine gun">FIRE</button>
         <button id="touchGrenade" class="touch-action" type="button" aria-label="Throw grenade">GRENADE</button>
         <button id="touchAction" class="touch-action" type="button" aria-label="Context action" hidden>ACTION</button>
+        <button id="touchDrop" class="touch-action" type="button" aria-label="Drop carried material or cancel action" hidden>DROP / CANCEL</button>
       </div>
       <div id="touchJoystick" class="touch-joystick touch-gameplay" aria-label="Movement joystick">
         <div id="touchStick" class="touch-stick"></div>
@@ -533,7 +534,7 @@
     <div><strong>Map:</strong> M or MAP in the HUD.</div>
     <div><strong>Pause:</strong> Enter or the pause button in the HUD.</div>
     <div><strong>Squad:</strong> select a squad portrait or ALL in the HUD. Keyboard: 1–8 or A.</div>
-    <div><strong>Historical actions:</strong> right-click a nearby object or press E; on touch use ACTION.</div>
+    <div><strong>Historical actions:</strong> right-click an object or press E nearby; on touch tap an object or use ACTION. X or DROP / CANCEL releases the action.</div>
   </div>
   <div class="note">Mission maps use real-world street and landmark geography, with gameplay simplification where required. Map data <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors, ODbL 1.0</a>.</div>
 </main>
@@ -541,14 +542,14 @@
 <script src="town-map.js"></script>
 <script src="bad-belzig-data.js"></script>
 <script src="wigan-map.js"></script>
-<script src="cable-street-map.js?v=20261002-cable-map-slot-1"></script>
+<script src="cable-street-map.js?v=20261002-playable-1"></script>
 <script src="pixel-art.js"></script>
 <script src="painted-art.js"></script>
 <script src="building-art.js"></script>
 <script src="wigan-details.js"></script>
 <script src="wigan-scenery.js?v=20261002-stability-3"></script>
 <script src="scenery-cache.js"></script>
-<script src="menu-ui.js?v=20261002-cable-play-2"></script>
+<script src="menu-ui.js?v=20261002-playable-1"></script>
 <script src="music.js"></script>
 <script src="sfx.js"></script>
 <script src="combat-geometry.js"></script>
@@ -558,12 +559,12 @@
 <script src="campaign.js"></script>
 <script src="mission-bootstrap.js?v=20261002-cable-foundation-2"></script>
 <script src="mission-launch.js?v=20261002-cable-foundation-2"></script>
-<script src="historical-missions.js?v=20261002-cable-groundwork-1"></script>
-<script src="cable-street-runtime.js?v=20261002-cable-interactions-4"></script>
-<script src="cable-street-interactions.js?v=20261002-cable-pressure-7"></script>
-<script src="cable-street-director.js?v=20261002-cable-director-1"></script>
-<script src="cable-street-crowd.js?v=20261002-cable-helpers-2"></script>
-<script src="cable-street-art.js?v=20261002-cable-urban-2"></script>
+<script src="historical-missions.js?v=20261002-playable-1"></script>
+<script src="cable-street-runtime.js?v=20261002-playable-1"></script>
+<script src="cable-street-interactions.js?v=20261002-playable-1"></script>
+<script src="cable-street-director.js?v=20261002-playable-1"></script>
+<script src="cable-street-crowd.js?v=20261002-playable-1"></script>
+<script src="cable-street-art.js?v=20261002-playable-1"></script>
 <script>
 (() => {
   'use strict';
@@ -629,6 +630,7 @@
   const touchFire=document.getElementById('touchFire');
   const touchGrenade=document.getElementById('touchGrenade');
   const touchAction=document.getElementById('touchAction');
+  const touchDrop=document.getElementById('touchDrop');
   const touchMap=document.getElementById('touchMap');
   const touchPause=document.getElementById('touchPause');
   const touchFull=document.getElementById('touchFull');
@@ -695,6 +697,7 @@
   };
   const pinchPointers=new Map();
   let pinchGesture=null;
+  let historicalTap=null;
 
   function releaseAllFireInputs(){
     rightHeld=false;
@@ -792,7 +795,7 @@
         ?cableStreetArt.buildingStyle(seed,b,S)
         :null;
     return {
-      i,name:b.name||'',points:pts,solid:b.solid!==false,landmark:b.landmark||'',levels:b.levels||2,roofShape:b.roofShape||'gable',material:b.material||'stone',detail:wiganDetails&&wiganDetails.buildings.get(b.osmId),
+      i,hidden:!!b.hidden,name:b.name||'',points:pts,solid:b.solid!==false,landmark:b.landmark||'',levels:b.levels||2,roofShape:b.roofShape||'gable',material:b.material||'stone',detail:wiganDetails&&wiganDetails.buildings.get(b.osmId),
       family:bb?bb.family:'urban',
       minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys),
       height:MAP_DATA.key==='wigan'?S(4+(b.levels||2)*5):(bb?bb.height:S(10)),
@@ -880,6 +883,8 @@
     touchAction.hidden=!missionInteractionLayer;
     touchAction.disabled=!enabled;
     touchAction.textContent=missionInteractionLayer&&selected?missionInteractionLayer.hint(selected.id):'ACTION';
+    touchDrop.hidden=!missionInteractionLayer;touchDrop.disabled=!enabled;
+    touchDrop.textContent=selected&&missionController.state.actors.get(selected.id)?.carrying?'DROP':'CANCEL';
   }
 
   function performHistoricalContextActionAt(x,y){
@@ -892,9 +897,10 @@
       updateHistoricalActionButton();
       return false;
     }
-    setStatus(job.label||job.action.toUpperCase());
+    const reachable=approachHistoricalJob(selected,job);
+    if(reachable)setStatus(job.label||job.action.toUpperCase());
     updateHistoricalActionButton();
-    return true;
+    return reachable;
   }
 
   function performHistoricalNearestAction(){
@@ -907,11 +913,45 @@
       updateHistoricalActionButton();
       return false;
     }
-    setStatus(job.label||job.action.toUpperCase());
+    const reachable=approachHistoricalJob(selected,job);
+    if(reachable)setStatus(job.label||job.action.toUpperCase());
     updateHistoricalActionButton();
-    return true;
+    return reachable;
   }
 
+
+  function cancelHistoricalAction(drop=true){
+    const selected=selectedHistoricalActor();
+    if(!selected||!missionInteractionLayer)return;
+    missionInteractionLayer.cancelJob(selected.id,{dropCarried:drop});
+    selected.unit.path=null;selected.unit.target=null;clearSquadFormation();
+    updateHistoricalActionButton();
+  }
+
+  function approachHistoricalJob(selected,job){
+    if(job.action==='drop')return true;
+    const state=missionController.state;
+    const target=job.targetType==='material'?state.materials.get(job.targetId):job.targetType==='civilian'?state.civilians.get(job.targetId):state.barricades.get(job.targetId);
+    if(!target)return false;
+    const radius=target.interactionRadius||42;
+    clearSquadFormation();
+    selected.unit.path=null;selected.unit.target=null;
+    if(Math.hypot(selected.unit.x-target.x,selected.unit.y-target.y)<=radius)return true;
+    let candidates=target.workPoints?.length?target.workPoints:[];
+    if(!candidates.length){
+      for(let i=0;i<16;i++){
+        const angle=i*Math.PI/8;
+        candidates.push({x:target.x+Math.cos(angle)*radius*.75,y:target.y+Math.sin(angle)*radius*.75});
+      }
+    }
+    candidates=[...candidates].sort((a,b)=>Math.hypot(a.x-selected.unit.x,a.y-selected.unit.y)-Math.hypot(b.x-selected.unit.x,b.y-selected.unit.y));
+    for(const point of candidates){
+      if(!obstacleAt(point.x,point.y,10)&&assignPath(selected.unit,point.x,point.y))return true;
+    }
+    missionInteractionLayer.cancelJob(selected.id);
+    setStatus('No clear route to that action.');
+    return false;
+  }
 
   function isFullscreenActive(){
     return document.fullscreenElement===gameViewport||fallbackFullscreen;
@@ -1107,7 +1147,7 @@
       const hp=Array.from({length:s.maxHp},(_,h)=>'<i class="'+(h<s.hp?(s.hp<=2?'on low':'on'):'')+'"></i>').join('');
       chip.innerHTML='<span class="hud-unit-info"><span class="hud-name"><em>'+(i+1)+'</em>'+s.name+'</span><span class="hud-health">'+hp+'</span><span class="hud-state">'+(s.alive?'HP '+s.hp+'/'+s.maxHp:'DOWN')+'</span></span>';
       const portrait=document.createElement('canvas');portrait.width=96;portrait.height=96;portrait.className='hud-portrait';
-      const pg=portrait.getContext('2d');pg.imageSmoothingEnabled=true;pg.drawImage(art.soldier('squad',2,s.alive?0:2,s.alive?'idle':'dead',i),0,0);
+      const pg=portrait.getContext('2d');pg.imageSmoothingEnabled=true;pg.drawImage(art.soldier(missionController?'civilian':'squad',2,s.alive?0:2,s.alive?'idle':'dead',i),0,0);
       chip.insertBefore(portrait,chip.firstChild);
 
     });
@@ -1229,7 +1269,7 @@
         controller:missionController,
         runtime:cableStreetRuntime,
         mission,
-        options:{scale:SCALE,pressureControlled:true}
+        options:{scale:SCALE,pressureControlled:true,navigation}
       });
       missionInteractionLayer.initialize({
         actors:squad.map((s,i)=>({id:'player-'+i,name:s.name,x:s.x,y:s.y,active:s.alive})),
@@ -1237,7 +1277,8 @@
       });
       missionDirector=cableStreetDirector.create({
         controller:missionController,
-        mission
+        mission,
+        options:{regroupPoint:MAP_DATA.regroupPoint?{x:S(MAP_DATA.regroupPoint.x),y:S(MAP_DATA.regroupPoint.y)}:null,regroupRadius:S(24)}
       });
       missionCrowd=cableStreetCrowd.create({
         mission,
@@ -1264,7 +1305,7 @@
     wiganRouteCache={key:null,path:[]};
     touchState.movePointer=null;touchState.moveX=0;touchState.moveY=0;touchState.moveMag=0;
     touchState.firePointer=null;touchState.fireHeld=false;
-    pinchPointers.clear();pinchGesture=null;
+    pinchPointers.clear();pinchGesture=null;historicalTap=null;
     touchStick.style.transform='translate(0px,0px)';
     touchJoystick.classList.remove('active');
     touchFire.classList.remove('active');
@@ -2142,6 +2183,7 @@
     const units=selectedUnits();
     if(!units.length)return;
 
+    if(typeof missionInteractionLayer!=='undefined'&&missionInteractionLayer)units.forEach(s=>missionInteractionLayer.cancelJob('player-'+squad.indexOf(s)));
     const tx=Math.max(16,Math.min(WORLD_W-16,p.x));
     const ty=Math.max(16,Math.min(WORLD_H-16,p.y));
 
@@ -2224,6 +2266,7 @@
     const leader=ensureTouchFormation();
     if(!leader||!leader.alive)return;
 
+    if(typeof missionInteractionLayer!=='undefined'&&missionInteractionLayer)selectedUnits().forEach(s=>missionInteractionLayer.cancelJob('player-'+squad.indexOf(s)));
     leader.path=null;leader.target=null;leader.pathIndex=0;
 
     // True analogue movement: slight tilt = cautious walk, full tilt = run.
@@ -2357,6 +2400,7 @@
   }
 
   function drawBuilding(b){
+    if(b.hidden)return;
     const margin=S(40),vw=VIEW_W/zoom,vh=VIEW_H/zoom;
     const bounds=sceneryBounds||{x:camera.x,y:camera.y,w:vw,h:vh};
     if(b.maxX<bounds.x-margin||b.minX>bounds.x+bounds.w+margin||b.maxY<bounds.y-margin||b.minY>bounds.y+bounds.h+margin)return;
@@ -2509,6 +2553,7 @@
     ctx.fillStyle=art.texture(ctx,(MAP_DATA.key==='wigan'||MAP_DATA.key==='cable-street')?'urban-paving':'grass');
     if(bounds)ctx.fillRect(bounds.x,bounds.y,bounds.w,bounds.h);
     else ctx.fillRect(0,0,WORLD_W,WORLD_H);
+    if(MAP_DATA.key==='cable-street')cableStreetArt.drawScenery(ctx,MAP_DATA,S);
     areas.forEach(a=>{
       if(!intersectsSceneryBounds(a,S(10)))return;
       polygon(a.points,art.texture(ctx,(MAP_DATA.key==='wigan'||MAP_DATA.key==='cable-street')
@@ -2528,7 +2573,7 @@
   }
 
   function buildingOccludesActor(b,ent){
-    if(!ent.alive||b.landmarkFootprint)return false;
+    if(b.hidden||!ent.alive||b.landmarkFootprint)return false;
     const mesh=b.artMesh||(b.artMesh=BadFodderBuildings.mesh(b.points,b.height));
     const roofRise=mesh?mesh.rise:0,margin=S(7);
     return ent.x>=b.minX-margin&&ent.x<=b.maxX+margin&&
@@ -2791,7 +2836,9 @@
     const historicalRenderState=missionInteractionLayer?missionInteractionLayer.renderState():null;
     const historicalCrowdState=missionCrowd?missionCrowd.renderState():null;
     if(historicalCrowdState)cableStreetArt.drawCrowd(ctx,historicalCrowdState);
-    if(historicalRenderState)cableStreetArt.drawGround(ctx,historicalRenderState);
+    if(historicalRenderState){cableStreetArt.drawGround(ctx,historicalRenderState);
+      if(MAP_DATA.regroupPoint&&missionStage===2)cableStreetArt.drawRegroup(ctx,{x:S(MAP_DATA.regroupPoint.x),y:S(MAP_DATA.regroupPoint.y)});
+    }
 
     pickups.forEach(p=>{
       if(!p.active)return;
@@ -2814,7 +2861,7 @@
           ctx.beginPath();ctx.moveTo(ent.x+side*12,ent.y-2);ctx.lineTo(ent.x+side*12,ent.y+8);ctx.lineTo(ent.x+side*8,ent.y+8);ctx.stroke();
         }
       }
-      drawSoldier(ent,team);
+      drawSoldier(ent,missionController&&team==='squad'?'civilian':team);
       if(team==='enemy'&&ent.alert&&ent.alive){
         if((ent.cueTimer||0)>0){
           const pulse=.72+Math.sin((ent.cueTimer||0)*18)*.12;
@@ -2993,6 +3040,7 @@
     if(evt.pointerType==='touch'){
       if(pinchPointers.has(evt.pointerId)){
         evt.preventDefault();
+        if(historicalTap&&Math.hypot(evt.clientX-historicalTap.x,evt.clientY-historicalTap.y)>10)historicalTap=null;
         pinchPointers.set(evt.pointerId,{x:evt.clientX,y:evt.clientY});
         updatePinch();
       }
@@ -3013,6 +3061,7 @@
       evt.preventDefault();
       canvas.setPointerCapture?.(evt.pointerId);
       pinchPointers.set(evt.pointerId,{x:evt.clientX,y:evt.clientY});
+      historicalTap=missionInteractionLayer&&pinchPointers.size===1?{id:evt.pointerId,x:evt.clientX,y:evt.clientY,time:performance.now()}:null;
       if(pinchPointers.size===2)beginPinchIfReady();
       return;
     }
@@ -3079,7 +3128,13 @@
   canvas.addEventListener('pointerup',evt=>{
     if(evt.pointerType==='touch'){
       evt.preventDefault();
+      const tap=historicalTap;historicalTap=null;
       endPinchPointer(evt.pointerId);
+      if(tap&&tap.id===evt.pointerId&&performance.now()-tap.time<400&&Math.hypot(evt.clientX-tap.x,evt.clientY-tap.y)<=10&&!menuOpen&&!paused&&!mapOpen&&!finished){
+        const p=pointerWorld(evt),selected=selectedHistoricalActor();
+        if(selected&&missionInteractionLayer.contextAt(selected.id,p.x,p.y))performHistoricalContextActionAt(p.x,p.y);
+        else setMoveTargets(p);
+      }
       return;
     }
 
@@ -3090,11 +3145,13 @@
   });
 
   canvas.addEventListener('pointercancel',evt=>{
+    historicalTap=null;
     if(evt.pointerType==='touch')endPinchPointer(evt.pointerId);
     rightHeld=false;macFireHeld=false;bothLatched=false;
   });
 
   canvas.addEventListener('lostpointercapture',evt=>{
+    historicalTap=null;
     if(evt.pointerType==='touch')endPinchPointer(evt.pointerId);
   });
 
@@ -3211,6 +3268,8 @@
   touchAction.addEventListener('pointerup',endTouchAction);
   touchAction.addEventListener('pointercancel',()=>touchAction.classList.remove('active'));
 
+  touchDrop.addEventListener('click',evt=>{evt.preventDefault();evt.stopPropagation();if(!touchDrop.disabled)cancelHistoricalAction(true)});
+
   touchFull.addEventListener('click',evt=>{evt.preventDefault();evt.stopPropagation();toggleMobileFullscreen();});
   touchMap.addEventListener('click',evt=>{evt.preventDefault();evt.stopPropagation();toggleMap();});
   touchPause.addEventListener('click',evt=>{evt.preventDefault();evt.stopPropagation();if(finished){if(!advanceCampaign())resetGame();}else togglePause();});
@@ -3228,7 +3287,7 @@
   hudAll.addEventListener('click',()=>setSelection('all'));
   stopBtn.addEventListener('click',()=>{
     clearSquadFormation();
-    selectedUnits().forEach(s=>{s.target=null;s.path=null;s.pathIndex=0});
+    selectedUnits().forEach(s=>{s.target=null;s.path=null;s.pathIndex=0;if(missionInteractionLayer)missionInteractionLayer.cancelJob('player-'+squad.indexOf(s))});
   });
   mapBtn.addEventListener('click',toggleMap);
   zoomOutBtn.addEventListener('click',()=>{zoom=Math.max(.55,zoom-.15)});
@@ -3239,6 +3298,7 @@
   root.tabIndex=0;
   window.addEventListener('keydown',e=>{
     if(menuOpen)return;
+    if(missionInteractionLayer&&!paused&&!finished&&(e.key==='x'||e.key==='X')){e.preventDefault();cancelHistoricalAction(true);return}
     if(finished&&e.key==='Enter'){
       e.preventDefault();
       if(!e.repeat&&!advanceCampaign())resetGame();
@@ -3304,6 +3364,7 @@
     releaseTouchMove();
     pinchPointers.clear();
     pinchGesture=null;
+    historicalTap=null;
   }
 
   window.addEventListener('blur',releaseInterruptedInput);
@@ -3334,6 +3395,7 @@
         const historicalProgress=missionDirector.snapshot();
         missionStage=historicalProgress.phaseIndex;
         if(historicalProgress.completed)completeCurrentMission();
+        else if(historicalProgress.failed){finished=true;win=false;hudStage.textContent='MISSION FAILED';setStatus(historicalProgress.status);syncTouchControlState()}
       }
       if(missionCrowd)missionCrowd.fixedUpdate(dt);
       updateCivilians(dt);

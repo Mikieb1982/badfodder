@@ -61,7 +61,7 @@ const lockedLaunch=MissionLaunch.create({
   storage:lockedStorage,
   missions:campaign.missions,
   campaign,
-  historicalMissions:Historical.missions
+  historicalMissions:Historical.missions.map(m=>({...m,mapReady:false,playable:false}))
 });
 assert.equal(lockedLaunch.selectHistorical('cable-street-1936'),false,'Production Cable Street must remain locked before map readiness');
 assert.equal(lockedLaunch.isCampaign(),true);
@@ -131,10 +131,10 @@ assert(index.includes("enemies=missionController?[]"),'Historical controller can
 assert(index.includes("touchAction"),'Historical ACTION control missing');
 assert(index.includes("performHistoricalContextActionAt"),'Desktop historical contextual action path missing');
 assert(index.includes("performHistoricalNearestAction"),'Keyboard/touch historical contextual action path missing');
-assert(index.includes('cable-street-director.js?v=20261002-cable-director-1'),'Cable Street phase director is not loaded by the browser runtime');
-assert(index.includes('cable-street-map.js?v=20261002-cable-map-slot-1'),'Cable Street runtime map slot is not loaded before bootstrap');
+assert(index.includes('cable-street-director.js?v=20261002-playable-1'),'Cable Street phase director is not loaded by the browser runtime');
+assert(index.includes('cable-street-map.js?v=20261002-playable-1'),'Cable Street runtime map slot is not loaded before bootstrap');
 assert(index.includes("...(window.CABLE_STREET_MAP?{'cable-street':window.CABLE_STREET_MAP}:{})"),'Cable Street runtime map is not conditionally registered');
-assert(index.includes('cable-street-crowd.js?v=20261002-cable-helpers-2'),'Cable Street crowd module is not loaded by the browser runtime');
+assert(index.includes('cable-street-crowd.js?v=20261002-playable-1'),'Cable Street crowd module is not loaded by the browser runtime');
 assert(index.includes('const cableStreetCrowd=BadFodderCableCrowd'),'Cable Street crowd global is not bound');
 assert(index.includes('missionCrowd=cableStreetCrowd.create'),'Cable Street crowd is not created during historical reset');
 assert(index.includes('missionCrowd.fixedUpdate(dt)'),'Cable Street crowd is not connected to fixed-step simulation');
@@ -165,11 +165,11 @@ assert(index.includes("historicalProgress.phaseTitle+"),'Cable Street HUD does n
 assert(index.includes('statusEl.textContent!==historicalProgress.status'),'Cable Street persistent status is still routed through transient HUD notices');
 
 
-assert(index.includes("cable-street-interactions.js?v=20261002-cable-pressure-7"),'Historical interaction module is not cache-busted');
-assert(index.includes('options:{scale:SCALE,pressureControlled:true}'),'Live Cable Street interactions do not wait for the historical pressure director');
+assert(index.includes("cable-street-interactions.js?v=20261002-playable-1"),'Historical interaction module is not cache-busted');
+assert(index.includes('options:{scale:SCALE,pressureControlled:true,navigation}'),'Live Cable Street interactions do not wait for the historical pressure director');
 assert(fs.readFileSync(path.join(root,'cable-street-interactions.js'),'utf8').includes('pressureDamageMultiplier'),'Cable Street HOLD actions do not mitigate police pressure');
 assert(fs.readFileSync(path.join(root,'cable-street-interactions.js'),'utf8').includes("reason:'repelled'"),'Cable Street pressure waves cannot be repelled without a breach');
-assert(index.includes("cable-street-art.js?v=20261002-cable-urban-2"),'Historical art module is not cache-busted');
+assert(index.includes("cable-street-art.js?v=20261002-playable-1"),'Historical art module is not cache-busted');
 
 
 console.log('PASS: historical launch resolves stable IDs without altering campaign progress and rejects locked/stale historical selections.');

@@ -46,6 +46,8 @@
       regroupStableSeconds:0,
       finalHoldSeconds:0,
       completed:false,
+      failed:false,
+      breachSeconds:0,
       waveCooldowns:new Map()
     };
 
@@ -164,7 +166,8 @@
       const b=mainBarricade();
       if(!b)return;
       const integrityRatio=b.maxIntegrity>0?b.integrity/b.maxIntegrity:0;
-      const stable=!b.breached&&integrityRatio>=settings.minimumRegroupIntegrityRatio&&allPressureWithdrawing();
+      const atRegroup=!finitePoint(options.regroupPoint)||activeActors().some(a=>distance(a,options.regroupPoint)<(options.regroupRadius||40));
+      const stable=atRegroup&&!b.breached&&integrityRatio>=settings.minimumRegroupIntegrityRatio&&allPressureWithdrawing();
       if(stable)state.regroupStableSeconds+=dt;
       else state.regroupStableSeconds=0;
       if(state.regroupStableSeconds>=settings.regroupStableSeconds)enterPhase(3);
@@ -202,9 +205,16 @@
     }
 
     function fixedUpdate(dt){
-      if(state.completed||!Number.isFinite(dt)||dt<=0)return state.completed;
+      if(state.completed||state.failed||!Number.isFinite(dt)||dt<=0)return state.completed;
       state.phaseElapsed+=dt;
       consumeEvents();
+      const b=mainBarricade();
+      if(state.phaseIndex>0&&b&&b.breached){
+        state.breachSeconds+=dt;
+        if(state.breachSeconds>=(mission.breachRecoverySeconds||30)){
+          state.failed=true;controller.state.events.push({type:'mission-failed',reason:'route-open'});return false;
+        }
+      }else state.breachSeconds=0;
       if(state.phaseIndex===0)updateGathering();
       else if(state.phaseIndex===1)updateHoldApproach();
       else if(state.phaseIndex===2)updateRegroup(dt);
@@ -239,6 +249,8 @@
     }
 
     function statusText(){
+      if(state.failed)return'Local defence lost. Retry to help keep the route blocked.';
+      if(state.breachSeconds>0)return'BREACH: bring material to rebuild within '+Math.ceil((mission.breachRecoverySeconds||30)-state.breachSeconds)+'s.';
       const p=phase();
       if(!p)return'Cable Street';
       if(p.id==='gathering'){
@@ -246,7 +258,7 @@
         return'Gathering: take position at the barricade and HOLD to begin.';
       }
       if(p.id==='hold-approach')return'Hold the approach: withstand the first pressure.';
-      if(p.id==='regroup')return'Regroup: restore the barricade and stabilise the position.';
+      if(p.id==='regroup')return'Regroup: move to the marked point, restore the barricade and let police withdraw.';
       const remaining=Math.max(0,Math.ceil(finalHoldTarget-state.finalHoldSeconds));
       return'They Shall Not Pass: keep the route blocked for '+remaining+'s.';
     }
@@ -272,6 +284,8 @@
         finalHoldSeconds:state.finalHoldSeconds,
         finalHoldTarget,
         completed:state.completed,
+        failed:state.failed,
+        breachSeconds:state.breachSeconds,
         status:statusText()
       };
     }

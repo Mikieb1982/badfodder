@@ -194,6 +194,7 @@ function projectRuntimeObjects(record,projector){
       maxIntegrity,integrity:item.integrity,
       constructionTier:Number.isInteger(item.constructionTier)?item.constructionTier:0,
       workPositions:item.workPositions,
+      workPoints:(item.workPoints||[]).map((p,i)=>position(p,id+' work point '+i)),
       x:centre.x,y:centre.y,points,
       interactionRadius:scaled(item.interactionRadiusMetres,id+' interactionRadiusMetres'),
       historicalStatus:item.historicalStatus||null,
@@ -223,6 +224,7 @@ function projectRuntimeObjects(record,projector){
       optional:item.optional!==false,
       interactionRadius:scaled(item.interactionRadiusMetres,id+' interactionRadiusMetres'),
       exitSeconds:positive(item.exitSeconds,id+' exitSeconds'),
+      ...(item.exit?(()=>{const e=position(item.exit,id+' exit');return{exitX:e.x,exitY:e.y,speed:scaled(item.speedMetresPerSecond||1.4,id+' evacuation speed')}})():{}),
       historicalStatus:item.historicalStatus||null
     };
   });
@@ -330,6 +332,7 @@ function compileAuthoring({trace,schema,projection,eventOverlay=null,runtimeObje
         tracedEventZones.push({...item,...bounds(item.points),role:item.kind||null,label:item.label||item.id});
       }else if(layer==='gameplay-adjustment'){
         gameplayAdjustments.push({...item,...bounds(item.points)});
+        if(item.kind==='closed-area')buildings.push({...item,...bounds(item.points),solid:true,hidden:true,name:''});
       }
     }
   }
@@ -373,13 +376,18 @@ function compileAuthoring({trace,schema,projection,eventOverlay=null,runtimeObje
     zones[zone.id]={x:centre.x,y:centre.y,r:round(radius),kind:zone.kind||zone.role||'event-zone'};
   }
 
+  const width=Math.max(1,Math.ceil(maxX+padding)+1),height=Math.max(1,Math.ceil(maxY+padding)+1);
+  if(trace.properties&&trace.properties.boundedSlice){
+    // Explicit scenario boundaries stop routes leaking around cropped street blocks.
+    const rings=[[[0,0],[width,0],[width,8],[0,8]],[[0,height-8],[width,height-8],[width,height],[0,height]],[[0,0],[8,0],[8,height],[0,height]],[[width-8,0],[width,0],[width,height],[width-8,height]]];
+    rings.forEach((points,i)=>buildings.push({id:'slice-boundary-'+i,points,...bounds(points),solid:true,hidden:true,name:''}));
+  }
   return{
     key:mapKey,
     title:'Cable Street',
-    width:Math.max(1,Math.ceil(maxX+padding)+1),
-    height:Math.max(1,Math.ceil(maxY+padding)+1),
+    width,height,
     buildings,roads,railways,
-    areas:[],
+    areas:(()=>{const n=roads.find(r=>r.id==='cable-north-edge'),s=roads.find(r=>r.id==='cable-south-edge');return n&&s?[{type:'asphalt',points:[...n.points,...s.points.slice().reverse()]}]:[]})(),
     pois:{},
     zones,
     vegetation:[],
@@ -393,6 +401,7 @@ function compileAuthoring({trace,schema,projection,eventOverlay=null,runtimeObje
     eventZones,
     gameplayAdjustments,
     historicalObjects:runtime.objects,
+    regroupPoint:runtimeObjects&&runtimeObjects.regroupPoint?(()=>{const p=projector.project(runtimeObjects.regroupPoint);return{x:p[0],y:p[1]}})():null,
     projection:projector.metadata,
     authoring:{
       traceId:trace.properties&&trace.properties.id||null,

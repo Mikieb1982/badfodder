@@ -55,6 +55,8 @@
     if(!mission||mission.id!=='cable-street-1936')throw new Error('Cable Street interactions require the Cable Street mission.');
     const settings={...DEFAULTS,...options};
     const worldScale=Number.isFinite(options.scale)&&options.scale>0?options.scale:1;
+    const navigation=options.navigation||null;
+    for(const key of ['materialRadius','civilianRadius','barricadeRadius'])settings[key]*=worldScale;
     const scaleValue=n=>Number.isFinite(n)?n*worldScale:n;
     const scalePoints=points=>Array.isArray(points)?points.map(p=>[scaleValue(p[0]),scaleValue(p[1])]):[];
     let initialized=false;
@@ -111,7 +113,8 @@
           y:center&&center.y,
           points:scalePoints(def.points),
           label:def.label||def.id,
-          interactionRadius:def.interactionRadius,
+          interactionRadius:scaleValue(def.interactionRadius),
+          workPoints:(def.workPoints||[]).map(p=>({x:scaleValue(p.x),y:scaleValue(p.y)})),
           historicalStatus:def.historicalStatus||null
         });
         return b;
@@ -121,7 +124,7 @@
         Object.assign(m,{
           x:scaleValue(def.x),y:scaleValue(def.y),
           label:def.label||def.type,
-          interactionRadius:def.interactionRadius
+          interactionRadius:scaleValue(def.interactionRadius)
         });
         return m;
       });
@@ -130,7 +133,9 @@
         Object.assign(p,{
           x:scaleValue(def.x),y:scaleValue(def.y),
           label:def.label||'Resident',
-          interactionRadius:def.interactionRadius,
+          interactionRadius:scaleValue(def.interactionRadius),
+          exitX:scaleValue(def.exitX),exitY:scaleValue(def.exitY),
+          speed:scaleValue(Number.isFinite(def.speed)?def.speed:28),
           exitSeconds:Number.isFinite(def.exitSeconds)?def.exitSeconds:settings.rescueExitSeconds,
           exitTimer:null
         });
@@ -139,7 +144,7 @@
       const formations=(source.formations||[]).map(def=>{
         const p=runtime.createPoliceFormation({
           id:def.id,
-          width:def.width,
+          width:scaleValue(def.width),
           objective:def.objective,
           state:def.state||'approach'
         });
@@ -377,7 +382,10 @@
       }
 
       if(!target){finishJob(job,false);return}
-      if(!workInRange(job,a,target)){job.status='waiting';job.progress=0;return}
+      if(!workInRange(job,a,target)){
+        if(job.workSlot>=0){runtime.releaseAllWorkPositions(target,job.actorId);job.workSlot=-1}
+        job.status='waiting';job.progress=0;return;
+      }
 
       if(job.action==='carry'){
         if(controller.carryForActor(job.actorId,job.targetId)){
@@ -409,6 +417,8 @@
 
       if(job.action==='hold'){
         controller.state.events.push({type:'barricade-held',barricadeId:job.targetId,actorId:job.actorId,duration:job.duration});
+        // Production HOLD stays active until movement/cancellation, avoiding repeated tapping.
+        if(mission.continuousHold){job.progress=0;return}
         finishJob(job,true);
         return;
       }
@@ -428,8 +438,14 @@
       const dx=x-entity.x,dy=y-entity.y,d=Math.hypot(dx,dy);
       if(d<1e-6)return 0;
       const step=Math.min(d,speed*dt);
-      entity.x+=dx/d*step;
-      entity.y+=dy/d*step;
+      const nx=entity.x+dx/d*step,ny=entity.y+dy/d*step;
+      const radius=entity.width?entity.width/2:5*worldScale;
+      if(navigation&&!navigation.routeClear(entity.x,entity.y,nx,ny,radius)){
+        entity.blockedSeconds=(entity.blockedSeconds||0)+dt;
+        return d;
+      }
+      entity.blockedSeconds=0;entity.dir=Math.atan2(dy,dx);
+      entity.x=nx;entity.y=ny;
       return d-step;
     }
 
@@ -486,6 +502,19 @@
       controller.state.civilians.forEach(p=>{
         if(p.status!=='assisted'||!Number.isFinite(p.exitTimer))return;
         if(p.justAssisted){p.justAssisted=false;return}
+        if(Number.isFinite(p.exitX)&&Number.isFinite(p.exitY)){
+          if(!p.exitPath&&navigation){
+            p.exitPath=navigation.findPath(p.x,p.y,p.exitX,p.exitY);p.exitIndex=0;
+          }
+          const waypoint=p.exitPath?p.exitPath[p.exitIndex||0]:{x:p.exitX,y:p.exitY};
+          if(!waypoint)return;
+          if(moveToward(p,waypoint.x,waypoint.y,p.speed,dt)<=2*worldScale){
+            if(p.exitPath&&(p.exitIndex||0)<p.exitPath.length-1){p.exitIndex++;return}
+            if(distance(p,{x:p.exitX,y:p.exitY})>8*worldScale)return;
+            if(runtime.evacuateCivilian(p))controller.state.events.push({type:'civilian-exited',civilianId:p.id});
+          }
+          return;
+        }
         p.exitTimer=Math.max(0,p.exitTimer-dt);
         if(p.exitTimer<=0&&runtime.evacuateCivilian(p)){
           controller.state.events.push({type:'civilian-exited',civilianId:p.id});
@@ -505,6 +534,11 @@
     }
 
     function hint(actorId){
+      const job=controller.state.jobs.get(actorId);
+      if(job&&job.status==='working'){
+        if(job.action==='hold')return 'HOLDING';
+        return job.action.toUpperCase()+' '+Math.round(job.progress/job.duration*100)+'%';
+      }
       const context=contextNearActor(actorId);
       if(context)return context.label;
       const a=actor(actorId);

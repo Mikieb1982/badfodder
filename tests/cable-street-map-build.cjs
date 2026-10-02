@@ -58,14 +58,14 @@ assert.throws(
 
 const stub=fs.readFileSync(path.join(root,'cable-street-map.js'),'utf8');
 assert(stub.includes('CABLE_STREET_MAP'));
-assert(stub.includes('=null'),'Production map slot must stay null before approved compilation');
+assert(stub.includes('root.CABLE_STREET_MAP='),'Production map must be packaged');
 
 const temp=path.join(os.tmpdir(),'badfodder-cable-map-test-'+process.pid+'.js');
 assert.throws(
-  ()=>Builder.build(path.join(root,'authoring/cable-street'),temp),
+  ()=>Builder.build(require('./fixtures/cable-street-pending-authoring.cjs')(),temp),
   /not MAP-01 to MAP-06 ready/
 );
 assert.equal(fs.existsSync(temp),false,'Blocked map build wrote a runtime artifact');
 
 console.log('PASS: Cable Street browser-map builder only serializes production-ready maps with approved runtime objects and four explicit squad spawns.');
-console.log('PASS: current production map slot remains null and the real incomplete authoring package cannot overwrite it.');
+console.log('PASS: incomplete authoring package cannot overwrite the production map.');

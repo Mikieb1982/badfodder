@@ -13,9 +13,14 @@
       title:'Cable Street',
       subtitle:'London, 4 October 1936',
       blueprintVersion:'0.1',
-      status:'groundwork',
-      playable:false,
-      mapReady:false,
+      status:'playable-slice',
+      playable:true,
+      mapReady:true,
+      map:'cable-street',
+      roster:['Jack','Rose','Sam','Ada'],
+      squadSize:4,
+      continuousHold:true,
+      breachRecoverySeconds:30,
       mapResearch:{
         boundaryId:'cable-street-christian-street-slice-v1',
         masterCrs:'EPSG:27700',
@@ -29,7 +34,7 @@
         runtimeProjection:'authoring/cable-street/runtime-projection.json',
         runtimeObjects:'authoring/cable-street/runtime-objects.json',
         requiredGates:['MAP-01','MAP-02','MAP-03','MAP-04','MAP-05','MAP-06'],
-        productionGeometryReady:false
+        productionGeometryReady:true
       },
       integration:'historical',
       campaignLinked:false,

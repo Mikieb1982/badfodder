@@ -192,15 +192,16 @@ function makeReadyPackage(){
   return dir;
 }
 
-const current=Authoring.evaluate(realDir);
+const pendingDir=require('./fixtures/cable-street-pending-authoring.cjs')();
+const current=Authoring.evaluate(pendingDir);
 assert.equal(current.gates['MAP-01'],true);
 assert.equal(current.gates['MAP-02'],true);
 assert.equal(current.gates['MAP-03'],false);
 assert.equal(current.gates['MAP-04'],false);
 assert.equal(current.gates['MAP-05'],false);
 assert.equal(current.gates['MAP-06'],false);
-assert.equal(current.runtimeProjectionReady,false);
-assert.throws(()=>Compiler.compileDirectory(realDir),/not MAP-01 to MAP-06 ready/);
+assert.equal(current.runtimeProjectionReady,true);
+assert.throws(()=>Compiler.compileDirectory(pendingDir),/not MAP-01 to MAP-06 ready/);
 
 const readyDir=makeReadyPackage();
 const ready=Authoring.evaluate(readyDir);
@@ -292,5 +293,5 @@ assert.equal(pointOverlay.gates['MAP-06'],false);
 fs.rmSync(readyDir,{recursive:true,force:true});
 
 console.log('PASS: MAP-04 to MAP-06 become computable gates and reject unsafe inferred essential routes or point-like event claims.');
-console.log('PASS: guarded compiler refuses the real incomplete package and compiles a fully approved synthetic EPSG:27700 package.');
+console.log('PASS: guarded compiler refuses an incomplete package and compiles a fully approved synthetic EPSG:27700 package.');
 console.log('PASS: BNG-to-game conversion preserves north-up orientation while keeping source calibration and runtime projection separate.');

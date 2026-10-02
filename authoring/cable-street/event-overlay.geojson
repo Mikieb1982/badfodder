@@ -3,9 +3,12 @@
   "properties": {
     "id": "cable-street-event-overlay-v1",
     "missionId": "cable-street-1936",
-    "status": "pending-event-overlay",
+    "status": "complete",
     "eventDate": "1936-10-04",
-    "sourceIds": ["S03", "S04"],
+    "sourceIds": [
+      "S03",
+      "S04"
+    ],
     "rules": [
       "Approximate event locations are authored as Polygon or MultiPolygon areas, not precise point coordinates.",
       "The Christian Street barricade remains a supported vicinity until its footprint is explicitly interpreted.",
@@ -13,5 +16,46 @@
       "Contextual off-map locations remain contextual unless the approved boundary includes them."
     ]
   },
-  "features": []
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "christian-barricade-vicinity",
+        "kind": "barricade-vicinity",
+        "sourceIds": [
+          "S03",
+          "S04"
+        ],
+        "confidence": "corroborated",
+        "interpretationNote": "Supported broad vicinity near Christian Street. Exact game footprint is a fictional interpretation."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534437.581,
+              180925.108
+            ],
+            [
+              534500.216,
+              180925.108
+            ],
+            [
+              534500.216,
+              180890.476
+            ],
+            [
+              534437.581,
+              180890.476
+            ],
+            [
+              534437.581,
+              180925.108
+            ]
+          ]
+        ]
+      }
+    }
+  ]
 }

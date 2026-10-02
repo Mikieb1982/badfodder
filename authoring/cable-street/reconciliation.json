@@ -2,11 +2,473 @@
   "id": "cable-street-reconciliation-v1",
   "missionId": "cable-street-1936",
   "eventDate": "1936-10-04",
-  "status": "pending-feature-reconciliation",
-  "baselineSourceIds": ["S01"],
-  "nearPeriodSourceIds": ["S02", "S05"],
-  "decisionLabels": ["retain", "exclude", "uncertain", "fictional adaptation"],
-  "decisions": [],
+  "status": "complete",
+  "baselineSourceIds": [
+    "S01"
+  ],
+  "nearPeriodSourceIds": [
+    "S02",
+    "S05"
+  ],
+  "decisionLabels": [
+    "retain",
+    "exclude",
+    "uncertain",
+    "fictional adaptation"
+  ],
+  "decisions": [
+    {
+      "featureId": "cable-north-edge",
+      "sourceGeometryConfidence": "directly depicted",
+      "eventDateConfidence": "corroborated",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "retain",
+      "essentialRouteUse": true,
+      "note": "Cable Street north carriageway edge; simplified baseline line. Corridor and railway relationships checked against report page 345, upper 1937 aerial. 1936 detail inferred where no near-period frontage evidence exists; closures are explicit adaptations."
+    },
+    {
+      "featureId": "cable-south-edge",
+      "sourceGeometryConfidence": "directly depicted",
+      "eventDateConfidence": "corroborated",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "retain",
+      "essentialRouteUse": true,
+      "note": "Manual simplified envelope digitised from page 154; individual frontage details omitted. 1936 detail inferred where no near-period frontage evidence exists; closures are explicit adaptations."
+    },
+    {
+      "featureId": "christian-west",
+      "sourceGeometryConfidence": "directly depicted",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": true,
+      "note": "Manual simplified envelope digitised from page 154; individual frontage details omitted. 1936 detail inferred where no near-period frontage evidence exists; closures are explicit adaptations."
+    },
+    {
+      "featureId": "christian-east",
+      "sourceGeometryConfidence": "directly depicted",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": true,
+      "note": "Manual simplified envelope digitised from page 154; individual frontage details omitted. 1936 detail inferred where no near-period frontage evidence exists; closures are explicit adaptations."
+    },
+    {
+      "featureId": "prince-west",
+      "sourceGeometryConfidence": "directly depicted",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": true,
+      "note": "Manual simplified envelope digitised from page 154; individual frontage details omitted. 1936 detail inferred where no near-period frontage evidence exists; closures are explicit adaptations."
+    },
+    {
+      "featureId": "prince-east",
+      "sourceGeometryConfidence": "directly depicted",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": true,
+      "note": "Manual simplified envelope digitised from page 154; individual frontage details omitted. 1936 detail inferred where no near-period frontage evidence exists; closures are explicit adaptations."
+    },
+    {
+      "featureId": "berner-west",
+      "sourceGeometryConfidence": "directly depicted",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": true,
+      "note": "Manual simplified envelope digitised from page 154; individual frontage details omitted. 1936 detail inferred where no near-period frontage evidence exists; closures are explicit adaptations."
+    },
+    {
+      "featureId": "berner-east",
+      "sourceGeometryConfidence": "directly depicted",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": true,
+      "note": "Manual simplified envelope digitised from page 154; individual frontage details omitted. 1936 detail inferred where no near-period frontage evidence exists; closures are explicit adaptations."
+    },
+    {
+      "featureId": "north-west-terrace-0",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "north-west-terrace-1",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "north-west-terrace-2",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "north-christian-terrace-0",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "north-christian-terrace-1",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "depot-west-buildings",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "coal-depot-closed",
+      "sourceGeometryConfidence": "fictional gameplay",
+      "eventDateConfidence": "fictional gameplay",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Coal depot enclosure seen on baseline and 1937 aerial. Interior/access are excluded. 1936 detail inferred where no near-period frontage evidence exists; closures are explicit adaptations."
+    },
+    {
+      "featureId": "south-west-0",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "south-west-1",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "south-west-2",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "south-west-3",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "closed-yard-west",
+      "sourceGeometryConfidence": "fictional gameplay",
+      "eventDateConfidence": "fictional gameplay",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Private block interiors excluded; no passage is asserted. 1936 detail inferred where no near-period frontage evidence exists; closures are explicit adaptations."
+    },
+    {
+      "featureId": "south-main-0",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "south-main-1",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "south-main-2",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "south-main-3",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "south-main-4",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "south-main-5",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "south-main-6",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "closed-yard-main",
+      "sourceGeometryConfidence": "fictional gameplay",
+      "eventDateConfidence": "fictional gameplay",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Private block interiors excluded; no passage is asserted. 1936 detail inferred where no near-period frontage evidence exists; closures are explicit adaptations."
+    },
+    {
+      "featureId": "south-east-0",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "south-east-1",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "south-east-2",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "south-east-3",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "closed-yard-east",
+      "sourceGeometryConfidence": "fictional gameplay",
+      "eventDateConfidence": "fictional gameplay",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Private block interiors excluded; no passage is asserted. 1936 detail inferred where no near-period frontage evidence exists; closures are explicit adaptations."
+    },
+    {
+      "featureId": "south-cannon-0",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "south-cannon-1",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "closed-yard-cannon",
+      "sourceGeometryConfidence": "fictional gameplay",
+      "eventDateConfidence": "fictional gameplay",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Private block interiors excluded; no passage is asserted. 1936 detail inferred where no near-period frontage evidence exists; closures are explicit adaptations."
+    },
+    {
+      "featureId": "north-east-frontage",
+      "sourceGeometryConfidence": "inferred",
+      "eventDateConfidence": "inferred",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints. Event-date details remain inferred; no essential route uses private premises."
+    },
+    {
+      "featureId": "northern-crop-mask",
+      "sourceGeometryConfidence": "fictional gameplay",
+      "eventDateConfidence": "fictional gameplay",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Slice ends at railway/service areas. 1936 detail inferred where no near-period frontage evidence exists; closures are explicit adaptations."
+    },
+    {
+      "featureId": "south-crop-mask",
+      "sourceGeometryConfidence": "fictional gameplay",
+      "eventDateConfidence": "fictional gameplay",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "South streets continue off-map. 1936 detail inferred where no near-period frontage evidence exists; closures are explicit adaptations."
+    },
+    {
+      "featureId": "east-crop-mask",
+      "sourceGeometryConfidence": "fictional gameplay",
+      "eventDateConfidence": "fictional gameplay",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Cannon Street Road is outside this slice. 1936 detail inferred where no near-period frontage evidence exists; closures are explicit adaptations."
+    },
+    {
+      "featureId": "west-crop-mask",
+      "sourceGeometryConfidence": "fictional gameplay",
+      "eventDateConfidence": "fictional gameplay",
+      "sourceIds": [
+        "S01"
+      ],
+      "treatment": "fictional adaptation",
+      "essentialRouteUse": false,
+      "note": "Police route continues off-map. 1936 detail inferred where no near-period frontage evidence exists; closures are explicit adaptations."
+    }
+  ],
   "requirements": [
     "Every movement-affecting traced feature receives a reconciliation decision.",
     "Source-geometry confidence and 1936 event-date confidence remain separate.",

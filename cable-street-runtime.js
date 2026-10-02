@@ -428,7 +428,12 @@
       const barricade=state.barricades.get(barricadeId);
       const material=actor&&actor.carrying?state.materials.get(actor.carrying):null;
       if(!actor||!material||!barricade)return 0;
+      const wasBreached=barricade.breached;
       const added=deliverMaterial(material,barricade,actorId);
+      if(added>0&&wasBreached!==barricade.breached){
+        syncBarricadeNavigation(barricadeId);
+        state.events.push({type:'barricade-breach-change',barricadeId,breached:barricade.breached});
+      }
       if(material.consumed)actor.carrying=null;
       return added;
     }

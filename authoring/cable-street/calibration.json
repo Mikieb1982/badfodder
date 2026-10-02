@@ -1,13 +1,166 @@
 {
   "id": "cable-street-s01-grid-calibration-v1",
-  "status": "awaiting-control-points",
+  "status": "calibrated",
   "sourceId": "S01",
   "masterCrs": "EPSG:27700",
-  "sourceCrop": null,
-  "controls": [],
-  "checkControls": [],
-  "transform": null,
-  "residuals": null,
+  "sourceCrop": {
+    "url": "https://www.london.gov.uk/sites/default/files/cablestreet-technical.pdf",
+    "pdfPage": 154,
+    "renderWidth": 2400,
+    "renderHeight": 1697,
+    "pixelBounds": [
+      578,
+      775,
+      1210,
+      1100
+    ],
+    "controlMethod": "Orthogonal intersections of marginal BNG ticks on the north-up rectangular map frame; whole-page rendered pixel coordinates. Manual digitising precision approximately 2 pixels; residuals measure calibration fit, not historic-map accuracy."
+  },
+  "controls": [
+    {
+      "id": "E400-N1000",
+      "image": [
+        578,
+        677
+      ],
+      "grid": [
+        534400,
+        181000
+      ]
+    },
+    {
+      "id": "E600-N1000",
+      "image": [
+        1041,
+        677
+      ],
+      "grid": [
+        534600,
+        181000
+      ]
+    },
+    {
+      "id": "E400-N900",
+      "image": [
+        578,
+        908
+      ],
+      "grid": [
+        534400,
+        180900
+      ]
+    }
+  ],
+  "checkControls": [
+    {
+      "id": "E500-N800-check",
+      "image": [
+        810,
+        1139
+      ],
+      "grid": [
+        534500,
+        180800
+      ]
+    }
+  ],
+  "transform": {
+    "type": "affine-2d",
+    "equation": {
+      "easting": "E = a*x + b*y + c",
+      "northing": "N = d*x + e*y + f"
+    },
+    "coefficients": {
+      "a": 0.4319654427659714,
+      "b": 2.4442670110147446e-12,
+      "c": 534150.3239740792,
+      "d": 1.2789769243681803e-13,
+      "e": -0.4329004328994017,
+      "f": 181293.0735930727
+    }
+  },
+  "residuals": {
+    "controls": [
+      {
+        "id": "E400-N1000",
+        "predicted": [
+          534399.9999999997,
+          180999.99999999988
+        ],
+        "observed": [
+          534400,
+          181000
+        ],
+        "delta": [
+          -3.4924596548080444e-10,
+          -1.1641532182693481e-10
+        ],
+        "errorMetres": 3.681375715146283e-10
+      },
+      {
+        "id": "E600-N1000",
+        "predicted": [
+          534600.0000000002,
+          180999.99999999994
+        ],
+        "observed": [
+          534600,
+          181000
+        ],
+        "delta": [
+          2.3283064365386963e-10,
+          -5.820766091346741e-11
+        ],
+        "errorMetres": 2.399963341663627e-10
+      },
+      {
+        "id": "E400-N900",
+        "predicted": [
+          534400.0000000001,
+          180900.00000000012
+        ],
+        "observed": [
+          534400,
+          180900
+        ],
+        "delta": [
+          1.1641532182693481e-10,
+          1.1641532182693481e-10
+        ],
+        "errorMetres": 1.6463612699567982e-10
+      }
+    ],
+    "checks": [
+      {
+        "id": "E500-N800-check",
+        "predicted": [
+          534500.2159827225,
+          180800.0000000004
+        ],
+        "observed": [
+          534500,
+          180800
+        ],
+        "delta": [
+          0.21598272246774286,
+          4.0745362639427185e-10
+        ],
+        "errorMetres": 0.21598272246774286
+      }
+    ],
+    "controlSummary": {
+      "count": 3,
+      "rmsMetres": 2.7094191646065527e-10,
+      "maxMetres": 3.681375715146283e-10,
+      "meanMetres": 2.575900108922236e-10
+    },
+    "checkSummary": {
+      "count": 1,
+      "rmsMetres": 0.21598272246774286,
+      "maxMetres": 0.21598272246774286,
+      "meanMetres": 0.21598272246774286
+    }
+  },
   "requirements": {
     "minimumControls": 3,
     "wellSeparated": true,

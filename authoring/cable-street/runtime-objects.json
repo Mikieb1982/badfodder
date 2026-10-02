@@ -1,7 +1,7 @@
 {
   "id": "cable-street-runtime-objects-v1",
   "missionId": "cable-street-1936",
-  "status": "awaiting-approved-map",
+  "status": "ready",
   "crs": "EPSG:27700",
   "requirements": {
     "mainBarricades": 1,
@@ -21,10 +21,272 @@
     ]
   },
   "objects": {
-    "barricades": [],
-    "materials": [],
-    "civilians": [],
-    "formations": []
+    "barricades": [
+      {
+        "id": "B",
+        "label": "Christian Street defence",
+        "polygon": [
+          [
+            534473.866,
+            180916.45
+          ],
+          [
+            534477.322,
+            180916.45
+          ],
+          [
+            534477.322,
+            180900.866
+          ],
+          [
+            534473.866,
+            180900.866
+          ]
+        ],
+        "position": [
+          534475.594,
+          180909.091
+        ],
+        "maxIntegrity": 100,
+        "integrity": 52,
+        "constructionTier": 2,
+        "workPositions": 4,
+        "workPoints": [
+          [
+            534484.665,
+            180911.255
+          ],
+          [
+            534484.665,
+            180906.926
+          ],
+          [
+            534488.553,
+            180907.792
+          ]
+        ],
+        "interactionRadiusMetres": 10,
+        "historicalStatus": "interpretation inside supported vicinity",
+        "sourceIds": [
+          "S03"
+        ],
+        "interpretationNote": "Fictional footprint in supported vicinity."
+      }
+    ],
+    "materials": [
+      {
+        "id": "load-1",
+        "type": "timber",
+        "label": "Timber",
+        "position": [
+          534495.032,
+          180909.091
+        ],
+        "interactionRadiusMetres": 4,
+        "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "load-2",
+        "type": "crates",
+        "label": "Crates",
+        "position": [
+          534506.695,
+          180907.359
+        ],
+        "interactionRadiusMetres": 4,
+        "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "load-3",
+        "type": "furniture",
+        "label": "Furniture",
+        "position": [
+          534520.086,
+          180907.792
+        ],
+        "interactionRadiusMetres": 4,
+        "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "load-4",
+        "type": "timber",
+        "label": "Timber",
+        "position": [
+          534536.933,
+          180903.896
+        ],
+        "interactionRadiusMetres": 4,
+        "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "load-5",
+        "type": "crates",
+        "label": "Crates",
+        "position": [
+          534550.324,
+          180906.061
+        ],
+        "interactionRadiusMetres": 4,
+        "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "load-6",
+        "type": "furniture",
+        "label": "Furniture",
+        "position": [
+          534563.283,
+          180905.628
+        ],
+        "interactionRadiusMetres": 4,
+        "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "load-7",
+        "type": "timber",
+        "label": "Timber",
+        "position": [
+          534575.378,
+          180905.195
+        ],
+        "interactionRadiusMetres": 4,
+        "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "load-8",
+        "type": "crates",
+        "label": "Crates",
+        "position": [
+          534586.609,
+          180905.628
+        ],
+        "interactionRadiusMetres": 4,
+        "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "load-9",
+        "type": "furniture",
+        "label": "Furniture",
+        "position": [
+          534601.728,
+          180906.926
+        ],
+        "interactionRadiusMetres": 4,
+        "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "load-10",
+        "type": "timber",
+        "label": "Timber",
+        "position": [
+          534616.847,
+          180907.359
+        ],
+        "interactionRadiusMetres": 4,
+        "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "load-11",
+        "type": "crates",
+        "label": "Crates",
+        "position": [
+          534628.942,
+          180906.494
+        ],
+        "interactionRadiusMetres": 4,
+        "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "load-12",
+        "type": "furniture",
+        "label": "Furniture",
+        "position": [
+          534524.406,
+          180907.792
+        ],
+        "interactionRadiusMetres": 4,
+        "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "load-13",
+        "type": "timber",
+        "label": "Timber",
+        "position": [
+          534575.378,
+          180902.597
+        ],
+        "interactionRadiusMetres": 4,
+        "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "load-14",
+        "type": "crates",
+        "label": "Crates",
+        "position": [
+          534638.445,
+          180907.792
+        ],
+        "interactionRadiusMetres": 4,
+        "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "load-15",
+        "type": "furniture",
+        "label": "Furniture",
+        "position": [
+          534498.056,
+          180903.896
+        ],
+        "interactionRadiusMetres": 4,
+        "historicalStatus": "fictional gameplay"
+      }
+    ],
+    "civilians": [
+      {
+        "id": "resident-1",
+        "label": "Resident",
+        "position": [
+          534590.497,
+          180904.762
+        ],
+        "exit": [
+          534650.54,
+          180907.792
+        ],
+        "speedMetresPerSecond": 1.6,
+        "optional": false,
+        "interactionRadiusMetres": 4,
+        "exitSeconds": 1,
+        "historicalStatus": "fictional gameplay"
+      }
+    ],
+    "formations": [
+      {
+        "id": "police-1",
+        "label": "Police line",
+        "position": [
+          534420.734,
+          180909.091
+        ],
+        "target": [
+          534466.955,
+          180909.091
+        ],
+        "withdraw": [
+          534414.255,
+          180909.091
+        ],
+        "widthMetres": 3.6,
+        "objective": "B",
+        "state": "approach",
+        "speedMetresPerSecond": 2.2,
+        "stopDistanceMetres": 1,
+        "haltSeconds": 2,
+        "regroupSeconds": 2,
+        "dismantleSeconds": 8,
+        "damageRate": 4.5,
+        "historicalStatus": "fictional placement; western pressure supported at route level"
+      }
+    ]
   },
   "rules": [
     "Do not copy coordinates from synthetic tests or fixtures.",
@@ -40,6 +302,84 @@
     "This file is intentionally empty until MAP-03 through MAP-06 are approved.",
     "It is the SLICE-02 handoff into cable-street-interactions.js."
   ],
-  "squadSpawns": [],
-  "routeRequirements": []
+  "squadSpawns": [
+    [
+      534519.654,
+      180907.359
+    ],
+    [
+      534525.702,
+      180907.359
+    ],
+    [
+      534531.317,
+      180906.061
+    ],
+    [
+      534537.365,
+      180906.061
+    ]
+  ],
+  "routeRequirements": [
+    {
+      "id": "defender-retreat",
+      "from": [
+        534519.654,
+        180907.359
+      ],
+      "to": [
+        534569.33,
+        180905.628
+      ],
+      "expect": "reachable",
+      "phase": "regroup",
+      "side": "defender"
+    },
+    {
+      "id": "support-access",
+      "from": [
+        534519.654,
+        180907.359
+      ],
+      "to": [
+        534625.486,
+        180907.359
+      ],
+      "expect": "reachable",
+      "phase": "hold-approach",
+      "side": "support"
+    },
+    {
+      "id": "police-approach",
+      "from": [
+        534420.734,
+        180909.091
+      ],
+      "to": [
+        534466.955,
+        180909.091
+      ],
+      "expect": "reachable",
+      "phase": "hold-approach",
+      "side": "police"
+    },
+    {
+      "id": "barrier-separation",
+      "from": [
+        534420.734,
+        180909.091
+      ],
+      "to": [
+        534519.654,
+        180907.359
+      ],
+      "expect": "blocked",
+      "phase": "hold-approach",
+      "side": "separation"
+    }
+  ],
+  "regroupPoint": [
+    534569.33,
+    180905.628
+  ]
 }

@@ -3,12 +3,1897 @@
   "properties": {
     "id": "cable-street-christian-street-trace-v1",
     "missionId": "cable-street-1936",
-    "status": "empty-awaiting-calibrated-trace",
-    "productionReady": false,
+    "status": "traced",
+    "productionReady": true,
     "crs": "EPSG:27700",
     "boundaryId": "cable-street-christian-street-slice-v1",
     "evidenceRegister": "evidence-register.json",
-    "calibration": "calibration.json"
+    "calibration": "calibration.json",
+    "boundedSlice": true
   },
-  "features": []
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "cable-north-edge",
+        "kind": "carriageway-edge",
+        "layer": "carriageway-edge",
+        "label": "Cable Street",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "directly depicted",
+        "eventDateConfidence": "corroborated",
+        "affectsMovement": true,
+        "interpretationNote": "Cable Street north carriageway edge; simplified baseline line. Corridor and railway relationships checked against report page 345, upper 1937 aerial.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            534400.0,
+            180913.42
+          ],
+          [
+            534452.7,
+            180915.584
+          ],
+          [
+            534491.577,
+            180912.987
+          ],
+          [
+            534571.49,
+            180909.957
+          ],
+          [
+            534640.605,
+            180911.688
+          ],
+          [
+            534673.002,
+            180914.719
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "cable-south-edge",
+        "kind": "carriageway-edge",
+        "layer": "carriageway-edge",
+        "label": "Cable Street",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "directly depicted",
+        "eventDateConfidence": "corroborated",
+        "affectsMovement": true,
+        "interpretationNote": "Manual simplified envelope digitised from page 154; individual frontage details omitted.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            534400.0,
+            180902.165
+          ],
+          [
+            534452.7,
+            180905.628
+          ],
+          [
+            534491.577,
+            180903.03
+          ],
+          [
+            534571.49,
+            180899.134
+          ],
+          [
+            534640.605,
+            180902.165
+          ],
+          [
+            534673.002,
+            180903.03
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "christian-west",
+        "kind": "carriageway-edge",
+        "layer": "carriageway-edge",
+        "label": "Christian Street",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "directly depicted",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Manual simplified envelope digitised from page 154; individual frontage details omitted.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            534436.717,
+            180946.753
+          ],
+          [
+            534436.717,
+            180918.182
+          ],
+          [
+            534440.173,
+            180914.286
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "christian-east",
+        "kind": "carriageway-edge",
+        "layer": "carriageway-edge",
+        "label": "Christian Street",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "directly depicted",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Manual simplified envelope digitised from page 154; individual frontage details omitted.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            534447.948,
+            180948.918
+          ],
+          [
+            534447.084,
+            180918.615
+          ],
+          [
+            534448.38,
+            180915.152
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "prince-west",
+        "kind": "carriageway-edge",
+        "layer": "carriageway-edge",
+        "label": "Prince\u2019s Square",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "directly depicted",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Manual simplified envelope digitised from page 154; individual frontage details omitted.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            534456.587,
+            180904.329
+          ],
+          [
+            534456.156,
+            180825.541
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "prince-east",
+        "kind": "carriageway-edge",
+        "layer": "carriageway-edge",
+        "label": "Prince\u2019s Square",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "directly depicted",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Manual simplified envelope digitised from page 154; individual frontage details omitted.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            534469.546,
+            180903.896
+          ],
+          [
+            534469.546,
+            180825.541
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "berner-west",
+        "kind": "carriageway-edge",
+        "layer": "carriageway-edge",
+        "label": "Berner Street",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "directly depicted",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Manual simplified envelope digitised from page 154; individual frontage details omitted.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            534549.892,
+            180900.0
+          ],
+          [
+            534548.596,
+            180825.541
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "berner-east",
+        "kind": "carriageway-edge",
+        "layer": "carriageway-edge",
+        "label": "Berner Street",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "directly depicted",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Manual simplified envelope digitised from page 154; individual frontage details omitted.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            534560.691,
+            180899.567
+          ],
+          [
+            534560.691,
+            180825.541
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "railway-north",
+        "kind": "railway",
+        "layer": "railway",
+        "label": "Railway",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "directly depicted",
+        "eventDateConfidence": "corroborated",
+        "affectsMovement": false,
+        "interpretationNote": "Manual simplified envelope digitised from page 154; individual frontage details omitted.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            534400.0,
+            180945.022
+          ],
+          [
+            534504.536,
+            180953.68
+          ],
+          [
+            534588.769,
+            180961.472
+          ],
+          [
+            534673.002,
+            180968.398
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "railway-south",
+        "kind": "railway",
+        "layer": "railway",
+        "label": "",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "directly depicted",
+        "eventDateConfidence": "corroborated",
+        "affectsMovement": false,
+        "interpretationNote": "Manual simplified envelope digitised from page 154; individual frontage details omitted.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            534400.0,
+            180936.364
+          ],
+          [
+            534504.536,
+            180944.589
+          ],
+          [
+            534588.769,
+            180952.381
+          ],
+          [
+            534673.002,
+            180959.74
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "north-west-terrace-0",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534400.0,
+              180933.333
+            ],
+            [
+              534412.527,
+              180934.199
+            ],
+            [
+              534412.527,
+              180912.554
+            ],
+            [
+              534400.0,
+              180912.554
+            ],
+            [
+              534400.0,
+              180933.333
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "north-west-terrace-1",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534412.527,
+              180933.333
+            ],
+            [
+              534426.35,
+              180934.199
+            ],
+            [
+              534426.35,
+              180912.554
+            ],
+            [
+              534412.527,
+              180912.554
+            ],
+            [
+              534412.527,
+              180933.333
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "north-west-terrace-2",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534426.35,
+              180933.333
+            ],
+            [
+              534436.717,
+              180934.199
+            ],
+            [
+              534436.717,
+              180914.286
+            ],
+            [
+              534426.35,
+              180914.286
+            ],
+            [
+              534426.35,
+              180933.333
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "north-christian-terrace-0",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534448.812,
+              180932.9
+            ],
+            [
+              534459.179,
+              180933.766
+            ],
+            [
+              534459.179,
+              180914.286
+            ],
+            [
+              534448.812,
+              180914.286
+            ],
+            [
+              534448.812,
+              180932.9
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "north-christian-terrace-1",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534459.179,
+              180932.9
+            ],
+            [
+              534469.546,
+              180933.766
+            ],
+            [
+              534469.546,
+              180914.286
+            ],
+            [
+              534459.179,
+              180914.286
+            ],
+            [
+              534459.179,
+              180932.9
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "depot-west-buildings",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Depot buildings",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534469.546,
+              180933.333
+            ],
+            [
+              534485.961,
+              180934.632
+            ],
+            [
+              534485.961,
+              180913.853
+            ],
+            [
+              534469.546,
+              180914.719
+            ],
+            [
+              534469.546,
+              180933.333
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "coal-depot-closed",
+        "kind": "closed-area",
+        "layer": "gameplay-adjustment",
+        "label": "",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "fictional gameplay",
+        "eventDateConfidence": "fictional gameplay",
+        "affectsMovement": true,
+        "interpretationNote": "Coal depot enclosure seen on baseline and 1937 aerial. Interior/access are excluded.",
+        "gameplayAdjustment": "Non-public depot closed; a scenario restriction, not a traced building."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534485.961,
+              180958.009
+            ],
+            [
+              534644.06,
+              180970.996
+            ],
+            [
+              534644.06,
+              180912.121
+            ],
+            [
+              534634.125,
+              180910.39
+            ],
+            [
+              534491.577,
+              180912.554
+            ],
+            [
+              534485.961,
+              180914.719
+            ],
+            [
+              534485.961,
+              180958.009
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "south-west-0",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534400.0,
+              180902.165
+            ],
+            [
+              534413.823,
+              180901.299
+            ],
+            [
+              534413.823,
+              180878.355
+            ],
+            [
+              534400.0,
+              180879.221
+            ],
+            [
+              534400.0,
+              180902.165
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "south-west-1",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534413.823,
+              180902.165
+            ],
+            [
+              534427.214,
+              180901.299
+            ],
+            [
+              534427.214,
+              180878.355
+            ],
+            [
+              534413.823,
+              180879.221
+            ],
+            [
+              534413.823,
+              180902.165
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "south-west-2",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534427.214,
+              180902.165
+            ],
+            [
+              534440.605,
+              180901.299
+            ],
+            [
+              534440.605,
+              180878.355
+            ],
+            [
+              534427.214,
+              180879.221
+            ],
+            [
+              534427.214,
+              180902.165
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "south-west-3",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534440.605,
+              180902.165
+            ],
+            [
+              534454.428,
+              180901.299
+            ],
+            [
+              534454.428,
+              180878.355
+            ],
+            [
+              534440.605,
+              180879.221
+            ],
+            [
+              534440.605,
+              180902.165
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "closed-yard-west",
+        "kind": "closed-area",
+        "layer": "gameplay-adjustment",
+        "label": "",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "fictional gameplay",
+        "eventDateConfidence": "fictional gameplay",
+        "affectsMovement": true,
+        "interpretationNote": "Private block interiors excluded; no passage is asserted.",
+        "gameplayAdjustment": "Close yards rather than invent accessible alleys."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534400.0,
+              180882.684
+            ],
+            [
+              534454.428,
+              180882.684
+            ],
+            [
+              534454.428,
+              180808.225
+            ],
+            [
+              534400.0,
+              180808.225
+            ],
+            [
+              534400.0,
+              180882.684
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "south-main-0",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534469.978,
+              180902.165
+            ],
+            [
+              534481.21,
+              180901.299
+            ],
+            [
+              534481.21,
+              180878.355
+            ],
+            [
+              534469.978,
+              180879.221
+            ],
+            [
+              534469.978,
+              180902.165
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "south-main-1",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534481.21,
+              180902.165
+            ],
+            [
+              534492.873,
+              180901.299
+            ],
+            [
+              534492.873,
+              180878.355
+            ],
+            [
+              534481.21,
+              180879.221
+            ],
+            [
+              534481.21,
+              180902.165
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "south-main-2",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534492.873,
+              180902.165
+            ],
+            [
+              534504.104,
+              180901.299
+            ],
+            [
+              534504.104,
+              180878.355
+            ],
+            [
+              534492.873,
+              180879.221
+            ],
+            [
+              534492.873,
+              180902.165
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "south-main-3",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534504.104,
+              180902.165
+            ],
+            [
+              534515.767,
+              180901.299
+            ],
+            [
+              534515.767,
+              180878.355
+            ],
+            [
+              534504.104,
+              180879.221
+            ],
+            [
+              534504.104,
+              180902.165
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "south-main-4",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534515.767,
+              180902.165
+            ],
+            [
+              534526.998,
+              180901.299
+            ],
+            [
+              534526.998,
+              180878.355
+            ],
+            [
+              534515.767,
+              180879.221
+            ],
+            [
+              534515.767,
+              180902.165
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "south-main-5",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534526.998,
+              180902.165
+            ],
+            [
+              534538.661,
+              180901.299
+            ],
+            [
+              534538.661,
+              180878.355
+            ],
+            [
+              534526.998,
+              180879.221
+            ],
+            [
+              534526.998,
+              180902.165
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "south-main-6",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534538.661,
+              180902.165
+            ],
+            [
+              534549.892,
+              180901.299
+            ],
+            [
+              534549.892,
+              180878.355
+            ],
+            [
+              534538.661,
+              180879.221
+            ],
+            [
+              534538.661,
+              180902.165
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "closed-yard-main",
+        "kind": "closed-area",
+        "layer": "gameplay-adjustment",
+        "label": "",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "fictional gameplay",
+        "eventDateConfidence": "fictional gameplay",
+        "affectsMovement": true,
+        "interpretationNote": "Private block interiors excluded; no passage is asserted.",
+        "gameplayAdjustment": "Close yards rather than invent accessible alleys."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534469.978,
+              180882.684
+            ],
+            [
+              534549.892,
+              180882.684
+            ],
+            [
+              534549.892,
+              180808.225
+            ],
+            [
+              534469.978,
+              180808.225
+            ],
+            [
+              534469.978,
+              180882.684
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "south-east-0",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534561.123,
+              180900.0
+            ],
+            [
+              534572.354,
+              180899.134
+            ],
+            [
+              534572.354,
+              180876.19
+            ],
+            [
+              534561.123,
+              180877.056
+            ],
+            [
+              534561.123,
+              180900.0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "south-east-1",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534572.354,
+              180900.0
+            ],
+            [
+              534583.153,
+              180899.134
+            ],
+            [
+              534583.153,
+              180876.19
+            ],
+            [
+              534572.354,
+              180877.056
+            ],
+            [
+              534572.354,
+              180900.0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "south-east-2",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534583.153,
+              180900.0
+            ],
+            [
+              534594.384,
+              180899.134
+            ],
+            [
+              534594.384,
+              180876.19
+            ],
+            [
+              534583.153,
+              180877.056
+            ],
+            [
+              534583.153,
+              180900.0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "south-east-3",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534594.384,
+              180900.0
+            ],
+            [
+              534605.616,
+              180899.134
+            ],
+            [
+              534605.616,
+              180876.19
+            ],
+            [
+              534594.384,
+              180877.056
+            ],
+            [
+              534594.384,
+              180900.0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "closed-yard-east",
+        "kind": "closed-area",
+        "layer": "gameplay-adjustment",
+        "label": "",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "fictional gameplay",
+        "eventDateConfidence": "fictional gameplay",
+        "affectsMovement": true,
+        "interpretationNote": "Private block interiors excluded; no passage is asserted.",
+        "gameplayAdjustment": "Close yards rather than invent accessible alleys."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534561.123,
+              180880.519
+            ],
+            [
+              534605.616,
+              180880.519
+            ],
+            [
+              534605.616,
+              180808.225
+            ],
+            [
+              534561.123,
+              180808.225
+            ],
+            [
+              534561.123,
+              180880.519
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "south-cannon-0",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534616.847,
+              180902.165
+            ],
+            [
+              534629.806,
+              180901.299
+            ],
+            [
+              534629.806,
+              180878.355
+            ],
+            [
+              534616.847,
+              180879.221
+            ],
+            [
+              534616.847,
+              180902.165
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "south-cannon-1",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Brick terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534629.806,
+              180902.165
+            ],
+            [
+              534642.765,
+              180901.299
+            ],
+            [
+              534642.765,
+              180878.355
+            ],
+            [
+              534629.806,
+              180879.221
+            ],
+            [
+              534629.806,
+              180902.165
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "closed-yard-cannon",
+        "kind": "closed-area",
+        "layer": "gameplay-adjustment",
+        "label": "",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "fictional gameplay",
+        "eventDateConfidence": "fictional gameplay",
+        "affectsMovement": true,
+        "interpretationNote": "Private block interiors excluded; no passage is asserted.",
+        "gameplayAdjustment": "Close yards rather than invent accessible alleys."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534616.847,
+              180882.684
+            ],
+            [
+              534642.765,
+              180882.684
+            ],
+            [
+              534642.765,
+              180808.225
+            ],
+            [
+              534616.847,
+              180808.225
+            ],
+            [
+              534616.847,
+              180882.684
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "north-east-frontage",
+        "kind": "building-envelope",
+        "layer": "building-envelope",
+        "label": "Corner terrace",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "inferred",
+        "eventDateConfidence": "inferred",
+        "affectsMovement": true,
+        "interpretationNote": "Simplified terrace envelope based on the mapped frontage on report page 154. Individual premises, subdivisions and rear depths are approximated for rendering and collision; they are not certified historic footprints.",
+        "gameplayAdjustment": ""
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534644.924,
+              180948.918
+            ],
+            [
+              534657.883,
+              180950.216
+            ],
+            [
+              534657.883,
+              180912.554
+            ],
+            [
+              534644.924,
+              180911.688
+            ],
+            [
+              534644.924,
+              180948.918
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "northern-crop-mask",
+        "kind": "closed-area",
+        "layer": "gameplay-adjustment",
+        "label": "",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "fictional gameplay",
+        "eventDateConfidence": "fictional gameplay",
+        "affectsMovement": true,
+        "interpretationNote": "Slice ends at railway/service areas.",
+        "gameplayAdjustment": "Bounded closure behind northern terraces; no railway crossing."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534387.905,
+              180972.727
+            ],
+            [
+              534681.641,
+              180972.727
+            ],
+            [
+              534681.641,
+              180950.649
+            ],
+            [
+              534642.765,
+              180950.649
+            ],
+            [
+              534642.765,
+              180945.887
+            ],
+            [
+              534448.38,
+              180929.437
+            ],
+            [
+              534448.38,
+              180918.615
+            ],
+            [
+              534437.581,
+              180918.615
+            ],
+            [
+              534437.581,
+              180932.9
+            ],
+            [
+              534387.905,
+              180930.736
+            ],
+            [
+              534387.905,
+              180972.727
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "south-crop-mask",
+        "kind": "closed-area",
+        "layer": "gameplay-adjustment",
+        "label": "",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "fictional gameplay",
+        "eventDateConfidence": "fictional gameplay",
+        "affectsMovement": true,
+        "interpretationNote": "South streets continue off-map.",
+        "gameplayAdjustment": "Bounded scenario, not a historical dead end."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534387.905,
+              180825.541
+            ],
+            [
+              534681.641,
+              180825.541
+            ],
+            [
+              534681.641,
+              180803.896
+            ],
+            [
+              534387.905,
+              180803.896
+            ],
+            [
+              534387.905,
+              180825.541
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "east-crop-mask",
+        "kind": "closed-area",
+        "layer": "gameplay-adjustment",
+        "label": "",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "fictional gameplay",
+        "eventDateConfidence": "fictional gameplay",
+        "affectsMovement": true,
+        "interpretationNote": "Cannon Street Road is outside this slice.",
+        "gameplayAdjustment": "Eastern crop ends west of Cannon Street Road."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534659.179,
+              180972.727
+            ],
+            [
+              534681.641,
+              180972.727
+            ],
+            [
+              534681.641,
+              180803.896
+            ],
+            [
+              534659.179,
+              180803.896
+            ],
+            [
+              534659.179,
+              180972.727
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "west-crop-mask",
+        "kind": "closed-area",
+        "layer": "gameplay-adjustment",
+        "label": "",
+        "sourceIds": [
+          "S01"
+        ],
+        "sourceDate": "1916",
+        "confidence": "fictional gameplay",
+        "eventDateConfidence": "fictional gameplay",
+        "affectsMovement": true,
+        "interpretationNote": "Police route continues off-map.",
+        "gameplayAdjustment": "Western scenario boundary."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              534387.905,
+              180972.727
+            ],
+            [
+              534400.0,
+              180972.727
+            ],
+            [
+              534400.0,
+              180803.896
+            ],
+            [
+              534387.905,
+              180803.896
+            ],
+            [
+              534387.905,
+              180972.727
+            ]
+          ]
+        ]
+      }
+    }
+  ]
 }
