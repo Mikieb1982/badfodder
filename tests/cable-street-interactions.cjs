@@ -32,7 +32,7 @@ const interactions=Interactions.create({
   controller,
   runtime:Cable,
   mission,
-  options:{scale:1}
+  options:{scale:1,pressureControlled:true}
 });
 
 interactions.initialize({
@@ -129,6 +129,11 @@ assert(controller.state.events.some(e=>e.type==='barricade-held'&&e.barricadeId=
 police.x=230;police.y=90;police.targetX=212;police.targetY=90;
 police.speed=80;police.haltSeconds=.15;police.regroupSeconds=.15;police.damageRate=30;
 police.state='approach';police.stateTime=0;
+const gatedX=police.x;
+interactions.fixedUpdate(.5);
+assert.equal(police.x,gatedX,'Police pressure advanced before the historical director started it');
+assert.equal(police.state,'approach');
+controller.state.pressureStarted=true;
 let guard=0;
 while(police.state!=='withdraw'&&guard<120){
   interactions.fixedUpdate(.1);
