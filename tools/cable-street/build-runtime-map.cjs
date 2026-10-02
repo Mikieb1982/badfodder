@@ -4,6 +4,7 @@
 const fs=require('node:fs');
 const path=require('node:path');
 const Compiler=require('./compile-trace.cjs');
+const Verify=require('./verify-release.cjs');
 
 function serializeRuntimeMap(map){
   if(!map||map.key!=='cable-street')throw new Error('Cable Street browser build requires the cable-street runtime map.');
@@ -23,6 +24,10 @@ function serializeRuntimeMap(map){
 
 function build(baseDir,output){
   const map=Compiler.compileDirectory(baseDir);
+  const verification=Verify.verifyMap(map);
+  if(!verification.ready){
+    throw new Error('Cable Street release verification failed: '+verification.problems.join(' '));
+  }
   const text=serializeRuntimeMap(map);
   fs.writeFileSync(output,text);
   return map;
