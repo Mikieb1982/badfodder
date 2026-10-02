@@ -154,6 +154,11 @@ assert(index.includes('id="hudEnemyLabel"'),'HUD target label cannot switch for 
 assert(index.includes('id="hudGrenadeLabel"'),'HUD grenade label cannot switch for Cable Street');
 assert(index.includes("hudEnemyLabel.textContent='DEFENCE'"),'Cable Street HUD does not show defence integrity');
 assert(index.includes("hudGrenadeLabel.textContent='CONFIDENCE'"),'Cable Street HUD does not show crowd confidence');
+assert(index.includes('id="hudSquadLabel"'),'HUD squad label cannot switch for Cable Street');
+assert(index.includes("historicalMode?'VOLUNTEERS':'SQUAD'"),'Cable Street HUD still labels the player group as a military squad');
+assert(index.includes("historicalMode?' VOLUNTEERS':' TROOPS'"),'Cable Street roster still labels historical participants as troops');
+assert(index.includes('mission.successHeadline'),'Cable Street completion does not use the historical success headline');
+
 assert(index.includes("Math.round(historicalProgress.barricadeRatio*100)+'%'"),'Cable Street defence percentage is not displayed');
 assert(index.includes('historicalProgress.objectives.find(o=>!o.done)'),'Cable Street HUD does not select the next incomplete historical objective');
 assert(index.includes("historicalProgress.phaseTitle+"),'Cable Street HUD does not display the current historical phase title');
