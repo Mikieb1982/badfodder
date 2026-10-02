@@ -1,0 +1,47 @@
+{
+  "id": "cable-street-uncertainty-log-v1",
+  "missionId": "cable-street-1936",
+  "status": "active",
+  "entries": [
+    {
+      "id": "u-barricade-footprint",
+      "topic": "Exact Christian Street barricade footprint",
+      "sourceIds": ["S03"],
+      "status": "open",
+      "blocking": true,
+      "impact": "event placement",
+      "resolutionNeeded": "Keep the production object inside a supported event-zone area and record its final footprint as interpretation.",
+      "note": "The evidence identifies a vicinity rather than surveyed dimensions."
+    },
+    {
+      "id": "u-passages",
+      "topic": "Courtyards, alleys and escape passages",
+      "sourceIds": ["S01", "S02"],
+      "status": "open",
+      "blocking": true,
+      "impact": "navigation",
+      "resolutionNeeded": "Research, exclude from essential routes, or explicitly record as a fictional gameplay adaptation.",
+      "note": "Apparent gaps are not treated as verified access."
+    },
+    {
+      "id": "u-aerial-match",
+      "topic": "Relationship between S02 and the 1937 aerial reproduced in S01",
+      "sourceIds": ["S01", "S02"],
+      "status": "open",
+      "blocking": false,
+      "impact": "massing cross-check",
+      "resolutionNeeded": "Confirm the visual match before recording the two images as the same frame.",
+      "note": "Catalogue metadata alone is insufficient."
+    },
+    {
+      "id": "u-original-report",
+      "topic": "Archival provenance for the Sir Philip Game report extract",
+      "sourceIds": ["S03"],
+      "status": "open",
+      "blocking": false,
+      "impact": "provenance",
+      "resolutionNeeded": "Locate an original report or archival catalogue reference if available.",
+      "note": "The current event-location evidence is an educational reproduction."
+    }
+  ]
+}
