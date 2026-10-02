@@ -126,8 +126,14 @@ assert(index.includes("if(!actionAllowed('firearms'))return false"),'Simulation-
 assert(index.includes("if(!actionAllowed('grenades'))return false"),'Simulation-level grenade gate missing');
 assert(index.includes("touchFire.hidden=!actionAllowed('firearms')"),'Touch firearm control is not profile-gated');
 assert(index.includes("touchGrenade.hidden=!actionAllowed('grenades')"),'Touch grenade control is not profile-gated');
-assert(index.includes("missionController.fixedUpdate(dt)"),'Historical controller is not connected to fixed-step simulation');
+assert(index.includes("missionInteractionLayer.fixedUpdate(dt)")||index.includes("missionController.fixedUpdate(dt)"),'Historical controller/interactions are not connected to fixed-step simulation');
 assert(index.includes("enemies=missionController?[]"),'Historical controller can still create normal military enemy AI');
+assert(index.includes("touchAction"),'Historical ACTION control missing');
+assert(index.includes("performHistoricalContextActionAt"),'Desktop historical contextual action path missing');
+assert(index.includes("performHistoricalNearestAction"),'Keyboard/touch historical contextual action path missing');
+assert(index.includes("cable-street-interactions.js?v=20261002-cable-interactions-4"),'Historical interaction module is not cache-busted');
+assert(index.includes("cable-street-art.js?v=20261002-cable-interactions-4"),'Historical art module is not cache-busted');
+
 
 console.log('PASS: historical launch resolves stable IDs without altering campaign progress and rejects locked/stale historical selections.');
 console.log('PASS: explicit map bootstrap rejects unknown maps, supports a third registered fixture and no longer falls through to Bad Belzig.');
