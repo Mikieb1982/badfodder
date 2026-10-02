@@ -555,9 +555,9 @@
 <script src="historical-missions.js?v=20261002-playable-1"></script>
 <script src="cable-street-runtime.js?v=20261002-playable-1"></script>
 <script src="cable-street-interactions.js?v=20261002-playable-1"></script>
-<script src="cable-street-director.js?v=20261002-playable-1"></script>
+<script src="cable-street-director.js?v=20261002-guidance-1"></script>
 <script src="cable-street-crowd.js?v=20261002-visual-polish-1"></script>
-<script src="cable-street-art.js?v=20261002-visual-polish-1"></script>
+<script src="cable-street-art.js?v=20261002-npc-polish-1"></script>
 <script>
 (() => {
   'use strict';
@@ -1457,10 +1457,12 @@
       hudEnemies.textContent=Math.round(historicalProgress.barricadeRatio*100)+'%';
       hudGrenades.textContent=Math.round(historicalProgress.confidence*100)+'%';
       const nextHistoricalObjective=historicalProgress.objectives.find(o=>!o.done);
-      const historicalBrief=historicalProgress.phaseTitle+
-        (nextHistoricalObjective?' · '+nextHistoricalObjective.label:'');
+      const historicalBrief=nextHistoricalObjective
+        ?'NEXT: '+nextHistoricalObjective.label
+        :historicalProgress.phaseTitle;
       if(hudMission.textContent!==historicalBrief)hudMission.textContent=historicalBrief;
-      if(statusEl.textContent!==historicalProgress.status)statusEl.textContent=historicalProgress.status;
+      const instruction=historicalProgress.instruction||historicalProgress.status;
+      if(statusEl.textContent!==instruction)statusEl.textContent=instruction;
       return;
     }
     hudEnemyLabel.textContent='TARGETS';
@@ -2835,9 +2837,11 @@
     drawOptionalEncounters();
     const historicalRenderState=missionInteractionLayer?missionInteractionLayer.renderState():null;
     const historicalCrowdState=missionCrowd?missionCrowd.renderState():null;
-    if(historicalCrowdState)cableStreetArt.drawCrowd(ctx,historicalCrowdState,historicalClock);
-    if(historicalRenderState){cableStreetArt.drawGround(ctx,historicalRenderState,historicalClock);
+    const historicalProgress=missionDirector?missionDirector.snapshot():null;
+    if(historicalCrowdState)cableStreetArt.drawCrowd(ctx,historicalCrowdState,historicalClock,art);
+    if(historicalRenderState){cableStreetArt.drawGround(ctx,historicalRenderState,historicalClock,art);
       if(MAP_DATA.regroupPoint&&missionStage===2)cableStreetArt.drawRegroup(ctx,{x:S(MAP_DATA.regroupPoint.x),y:S(MAP_DATA.regroupPoint.y)},historicalClock);
+      if(historicalProgress&&historicalProgress.guidance)cableStreetArt.drawGuidance(ctx,historicalProgress.guidance,historicalClock);
     }
 
     pickups.forEach(p=>{
