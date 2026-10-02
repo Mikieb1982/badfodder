@@ -1207,7 +1207,7 @@
       const spawn=mapSquad&&mapSquad[i]?mapSquad[i]:[786+(i%2)*17,1450+Math.floor(i/2)*17];
       return({
       name,variant:i,x:S(spawn[0]),y:S(spawn[1]),
-      hp:8,maxHp:8,ammo:15,reserve:45,alive:true,selected:true,target:null,cooldown:0,reload:0,flash:0,
+      hp:8,maxHp:8,alive:true,selected:true,target:null,cooldown:0,reload:0,flash:0,
       dir:-Math.PI/2,anim:i*.7,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0,path:null,pathIndex:0,
       fireHeat:0,hitTimer:0,damageGrace:0,formSlot:0,followRepath:0,isFormationLeader:false
     })});
