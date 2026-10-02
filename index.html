@@ -621,6 +621,7 @@
   let cursorWorld=null,lastCanvasPointer=null,rightHeld=false,bothLatched=false;
   let macFireHeld=false,keyboardFireHeld=false;
   let lastHudStats='',lastRosterSignature='',hudNoticeUntil=0;
+  let runtimeFaultCount=0,runtimeFaultAt=0,runtimeSafeStop=false;
   const hudChips=new Map();
   let fallbackFullscreen=false;
   let squadFormation={active:false,leader:null,members:[],trail:[],destination:null,manualMoving:false};
@@ -1063,6 +1064,7 @@
     releaseAllFireInputs();
     cursorWorld=null;
     simulationAccumulator=0;
+    runtimeFaultCount=0;runtimeFaultAt=0;runtimeSafeStop=false;
     last=performance.now();
     lastHudStats='';lastRosterSignature='';
     squadFormation={active:false,leader:null,members:[],trail:[],destination:null,manualMoving:false};
@@ -3037,24 +3039,55 @@
     updateHud();
   }
 
-  function tick(now){
-    const frameDt=Math.min(.1,Math.max(0,(now-last)/1000||0));
-    last=now;
+  function handleRuntimeFault(err){
+    const now=performance.now();
+    if(now-runtimeFaultAt>3000)runtimeFaultCount=0;
+    runtimeFaultAt=now;runtimeFaultCount++;
+    console.error('Bad Fodder runtime fault',err);
+    releaseInterruptedInput();
+    simulationAccumulator=0;
 
-    if(started&&!menuOpen&&!paused&&!finished&&!mapOpen){
-      simulationAccumulator=Math.min(FIXED_DT*MAX_CATCHUP_STEPS,simulationAccumulator+frameDt);
-      let steps=0;
-      while(simulationAccumulator>=FIXED_DT&&steps<MAX_CATCHUP_STEPS){
-        simulateStep(FIXED_DT);
-        simulationAccumulator-=FIXED_DT;
-        steps++;
+    if(runtimeFaultCount>=3){
+      runtimeSafeStop=true;
+      paused=true;menuOpen=true;
+      setStatus('Runtime recovery paused the mission after repeated errors.');
+      if(menu){
+        menu.show('pause');
+        const badge=document.getElementById('menuBadge');
+        const help=document.getElementById('menuHelp');
+        if(badge){badge.hidden=false;badge.textContent='RUNTIME RECOVERY';}
+        if(help)help.textContent='The game caught a repeated runtime error instead of freezing. Restart the mission.';
       }
-    }else{
-      simulationAccumulator=0;
+      syncTouchControlState();
     }
+  }
 
-    if(started)drawWorld();
+  function tick(now){
+    // Schedule first: a runtime exception must never kill the animation loop.
     requestAnimationFrame(tick);
+    if(runtimeSafeStop)return;
+
+    try{
+      const frameDt=Math.min(.1,Math.max(0,(now-last)/1000||0));
+      last=now;
+
+      if(started&&!menuOpen&&!paused&&!finished&&!mapOpen){
+        simulationAccumulator=Math.min(FIXED_DT*MAX_CATCHUP_STEPS,simulationAccumulator+frameDt);
+        let steps=0;
+        while(simulationAccumulator>=FIXED_DT&&steps<MAX_CATCHUP_STEPS){
+          simulateStep(FIXED_DT);
+          simulationAccumulator-=FIXED_DT;
+          steps++;
+        }
+      }else{
+        simulationAccumulator=0;
+      }
+
+      if(started)drawWorld();
+      if(runtimeFaultCount&&now-runtimeFaultAt>3000)runtimeFaultCount=0;
+    }catch(err){
+      handleRuntimeFault(err);
+    }
   }
 
   async function startGame(){
