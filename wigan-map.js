@@ -42,10 +42,20 @@ const WIGAN_MAP=(()=>{
     map.spawns.civilians=(map.spawns.civilians||[]).map(rotatePoint);
     map.spawns.pickups=(map.spawns.pickups||[]).map(p=>({
       ...p,
+      type:p.type==='ammo'?'grenade':p.type,
+      amount:p.type==='ammo'?2:(p.amount||4),
       x:+(W-p.x).toFixed(2),
       y:+(H-p.y).toFixed(2)
     }));
   }
+
+  // Explicit defenders for the three compulsory mission phases.
+  // These are stable spawn assignments, not radius checks performed every frame.
+  map.defenderGroups={
+    tudor:[14,15,16],
+    grandArcade:[5,6,7,8,10,11,12,13,17],
+    wallgate:[0,1,2,3,4,9]
+  };
 
   if(Array.isArray(map.landing))map.landing=rotatePoint(map.landing);
   if(Array.isArray(map.exit))map.exit=rotatePoint(map.exit);
