@@ -51,9 +51,12 @@ assert(scenery.includes("map.projection&&map.projection.northUp===false?'N ↓':
 assert(scenery.includes("function roundRectPath("),'Wigan overlay has no Canvas roundRect compatibility fallback');
 assert(index.includes("Scenery tile rendering failed; using a lightweight fallback tile."),'Tile-render exceptions can still take down live play');
 assert(index.includes("wigan-scenery.js?v=20261002-stability-3"),'Wigan runtime fix is not cache-busted');
-assert(index.includes("navigation.js?v=20261002-stability-3"),'Navigation runtime fix is not cache-busted');
+assert(index.includes("navigation.js?v=20261002-cable-nav-3"),'Navigation runtime fix is not cache-busted');
 assert(navigation.includes("fallbackDepth<1"),'Navigation fallback recursion is not bounded');
 assert(navigation.includes("if(d<1e-6)"),'Zero-distance path steps are not guarded');
+assert(navigation.includes("function registerDynamicObstacle"),'Dynamic obstacle registration API missing');
+assert(navigation.includes("pathComponents.fill(0)"),'Dynamic obstacle changes do not invalidate connected-area cache');
+assert(navigation.includes("ent.pathVersion!==navigationVersion"),'Actors do not detect stale paths after dynamic navigation changes');
 
 console.log('PASS: Wigan tile painting is spatially culled, vegetation is indexed and enemy A* work is staggered.');
 console.log('PASS: animation-loop exceptions cannot silently kill requestAnimationFrame; recovery cannot Resume into a stopped loop.');
