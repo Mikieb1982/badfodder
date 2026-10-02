@@ -9,7 +9,10 @@ It is intentionally **not** a production game map yet.
 - MAP-01: research boundary frozen around the Christian Street vicinity.
 - MAP-02: evidence register stored.
 - MAP-03: calibration/tracing pipeline ready, but no real image control points or traced production features have been entered.
-- MAP-04 to MAP-06: pending reconciliation, event overlay and contradiction review.
+- MAP-04: mixed-date reconciliation ledger exists but is pending feature decisions.
+- MAP-05: event-overlay layer exists but is pending supported area geometry.
+- MAP-06: contradiction-review checklist exists but is pending review.
+- SLICE-01 transform/compiler exists, but the game transform is intentionally not ready.
 
 `historical-missions.js` must remain `playable:false` and `mapReady:false` until the later slice/release gates pass.
 
@@ -20,6 +23,10 @@ It is intentionally **not** a production game map yet.
 - `authoring-schema.json` - feature attributes, layers and confidence labels.
 - `calibration.json` - real source-image control/check points and fitted transform.
 - `trace.geojson` - calibrated authoring geometry in EPSG:27700; currently empty.
+- `reconciliation.json` - per-feature 1916/1937/1936 reconciliation decisions.
+- `event-overlay.geojson` - approximate event-location areas, kept separate from surveyed geometry.
+- `historical-review.json` - contradiction/anachronism review and remaining uncertainty.
+- `game-transform.json` - separate EPSG:27700-to-game transform used only after the trace is approved.
 
 ## Calibration workflow
 
@@ -89,3 +96,23 @@ npm run cable:authoring:require-ready
 only when testing whether all MAP-01 to MAP-06 gates are ready. It is expected to fail at the current stage.
 
 The synthetic Cable Street fixtures under `tests/fixtures` remain mechanics/navigation tests only and must never be copied into this production trace.
+
+
+## Reconciliation and release workflow
+
+After MAP-03 has real traced features:
+
+1. Add one reconciliation decision for every feature where `affectsMovement:true`.
+2. Record source-geometry confidence separately from 1936 event-date confidence.
+3. Do not use an inferred/uncertain passage as an essential route unless the decision explicitly records it as a fictional gameplay adaptation.
+4. Add supported event areas to `event-overlay.geojson`; keep approximate locations as Polygon/MultiPolygon geometry rather than false precise points.
+5. Complete every blocking check in `historical-review.json` and record remaining uncertainty.
+6. Only then set `game-transform.json` to `status:"ready"` with a top-left BNG origin and positive `metresPerMapUnit`.
+
+The guarded compiler is:
+
+```bash
+npm run cable:map:compile
+```
+
+It is expected to fail against the current authoring package. That failure is intentional until MAP-01 through MAP-06 and the separate game transform are ready.
