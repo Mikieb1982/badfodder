@@ -38,6 +38,8 @@
       materialDeliveries:0,
       rescues:0,
       holdSignals:0,
+      fightbackSignals:0,
+      mountedCharges:0,
       pressureCycles:0,
       breaches:0,
       gatheringReady:false,
@@ -94,6 +96,12 @@
         }else if(event.type==='barricade-held'){
           state.holdSignals++;
           setConfidence(.01);
+        }else if(event.type==='crowd-fightback'){
+          state.fightbackSignals++;
+          setConfidence(.05);
+        }else if(event.type==='mounted-charge-impact'){
+          state.mountedCharges++;
+          setConfidence(-.025);
         }else if(event.type==='barricade-breach-change'){
           if(event.breached){state.breaches++;setConfidence(-.14)}
           else setConfidence(.03);
@@ -110,6 +118,8 @@
          !Number.isFinite(formation.targetX)||!Number.isFinite(formation.targetY))return false;
       formation.state='approach';
       formation.stateTime=0;
+      formation.resistance=0;
+      formation.staggerTime=0;
       return true;
     }
 
@@ -145,6 +155,16 @@
     function allPressureWithdrawing(){
       const formations=[...controller.state.formations.values()];
       return formations.length>0&&formations.every(f=>f.state==='withdraw');
+    }
+
+    function activePressure(){
+      return[...controller.state.formations.values()].filter(f=>['approach','halt','dismantle'].includes(f.state));
+    }
+
+    function resistanceRatio(){
+      const formations=activePressure();
+      if(!formations.length)return 0;
+      return clamp(Math.max(...formations.map(f=>(Number(f.resistance)||0)/(Number(f.resistanceMax)||100))),0,1);
     }
 
     function updateGathering(){
@@ -195,9 +215,7 @@
       updateRepeatedPressure(dt);
       const b=mainBarricade();
       if(!b)return;
-      if(!b.breached){
-        state.finalHoldSeconds=Math.min(finalHoldTarget,state.finalHoldSeconds+dt);
-      }
+      if(!b.breached)state.finalHoldSeconds=Math.min(finalHoldTarget,state.finalHoldSeconds+dt);
       if(state.finalHoldSeconds>=finalHoldTarget){
         state.completed=true;
         controller.state.events.push({type:'mission-complete',missionId:mission.id});
@@ -232,11 +250,11 @@
         {id:'reach-main-defence',label:'Go to the barricade',done:defenceVisited()},
         {id:'deliver-material-load',label:'Bring material to the barricade',done:state.materialDeliveries>=settings.gatheringMaterialDeliveries},
         {id:'assist-resident',label:'Help the marked resident',done:state.rescues>=settings.gatheringRescues},
-        {id:'start-pressure',label:'Press ACTION at the barricade to HOLD',done:state.phaseIndex>0}
+        {id:'start-pressure',label:'Take position at the barricade',done:state.phaseIndex>0}
       ];
       if(p.id==='hold-approach')return[
-        {id:'hold-main-defence',label:'Keep the barricade intact',done:barricadeIntact},
-        {id:'first-pressure',label:'Hold until the police withdraw',done:state.pressureCycles>state.pressureCyclesAtPhaseStart}
+        {id:'hold-main-defence',label:'Fight back at the barricade',done:state.fightbackSignals>0||state.pressureCycles>state.pressureCyclesAtPhaseStart},
+        {id:'first-pressure',label:'Repel the first police push',done:state.pressureCycles>state.pressureCyclesAtPhaseStart}
       ];
       if(p.id==='regroup')return[
         {id:'restore-defence',label:'Repair the barricade if damaged',done:barricadeIntact},
@@ -244,7 +262,7 @@
         {id:'stabilise',label:'Hold the regroup position',done:state.regroupStableSeconds>=settings.regroupStableSeconds}
       ];
       return[
-        {id:'final-route',label:'Keep the barricade intact until the timer ends',done:state.completed}
+        {id:'final-route',label:'Fight off repeated police pushes and keep the route blocked',done:state.completed}
       ];
     }
 
@@ -253,25 +271,19 @@
       return activeActors().some(a=>distance(a,options.regroupPoint)<(options.regroupRadius||40));
     }
 
-    function carryingMaterial(){
-      return activeActors().some(a=>!!a.carrying);
-    }
+    function carryingMaterial(){return activeActors().some(a=>!!a.carrying)}
 
     function firstAvailableMaterial(){
       for(const m of controller.state.materials.values()){
         if(!m||m.consumed||m.carriedBy||m.reservedBy)continue;
         if(finitePoint(m))return m;
       }
-      for(const m of controller.state.materials.values()){
-        if(m&&!m.consumed&&finitePoint(m))return m;
-      }
+      for(const m of controller.state.materials.values())if(m&&!m.consumed&&finitePoint(m))return m;
       return null;
     }
 
     function waitingCivilian(){
-      for(const p of controller.state.civilians.values()){
-        if(p&&p.status==='waiting'&&finitePoint(p))return p;
-      }
+      for(const p of controller.state.civilians.values())if(p&&p.status==='waiting'&&finitePoint(p))return p;
       return null;
     }
 
@@ -280,10 +292,7 @@
       if(!b)return null;
       if(finitePoint(b))return{x:b.x,y:b.y};
       if(Array.isArray(b.points)&&b.points.length){
-        return{
-          x:b.points.reduce((sum,p)=>sum+p[0],0)/b.points.length,
-          y:b.points.reduce((sum,p)=>sum+p[1],0)/b.points.length
-        };
+        return{x:b.points.reduce((sum,p)=>sum+p[0],0)/b.points.length,y:b.points.reduce((sum,p)=>sum+p[1],0)/b.points.length};
       }
       return null;
     }
@@ -292,7 +301,7 @@
       if(state.failed)return'RETRY: the route was opened.';
       const b=mainBarricade();
       if(state.breachSeconds>0){
-        return'BARRICADE BREACHED: pick up material, bring it back and press E / ACTION to REINFORCE. '+Math.ceil((mission.breachRecoverySeconds||30)-state.breachSeconds)+'s left.';
+        return'BARRICADE DOWN: grab furniture or timber, bring it back and press E / ACTION to REINFORCE. '+Math.ceil((mission.breachRecoverySeconds||30)-state.breachSeconds)+'s left.';
       }
       const p=phase();
       if(!p)return'Cable Street';
@@ -301,67 +310,67 @@
         if(state.materialDeliveries<settings.gatheringMaterialDeliveries){
           return carryingMaterial()
             ?'2. CARRY the material to the barricade, then press E / ACTION to REINFORCE.'
-            :'2. PICK UP a highlighted material: right-click it, or tap it on touch.';
+            :'2. PICK UP highlighted furniture, timber or crates: right-click it, or tap it on touch.';
         }
         if(state.rescues<settings.gatheringRescues)return'3. GO TO the person marked ASSIST and press E / ACTION.';
-        return'4. STAND beside the barricade and press E / ACTION when HOLD appears.';
+        return'4. TAKE POSITION at the barricade and press E / ACTION. The police push will begin.';
       }
       if(p.id==='hold-approach'){
-        return'STAY AT THE BARRICADE. Press E / ACTION on HOLD and keep DEFENCE intact until the police withdraw.';
+        const resistance=Math.round(resistanceRatio()*100);
+        return'POLICE PUSH: stay at the barricade and press E / ACTION for FIGHT BACK. Shove them back and throw improvised debris. Resistance '+resistance+'%.';
       }
       if(p.id==='regroup'){
         if(b&&b.breached)return'REPAIR THE BARRICADE first: bring material and press E / ACTION to REINFORCE.';
         if(!regroupOccupied())return'MOVE one volunteer into the BLUE REGROUP circle.';
-        if(!allPressureWithdrawing())return'HOLD POSITION in the blue circle until the police withdraw.';
+        if(!allPressureWithdrawing())return'POLICE ARE FALLING BACK. Hold the blue regroup point and repair the defence.';
         const left=Math.max(0,Math.ceil(settings.regroupStableSeconds-state.regroupStableSeconds));
-        return'KEEP A VOLUNTEER in the blue circle for '+left+'s.';
+        return'REGROUP for '+left+'s. Get ready for another push.';
       }
       const remaining=Math.max(0,Math.ceil(finalHoldTarget-state.finalHoldSeconds));
-      return'FINAL HOLD: keep the barricade intact for '+remaining+'s. Reinforce it whenever DEFENCE drops.';
+      const pressure=activePressure().length>0;
+      return pressure
+        ?'FINAL DEFENCE: FIGHT BACK at the barricade, repair damage between charges, and hold for '+remaining+'s.'
+        :'FINAL DEFENCE: police are regrouping. Repair the barricade now. '+remaining+'s to hold.';
     }
 
     function guidanceTarget(){
-      const p=phase();
-      const b=mainBarricade();
-      const bp=barricadePoint();
+      const p=phase(),b=mainBarricade(),bp=barricadePoint();
       if(!p)return null;
       if(state.breachSeconds>0&&bp)return{kind:'barricade',id:b&&b.id||null,x:bp.x,y:bp.y,label:'REBUILD HERE'};
       if(p.id==='gathering'){
         if(!defenceVisited()&&bp)return{kind:'barricade',id:b&&b.id||null,x:bp.x,y:bp.y,label:'GO TO DEFENCE'};
         if(state.materialDeliveries<settings.gatheringMaterialDeliveries){
           if(carryingMaterial()&&bp)return{kind:'barricade',id:b&&b.id||null,x:bp.x,y:bp.y,label:'BRING MATERIAL HERE'};
-          const m=firstAvailableMaterial();
-          if(m)return{kind:'material',id:m.id,x:m.x,y:m.y,label:'PICK UP MATERIAL'};
+          const m=firstAvailableMaterial();if(m)return{kind:'material',id:m.id,x:m.x,y:m.y,label:'PICK UP MATERIAL'};
         }
         if(state.rescues<settings.gatheringRescues){
-          const c=waitingCivilian();
-          if(c)return{kind:'civilian',id:c.id,x:c.x,y:c.y,label:'HELP THIS PERSON'};
+          const c=waitingCivilian();if(c)return{kind:'civilian',id:c.id,x:c.x,y:c.y,label:'HELP THIS PERSON'};
         }
-        if(bp)return{kind:'barricade',id:b&&b.id||null,x:bp.x,y:bp.y,label:'PRESS ACTION TO HOLD'};
+        if(bp)return{kind:'barricade',id:b&&b.id||null,x:bp.x,y:bp.y,label:'TAKE POSITION'};
       }
-      if(p.id==='hold-approach'&&bp)return{kind:'barricade',id:b&&b.id||null,x:bp.x,y:bp.y,label:'HOLD THIS BARRICADE'};
+      if(p.id==='hold-approach'&&bp)return{kind:'barricade',id:b&&b.id||null,x:bp.x,y:bp.y,label:'FIGHT BACK HERE'};
       if(p.id==='regroup'){
         if(b&&b.breached&&bp)return{kind:'barricade',id:b.id,x:bp.x,y:bp.y,label:'REPAIR FIRST'};
-        if(finitePoint(options.regroupPoint))return{kind:'regroup',id:'regroup',x:options.regroupPoint.x,y:options.regroupPoint.y,label:'MOVE HERE'};
+        if(finitePoint(options.regroupPoint))return{kind:'regroup',id:'regroup',x:options.regroupPoint.x,y:options.regroupPoint.y,label:'REGROUP HERE'};
         if(bp)return{kind:'barricade',id:b&&b.id||null,x:bp.x,y:bp.y,label:'HOLD POSITION'};
       }
-      if(bp)return{kind:'barricade',id:b&&b.id||null,x:bp.x,y:bp.y,label:'KEEP ROUTE BLOCKED'};
+      if(bp)return{kind:'barricade',id:b&&b.id||null,x:bp.x,y:bp.y,label:activePressure().length?'FIGHT BACK':'REPAIR AND HOLD'};
       return null;
     }
 
     function statusText(){
-      if(state.failed)return'Local defence lost. Retry to help keep the route blocked.';
-      if(state.breachSeconds>0)return'BREACH: bring material to rebuild within '+Math.ceil((mission.breachRecoverySeconds||30)-state.breachSeconds)+'s.';
+      if(state.failed)return'Local defence lost. Retry to keep the route blocked.';
+      if(state.breachSeconds>0)return'BREACH: rebuild within '+Math.ceil((mission.breachRecoverySeconds||30)-state.breachSeconds)+'s.';
       const p=phase();
       if(!p)return'Cable Street';
       if(p.id==='gathering'){
-        if(!state.gatheringReady)return'Gathering: reach the defence, deliver material and assist a resident.';
-        return'Gathering: take position at the barricade and HOLD to begin.';
+        if(!state.gatheringReady)return'Prepare the barricade: material, residents, position.';
+        return'Take position. The first police push is about to begin.';
       }
-      if(p.id==='hold-approach')return'Hold the approach: withstand the first pressure.';
-      if(p.id==='regroup')return'Regroup: move to the marked point, restore the barricade and let police withdraw.';
+      if(p.id==='hold-approach')return'Police are trying to force the barricade. Fight them back.';
+      if(p.id==='regroup')return'Regroup, repair and prepare for the next charge.';
       const remaining=Math.max(0,Math.ceil(finalHoldTarget-state.finalHoldSeconds));
-      return'They Shall Not Pass: keep the route blocked for '+remaining+'s.';
+      return'They Shall Not Pass: '+remaining+'s. Keep the barricade standing.';
     }
 
     function snapshot(){
@@ -375,8 +384,11 @@
         objectives:objectiveState(),
         materialDeliveries:state.materialDeliveries,
         rescues:state.rescues,
+        fightbackSignals:state.fightbackSignals,
+        mountedCharges:state.mountedCharges,
         pressureCycles:state.pressureCycles,
         breaches:state.breaches,
+        resistanceRatio:resistanceRatio(),
         barricadeIntegrity,
         barricadeMaxIntegrity,
         barricadeRatio:barricadeMaxIntegrity>0?clamp(barricadeIntegrity/barricadeMaxIntegrity,0,1):0,
