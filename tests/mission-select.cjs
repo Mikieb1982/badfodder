@@ -61,7 +61,7 @@ assert(!index.includes('id="menuMissionBad" class="menu-button" type="button" di
 assert(!index.includes('id="menuMissionWigan" class="menu-button" type="button" disabled'),'Wigan choice must not be load-gated');
 assert(index.includes('id="menuMissionBad"'),'Bad Belzig mission button missing');
 assert(index.includes('id="menuMissionWigan"'),'Wigan mission button missing');
-assert(index.includes('menu-ui.js?v=20261002-stability-3'),'Menu controller is not cache-busted');
+assert(index.includes('menu-ui.js?v=20261002-cable-groundwork-1'),'Menu controller is not cache-busted');
 assert(index.includes('mission-launch.js?v=20261002-mission-select-2'),'Mission launch controller is not cache-busted');
 assert(index.includes('CAMPAIGN PLAYS MISSIONS IN ORDER'),'Campaign ordering is not explained');
 assert(index.includes("if(missionLaunch.isCampaign())campaign.complete(activeMissionIndex)"),'Standalone completion can alter campaign progress');
