@@ -67,15 +67,19 @@
     const PATH_COLS=Math.ceil(worldWidth/PATH_CELL);
     const PATH_ROWS=Math.ceil(worldHeight/PATH_CELL);
     const buildingGrid=new Map();
+    const dynamicObstacleGrid=new Map();
+    const dynamicObstacles=new Map();
     const pathBlockedCache=new Map();
     const pathEdgeCache=new Map();
     const pathComponents=new Int32Array(PATH_COLS*PATH_ROWS);
     let nextPathComponent=0;
+    let navigationVersion=1;
 
     const perf={
       findCalls:0,directRoutes:0,failedPaths:0,
       expandedNodes:0,maxExpanded:0,maxOpen:0,
-      componentBuilds:0,componentCells:0,maxComponentCells:0
+      componentBuilds:0,componentCells:0,maxComponentCells:0,
+      dynamicInvalidations:0
     };
 
     function cellKey(x,y){return x+'|'+y}
@@ -89,6 +93,120 @@
       }
     });
 
+    function obstacleBounds(points){
+      const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]);
+      return{
+        minX:Math.min(...xs),maxX:Math.max(...xs),
+        minY:Math.min(...ys),maxY:Math.max(...ys)
+      };
+    }
+
+    function normalizeDynamicObstacle(input){
+      if(!input||typeof input.id!=='string'||!input.id.trim())throw new Error('Dynamic obstacle requires a stable id.');
+      if(!Array.isArray(input.points)||input.points.length<3)throw new Error('Dynamic obstacle "'+input.id+'" requires at least three polygon points.');
+      const points=input.points.map((p,i)=>{
+        if(!Array.isArray(p)||p.length<2||!Number.isFinite(p[0])||!Number.isFinite(p[1])){
+          throw new Error('Dynamic obstacle "'+input.id+'" has an invalid point at index '+i+'.');
+        }
+        return[p[0],p[1]];
+      });
+      return{
+        id:input.id.trim(),
+        kind:typeof input.kind==='string'&&input.kind?input.kind:'dynamic',
+        solid:input.solid!==false,
+        points,
+        ...obstacleBounds(points)
+      };
+    }
+
+    function dynamicCells(obstacle){
+      const out=[];
+      const x0=Math.floor(obstacle.minX/CELL),x1=Math.floor(obstacle.maxX/CELL);
+      const y0=Math.floor(obstacle.minY/CELL),y1=Math.floor(obstacle.maxY/CELL);
+      for(let gx=x0;gx<=x1;gx++)for(let gy=y0;gy<=y1;gy++)out.push(cellKey(gx,gy));
+      return out;
+    }
+
+    function indexDynamicObstacle(obstacle){
+      if(!obstacle.solid)return;
+      for(const key of dynamicCells(obstacle)){
+        if(!dynamicObstacleGrid.has(key))dynamicObstacleGrid.set(key,new Set());
+        dynamicObstacleGrid.get(key).add(obstacle.id);
+      }
+    }
+
+    function unindexDynamicObstacle(obstacle){
+      if(!obstacle||!obstacle.solid)return;
+      for(const key of dynamicCells(obstacle)){
+        const ids=dynamicObstacleGrid.get(key);
+        if(!ids)continue;
+        ids.delete(obstacle.id);
+        if(!ids.size)dynamicObstacleGrid.delete(key);
+      }
+    }
+
+    function invalidateNavigation(){
+      pathBlockedCache.clear();
+      pathEdgeCache.clear();
+      pathComponents.fill(0);
+      nextPathComponent=0;
+      navigationVersion++;
+      perf.dynamicInvalidations++;
+      return navigationVersion;
+    }
+
+    function registerDynamicObstacle(input){
+      const obstacle=normalizeDynamicObstacle(input);
+      if(dynamicObstacles.has(obstacle.id))throw new Error('Dynamic obstacle id already registered: '+obstacle.id);
+      dynamicObstacles.set(obstacle.id,obstacle);
+      indexDynamicObstacle(obstacle);
+      invalidateNavigation();
+      return obstacle.id;
+    }
+
+    function updateDynamicObstacle(id,patch={}){
+      const current=dynamicObstacles.get(id);
+      if(!current)return false;
+      if(patch&&Object.prototype.hasOwnProperty.call(patch,'id')&&patch.id!==id)throw new Error('Dynamic obstacle id cannot be changed.');
+      const next=normalizeDynamicObstacle({
+        ...current,
+        ...patch,
+        id,
+        points:patch&&patch.points?patch.points:current.points
+      });
+      unindexDynamicObstacle(current);
+      dynamicObstacles.set(id,next);
+      indexDynamicObstacle(next);
+      invalidateNavigation();
+      return true;
+    }
+
+    function removeDynamicObstacle(id){
+      const current=dynamicObstacles.get(id);
+      if(!current)return false;
+      unindexDynamicObstacle(current);
+      dynamicObstacles.delete(id);
+      invalidateNavigation();
+      return true;
+    }
+
+    function clearDynamicObstacles(){
+      if(!dynamicObstacles.size)return false;
+      dynamicObstacleGrid.clear();
+      dynamicObstacles.clear();
+      invalidateNavigation();
+      return true;
+    }
+
+    function getDynamicObstacle(id){
+      const obstacle=dynamicObstacles.get(id);
+      return obstacle?{...obstacle,points:obstacle.points.map(p=>[...p])}:null;
+    }
+
+    function listDynamicObstacles(){
+      return[...dynamicObstacles.values()].map(o=>({...o,points:o.points.map(p=>[...p])}));
+    }
+
     function nearbyBuildings(x,y,r=0){
       const out=[],seen=new Set();
       const x0=Math.floor((x-r)/CELL),x1=Math.floor((x+r)/CELL);
@@ -100,11 +218,33 @@
       return out;
     }
 
+    function nearbyDynamicObstacles(x,y,r=0){
+      const out=[],seen=new Set();
+      const x0=Math.floor((x-r)/CELL),x1=Math.floor((x+r)/CELL);
+      const y0=Math.floor((y-r)/CELL),y1=Math.floor((y+r)/CELL);
+      for(let gx=x0;gx<=x1;gx++)for(let gy=y0;gy<=y1;gy++){
+        const ids=dynamicObstacleGrid.get(cellKey(gx,gy));
+        if(!ids)continue;
+        ids.forEach(id=>{
+          if(seen.has(id))return;
+          seen.add(id);
+          const obstacle=dynamicObstacles.get(id);
+          if(obstacle&&obstacle.solid)out.push(obstacle);
+        });
+      }
+      return out;
+    }
+
     function solidPoint(x,y){
       const list=nearbyBuildings(x,y,2);
       for(const b of list){
         if(x<b.minX||x>b.maxX||y<b.minY||y>b.maxY)continue;
         if(pointInPoly(x,y,b.points))return true;
+      }
+      const dynamic=nearbyDynamicObstacles(x,y,2);
+      for(const obstacle of dynamic){
+        if(x<obstacle.minX||x>obstacle.maxX||y<obstacle.minY||y>obstacle.maxY)continue;
+        if(pointInPoly(x,y,obstacle.points))return true;
       }
       return false;
     }
@@ -325,32 +465,57 @@
       return[];
     }
 
-    function assignPath(ent,tx,ty){
-      const path=findPath(ent.x,ent.y,tx,ty);
+    function applyPath(ent,path,tx,ty,{preserveDestinationOnFailure=false}={}){
       ent.path=path;
       ent.pathIndex=0;
+      ent.pathVersion=navigationVersion;
       ent.target=path.length?{...path[path.length-1]}:null;
       ent.stuckTime=0;
+      if(path.length||preserveDestinationOnFailure)ent.navDestination={x:tx,y:ty};
+      else ent.navDestination=null;
       return path.length>0;
+    }
+
+    function assignPath(ent,tx,ty){
+      const path=findPath(ent.x,ent.y,tx,ty);
+      return applyPath(ent,path,tx,ty,{preserveDestinationOnFailure:false});
+    }
+
+    function refreshStalePath(ent){
+      if(!ent||!ent.navDestination||ent.pathVersion===navigationVersion)return !!(ent&&ent.path&&ent.path.length);
+      const destination={...ent.navDestination};
+      const path=findPath(ent.x,ent.y,destination.x,destination.y);
+      return applyPath(ent,path,destination.x,destination.y,{preserveDestinationOnFailure:true});
+    }
+
+    function cancelPath(ent){
+      if(!ent)return false;
+      ent.path=null;ent.pathIndex=0;ent.target=null;ent.navDestination=null;
+      ent.pathVersion=navigationVersion;ent.stuckTime=0;
+      return true;
     }
 
     function followPath(ent,speed,dt){
       if(!moveEntity||!updateFacing)throw new Error('followPath requires moveEntity and updateFacing callbacks.');
+      if(ent&&ent.navDestination&&ent.pathVersion!==navigationVersion)refreshStalePath(ent);
       if(!ent.path||ent.pathIndex>=ent.path.length){
-        ent.path=null;ent.target=null;return false;
+        if(ent.navDestination&&Array.isArray(ent.path)&&ent.path.length===0)return false;
+        cancelPath(ent);
+        return false;
       }
       const p=ent.path[ent.pathIndex];
       const dx=p.x-ent.x,dy=p.y-ent.y,d=Math.hypot(dx,dy);
       if(d<1e-6){
         ent.pathIndex++;
-        if(ent.pathIndex>=ent.path.length){ent.path=null;ent.target=null;return false}
+        if(ent.pathIndex>=ent.path.length){cancelPath(ent);return false}
         return true;
       }
       if(d<=Math.max(1,speed*dt)&&routeClear(ent.x,ent.y,p.x,p.y,NAV_RADIUS)){
         ent.x=p.x;ent.y=p.y;
         ent.pathIndex++;
         if(ent.pathIndex>=ent.path.length){
-          ent.path=null;ent.target=null;return false;
+          cancelPath(ent);
+          return false;
         }
         return true;
       }
@@ -358,22 +523,37 @@
       const oldX=ent.x,oldY=ent.y;
       moveEntity(ent,dx/d*speed*dt,dy/d*speed*dt,NAV_RADIUS);
       ent.stuckTime=Math.hypot(ent.x-oldX,ent.y-oldY)<.2?(ent.stuckTime||0)+dt:0;
-      if(ent.stuckTime>.45&&ent.target){
-        const target={...ent.target};
-        assignPath(ent,target.x,target.y);
+      if(ent.stuckTime>.45&&ent.navDestination){
+        const destination={...ent.navDestination};
+        const path=findPath(ent.x,ent.y,destination.x,destination.y);
+        applyPath(ent,path,destination.x,destination.y,{preserveDestinationOnFailure:true});
       }
       return true;
     }
 
-    function metrics(){return{...perf,blockedCache:pathBlockedCache.size,edgeCache:pathEdgeCache.size,components:nextPathComponent}}
+    function metrics(){return{
+      ...perf,
+      blockedCache:pathBlockedCache.size,
+      edgeCache:pathEdgeCache.size,
+      components:nextPathComponent,
+      navigationVersion,
+      dynamicObstacles:dynamicObstacles.size
+    }}
     function resetMetrics(){
-      Object.assign(perf,{findCalls:0,directRoutes:0,failedPaths:0,expandedNodes:0,maxExpanded:0,maxOpen:0,componentBuilds:0,componentCells:0,maxComponentCells:0});
+      Object.assign(perf,{
+        findCalls:0,directRoutes:0,failedPaths:0,expandedNodes:0,maxExpanded:0,maxOpen:0,
+        componentBuilds:0,componentCells:0,maxComponentCells:0,dynamicInvalidations:0
+      });
     }
 
     return{
-      pointInPoly,nearbyBuildings,solidPoint,obstacleAt,lineBlocked,
-      routeClear,findPath,assignPath,followPath,pathComponent,pathCellBlocked,pathCellCenter,nearestOpenCell,
+      pointInPoly,nearbyBuildings,nearbyDynamicObstacles,solidPoint,obstacleAt,lineBlocked,
+      routeClear,findPath,assignPath,refreshStalePath,cancelPath,followPath,
+      pathComponent,pathCellBlocked,pathCellCenter,nearestOpenCell,
+      registerDynamicObstacle,updateDynamicObstacle,removeDynamicObstacle,clearDynamicObstacles,
+      getDynamicObstacle,listDynamicObstacles,
       metrics,resetMetrics,
+      get navigationVersion(){return navigationVersion},
       NAV_RADIUS,PATH_CELL,PATH_COLS,PATH_ROWS,pathComponents
     };
   }
