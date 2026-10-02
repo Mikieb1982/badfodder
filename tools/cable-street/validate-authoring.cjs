@@ -11,6 +11,9 @@ function exists(file){
   try{return fs.statSync(file).isFile()}catch(_){return false}
 }
 function nonEmptyString(v){return typeof v==='string'&&v.trim().length>0}
+function finitePair(v){return Array.isArray(v)&&v.length>=2&&Number.isFinite(v[0])&&Number.isFinite(v[1])}
+function sourceListValid(ids,sourceIds){return Array.isArray(ids)&&ids.length>0&&ids.every(id=>sourceIds.has(id))}
+function geometryType(feature,...types){return !!(feature&&feature.geometry&&types.includes(feature.geometry.type))}
 
 function evaluate(baseDir){
   const files={
@@ -18,7 +21,11 @@ function evaluate(baseDir){
     evidence:path.join(baseDir,'evidence-register.json'),
     schema:path.join(baseDir,'authoring-schema.json'),
     calibration:path.join(baseDir,'calibration.json'),
-    trace:path.join(baseDir,'trace.geojson')
+    trace:path.join(baseDir,'trace.geojson'),
+    reconciliation:path.join(baseDir,'reconciliation.json'),
+    eventOverlay:path.join(baseDir,'event-overlay.geojson'),
+    historicalReview:path.join(baseDir,'historical-review.json'),
+    gameTransform:path.join(baseDir,'game-transform.json')
   };
   const missing=Object.entries(files).filter(([,file])=>!exists(file)).map(([key])=>key);
   if(missing.length)return{ok:false,productionReady:false,missing,gates:{},problems:['Missing authoring files: '+missing.join(', ')]};
@@ -28,6 +35,10 @@ function evaluate(baseDir){
   const schema=readJson(files.schema);
   const calibration=readJson(files.calibration);
   const trace=readJson(files.trace);
+  const reconciliation=readJson(files.reconciliation);
+  const eventOverlay=readJson(files.eventOverlay);
+  const historicalReview=readJson(files.historicalReview);
+  const gameTransform=readJson(files.gameTransform);
   const problems=[];
 
   const sourceIds=new Set((evidence.sources||[]).map(s=>s&&s.id).filter(Boolean));
