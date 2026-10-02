@@ -12,7 +12,13 @@
     ],
     "rescueInteractions": 1,
     "policeFormations": 1,
-    "squadSpawns": 4
+    "squadSpawns": 4,
+    "routeRequirementIds": [
+      "defender-retreat",
+      "support-access",
+      "police-approach",
+      "barrier-separation"
+    ]
   },
   "objects": {
     "barricades": [],
@@ -27,7 +33,8 @@
     "Every police formation objective must reference an authored barricade.",
     "Gameplay-only placements must be labelled as such rather than presented as historical claims.",
     "Provide four explicit squadSpawns in EPSG:27700 before marking this record ready.",
-    "Optional routeRequirements may be added in EPSG:27700 and are projected into mission connectivity checks."
+    "Optional routeRequirements may be added in EPSG:27700 and are projected into mission connectivity checks.",
+    "Before release, routeRequirements must include defender-retreat, support-access, police-approach and barrier-separation checks."
   ],
   "notes": [
     "This file is intentionally empty until MAP-03 through MAP-06 are approved.",
