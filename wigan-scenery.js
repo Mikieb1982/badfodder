@@ -141,7 +141,7 @@
   g.strokeStyle='#b5a781';g.lineWidth=2;g.strokeRect(x-2,y-2,mw+4,mh+4);
   g.font='700 13px system-ui,sans-serif';g.fillStyle='#f2e4bd';g.textAlign='left';g.fillText('WIGAN · TOWN CENTRE',18,compact?68:35);
   g.font='11px system-ui,sans-serif';g.fillStyle='#bcbd9f';g.fillText('Route: '+hint.caption,18,compact?86:49);
-  g.textAlign='right';g.font='700 10px system-ui,sans-serif';g.fillText('N ↑',x+mw-5,y+13);
+  g.textAlign='right';g.font='700 10px system-ui,sans-serif';g.fillText(map.projection&&map.projection.northUp===false?'N ↓':'N ↑',x+mw-5,y+13);
   const sx=mw/map.width,sy=mh/map.height;
   if(hint.path.length){g.save();g.setLineDash([5,3]);line(g,hint.path.map(p=>[x+p.x/2*sx,y+p.y/2*sy]),'#f5ce7c',2);g.restore();}
   if(hint.contact)for(const e of enemies.filter(e=>e.alive)){
