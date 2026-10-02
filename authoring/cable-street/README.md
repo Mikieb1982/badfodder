@@ -12,7 +12,7 @@ It is intentionally **not** a production game map yet.
 - MAP-04: mixed-date reconciliation ledger exists but is pending feature decisions.
 - MAP-05: event-overlay layer exists but is pending supported area geometry.
 - MAP-06: contradiction-review checklist exists but is pending review.
-- SLICE-01 transform/compiler exists, but the game transform is intentionally not ready.
+- SLICE-01 transform/compiler exists, but the runtime projection is intentionally not ready.
 
 `historical-missions.js` must remain `playable:false` and `mapReady:false` until the later slice/release gates pass.
 
@@ -26,7 +26,7 @@ It is intentionally **not** a production game map yet.
 - `reconciliation.json` - per-feature 1916/1937/1936 reconciliation decisions.
 - `event-overlay.geojson` - approximate event-location areas, kept separate from surveyed geometry.
 - `historical-review.json` - contradiction/anachronism review and remaining uncertainty.
-- `game-transform.json` - separate EPSG:27700-to-game transform used only after the trace is approved.
+- `runtime-projection.json` - separate EPSG:27700-to-runtime projection used only after the trace is approved.
 
 ## Calibration workflow
 
@@ -107,12 +107,12 @@ After MAP-03 has real traced features:
 3. Do not use an inferred/uncertain passage as an essential route unless the decision explicitly records it as a fictional gameplay adaptation.
 4. Add supported event areas to `event-overlay.geojson`; keep approximate locations as Polygon/MultiPolygon geometry rather than false precise points.
 5. Complete every blocking check in `historical-review.json` and record remaining uncertainty.
-6. Only then set `game-transform.json` to `status:"ready"` with a top-left BNG origin and positive `metresPerMapUnit`.
+6. Only then set `runtime-projection.json` to `status:"ready"` with a top-left BNG origin and positive `metresPerMapUnit`.
 
 The guarded compiler is:
 
 ```bash
-npm run cable:map:compile
+npm run cable:compile-map
 ```
 
-It is expected to fail against the current authoring package. That failure is intentional until MAP-01 through MAP-06 and the separate game transform are ready.
+It is expected to fail against the current authoring package. That failure is intentional until MAP-01 through MAP-06 and the separate runtime projection are ready.
