@@ -132,3 +132,22 @@ The first playable slice requires:
 - 1 police formation.
 
 Keep `status:"awaiting-approved-map"` and all object arrays empty until the production map gates are approved. Synthetic fixture coordinates must never be copied into this file. When the placement record is eventually set to `status:"ready"`, the compiler validates object IDs, supported material types, barricade references and required counts before emitting `historicalObjects` for `cable-street-interactions.js`.
+
+## Playable release verification
+
+Before Cable Street can be unlocked, run:
+
+```bash
+npm run cable:verify-release
+```
+
+The release verifier requires the approved map/runtime package to have:
+
+- four explicit squad start positions;
+- the main barricade wholly inside a supported barricade-vicinity event area;
+- timber, crates and furniture material loads;
+- at least one rescue interaction and one police formation;
+- no standard military enemy or pickup spawns;
+- four navigation checks: `defender-retreat`, `support-access`, `police-approach` and `barrier-separation`.
+
+`npm run cable:build-runtime-map` now runs the same release verification before writing `cable-street-map.js`. A map file therefore cannot be generated merely because the authoring gates compile.
