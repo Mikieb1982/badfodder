@@ -45,6 +45,8 @@
       outerRadius:Number.isFinite(options.outerRadius)?options.outerRadius:150,
       policeAvoidRadius:Number.isFinite(options.policeAvoidRadius)?options.policeAvoidRadius:120,
       edgePadding:Number.isFinite(options.edgePadding)?options.edgePadding:18,
+      helperSupportThreshold:Number.isFinite(options.helperSupportThreshold)?options.helperSupportThreshold:.55,
+      helperStrongThreshold:Number.isFinite(options.helperStrongThreshold)?options.helperStrongThreshold:.78,
       ...options
     };
     const random=rng(hashSeed(seed));
@@ -91,7 +93,7 @@
         const helper=i>=reactive;
         const p=spawnPoint(i,helper);
         people.push({
-          id:(helper?'helper-':'crowd-')+(helper?i-reactive:i),
+          id:(helper?'ambient-helper-':'crowd-')+(helper?i-reactive:i),
           role:helper?'helper':'resident',
           x:p.x,y:p.y,homeX:p.x,homeY:p.y,
           phase:random()*Math.PI*2,
@@ -111,6 +113,54 @@
         if(d<bestD){best=f;bestD=d}
       });
       return{formation:best,distance:bestD};
+    }
+
+    function helperSlots(b){
+      return b&&Array.isArray(b.occupiedWorkPositions)?b.occupiedWorkPositions:[];
+    }
+
+    function releaseHelperSupport(){
+      const b=mainBarricade();
+      if(!b)return 0;
+      let released=0;
+      helperSlots(b).forEach((owner,index)=>{
+        if(typeof owner==='string'&&owner.startsWith('ambient-helper-')){
+          b.occupiedWorkPositions[index]=null;
+          released++;
+        }
+      });
+      return released;
+    }
+
+    function syncHelperSupport(confidence){
+      const b=mainBarricade();
+      if(!b)return 0;
+      const slots=helperSlots(b);
+      const pressureActive=[...controller.state.formations.values()].some(f=>f&&f.state==='dismantle');
+      if(!pressureActive||b.breached||confidence<settings.helperSupportThreshold){
+        releaseHelperSupport();
+        return 0;
+      }
+
+      const maxHelpers=Math.max(0,slots.length-1);
+      const desired=Math.min(
+        maxHelpers,
+        confidence>=settings.helperStrongThreshold?2:1,
+        helpers
+      );
+      const helperIds=people.filter(p=>p.role==='helper').slice(0,desired).map(p=>p.id);
+      slots.forEach((owner,index)=>{
+        if(typeof owner==='string'&&owner.startsWith('ambient-helper-')&&!helperIds.includes(owner)){
+          slots[index]=null;
+        }
+      });
+      for(const id of helperIds){
+        if(slots.includes(id))continue;
+        const open=slots.indexOf(null);
+        if(open<0)break;
+        slots[open]=id;
+      }
+      return slots.filter(owner=>typeof owner==='string'&&owner.startsWith('ambient-helper-')).length;
     }
 
     function updatePerson(person,dt,confidence){
@@ -148,6 +198,7 @@
       if(!Number.isFinite(dt)||dt<=0)return false;
       elapsed+=dt;
       const confidence=clamp(Number(controller.state.confidence)||0,0,1);
+      syncHelperSupport(confidence);
       for(const person of people)updatePerson(person,dt,confidence);
       return true;
     }
@@ -156,8 +207,14 @@
       return people.map(p=>({...p}));
     }
 
+    function dispose(){
+      releaseHelperSupport();
+      people.length=0;
+      return true;
+    }
+
     initialize();
-    return{settings,people,fixedUpdate,renderState,anchor,initialize};
+    return{settings,people,fixedUpdate,renderState,anchor,initialize,syncHelperSupport,releaseHelperSupport,dispose};
   }
 
   return{create};
