@@ -44,6 +44,9 @@ assert.equal(snap.completed,false);
 assert.equal(snap.barricadeIntegrity,20);
 assert.equal(snap.barricadeMaxIntegrity,30);
 assert(Math.abs(snap.barricadeRatio-(2/3))<1e-9);
+assert.equal(typeof snap.instruction,'string');
+assert(snap.instruction.length>10,'Cable Street snapshot must explain the next player action');
+assert(snap.guidance&&Number.isFinite(snap.guidance.x)&&Number.isFinite(snap.guidance.y),'Cable Street snapshot must expose an in-world guidance target');
 
 
 // Gathering does not advance just because the player reaches the defence.
