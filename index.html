@@ -467,7 +467,7 @@
             <button id="touchPause" type="button" aria-label="Pause game">II</button>
           </div>
           <div class="hud-counters">
-            <div class="hud-counter"><b id="hudEnemies">20</b><span>HOSTILES</span></div>
+            <div class="hud-counter"><b id="hudEnemies">20</b><span>TARGETS</span></div>
             <div class="hud-counter"><b id="hudGrenades">5</b><span>GRENADES</span></div>
             <div class="hud-counter"><b id="hudSquad">4</b><span>SQUAD</span></div>
           </div>
@@ -1455,6 +1455,9 @@
     const phaseCount=Math.max(1,phases.length);
     const living=squad.filter(s=>s.alive);
     const remaining=enemies.filter(e=>e.alive).length;
+    const currentPhase=phases[missionStage];
+    const objectiveDefenders=currentPhase?phaseDefenders(currentPhase):null;
+    const targetCount=objectiveDefenders?objectiveDefenders.length:remaining;
 
     hudCampaign.textContent='MISSION '+String(mission.id).padStart(2,'0')+'/24 · '+mission.title.toUpperCase();
     hudAll.querySelector('span').textContent=living.length+' TROOPS';
@@ -1462,7 +1465,7 @@
     rebuildHudProgress(phaseCount);
     hudProgress.querySelectorAll('i').forEach((p,i)=>{p.className=win||i<missionStage?'done':i===missionStage?'current':'';});
 
-    const stats=[living.length,squad.length,remaining,squadGrenades,mission.id,missionStage].join('|');
+    const stats=[living.length,squad.length,remaining,targetCount,squadGrenades,mission.id,missionStage].join('|');
     if(force||stats!==lastHudStats){
       lastHudStats=stats;
       squadCountEl.textContent=living.length;
@@ -1470,7 +1473,7 @@
       enemyCountEl.textContent=remaining;
       grenadeCountEl.textContent=squadGrenades;
       hudSquad.textContent=living.length;
-      hudEnemies.textContent=remaining;
+      hudEnemies.textContent=targetCount;
       hudGrenades.textContent=squadGrenades;
     }
 
@@ -1956,6 +1959,7 @@
 
       const sees=near.d<S(160)&&!lineBlocked(e.x,e.y,near.unit.x,near.unit.y);
       const hears=noise.some(n=>Math.hypot(e.x-n.x,e.y-n.y)<n.r);
+      e.searching=!!(e.alert&&!sees&&e.lastSeen);
 
       if(sees||hears){
         const newlyAlerted=!e.alert;
@@ -1963,6 +1967,7 @@
         e.aiState='combat';
         e.lastSeen={x:near.unit.x,y:near.unit.y};
         e.searchTimer=3.4;
+        e.searching=!sees;
         if(newlyAlerted){
           prepareEnemyReaction(e,sees?.48:.58,sees?'!':'?');
           alertNearbyEnemies(e,near.unit.x,near.unit.y,S(215));
@@ -2048,7 +2053,7 @@
             moving=followPath(e,70,dt);
           }else if(e.searchTimer<=0){
             e.aiState='patrol';
-            e.alert=false;
+            e.alert=false;e.searching=false;
             e.path=null;e.target=null;e.tacticalPoint=null;
           }else{
             // Stationary search: slowly scan while group-mates approach.
@@ -2779,6 +2784,9 @@
           ctx.beginPath();ctx.arc(ent.x,ent.y-43,8,0,Math.PI*2);ctx.stroke();
           ctx.fillStyle='#f5deb0';ctx.font='900 11px system-ui,sans-serif';ctx.textAlign='center';
           ctx.fillText(ent.alertCue||'!',ent.x,ent.y-39);ctx.restore();
+        }else if(ent.searching){
+          ctx.fillStyle='#e8cf91';ctx.font='800 11px system-ui,sans-serif';ctx.textAlign='center';
+          ctx.fillText('?',ent.x,ent.y-42);
         }else{
           ctx.fillStyle='#f0db97';ctx.fillRect(ent.x-2,ent.y-50,4,8);ctx.fillRect(ent.x-2,ent.y-40,4,2);
         }
