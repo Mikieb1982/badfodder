@@ -32,5 +32,7 @@ assert.equal(typeof Art.drawStreetProps,'function');
 assert.equal(typeof Art.drawVolunteer,'function');
 assert.equal(typeof Art.drawEffects,'function');
 assert.equal(typeof Art.drawAtmosphere,'function');
+assert.equal(typeof Art.drawGuidance,'function');
+assert(require('node:fs').readFileSync(require('node:path').join(__dirname,'..','cable-street-art.js'),'utf8').includes("art.drawActor(ctx,ent,team)"),'Cable Street NPCs do not reuse the main character renderer');
 
 console.log('PASS: Cable Street art exposes deterministic East End brick styling and dedicated carriageway-edge / railway drawing.');
