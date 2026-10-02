@@ -132,6 +132,8 @@ assert(index.includes("touchAction"),'Historical ACTION control missing');
 assert(index.includes("performHistoricalContextActionAt"),'Desktop historical contextual action path missing');
 assert(index.includes("performHistoricalNearestAction"),'Keyboard/touch historical contextual action path missing');
 assert(index.includes('cable-street-director.js?v=20261002-cable-director-1'),'Cable Street phase director is not loaded by the browser runtime');
+assert(index.includes('cable-street-map.js?v=20261002-cable-map-slot-1'),'Cable Street runtime map slot is not loaded before bootstrap');
+assert(index.includes("...(window.CABLE_STREET_MAP?{'cable-street':window.CABLE_STREET_MAP}:{})"),'Cable Street runtime map is not conditionally registered');
 assert(index.includes('cable-street-crowd.js?v=20261002-cable-crowd-1'),'Cable Street crowd module is not loaded by the browser runtime');
 assert(index.includes('const cableStreetCrowd=BadFodderCableCrowd'),'Cable Street crowd global is not bound');
 assert(index.includes('missionCrowd=cableStreetCrowd.create'),'Cable Street crowd is not created during historical reset');
