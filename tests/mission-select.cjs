@@ -62,7 +62,7 @@ assert(!index.includes('id="menuMissionWigan" class="menu-button" type="button" 
 assert(index.includes('id="menuMissionBad"'),'Bad Belzig mission button missing');
 assert(index.includes('id="menuMissionWigan"'),'Wigan mission button missing');
 assert(index.includes('menu-ui.js?v=20261002-cable-groundwork-1'),'Menu controller is not cache-busted');
-assert(index.includes('mission-launch.js?v=20261002-mission-select-2'),'Mission launch controller is not cache-busted');
+assert(index.includes('mission-launch.js?v=20261002-cable-foundation-2'),'Mission launch controller is not cache-busted');
 assert(index.includes('CAMPAIGN PLAYS MISSIONS IN ORDER'),'Campaign ordering is not explained');
 assert(index.includes("if(missionLaunch.isCampaign())campaign.complete(activeMissionIndex)"),'Standalone completion can alter campaign progress');
 assert(index.includes("if(!missionLaunch.isCampaign())return false"),'Standalone missions can incorrectly advance to the next campaign mission');
