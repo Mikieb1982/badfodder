@@ -2720,6 +2720,8 @@
     if(MAP_DATA.key==='wigan')BadFodderWigan.labels(ctx,MAP_DATA,zoom,canvasScale,camera,VIEW_W,VIEW_H);
     drawObjectiveZones();
     drawOptionalEncounters();
+    const historicalRenderState=missionInteractionLayer?missionInteractionLayer.renderState():null;
+    if(historicalRenderState)cableStreetArt.drawGround(ctx,historicalRenderState);
 
     pickups.forEach(p=>{
       if(!p.active)return;
@@ -2765,6 +2767,15 @@
         ctx.fillStyle='#fff4ce';ctx.font='bold 12px "Courier New",monospace';ctx.textAlign='center';ctx.fillText(String(squad.indexOf(ent)+1),ent.x,ent.y+18);
       }
     });
+
+    if(historicalRenderState){
+      cableStreetArt.drawCarried(ctx,historicalRenderState);
+      const selected=selectedHistoricalActor();
+      if(selected){
+        const label=missionInteractionLayer.hint(selected.id);
+        if(label&&label!=='ACTION')cableStreetArt.drawHint(ctx,{x:selected.unit.x,y:selected.unit.y,label});
+      }
+    }
 
     bullets.forEach(drawBulletTracer);
     thrown.forEach(g=>{
