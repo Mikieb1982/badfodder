@@ -1,11 +1,27 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),vm=require('node:vm');
+const Navigation=require('../navigation.js');
 const root=path.join(__dirname,'..'),source=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const map=new Function(fs.readFileSync(path.join(root,'wigan-map.js'),'utf8')+';return WIGAN_MAP;')();
 function body(name){const start=source.indexOf('  function '+name+'('),open=source.indexOf('{',start);let depth=1,end=open+1;for(;depth&&end<source.length;end++){if(source[end]==='{')depth++;if(source[end]==='}')depth--;}return source.slice(start,end);}
-const geometry=`const MAP_DATA=TOWN_MAP,WORLD_W=TOWN_MAP.width*2,WORLD_H=TOWN_MAP.height*2;const buildings=TOWN_MAP.buildings.map((b,i)=>{const points=b.points.map(p=>p.map(v=>v*2));return{i,solid:b.solid!==false,points,minX:Math.min(...points.map(p=>p[0])),maxX:Math.max(...points.map(p=>p[0])),minY:Math.min(...points.map(p=>p[1])),maxY:Math.max(...points.map(p=>p[1]))};});`;
-const nav=source.slice(source.indexOf('  const CELL=150;'),source.indexOf('  function pointInCircle('));
-const makeNavigation=new Function('TOWN_MAP',geometry+body('pointInPoly')+nav+body('moveEntity')+body('updateFacing')+';return {findPath,routeClear,followPath,assignPath,obstacleAt,get components(){return nextPathComponent}};');
+function scaledBuildings(TOWN_MAP){
+  return TOWN_MAP.buildings.map((b,i)=>{
+    const points=b.points.map(p=>[p[0]*2,p[1]*2]),xs=points.map(p=>p[0]),ys=points.map(p=>p[1]);
+    return{i,solid:b.solid!==false,points,minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys)};
+  });
+}
+function makeNavigation(TOWN_MAP){
+  let api;
+  const worldWidth=TOWN_MAP.width*2,worldHeight=TOWN_MAP.height*2;
+  const updateFacing=(ent,dx,dy)=>{if(Math.abs(dx)>.001||Math.abs(dy)>.001)ent.dir=Math.atan2(dy,dx)};
+  const moveEntity=(ent,dx,dy,r=4)=>{
+    const nx=Math.max(r,Math.min(worldWidth-r,ent.x+dx));if(!api.obstacleAt(nx,ent.y,r))ent.x=nx;
+    const ny=Math.max(r,Math.min(worldHeight-r,ent.y+dy));if(!api.obstacleAt(ent.x,ny,r))ent.y=ny;
+  };
+  api=Navigation.create({worldWidth,worldHeight,buildings:scaledBuildings(TOWN_MAP),mapKey:TOWN_MAP.key,moveEntity,updateFacing});
+  Object.defineProperty(api,'components',{get(){return api.metrics().components}});
+  return api;
+}
 const q=makeNavigation(map);
 assert.equal(map.projection.northUp,false);assert.equal(map.projection.gameRotationDegrees,180);assert.equal(map.orientation,'reference-rotated-180');assert(map.roads.length>400&&map.buildings.length>300,'Do not replace geography with a handful of fictional blocks');
 const expected={wallgate:1350051925,northWestern:126406381,tudor:738652992,moon:941417293,johnBull:759771131,grandArcade:581252033,busStation:782427411};
@@ -24,7 +40,14 @@ for(const [name,p] of Object.entries(map.pois)){
  assert(!ent.path,name+' gets stuck');assert(Math.hypot(ent.x-target.x,ent.y-target.y)<12,name+' misses its street frontage');
 }
 const formationCode=source.slice(source.indexOf('  function clearSquadFormation('),source.indexOf('  function pointSegmentDistance('));
-const f=new Function('TOWN_MAP',geometry+body('pointInPoly')+nav+body('moveEntity')+body('updateFacing')+`let squad=[],squadFormation={active:false},pickups=[],squadGrenades=5;const selectedUnits=()=>squad.filter(s=>s.alive),setStatus=()=>{};`+formationCode+body('resolveSquadSpacing')+body('updateSquad')+body('setMoveTargets')+`;return {setMoveTargets,updateSquad,get squad(){return squad},get grenades(){return squadGrenades},get pickups(){return pickups},setGrenades(n){squadGrenades=n},addPickup(type){pickups.push({type,x:squad[0].x,y:squad[0].y,active:true})},reset(){squad=TOWN_MAP.spawns.squad.map(([x,y])=>({x:x*2,y:y*2,alive:true,dir:-Math.PI/2,fireTimer:0,cooldown:0,flash:0,fireHeat:0,hp:8,maxHp:8}));squadFormation={active:false};pickups=[];squadGrenades=5;}};`)(map);
+const f=new Function('TOWN_MAP','navApi',
+  `const WORLD_W=TOWN_MAP.width*2,WORLD_H=TOWN_MAP.height*2,NAV_RADIUS=navApi.NAV_RADIUS;
+   const {findPath,routeClear,followPath,assignPath,obstacleAt}=navApi;
+   const updateFacing=(ent,dx,dy)=>{if(Math.abs(dx)>.001||Math.abs(dy)>.001)ent.dir=Math.atan2(dy,dx)};
+   const moveEntity=(ent,dx,dy,r=NAV_RADIUS)=>{const nx=Math.max(r,Math.min(WORLD_W-r,ent.x+dx));if(!obstacleAt(nx,ent.y,r))ent.x=nx;const ny=Math.max(r,Math.min(WORLD_H-r,ent.y+dy));if(!obstacleAt(ent.x,ny,r))ent.y=ny};
+   let squad=[],squadFormation={active:false},pickups=[],squadGrenades=5;const selectedUnits=()=>squad.filter(s=>s.alive),setStatus=()=>{};
+  `+formationCode+body('resolveSquadSpacing')+body('updateSquad')+body('setMoveTargets')+`;return {setMoveTargets,updateSquad,get squad(){return squad},get grenades(){return squadGrenades},get pickups(){return pickups},setGrenades(n){squadGrenades=n},addPickup(type){pickups.push({type,x:squad[0].x,y:squad[0].y,active:true})},reset(){squad=TOWN_MAP.spawns.squad.map(([x,y])=>({x:x*2,y:y*2,alive:true,dir:-Math.PI/2,fireTimer:0,cooldown:0,flash:0,fireHeat:0,hp:8,maxHp:8}));squadFormation={active:false};pickups=[];squadGrenades=5;}};`
+)(map,q);
 for(const [name,p] of Object.entries(map.pois)){
  f.reset();const target={x:p.approach[0]*2,y:p.approach[1]*2};f.setMoveTargets(target);for(let i=0;i<5000;i++)f.updateSquad(1/30);
  const distances=f.squad.map(s=>Math.round(Math.hypot(s.x-target.x,s.y-target.y)));assert(distances.every(d=>d<=160),name+' stranded follower '+distances);assert(f.squad.every(s=>!q.obstacleAt(s.x,s.y,4)));
@@ -68,7 +91,7 @@ f.reset();f.addPickup('med');f.updateSquad(0);assert(f.pickups[0].active,'Health
 vm.runInNewContext(fs.readFileSync(path.join(root,'wigan-details.js'),'utf8'),scope);
 const before=JSON.stringify(map),details=scope.window.BadFodderWiganDetails.prepare(map);assert.equal(JSON.stringify(map),before,'Scenery mutates geographic data');
 assert(details.props.length>30&&details.buildings.size>30);
-const inPoly=new Function(body('pointInPoly')+';return pointInPoly;')();
+const inPoly=Navigation.pointInPoly;
 for(const p of details.props){assert(Number.isFinite(p.x)&&Number.isFinite(p.y));assert(!map.buildings.some(b=>inPoly(p.x/2,p.y/2,b.points)),'Street furniture inside a building');}
 for(const key of Object.keys(expected))assert(details.buildings.has(expected[key]),'Missing distinctive frontage '+key);
 const rectangle=(x,y,w,h)=>({points:[[x,y],[x+w,y],[x+w,y+h],[x,y+h],[x,y]]});
