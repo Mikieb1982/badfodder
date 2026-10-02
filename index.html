@@ -628,8 +628,7 @@
     if(statusEl.textContent!==text)statusEl.textContent=text;
     const phaseLine=/^Phase\s+\d+:/.test(text),missionLine=/^Mission (complete|failed)/i.test(text);
     if(phaseLine||missionLine){
-      const phase=(activeMission().phases||[])[missionStage];
-      const brief=MAP_DATA.key==='wigan'&&phaseLine&&phase?phase.title:text.replace(/^Phase\s+\d+:\s*/,'');
+      const brief=text.replace(/^Phase\s+\d+:\s*/,'');
       if(hudMission.textContent!==brief)hudMission.textContent=brief;
       return;
     }
@@ -2354,7 +2353,7 @@
       polygon(plane.points,b.roof,'#38352c',2);
       ctx.save();polygon(plane.points,null);ctx.clip();
       if(art.paintedReady){
-        ctx.transform(...plane.transform);ctx.fillStyle=art.texture(ctx,b.roof==='#548291'?'roof-slate':'roof');
+        ctx.transform(...plane.transform);ctx.fillStyle=art.texture(ctx,b.family==='stone'||b.roof==='#548291'?'roof-slate':'roof');
         ctx.fillRect(-mesh.length/2-2,-mesh.half-2,mesh.length+4,mesh.half*2+4);
       }
       ctx.restore();
@@ -2373,7 +2372,7 @@
       polygon([[x-4,y-9],[x+3,y-9],[x+6,y-11],[x-1,y-11]],'#b7aa8f','#38362d',.7);
       ctx.fillStyle='#262720';ctx.fillRect(x,y-10,3,1.5);
     }
-    if(mesh.length>44&&mesh.half>10&&b.roof!=='#548291'){
+    if(mesh.length>44&&mesh.half>10&&b.family!=='stone'&&b.roof!=='#548291'){
       const [x,y]=mesh.project({u:-mesh.length*.17,v:mesh.half*.48});
       polygon([[x-5,y+3],[x+5,y+3],[x+5,y-5],[x,y-10],[x-5,y-5]],'#ada58e','#4e493d',1);
       polygon([[x-6,y-5],[x,y-11],[x+7,y-5]],'#5c5b50','#b6aa91',.8);
