@@ -685,15 +685,28 @@
     };
   }
 
-  const roads=MAP_DATA.roads.map(r=>({
-    name:r.name||'',kind:r.kind||'',width:r.width,layer:r.layer||0,surface:r.surface||'',
-    points:r.points.map(p=>[S(p[0]),S(p[1])])
-  }));
+  const roads=MAP_DATA.roads.map(r=>{
+    const points=r.points.map(p=>[S(p[0]),S(p[1])]);
+    const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]);
+    return{
+      name:r.name||'',kind:r.kind||'',width:r.width,layer:r.layer||0,surface:r.surface||'',
+      points,
+      minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys)
+    };
+  });
 
-  const areas=MAP_DATA.areas.map(a=>({
-    type:a.type,
-    points:a.points.map(p=>[S(p[0]),S(p[1])])
-  }));
+  const areas=MAP_DATA.areas.map(a=>{
+    const points=a.points.map(p=>[S(p[0]),S(p[1])]);
+    const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]);
+    return{
+      type:a.type,points,
+      minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys)
+    };
+  });
+
+  const drawingRoads=MAP_DATA.key==='wigan'
+    ?[...roads].sort((a,b)=>(a.kind==='railway'?-10:a.layer)-(b.kind==='railway'?-10:b.layer))
+    :roads;
 
   const LANDMARK_BUILDING_NAMES=new Set([
     'butterturm','burgwirtschaft','burgbrauhaus','st. marien','reißigerhaus','rathaus','st. briccius'
@@ -715,6 +728,13 @@
       landmarkFootprint:LANDMARK_BUILDING_NAMES.has((b.name||'').trim().toLowerCase())
     };
   });
+
+  const wiganStaticObjects=wiganDetails
+    ?[
+      ...buildings.filter(b=>!b.landmarkFootprint).map(b=>({y:b.maxY,building:b})),
+      ...wiganDetails.props.map(p=>({y:p.y,prop:p}))
+    ].sort((a,b)=>a.y-b.y)
+    :null;
 
   const poi={};
   Object.keys(MAP_DATA.pois).forEach(k=>{
@@ -2013,6 +2033,16 @@
     clampCamera();
   }
 
+  function intersectsSceneryBounds(item,margin=0){
+    if(!sceneryBounds)return true;
+    return !(
+      item.maxX<sceneryBounds.x-margin||
+      item.minX>sceneryBounds.x+sceneryBounds.w+margin||
+      item.maxY<sceneryBounds.y-margin||
+      item.minY>sceneryBounds.y+sceneryBounds.h+margin
+    );
+  }
+
   function polygon(points,fill,stroke,width=1){
     if(!points.length)return;
     ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);
@@ -2034,7 +2064,7 @@
   }
 
   function drawRoad(r){
-    if(r.points.length<2)return;
+    if(r.points.length<2||!intersectsSceneryBounds(r,S(24)))return;
     if(r.kind==='railway'&&MAP_DATA.key!=='wigan'){
       ctx.lineCap='round';ctx.lineJoin='round';
       ctx.beginPath();ctx.moveTo(r.points[0][0],r.points[0][1]);
@@ -2183,27 +2213,50 @@
     function rnd(){seed=hash(seed+17);return seed/4294967296}
     areas.forEach(a=>{
       if(!/forest|wood|grass|meadow/.test(a.type))return;
-      const xs=a.points.map(p=>p[0]),ys=a.points.map(p=>p[1]);
-      const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
       const count=/forest|wood/.test(a.type)
         ?(LOW_POWER?34:85)
         :(LOW_POWER?10:24);
       for(let i=0;i<count;i++){
-        const x=minX+rnd()*(maxX-minX),y=minY+rnd()*(maxY-minY);
+        const x=a.minX+rnd()*(a.maxX-a.minX),y=a.minY+rnd()*(a.maxY-a.minY);
         if(pointInPoly(x,y,a.points)&&!obstacleAt(x,y,8))treeDots.push({x,y,r:S(3+rnd()*4),dark:rnd()>.5});
       }
     });
   })();
 
+  const TREE_CELL=S(80),treeGrid=new Map();
+  treeDots.forEach((t,i)=>{
+    const key=Math.floor(t.x/TREE_CELL)+'|'+Math.floor(t.y/TREE_CELL);
+    if(!treeGrid.has(key))treeGrid.set(key,[]);
+    treeGrid.get(key).push(i);
+  });
+
+  function treeIndexesInBounds(bounds,margin=0){
+    const out=[];
+    const x0=Math.floor((bounds.x-margin)/TREE_CELL),x1=Math.floor((bounds.x+bounds.w+margin)/TREE_CELL);
+    const y0=Math.floor((bounds.y-margin)/TREE_CELL),y1=Math.floor((bounds.y+bounds.h+margin)/TREE_CELL);
+    for(let gx=x0;gx<=x1;gx++)for(let gy=y0;gy<=y1;gy++){
+      const list=treeGrid.get(gx+'|'+gy);
+      if(list)out.push(...list);
+    }
+    return out;
+  }
+
   function drawTerrain(){
-    ctx.fillStyle=art.texture(ctx,MAP_DATA.key==='wigan'?'urban-paving':'grass');ctx.fillRect(0,0,WORLD_W,WORLD_H);
-    areas.forEach(a=>polygon(a.points,art.texture(ctx,MAP_DATA.key==='wigan'?({paving:'urban-paving',asphalt:'urban-asphalt',railbed:'urban-asphalt'}[a.type]||a.type):a.type)));
+    const bounds=sceneryBounds;
+    ctx.fillStyle=art.texture(ctx,MAP_DATA.key==='wigan'?'urban-paving':'grass');
+    if(bounds)ctx.fillRect(bounds.x,bounds.y,bounds.w,bounds.h);
+    else ctx.fillRect(0,0,WORLD_W,WORLD_H);
+    areas.forEach(a=>{
+      if(!intersectsSceneryBounds(a,S(10)))return;
+      polygon(a.points,art.texture(ctx,MAP_DATA.key==='wigan'?({paving:'urban-paving',asphalt:'urban-asphalt',railbed:'urban-asphalt'}[a.type]||a.type):a.type));
+    });
   }
 
   function drawVegetation(){
-    treeDots.forEach(t=>{
-      const vw=VIEW_W/zoom,vh=VIEW_H/zoom;
-      const bounds=sceneryBounds||{x:camera.x,y:camera.y,w:vw,h:vh};
+    const vw=VIEW_W/zoom,vh=VIEW_H/zoom;
+    const bounds=sceneryBounds||{x:camera.x,y:camera.y,w:vw,h:vh};
+    treeIndexesInBounds(bounds,90).forEach(i=>{
+      const t=treeDots[i];
       if(t.x<bounds.x-90||t.x>bounds.x+bounds.w+90||t.y<bounds.y-90||t.y>bounds.y+bounds.h+90)return;
       art.tree(ctx,t);
     });
@@ -2233,7 +2286,8 @@
           if(team==='squad')occludedSquad.add(ent);
         }
       });
-      treeDots.forEach((t,i)=>{
+      treeIndexesInBounds({x:ent.x-S(55),y:ent.y-S(70),w:S(110),h:S(90)}).forEach(i=>{
+        const t=treeDots[i];
         if(treeOccludesActor(t,ent)){
           treeSet.add(i);
           if(team==='squad')occludedSquad.add(ent);
@@ -2280,13 +2334,11 @@
       ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.setTransform(scale,0,0,scale,-x*scale,-y*scale);
       renderingStatic=true;sceneryBounds={x,y,w:target.width/scale,h:target.height/scale};
       drawTerrain();
-      const drawingRoads=MAP_DATA.key==='wigan'?[...roads].sort((a,b)=>(a.kind==='railway'?-10:a.layer)-(b.kind==='railway'?-10:b.layer)):roads;
       drawingRoads.forEach(drawRoad);
       if(MAP_DATA.key==='wigan')BadFodderWigan.ground(ctx,MAP_DATA,S,art);
       if(!light)drawVegetation();
       if(wiganDetails){
-        const objects=[...buildings.filter(b=>!b.landmarkFootprint).map(b=>({y:b.maxY,building:b})),...wiganDetails.props.map(p=>({y:p.y,prop:p}))];
-        objects.sort((a,b)=>a.y-b.y).forEach(o=>o.building?drawBuilding(o.building):BadFodderWiganDetails.furniture(ctx,[o.prop],sceneryBounds));
+        wiganStaticObjects.forEach(o=>o.building?drawBuilding(o.building):BadFodderWiganDetails.furniture(ctx,[o.prop],sceneryBounds));
       }else [...buildings].filter(b=>!b.landmarkFootprint).sort((a,b)=>a.maxY-b.maxY).forEach(drawBuilding);
       drawLandmarks();
     }finally{ctx=live;renderingStatic=false;sceneryBounds=null;}
