@@ -189,9 +189,15 @@ function evaluate(baseDir){
   return{
     ok:map01&&map02&&schemaReady,
     productionReady,
+    gameTransformReady,
     gates,
     calibrationReady,
-    traceFeatureCount:Array.isArray(trace.features)?trace.features.length:0,
+    reconciliationReady,
+    eventOverlayReady:overlayReady,
+    reviewReady,
+    traceFeatureCount:traceFeatures.length,
+    eventOverlayFeatureCount:overlayFeatures.length,
+    movementFeatureCount:movementFeatures.length,
     problems
   };
 }
@@ -200,7 +206,7 @@ function main(argv){
   const baseDir=path.resolve(argv[2]||path.join(__dirname,'../../authoring/cable-street'));
   const report=evaluate(baseDir);
   process.stdout.write(JSON.stringify(report,null,2)+'\n');
-  if(argv.includes('--require-ready')&&!report.productionReady)process.exitCode=1;
+  if(argv.includes('--require-ready')&&(!report.productionReady||!report.gameTransformReady))process.exitCode=1;
   else if(!report.ok)process.exitCode=1;
 }
 
