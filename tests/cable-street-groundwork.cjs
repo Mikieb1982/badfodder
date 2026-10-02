@@ -141,6 +141,14 @@ assert(index.includes('data-view="historical-cable"'),'Cable Street groundwork d
 assert(index.includes('MAP RECONSTRUCTION PENDING'),'Cable Street status does not disclose unverified geography');
 assert(menu.includes("this.get('menuHistorical').addEventListener"),'Historical Missions button is not wired');
 assert(menu.includes("this.get('menuHistoricalCable').addEventListener"),'Cable Street detail button is not wired');
+assert(index.includes('id="menuHistoricalCablePlay"'),'Cable Street detail screen has no guarded Play control');
+assert(index.includes("menu-ui.js?v=20261002-cable-play-2"),'Cable Street menu controller cache version is stale');
+assert(index.includes('selectHistorical:startHistoricalMission'),'Cable Street Play action is not supplied to the menu controller');
+assert(index.includes("cableMission&&cableMission.playable&&cableMission.mapReady&&mapRegistry.get('cable-street')"),'Cable Street readiness does not require mission and compiled-map gates');
+assert(menu.includes("actions.selectHistorical?.('cable-street-1936')"),'Cable Street Play button does not call the historical launch path');
+assert(menu.includes('setHistoricalCableReady(ready)'),'Cable Street menu lacks readiness control');
+assert(menu.includes("play.textContent=ready?'PLAY CABLE STREET':'MAP NOT READY'"),'Cable Street Play state text is not guarded');
+
 assert(index.includes('data-back-to="historical"'),'Cable Street detail screen does not return to Historical Missions');
 assert(menu.includes("b.dataset.backTo||'main'"),'Nested historical menu back navigation is not wired');
 
