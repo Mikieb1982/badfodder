@@ -38,19 +38,18 @@ const scope={window:{},localStorage:{getItem:()=>null,setItem(){}}};
 vm.runInNewContext(fs.readFileSync(path.join(root,'campaign.js'),'utf8'),scope);
 const mission=scope.window.BadFodderCampaign.missions[1];
 assert.deepEqual(Array.from(mission.phases,p=>p.zone),['tudor','grandArcade','wallgate']);assert.equal(mission.phases.length,3);
-const evaluator=new Function('map','const S=n=>n*2;const zones=Object.fromEntries(Object.entries(map.zones).map(([k,z])=>[k,{x:z.x*2,y:z.y*2,r:z.r*2}]));let enemies=[];'+body('pointInCircle')+body('phaseZone')+body('phaseEvaluation')+';return{phaseEvaluation,setEnemies(e){enemies=e}};')(map);
+const evaluator=new Function('map','const S=n=>n*2;const zones=Object.fromEntries(Object.entries(map.zones).map(([k,z])=>[k,{x:z.x*2,y:z.y*2,r:z.r*2}]));let enemies=[];'+body('pointInCircle')+body('phaseZone')+body('phaseDefenders')+body('phaseEvaluation')+';return{phaseEvaluation,setEnemies(e){enemies=e}};')(map);
 for(const phase of mission.phases){
  const z=map.zones[phase.zone],at={x:z.x*2,y:z.y*2};
  evaluator.setEnemies([]);assert(evaluator.phaseEvaluation(phase,[at],0).complete,phase.zone+' does not complete at its frontage');
  assert(!evaluator.phaseEvaluation(phase,[{x:0,y:0}],0).complete,'An objective completes before arrival');
- if(phase.type==='secure-zone'){
-  evaluator.setEnemies([{...at,alive:true}]);assert(!evaluator.phaseEvaluation(phase,[at],1).complete,'A defended sector completes too early');
-  evaluator.setEnemies([{x:0,y:0,alive:true}]);assert(evaluator.phaseEvaluation(phase,[at],1).complete,'A distant sector prevents local clearance');
- }
- if(phase.type==='eliminate-and-reach')assert(!evaluator.phaseEvaluation(phase,[at],1).complete,'Final extraction ignores remaining hostiles');
+ const assigned={...at,alive:true,objectiveGroup:phase.defenderGroup};
+ const unrelated={x:0,y:0,alive:true,objectiveGroup:'unrelated'};
+ evaluator.setEnemies([assigned]);assert(!evaluator.phaseEvaluation(phase,[at],1).complete,'An assigned defender is ignored');
+ evaluator.setEnemies([unrelated]);assert(evaluator.phaseEvaluation(phase,[at],1).complete,'An unrelated enemy blocks the objective');
 }
-f.reset();f.addPickup('ammo');f.updateSquad(0);assert.equal(f.grenades,7);assert(!f.pickups[0].active);
-f.addPickup('ammo');f.updateSquad(0);assert.equal(f.grenades,8);f.addPickup('ammo');f.updateSquad(0);assert(f.pickups.at(-1).active,'A full grenade reserve wastes a supply crate');
+f.reset();f.addPickup('grenade');f.updateSquad(0);assert.equal(f.grenades,7);assert(!f.pickups[0].active);
+f.addPickup('grenade');f.updateSquad(0);assert.equal(f.grenades,8);f.addPickup('grenade');f.updateSquad(0);assert(f.pickups.at(-1).active,'A full grenade reserve wastes a supply crate');
 f.setGrenades(4);f.updateSquad(0);assert.equal(f.grenades,6);
 f.reset();f.addPickup('med');f.updateSquad(0);assert(f.pickups[0].active,'Healthy soldiers waste a medical crate');f.squad[0].hp=2;f.updateSquad(0);assert.equal(f.squad[0].hp,6);assert(!f.pickups[0].active);
 vm.runInNewContext(fs.readFileSync(path.join(root,'wigan-details.js'),'utf8'),scope);
@@ -68,5 +67,5 @@ assert(courtyard.findPath(20,120,50,120).length,'Clicking a roof loses its reach
 const open=makeNavigation({...ring,buildings:ring.buildings.slice(0,2).concat(rectangle(20,30,10,24),rectangle(20,66,10,24),rectangle(90,30,10,60))});
 assert(open.findPath(20,120,120,120).length,'A courtyard with an open alley is rejected');
 console.log('PASS: real Wigan landmark IDs, 180-degree gameplay orientation, Tudor start, bounded footprints; individual and full-squad routes to all '+Object.keys(map.pois).length+' frontages and '+checked+' town-centre street segments.');
-console.log('PASS: three Tudor-to-town-centre-to-stations objectives, final clearance gate, useful supplies, unchanged geography and '+details.props.length+' curb props.');
+console.log('PASS: three Tudor-to-town-centre-to-stations objectives use assigned defenders, final clearance ignores unrelated enemies, supplies are useful, and geography remains unchanged with '+details.props.length+' curb props.');
 console.log('PASS: cached disconnected courtyards, roof-click approaches and open-alley connectivity.');
