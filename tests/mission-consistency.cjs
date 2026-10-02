@@ -1,6 +1,7 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),vm=require('node:vm');
 const Navigation=require('../navigation.js');
+const MissionRules=require('../mission-rules.js');
 const root=path.join(__dirname,'..');
 const source=fs.readFileSync(path.join(root,'index.html'),'utf8');
 
@@ -82,25 +83,26 @@ for(const [name,z] of Object.entries(zones)){
   const route=q.findPath(start[0]*2,start[1]*2,z.x,z.y);
   assert(route.length,'Bad Belzig objective '+name+' is unreachable from the mission start');
 }
-const evaluator=new Function(
-  'zones',
-  'const S=n=>n*2;let enemies=[];'+
-  body('pointInCircle')+body('phaseZone')+body('phaseDefenders')+body('phaseEvaluation')+
-  ';return{phaseEvaluation,setEnemies(e){enemies=e}};'
-)(zones);
+let evaluationEnemies=[];
+const evaluator={
+  setEnemies(e){evaluationEnemies=e},
+  phaseEvaluation(phase,living){
+    return MissionRules.evaluatePhase({phase,living,enemies:evaluationEnemies,zones,scale:2});
+  }
+};
 
 for(const phase of badMission.phases.filter(p=>p.defenderGroup)){
   const z=zones[phase.zone],at={x:z.x,y:z.y};
   evaluator.setEnemies([{x:z.x,y:z.y,alive:true,objectiveGroup:phase.defenderGroup}]);
-  assert(!evaluator.phaseEvaluation(phase,[at],1).ready,phase.defenderGroup+' assigned defender is ignored');
+  assert(!evaluator.phaseEvaluation(phase,[at]).ready,phase.defenderGroup+' assigned defender is ignored');
 
   evaluator.setEnemies([{x:0,y:0,alive:true,objectiveGroup:'unrelated'}]);
-  const clear=evaluator.phaseEvaluation(phase,[at],1);
+  const clear=evaluator.phaseEvaluation(phase,[at]);
   assert(clear.ready,'A distant unrelated enemy blocks '+phase.defenderGroup);
   assert(!clear.complete,'A held objective completes instantly without its secure timer');
 
   evaluator.setEnemies([{x:z.x,y:z.y,alive:true,objectiveGroup:'unrelated'}]);
-  const contested=evaluator.phaseEvaluation(phase,[at],1);
+  const contested=evaluator.phaseEvaluation(phase,[at]);
   assert(!contested.ready,'A nearby hostile does not contest '+phase.defenderGroup);
 }
 
