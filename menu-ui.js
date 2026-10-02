@@ -7,6 +7,8 @@ window.BadFodderMenu=class{
     this.get('menuMissionSelect').addEventListener('click',()=>this.showPanel('missions'));
     this.get('menuHistorical').addEventListener('click',()=>this.showPanel('historical'));
     this.get('menuHistoricalCable').addEventListener('click',()=>this.showPanel('historical-cable'));
+    const historicalCablePlay=this.get('menuHistoricalCablePlay');
+    if(historicalCablePlay)historicalCablePlay.addEventListener('click',()=>actions.selectHistorical?.('cable-street-1936'));
     this.get('menuMissionBad').addEventListener('click',()=>actions.selectMission(0));
     this.get('menuMissionWigan').addEventListener('click',()=>actions.selectMission(1));
     this.get('menuControls').addEventListener('click',()=>this.showPanel('controls'));
@@ -45,6 +47,17 @@ window.BadFodderMenu=class{
     this.screen.querySelectorAll('[data-view]').forEach(p=>p.hidden=p.dataset.view!==panel);
     this.get('menuHelp').textContent=panel==='main'?(this.mode==='pause'?'ENTER / ESC TO RESUME':'SELECT AN OPTION TO BEGIN'):'ESC TO GO BACK';
     this.syncFullscreen();this.buttons()[0]?.focus({preventScroll:true});
+  }
+  setHistoricalCableReady(ready){
+    const play=this.get('menuHistoricalCablePlay');
+    const status=this.get('menuHistoricalCableStatus');
+    if(play){
+      play.disabled=!ready;
+      play.textContent=ready?'PLAY CABLE STREET':'MAP NOT READY';
+      play.setAttribute('aria-disabled',String(!ready));
+    }
+    if(status)status.textContent=ready?'READY · VERIFIED MAP PACKAGE LOADED':'GROUNDWORK · MAP RECONSTRUCTION PENDING';
+    return !!ready;
   }
   ready(){
     this.loaded=true;
