@@ -10,10 +10,12 @@ const schema=JSON.parse(fs.readFileSync(path.join(root,'authoring/cable-street/a
 
 function props(id,kind,extra={}){
   return{
-    id,kind,
+    id,kind,layer:kind,
     sourceIds:['S01'],
     sourceDate:'1916',
     confidence:'directly depicted',
+    eventDateConfidence:'inferred',
+    affectsMovement:kind!=='event-zone',
     interpretationNote:'synthetic compiler fixture',
     gameplayAdjustment:'',
     ...extra
@@ -106,7 +108,7 @@ const realProjection=JSON.parse(fs.readFileSync(path.join(root,'authoring/cable-
 assert.equal(realProjection.status,'awaiting-approved-trace');
 assert.throws(
   ()=>Compiler.compileDirectory(path.join(root,'authoring/cable-street')),
-  /not configured|contains no features/
+  /not MAP-01 to MAP-06 ready|not configured|contains no features/
 );
 
 console.log('PASS: Cable Street trace compiler projects BNG geometry into deterministic local map coordinates.');
