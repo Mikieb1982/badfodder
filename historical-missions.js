@@ -12,7 +12,7 @@
       id:'cable-street-1936',
       title:'Cable Street',
       subtitle:'London, 4 October 1936',
-      blueprintVersion:'0.1',
+      blueprintVersion:'0.2',
       status:'playable-slice',
       playable:true,
       mapReady:true,
@@ -21,6 +21,7 @@
       squadSize:4,
       continuousHold:true,
       breachRecoverySeconds:30,
+      combatStyle:'improvised-street-defence',
       mapResearch:{
         boundaryId:'cable-street-christian-street-slice-v1',
         masterCrs:'EPSG:27700',
@@ -38,7 +39,7 @@
       },
       integration:'historical',
       campaignLinked:false,
-      successHeadline:'THE EAST END MARCH HAS BEEN STOPPED.',
+      successHeadline:'THE ROUTE HAS HELD. THE MARCH HAS BEEN TURNED AWAY.',
       actionProfile:{
         firearms:false,
         grenades:false,
@@ -47,27 +48,27 @@
       phases:[
         {
           id:'gathering',
-          title:'Gathering',
-          tasks:['reach-main-defence','inspect-defence-positions','deliver-material-load','assist-resident'],
+          title:'Build the Barricade',
+          tasks:['reach-main-defence','deliver-material-load','assist-resident','take-defence-position'],
           transition:'explicit-start'
         },
         {
           id:'hold-approach',
-          title:'Hold the approach',
-          tasks:['maintain-forward-obstruction','support-main-defence','keep-support-access-open'],
-          transition:'pressure-rise-or-warned-retreat'
+          title:'Police Push',
+          tasks:['fight-back-at-barricade','keep-barricade-intact','repel-first-pressure-wave'],
+          transition:'pressure-repelled'
         },
         {
           id:'regroup',
-          title:'Regroup',
-          tasks:['regroup-at-main-defence','assist-injured-civilians','restore-support-access'],
+          title:'Regroup and Repair',
+          tasks:['regroup-at-main-defence','repair-barricade','prepare-for-next-charge'],
           optionalRescues:3,
           transition:'regroup-complete-with-bounded-pressure'
         },
         {
           id:'they-shall-not-pass',
           title:'They Shall Not Pass',
-          tasks:['keep-final-route-blocked'],
+          tasks:['fight-repeated-pressure-waves','repair-between-charges','keep-final-route-blocked'],
           proposedHoldSeconds:240,
           transition:'hold-complete'
         }
@@ -82,7 +83,10 @@
         mainBarricades:1,
         materialTypes:3,
         rescueInteractions:1,
-        policeFormations:1
+        policeFormations:1,
+        improvisedFightback:true,
+        mountedPressure:true,
+        backgroundMarchThreat:true
       },
       crowdBudget:{
         reactiveCivilians:24,
