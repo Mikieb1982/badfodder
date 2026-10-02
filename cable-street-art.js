@@ -17,6 +17,37 @@
   const COATS=['#786d57','#596b70','#8b674f','#676257','#6f7554','#795f5f','#586b63','#77674b'];
   const HATS=['#51473e','#3e4544','#65513e','#484d42','#5c4c45','#424744'];
   const SKIN=['#e2bb90','#c89570','#ae7658','#edc9a0','#d9a982','#ba8665'];
+  // Reuse the main game actor renderer for Cable Street NPCs so ambient people
+  // receive the same painted/vector quality and movement system as playable actors.
+  const npcActors=new Map();
+  const policeActors=new Map();
+
+  function sharedActor(cache,key,p,art,team,clock,{scale=1,filter='none'}={}){
+    if(!art||typeof art.drawActor!=='function'||typeof art.animate!=='function')return false;
+    let ent=cache.get(key);
+    if(!ent){
+      ent={
+        x:p.x,y:p.y,dir:Number.isFinite(p.dir)?p.dir:0,variant:p.variant||0,
+        alive:true,active:true,selected:false,fireTimer:0,hitTimer:0,_clock:clock
+      };
+      cache.set(key,ent);
+      art.animate(ent,1/60);
+    }
+    const previousClock=Number.isFinite(ent._clock)?ent._clock:clock;
+    ent.x=p.x;ent.y=p.y;ent.dir=Number.isFinite(p.dir)?p.dir:ent.dir;
+    ent.variant=p.variant||0;ent.alive=true;ent.active=true;ent.fireTimer=0;ent.hitTimer=0;
+    const dt=clamp(Number.isFinite(clock)?clock-previousClock:1/60,1/240,.08);
+    ent._clock=clock;
+    art.animate(ent,dt);
+    ctx.save();
+    if(filter&&filter!=='none')ctx.filter=filter;
+    if(scale!==1){
+      ctx.translate(ent.x,ent.y);ctx.scale(scale,scale);ctx.translate(-ent.x,-ent.y);
+    }
+    art.drawActor(ctx,ent,team);
+    ctx.restore();
+    return true;
+  }
 
   function clamp(n,min,max){return Math.max(min,Math.min(max,n))}
   function centerOf(points){
@@ -245,20 +276,32 @@
     ctx.restore();
   }
 
-  function drawCivilian(ctx,p,clock=0){
+  function drawCivilian(ctx,p,clock=0,art=null){
     if(!Number.isFinite(p.x)||!Number.isFinite(p.y)||p.status==='exited')return;
-    const seed=hashText(p.id),variant=seed%COATS.length,assisted=p.status==='assisted'||p.status==='evacuating';
-    const sway=Math.sin(clock*2.2+(seed%31))*.7;
-    ctx.save();ctx.translate(p.x,p.y+sway);
-    ellipse(ctx,0,6,6,2.2,'rgba(25,27,23,.22)');
-    ctx.fillStyle=COATS[variant];ctx.beginPath();ctx.roundRect(-4,-5,8,13,[3,3,2,2]);ctx.fill();
-    ctx.fillStyle=SKIN[variant%SKIN.length];ctx.beginPath();ctx.arc(0,-9,3.4,0,TAU);ctx.fill();
-    ctx.fillStyle=HATS[variant%HATS.length];ctx.beginPath();ctx.ellipse(0,-11,4.2,1.9,0,0,TAU);ctx.fill();
-    ctx.strokeStyle='#403e36';ctx.lineWidth=1.5;
-    ctx.beginPath();ctx.moveTo(-2,7);ctx.lineTo(-3.5,12);ctx.moveTo(2,7);ctx.lineTo(3.5,12);ctx.stroke();
-    if(!assisted){line(ctx,-4,-1,-7+sway,5,COATS[variant],2);line(ctx,4,-1,7-sway,4,COATS[variant],2);}
-    ctx.fillStyle=assisted?'#a9d0aa':'#eee2bc';ctx.font='700 7px system-ui,sans-serif';ctx.textAlign='center';
-    ctx.fillText(assisted?'SAFE':'ASSIST',0,-17);
+    const seed=hashText(p.id),variant=seed%8,assisted=p.status==='assisted'||p.status==='evacuating';
+    const visual={
+      x:p.x,y:p.y,
+      dir:Number.isFinite(p.dir)?p.dir:(assisted&&Number.isFinite(p.exitX)&&Number.isFinite(p.exitY)?Math.atan2(p.exitY-p.y,p.exitX-p.x):0),
+      variant
+    };
+    const rendered=sharedActor(npcActors,'civilian:'+p.id,visual,art,'civilian',clock,{scale:.96});
+    if(!rendered){
+      const sway=Math.sin(clock*2.2+(seed%31))*.7;
+      ctx.save();ctx.translate(p.x,p.y+sway);
+      ellipse(ctx,0,6,6,2.2,'rgba(25,27,23,.22)');
+      ctx.fillStyle=COATS[variant%COATS.length];ctx.beginPath();ctx.roundRect(-4,-5,8,13,[3,3,2,2]);ctx.fill();
+      ctx.fillStyle=SKIN[variant%SKIN.length];ctx.beginPath();ctx.arc(0,-9,3.4,0,TAU);ctx.fill();
+      ctx.restore();
+    }
+    ctx.save();
+    ctx.fillStyle=assisted?'#a9d0aa':'#fff0b9';ctx.font='800 8px system-ui,sans-serif';ctx.textAlign='center';
+    ctx.strokeStyle='rgba(25,30,26,.9)';ctx.lineWidth=3;ctx.strokeText(assisted?'SAFE':'ASSIST',p.x,p.y-31);
+    ctx.fillText(assisted?'SAFE':'ASSIST',p.x,p.y-31);
+    if(!assisted){
+      const pulse=1+Math.sin(clock*5+variant)*.12;
+      ctx.strokeStyle='rgba(244,213,117,.82)';ctx.lineWidth=1.6;
+      ctx.beginPath();ctx.ellipse(p.x,p.y,13*pulse,8*pulse,0,0,TAU);ctx.stroke();
+    }
     ctx.restore();
   }
 
@@ -305,43 +348,90 @@
     ctx.restore();
   }
 
-  function drawCrowd(ctx,people,clock=0){
+  function drawCrowd(ctx,people,clock=0,art=null){
     if(!ctx||!Array.isArray(people))return;
     const ordered=[...people].sort((a,b)=>(a.y||0)-(b.y||0));
     for(const p of ordered){
       if(!Number.isFinite(p.x)||!Number.isFinite(p.y))continue;
+      if(art){
+        const scale=p.role==='helper'?.94:.9;
+        const rendered=sharedActor(npcActors,'crowd:'+p.id,p,art,'civilian',clock,{scale});
+        if(rendered){
+          if(p.role==='helper'){
+            ctx.save();
+            ctx.fillStyle='rgba(232,210,137,.95)';
+            ctx.strokeStyle='rgba(34,37,31,.78)';ctx.lineWidth=1;
+            ctx.beginPath();ctx.arc(p.x,p.y-26,3.3,0,TAU);ctx.fill();ctx.stroke();
+            ctx.restore();
+          }
+          continue;
+        }
+      }
       drawCrowdPerson(ctx,p,clock);
     }
   }
 
-  function drawFormation(ctx,p,clock=0){
+  function drawFormation(ctx,p,clock=0,art=null){
     if(!Number.isFinite(p.x)||!Number.isFinite(p.y))return;
     const width=Math.max(20,Number(p.width)||24),count=clamp(Math.round(width/8),3,9);
     const state=String(p.state||'approach');
+    const target=state==='withdraw'
+      ?{x:p.withdrawX,y:p.withdrawY}
+      :{x:p.targetX,y:p.targetY};
+    const dir=Number.isFinite(target.x)&&Number.isFinite(target.y)
+      ?Math.atan2(target.y-p.y,target.x-p.x)
+      :(Number.isFinite(p.dir)?p.dir:0);
+    const nx=-Math.sin(dir),ny=Math.cos(dir);
     const moving=state==='approach'||state==='withdraw'||state==='regroup';
     const pressure=state==='dismantle';
-    const stride=Math.sin(clock*7+(hashText(p.id)%17))*(moving?1.8:.35);
-    ctx.save();ctx.translate(p.x,p.y);ctx.rotate((p.dir||0)+Math.PI/2);
-    ellipse(ctx,0,7,width*.55,4,'rgba(22,25,24,.22)');
-    for(let i=0;i<count;i++){
-      const x=-width/2+(count===1?0:i/(count-1)*width);
-      const offset=(i%2?1:-1)*stride;
-      // 1930s police silhouette: dark tunic, custodian helmet, baton.
-      line(ctx,x-1.8,1,x-2+offset,9,PALETTE.police,2.5);
-      line(ctx,x+1.8,1,x+2-offset,9,PALETTE.police,2.5);
-      ctx.fillStyle=PALETTE.policeLight;ctx.beginPath();ctx.roundRect(x-3.2,-7,6.4,10,[2,2,1,1]);ctx.fill();
-      ctx.fillStyle='#d1a47e';ctx.beginPath();ctx.arc(x,-10,2.4,0,TAU);ctx.fill();
-      ctx.fillStyle=PALETTE.police;ctx.beginPath();ctx.ellipse(x,-12,3.4,2,0,0,TAU);ctx.fill();ctx.fillRect(x-1.4,-15,2.8,3.5);
-      const arm=pressure?Math.sin(clock*9+i)*2.6:stride*.45;
-      line(ctx,x+3,-4,x+6,-1+arm,PALETTE.policeLight,1.8);
-      line(ctx,x+6,-1+arm,x+8,5+arm,'#433a31',1.1);
+
+    if(art){
+      for(let i=0;i<count;i++){
+        const offset=-width/2+(count===1?0:i/(count-1)*width);
+        const row=(i%2)*3.2;
+        const officer={
+          x:p.x+nx*offset-Math.cos(dir)*row,
+          y:p.y+ny*offset-Math.sin(dir)*row,
+          dir,
+          variant:i%4
+        };
+        sharedActor(
+          policeActors,
+          'police:'+p.id+':'+i,
+          officer,
+          art,'enemy',clock,
+          {scale:.94,filter:'brightness(.62) saturate(.55) hue-rotate(135deg)'}
+        );
+        // Custodian-helmet crest and baton retain a recognisable police silhouette.
+        ctx.save();
+        ctx.fillStyle='#202f35';ctx.strokeStyle='#162126';ctx.lineWidth=.7;
+        ctx.beginPath();ctx.ellipse(officer.x,officer.y-25,4.1,2.2,dir,0,TAU);ctx.fill();ctx.stroke();
+        ctx.fillRect(officer.x-1.3,officer.y-29,2.6,4);
+        if(pressure){
+          const swing=Math.sin(clock*9+i)*2;
+          line(ctx,officer.x+4,officer.y-12,officer.x+8,officer.y-4+swing,'#43372d',1.8);
+        }
+        ctx.restore();
+      }
+    }else{
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(dir+Math.PI/2);
+      ellipse(ctx,0,7,width*.55,4,'rgba(22,25,24,.22)');
+      for(let i=0;i<count;i++){
+        const x=-width/2+(count===1?0:i/(count-1)*width);
+        ctx.fillStyle=PALETTE.policeLight;ctx.fillRect(x-3,-8,6,12);
+        ctx.fillStyle=PALETTE.police;ctx.beginPath();ctx.arc(x,-11,3,0,TAU);ctx.fill();
+      }
+      ctx.restore();
     }
+
+    ctx.save();
     if(pressure){
       ctx.strokeStyle='rgba(222,186,118,.62)';ctx.lineWidth=1.2;ctx.setLineDash([4,4]);
-      ctx.beginPath();ctx.moveTo(-width*.55,12);ctx.lineTo(width*.55,12);ctx.stroke();ctx.setLineDash([]);
+      ctx.beginPath();ctx.ellipse(p.x,p.y+5,width*.62,10,dir,0,TAU);ctx.stroke();ctx.setLineDash([]);
     }
-    ctx.fillStyle='#e8ddb9';ctx.font='700 7px system-ui,sans-serif';ctx.textAlign='center';
-    ctx.fillText(state.toUpperCase(),0,-21);
+    ctx.fillStyle='#f0e5c0';ctx.font='800 8px system-ui,sans-serif';ctx.textAlign='center';
+    ctx.strokeStyle='rgba(24,28,25,.9)';ctx.lineWidth=3;ctx.strokeText(state.toUpperCase(),p.x,p.y-38);
+    ctx.fillText(state.toUpperCase(),p.x,p.y-38);
     ctx.restore();
   }
 
@@ -434,13 +524,13 @@
     }
   }
 
-  function drawGround(ctx,state,clock=0){
+  function drawGround(ctx,state,clock=0,art=null){
     if(!ctx||!state)return;
     const items=[];
     for(const b of state.barricades||[]){const c=centerOf(b.points)||b;items.push({y:c.y||0,draw:()=>drawBarricade(ctx,b,clock)})}
     for(const m of state.materials||[])if(!m.carriedBy)items.push({y:m.y||0,draw:()=>drawMaterial(ctx,m,clock)});
-    for(const p of state.civilians||[])items.push({y:p.y||0,draw:()=>drawCivilian(ctx,p,clock)});
-    for(const f of state.formations||[])items.push({y:f.y||0,draw:()=>drawFormation(ctx,f,clock)});
+    for(const p of state.civilians||[])items.push({y:p.y||0,draw:()=>drawCivilian(ctx,p,clock,art)});
+    for(const f of state.formations||[])items.push({y:f.y||0,draw:()=>drawFormation(ctx,f,clock,art)});
     items.sort((a,b)=>a.y-b.y).forEach(item=>item.draw());
     drawJobMarkers(ctx,state,clock);
   }
@@ -494,6 +584,23 @@
     ctx.restore();
   }
 
+  function drawGuidance(ctx,guidance,clock=0){
+    if(!ctx||!guidance||!Number.isFinite(guidance.x)||!Number.isFinite(guidance.y))return;
+    const pulse=1+Math.sin(clock*5)*.10;
+    const r=(guidance.kind==='regroup'?27:20)*pulse;
+    ctx.save();
+    ctx.strokeStyle='rgba(255,224,111,.94)';ctx.lineWidth=2.4;ctx.setLineDash([7,4]);
+    ctx.beginPath();ctx.ellipse(guidance.x,guidance.y,r,r*.62,0,0,TAU);ctx.stroke();ctx.setLineDash([]);
+    const arrowY=guidance.y-r*.72-13-Math.sin(clock*5)*2;
+    ctx.fillStyle='#ffe071';ctx.strokeStyle='rgba(25,30,26,.92)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(guidance.x,arrowY+8);ctx.lineTo(guidance.x-6,arrowY);ctx.lineTo(guidance.x+6,arrowY);ctx.closePath();ctx.stroke();ctx.fill();
+    const label=String(guidance.label||'GO HERE');
+    ctx.font='900 9px system-ui,sans-serif';ctx.textAlign='center';
+    ctx.strokeStyle='rgba(25,30,26,.95)';ctx.lineWidth=4;ctx.strokeText(label,guidance.x,arrowY-6);
+    ctx.fillStyle='#fff0b0';ctx.fillText(label,guidance.x,arrowY-6);
+    ctx.restore();
+  }
+
   function drawRegroup(ctx,p,clock=0){
     const pulse=1+Math.sin(clock*4)*.08;
     ctx.save();ctx.strokeStyle='#95c7ed';ctx.lineWidth=2.5;ctx.setLineDash([8,5]);
@@ -504,6 +611,6 @@
   return{
     buildingStyle,drawRoad,drawFacadeDetails,drawStreetProps,drawScenery,
     drawGround,drawCarried,drawCrowd,drawVolunteer,drawEffects,drawAtmosphere,
-    drawHint,drawRegroup
+    drawGuidance,drawHint,drawRegroup
   };
 });
