@@ -25,7 +25,7 @@ function evaluate(baseDir){
     reconciliation:path.join(baseDir,'reconciliation.json'),
     eventOverlay:path.join(baseDir,'event-overlay.geojson'),
     historicalReview:path.join(baseDir,'historical-review.json'),
-    gameTransform:path.join(baseDir,'game-transform.json')
+    runtimeProjection:path.join(baseDir,'runtime-projection.json')
   };
   const missing=Object.entries(files).filter(([,file])=>!exists(file)).map(([key])=>key);
   if(missing.length)return{ok:false,productionReady:false,missing,gates:{},problems:['Missing authoring files: '+missing.join(', ')]};
@@ -38,7 +38,7 @@ function evaluate(baseDir){
   const reconciliation=readJson(files.reconciliation);
   const eventOverlay=readJson(files.eventOverlay);
   const historicalReview=readJson(files.historicalReview);
-  const gameTransform=readJson(files.gameTransform);
+  const runtimeProjection=readJson(files.runtimeProjection);
   const problems=[];
 
   const sourceIds=new Set((evidence.sources||[]).map(s=>s&&s.id).filter(Boolean));
@@ -165,16 +165,13 @@ function evaluate(baseDir){
   const map06=!!(map03&&map04&&map05&&reviewReady);
   if(!map06)problems.push('MAP-06 historical contradiction review is not complete.');
 
-  const gameTransformReady=
-    gameTransform.status==='ready'&&
-    gameTransform.sourceCrs==='EPSG:27700'&&
-    gameTransform.orientation==='north-up'&&
-    finitePair(gameTransform.originBng)&&
-    Number.isFinite(gameTransform.metresPerMapUnit)&&gameTransform.metresPerMapUnit>0&&
-    gameTransform.axis&&
-    gameTransform.axis.x==='east-positive'&&
-    gameTransform.axis.y==='south-positive';
-  if(!gameTransformReady)problems.push('Game transform is not ready for SLICE-01 compilation.');
+  const runtimeProjectionReady=
+    runtimeProjection.status==='configured'&&
+    runtimeProjection.masterCrs==='EPSG:27700'&&
+    finitePair(runtimeProjection.originEastingNorthing)&&
+    Number.isFinite(runtimeProjection.metresToWorldUnits)&&runtimeProjection.metresToWorldUnits>0&&
+    runtimeProjection.northUp!==false;
+  if(!runtimeProjectionReady)problems.push('Runtime projection is not ready for SLICE-01 compilation.');
 
   const gates={
     'MAP-01':map01,
@@ -189,7 +186,7 @@ function evaluate(baseDir){
   return{
     ok:map01&&map02&&schemaReady,
     productionReady,
-    gameTransformReady,
+    runtimeProjectionReady,
     gates,
     calibrationReady,
     reconciliationReady,
@@ -206,7 +203,7 @@ function main(argv){
   const baseDir=path.resolve(argv[2]||path.join(__dirname,'../../authoring/cable-street'));
   const report=evaluate(baseDir);
   process.stdout.write(JSON.stringify(report,null,2)+'\n');
-  if(argv.includes('--require-ready')&&(!report.productionReady||!report.gameTransformReady))process.exitCode=1;
+  if(argv.includes('--require-ready')&&(!report.productionReady||!report.runtimeProjectionReady))process.exitCode=1;
   else if(!report.ok)process.exitCode=1;
 }
 
