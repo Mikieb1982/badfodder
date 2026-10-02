@@ -20,13 +20,15 @@ assert.equal(mission.actionProfile.grenades,false);
 assert.deepEqual(mission.actionProfile.contextualActions,['reinforce','carry','assist','hold','drop']);
 assert.equal(mission.crowdBudget.reactiveCivilians,24);
 assert.equal(mission.crowdBudget.functionalHelpers,8);
-assert.deepEqual(mission.firstImplementationSlice,{
-  documentedStreetSegments:1,
-  mainBarricades:1,
-  materialTypes:3,
-  rescueInteractions:1,
-  policeFormations:1
-});
+assert.equal(mission.firstImplementationSlice.documentedStreetSegments,1);
+assert.equal(mission.firstImplementationSlice.mainBarricades,1);
+assert.equal(mission.firstImplementationSlice.materialTypes,3);
+assert.equal(mission.firstImplementationSlice.rescueInteractions,1);
+assert.equal(mission.firstImplementationSlice.policeFormations,1);
+assert.equal(mission.firstImplementationSlice.improvisedFightback,true);
+assert.equal(mission.firstImplementationSlice.mountedPressure,true);
+assert.equal(mission.firstImplementationSlice.backgroundMarchThreat,true);
+assert.equal(mission.combatStyle,'improvised-street-defence');
 
 const campaignSource=fs.readFileSync(path.join(root,'campaign.js'),'utf8');
 const scope={window:{},localStorage:{getItem:()=>null,setItem(){}}};
@@ -154,4 +156,5 @@ assert(index.includes('data-back-to="historical"'),'Cable Street detail screen d
 assert(menu.includes("b.dataset.backTo||'main'"),'Nested historical menu back navigation is not wired');
 
 console.log('PASS: Cable Street is a separate playable historical mission with gated reconstructed map and four phases.');
+console.log('PASS: Cable Street groundwork now explicitly includes improvised fightback, mounted pressure and a background march threat.');
 console.log('PASS: Cable Street helpers reject invalid ownership/timers, release cancelled reservations, preserve partial materials and clean actor/controller state.');
