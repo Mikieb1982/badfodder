@@ -601,6 +601,16 @@
   const pinchPointers=new Map();
   let pinchGesture=null;
 
+  function releaseAllFireInputs(){
+    rightHeld=false;
+    macFireHeld=false;
+    keyboardFireHeld=false;
+    bothLatched=false;
+    touchState.firePointer=null;
+    touchState.fireHeld=false;
+    touchFire.classList.remove('active');
+  }
+
   function setStatus(text){
     if(statusEl.textContent!==text)statusEl.textContent=text;
     const phase=(activeMission().phases||[])[missionStage];
@@ -973,7 +983,11 @@
   }
 
   function pointInCircle(x,y,z){return Math.hypot(x-z.x,y-z.y)<=z.r}
-  function selectedUnits(){return squad.filter((s,i)=>s.alive&&(selection==='all'||selection===i))}
+  function selectedUnits(){
+    const units=squad.filter((s,i)=>s.alive&&(selection==='all'||selection===i));
+    if(units.length)return units;
+    return squad.filter(s=>s.alive);
+  }
 
 
   function isFullscreenActive(){
@@ -1038,8 +1052,7 @@
     mapBtn.classList.toggle('active',mapOpen);
     mapBtn.textContent=mapOpen?'Close Map (M)':'Map (M)';
     if(mapOpen){
-      touchState.fireHeld=false;
-      touchFire.classList.remove('active');
+      releaseAllFireInputs();
       releaseTouchMove();
     }
     syncTouchControlState();
@@ -1049,8 +1062,8 @@
     if(finished||!started)return;
     if(menuOpen){if(menu&&menu.mode==='pause')resumeMission();return;}
     paused=true;menuOpen=true;
-    rightHeld=false;bothLatched=false;touchState.fireHeld=false;
-    touchFire.classList.remove('active');releaseTouchMove();
+    releaseAllFireInputs();
+    releaseTouchMove();
     pauseBtn.textContent='Resume (Enter)';
     if(menu)menu.show('pause');
     syncTouchControlState();
@@ -1073,7 +1086,8 @@
   }
 
   function showTitle(){
-    menuOpen=true;paused=true;rightHeld=false;touchState.fireHeld=false;
+    menuOpen=true;paused=true;
+    releaseAllFireInputs();
     releaseTouchMove();menu.show('title');syncTouchControlState();
   }
 
@@ -1187,7 +1201,7 @@
     [...squad,...enemies,...civilians].forEach(ent=>art.animate(ent,0));
     bullets=[];thrown=[];effects=[];noise=[];squadGrenades=5;missionStage=0;
     finished=false;win=false;paused=false;mapOpen=false;selection='all';zoom=preferredZoom;
-    rightHeld=false;bothLatched=false;macFireHeld=false;keyboardFireHeld=false;
+    releaseAllFireInputs();
     cursorWorld=null;
     lastHudStats='';lastRosterSignature='';
     squadFormation={active:false,leader:null,members:[],trail:[],destination:null,manualMoving:false};
@@ -1389,6 +1403,11 @@
 
       const team=squad.includes(target)?'squad':enemies.includes(target)?'enemy':'civilian';
       window.BadFodderSfx?.death(team);
+
+      if(team==='squad'&&selection!=='all'&&squad[selection]===target){
+        const living=squad.filter(s=>s.alive);
+        if(living.length)setSelection('all');
+      }
     }
   }
 
@@ -1401,8 +1420,12 @@
   }
 
   function squadFireAt(x,y){
-    selectedUnits().forEach(s=>{
-      if(s.cooldown>0||lineBlocked(s.x,s.y,x,y))return;
+    const units=selectedUnits();
+    if(!units.length)return false;
+
+    let fired=false;
+    units.forEach(s=>{
+      if(s.cooldown>0)return;
 
       updateFacing(s,x-s.x,y-s.y);
       s.fireTimer=.11;s.state='fire';
@@ -1415,7 +1438,9 @@
       fireBullet('squad',s.x,s.y,tx,ty);
       s.fireHeat=Math.min(1,heat+.15);
       s.cooldown=.085;
+      fired=true;
     });
+    return fired;
   }
 
 
@@ -1583,7 +1608,8 @@
     }
 
     s.followRepath=Math.max(0,(s.followRepath||0)-dt);
-    const catchUp=d>130?1.16:d>75?1.08:1;
+    const leaderRun=squadFormation.leader&&squadFormation.leader.touchMoveSpeed>175;
+    const catchUp=d>130?(leaderRun?1.28:1.16):d>75?(leaderRun?1.16:1.08):1;
 
     if(routeClear(s.x,s.y,desired.x,desired.y,NAV_RADIUS)){
       s.path=null;s.target=null;s.pathIndex=0;
@@ -2032,18 +2058,26 @@
   }
 
   function applyTouchMovement(dt){
-    if(touchState.moveMag<.08||menuOpen||paused||finished||mapOpen)return;
+    const deadZone=.10;
+    const mag=Math.min(1,touchState.moveMag);
+    if(mag<deadZone||menuOpen||paused||finished||mapOpen)return;
 
     const leader=ensureTouchFormation();
     if(!leader||!leader.alive)return;
 
     leader.path=null;leader.target=null;leader.pathIndex=0;
-    const speed=185*(.46+.54*Math.min(1,touchState.moveMag));
-    const dx=touchState.moveX*speed*dt;
-    const dy=touchState.moveY*speed*dt;
 
-    updateFacing(leader,touchState.moveX,touchState.moveY);
+    // True analogue movement: slight tilt = cautious walk, full tilt = run.
+    const intensity=Math.max(0,Math.min(1,(mag-deadZone)/(1-deadZone)));
+    const speed=58+(205-58)*Math.pow(intensity,.82);
+    const nx=touchState.moveX/(mag||1);
+    const ny=touchState.moveY/(mag||1);
+    const dx=nx*speed*dt;
+    const dy=ny*speed*dt;
+
+    updateFacing(leader,nx,ny);
     moveEntity(leader,dx,dy,NAV_RADIUS);
+    leader.touchMoveSpeed=speed;
     leader.state='walk';
   }
 
@@ -2052,6 +2086,7 @@
     touchState.moveX=0;touchState.moveY=0;touchState.moveMag=0;
     touchStick.style.transform='translate(0px,0px)';
     touchJoystick.classList.remove('active');
+    if(squadFormation.leader)squadFormation.leader.touchMoveSpeed=0;
     if(squadFormation.active)squadFormation.manualMoving=false;
   }
 
@@ -2066,6 +2101,7 @@
   }
 
   function fireMobile(){
+    if(!selectedUnits().length&&squad.some(s=>s.alive))setSelection('all');
     const p=mobileAimPoint(S(190));
     if(p)squadFireAt(p.x,p.y);
   }
@@ -2754,8 +2790,32 @@
   touchFire.addEventListener('pointerup',endTouchFire);
   touchFire.addEventListener('pointercancel',endTouchFire);
   touchFire.addEventListener('lostpointercapture',()=>{
-    touchState.firePointer=null;touchState.fireHeld=false;touchFire.classList.remove('active');
+    touchState.firePointer=null;
+    touchState.fireHeld=false;
+    touchFire.classList.remove('active');
   });
+
+  // Mobile browsers can interrupt pointer capture during gestures, fullscreen,
+  // notifications or orientation changes. Always recover firing cleanly.
+  window.addEventListener('pointerup',evt=>{
+    if(touchState.firePointer!==null&&evt.pointerId===touchState.firePointer){
+      touchState.firePointer=null;
+      touchState.fireHeld=false;
+      touchFire.classList.remove('active');
+    }
+    if(evt.pointerType!=='touch'&&evt.buttons===0){
+      rightHeld=false;
+      macFireHeld=false;
+      bothLatched=false;
+    }
+  },true);
+  window.addEventListener('pointercancel',evt=>{
+    if(touchState.firePointer===evt.pointerId){
+      touchState.firePointer=null;
+      touchState.fireHeld=false;
+      touchFire.classList.remove('active');
+    }
+  },true);
 
   touchGrenade.addEventListener('pointerdown',evt=>{
     if(!started||menuOpen||paused||finished||mapOpen)return;
@@ -2849,10 +2909,9 @@
     if(e.key.toLowerCase()==='f')keyboardFireHeld=false;
   });
 
-  window.addEventListener('blur',()=>{
-    rightHeld=false;
-    macFireHeld=false;
-    keyboardFireHeld=false;
+  window.addEventListener('blur',releaseAllFireInputs);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden)releaseAllFireInputs();
   });
 
   function tick(now){
