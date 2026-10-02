@@ -10,9 +10,12 @@
   "requiredFeatureAttributes": [
     "id",
     "kind",
+    "layer",
     "sourceIds",
     "sourceDate",
     "confidence",
+    "eventDateConfidence",
+    "affectsMovement",
     "geometry",
     "interpretationNote",
     "gameplayAdjustment"
@@ -46,8 +49,9 @@
   ],
   "rules": [
     "Historical geography and gameplay tuning must remain separate.",
+    "Source-geometry confidence and 1936 event-date confidence must be recorded separately.",
     "Apparent gaps remain unknown until checked.",
-    "No essential route may depend on an unverified historic passage.",
+    "No essential route may depend on an unverified historic passage unless it is explicitly recorded as a fictional gameplay adaptation.",
     "Approximate event locations must remain areas rather than false exact points.",
     "Confidence applies to the individual feature claim, not to the prestige of the source."
   ]
