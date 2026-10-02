@@ -8,17 +8,17 @@ const missions=[
   {
     id:1,title:'Operation Bad Belzig',environment:'temperate-town',squadSize:4,playable:true,
     phases:[
-      {type:'reach',zone:'post',title:'Reach the Postdistanzsäule',brief:'Push up Bahnhofstraße and reach the Postdistanzsäule.'},
-      {type:'secure-zone',zone:'castle',defenderGroup:'castle',title:'Secure Burg Eisenhardt',brief:'Clear the assigned castle defenders and move into Burg Eisenhardt.'},
-      {type:'eliminate-and-reach',zone:'market',defenderGroup:'market',title:'Take Marktplatz',brief:'Defeat the final Marktplatz defenders and reach Marktplatz and Rathaus.'}
+      {type:'secure-zone',zone:'post',defenderGroup:'post',hold:1.0,contestRadius:72,title:'Secure the Postdistanzsäule',brief:'Move up Bahnhofstraße, clear the small Postdistanzsäule patrol, then hold the position.'},
+      {type:'secure-zone',zone:'castle',defenderGroup:'castle',hold:1.4,contestRadius:105,title:'Secure Burg Eisenhardt',brief:'Clear the castle defenders, enter the Burg Eisenhardt objective area and hold it briefly.'},
+      {type:'eliminate-and-reach',zone:'market',defenderGroup:'market',hold:1.6,contestRadius:100,title:'Take Marktplatz',brief:'Defeat the Marktplatz defenders, reach Rathaus and hold the square to finish the mission.'}
     ]
   },
   {
     id:2,title:'Wigan Town Centre',environment:'wigan-town',map:'wigan',squadSize:4,playable:true,
     phases:[
-      {type:'secure-zone',zone:'tudor',defenderGroup:'tudor',title:'Tudor Breakout',brief:'Start at Tudor House. Defeat the Tudor-sector defenders and secure the New Market Street end of town.'},
-      {type:'secure-zone',zone:'grandArcade',defenderGroup:'grandArcade',title:'Town Centre Sweep',brief:'Push through Market Place past Moon Under Water and John Bull Chophouse, then defeat the town-centre defenders at Grand Arcade.'},
-      {type:'eliminate-and-reach',zone:'wallgate',defenderGroup:'wallgate',title:'Station Run',brief:'Defeat the station defenders and reach the Wigan Wallgate and North Western station gateway.'}
+      {type:'secure-zone',zone:'tudor',defenderGroup:'tudor',hold:1.0,contestRadius:75,title:'Tudor Breakout',brief:'Clear the Tudor House opening defenders and hold the New Market Street end of town.'},
+      {type:'secure-zone',zone:'grandArcade',defenderGroup:'grandArcade',hold:1.3,contestRadius:95,title:'Town Centre Sweep',brief:'Choose your route through Market Place and the side streets, defeat the Grand Arcade defenders and secure the centre.'},
+      {type:'eliminate-and-reach',zone:'wallgate',defenderGroup:'wallgate',hold:1.6,contestRadius:90,title:'Station Run',brief:'Defeat the station defenders, reach the Wallgate and North Western gateway and hold extraction. King Street supplies are optional.'}
     ]
   },
   {
