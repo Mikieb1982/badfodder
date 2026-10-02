@@ -6,7 +6,7 @@ const path=require('node:path');
 const assert=require('node:assert/strict');
 const Calibration=require('../tools/cable-street/calibrate-grid.cjs');
 const Authoring=require('../tools/cable-street/validate-authoring.cjs');
-const Compiler=require('../tools/cable-street/compile-map-package.cjs');
+const Compiler=require('../tools/cable-street/compile-trace.cjs');
 
 const root=path.join(__dirname,'..');
 const realDir=path.join(root,'authoring/cable-street');
@@ -160,15 +160,15 @@ function makeReadyPackage(){
     reviewNotes:['Synthetic ready package used only for validator/compiler tests.']
   });
 
-  write(dir,'game-transform.json',{
-    id:'transform-ready',
+  write(dir,'runtime-projection.json',{
+    id:'runtime-projection-ready',
     missionId:'cable-street-1936',
-    status:'ready',
-    sourceCrs:'EPSG:27700',
-    originBng:[534000,181000],
-    metresPerMapUnit:1,
-    orientation:'north-up',
-    axis:{x:'east-positive',y:'south-positive'}
+    status:'configured',
+    masterCrs:'EPSG:27700',
+    originEastingNorthing:[534000,181000],
+    metresToWorldUnits:1,
+    padding:0,
+    northUp:true
   });
 
   return dir;
@@ -181,8 +181,8 @@ assert.equal(current.gates['MAP-03'],false);
 assert.equal(current.gates['MAP-04'],false);
 assert.equal(current.gates['MAP-05'],false);
 assert.equal(current.gates['MAP-06'],false);
-assert.equal(current.gameTransformReady,false);
-assert.throws(()=>Compiler.compile(realDir),/not MAP-01 to MAP-06 ready/);
+assert.equal(current.runtimeProjectionReady,false);
+assert.throws(()=>Compiler.compileDirectory(realDir),/not MAP-01 to MAP-06 ready/);
 
 const readyDir=makeReadyPackage();
 const ready=Authoring.evaluate(readyDir);
@@ -192,28 +192,33 @@ assert.deepEqual(ready.gates,{
   'MAP-04':true,'MAP-05':true,'MAP-06':true
 });
 assert.equal(ready.productionReady,true);
-assert.equal(ready.gameTransformReady,true);
+assert.equal(ready.runtimeProjectionReady,true);
 assert.equal(ready.traceFeatureCount,3);
 assert.equal(ready.movementFeatureCount,3);
 assert.equal(ready.eventOverlayFeatureCount,1);
 
-const compiled=Compiler.compile(readyDir);
-assert.equal(compiled.status,'compiled-authoring-package');
-assert.equal(compiled.sourceCrs,'EPSG:27700');
-assert.equal(compiled.orientation,'north-up');
-assert.equal(compiled.features.length,3);
-assert.equal(compiled.eventZones.length,1);
-assert.equal(compiled.layers['carriageway-edge'].length,1);
-assert.equal(compiled.layers['building-envelope'].length,1);
-assert.equal(compiled.layers.railway.length,1);
+const compiled=Compiler.compileDirectory(readyDir);
+assert.equal(compiled.key,'cable-street');
+assert.equal(compiled.projection.masterCrs,'EPSG:27700');
+assert.equal(compiled.projection.northUp,true);
+assert.equal(compiled.roads.length,1);
+assert.equal(compiled.buildings.length,1);
+assert.equal(compiled.railways.length,1);
+assert.deepEqual(compiled.authoring.gates,{
+  'MAP-01':true,'MAP-02':true,'MAP-03':true,
+  'MAP-04':true,'MAP-05':true,'MAP-06':true
+});
 
-const road=compiled.features.find(f=>f.properties.id==='road-edge-west');
-assert.deepEqual(road.geometry.coordinates[0],[100,50]);
-assert.deepEqual(road.geometry.coordinates[1],[220,50]);
-assert.deepEqual(Compiler.bngToLocal([534100,180900],{
-  originBng:[534000,181000],metresPerMapUnit:2
-}),[50,50]);
-assert(compiled.bounds.width>0&&compiled.bounds.height>0);
+const road=compiled.roads.find(r=>r.id==='road-edge-west');
+assert.deepEqual(road.points[0],[100,50]);
+assert.deepEqual(road.points[1],[220,50]);
+const halfScale=Compiler.createProjector({
+  status:'configured',masterCrs:'EPSG:27700',
+  originEastingNorthing:[534000,181000],metresToWorldUnits:.5,padding:0,northUp:true
+},'EPSG:27700');
+assert.deepEqual(halfScale.project([534100,180900]),[50,50]);
+assert(compiled.width>compiled.buildings[0].maxX);
+assert(compiled.height>compiled.buildings[0].maxY);
 
 // An inferred 1936 passage cannot quietly become an essential route.
 const reconciliationPath=path.join(readyDir,'reconciliation.json');
@@ -247,4 +252,4 @@ fs.rmSync(readyDir,{recursive:true,force:true});
 
 console.log('PASS: MAP-04 to MAP-06 become computable gates and reject unsafe inferred essential routes or point-like event claims.');
 console.log('PASS: guarded compiler refuses the real incomplete package and compiles a fully approved synthetic EPSG:27700 package.');
-console.log('PASS: BNG-to-game conversion preserves north-up orientation while keeping calibration and game transforms separate.');
+console.log('PASS: BNG-to-game conversion preserves north-up orientation while keeping source calibration and runtime projection separate.');
