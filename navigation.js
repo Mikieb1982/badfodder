@@ -359,7 +359,7 @@
 
     return{
       pointInPoly,nearbyBuildings,solidPoint,obstacleAt,lineBlocked,
-      routeClear,findPath,assignPath,followPath,pathComponent,pathCellBlocked,pathCellCenter,
+      routeClear,findPath,assignPath,followPath,pathComponent,pathCellBlocked,pathCellCenter,nearestOpenCell,
       metrics,resetMetrics,
       NAV_RADIUS,PATH_CELL,PATH_COLS,PATH_ROWS,pathComponents
     };
