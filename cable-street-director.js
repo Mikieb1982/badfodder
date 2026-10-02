@@ -252,6 +252,9 @@
     }
 
     function snapshot(){
+      const b=mainBarricade();
+      const barricadeIntegrity=b&&Number.isFinite(b.integrity)?b.integrity:0;
+      const barricadeMaxIntegrity=b&&Number.isFinite(b.maxIntegrity)&&b.maxIntegrity>0?b.maxIntegrity:0;
       return{
         phaseIndex:state.phaseIndex,
         phaseId:phase()&&phase().id||null,
@@ -261,6 +264,9 @@
         rescues:state.rescues,
         pressureCycles:state.pressureCycles,
         breaches:state.breaches,
+        barricadeIntegrity,
+        barricadeMaxIntegrity,
+        barricadeRatio:barricadeMaxIntegrity>0?clamp(barricadeIntegrity/barricadeMaxIntegrity,0,1):0,
         confidence:controller.state.confidence,
         regroupStableSeconds:state.regroupStableSeconds,
         finalHoldSeconds:state.finalHoldSeconds,
