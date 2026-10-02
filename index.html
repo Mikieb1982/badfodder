@@ -509,6 +509,7 @@
 <script src="menu-ui.js"></script>
 <script src="music.js"></script>
 <script src="sfx.js"></script>
+<script src="combat-geometry.js"></script>
 <script src="campaign.js"></script>
 <script>
 (() => {
@@ -524,6 +525,7 @@
   ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
   display.imageSmoothingEnabled=true;
   const art=BadFodderArt;
+  const combatGeometry=BadFodderCombatGeometry;
   const campaign=BadFodderCampaign;
   const initialMission=campaign.current();
   const MAP_DATA=(initialMission&&initialMission.playable&&initialMission.map==='wigan')?WIGAN_MAP:TOWN_MAP;
@@ -583,6 +585,8 @@
 
 
   let zoom=1,selection='all',paused=false,mapOpen=false,finished=false,win=false,missionStage=0;
+  const FIXED_DT=1/60,MAX_CATCHUP_STEPS=5;
+  let simulationAccumulator=0;
   let camera={x:S(620),y:S(1260)},last=performance.now(),squadGrenades=5;
   let bullets=[],thrown=[],effects=[],noise=[],squad=[],enemies=[],civilians=[],pickups=[];
   let started=false,menuOpen=true,preferredZoom=1.3,showDust=!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches);
@@ -1203,6 +1207,8 @@
     finished=false;win=false;paused=false;mapOpen=false;selection='all';zoom=preferredZoom;
     releaseAllFireInputs();
     cursorWorld=null;
+    simulationAccumulator=0;
+    last=performance.now();
     lastHudStats='';lastRosterSignature='';
     squadFormation={active:false,leader:null,members:[],trail:[],destination:null,manualMoving:false};
     wiganRouteCache={key:null,path:[]};
@@ -1928,31 +1934,41 @@
 
   function updateProjectiles(dt){
     bullets.forEach(b=>{
-      b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
+      const ax=b.x,ay=b.y;
+      const bx=ax+b.vx*dt,by=ay+b.vy*dt;
+      b.life-=dt;
       if(b.life<=0)return;
-      if(obstacleAt(b.x,b.y,2)){
+
+      const targets=b.owner==='squad'?enemies:squad;
+      const characterHit=combatGeometry.nearestCharacterHit(ax,ay,bx,by,targets,14);
+      const obstacleT=combatGeometry.firstObstacleHitT(ax,ay,bx,by,obstacleAt,2,2);
+      const characterT=characterHit?characterHit.t:null;
+
+      // Resolve whichever collision happens first along the complete frame segment.
+      if(obstacleT!==null&&(characterT===null||obstacleT<=characterT)){
+        b.x=ax+(bx-ax)*obstacleT;
+        b.y=ay+(by-ay)*obstacleT;
         b.life=0;
         effects.push({type:'wall',x:b.x,y:b.y,life:.22});
         return;
       }
-      const targets=b.owner==='squad'?enemies:squad;
-      for(const t of targets){
-        if(!t.alive)continue;
-        if(Math.hypot(b.x-t.x,b.y-t.y)<14){
-          b.life=0;
-          applyDamage(t,1,b.x-b.vx*.015,b.y-b.vy*.015);
-          effects.push({type:'impact',x:t.x,y:t.y,life:.16});
-          if(b.owner==='squad'){
-            const hitEnemy=t;
-            if(hitEnemy.alive){
-              hitEnemy.alert=true;hitEnemy.aiState='combat';
-              hitEnemy.lastSeen={x:b.x-b.vx*.03,y:b.y-b.vy*.03};
-              alertNearbyEnemies(hitEnemy,hitEnemy.lastSeen.x,hitEnemy.lastSeen.y,S(180));
-            }
-          }
-          break;
+
+      if(characterHit){
+        const t=characterHit.target;
+        b.x=ax+(bx-ax)*characterHit.t;
+        b.y=ay+(by-ay)*characterHit.t;
+        b.life=0;
+        applyDamage(t,1,ax,ay);
+        effects.push({type:'impact',x:t.x,y:t.y,life:.16});
+        if(b.owner==='squad'&&t.alive){
+          t.alert=true;t.aiState='combat';
+          t.lastSeen={x:b.x,y:b.y};
+          alertNearbyEnemies(t,t.lastSeen.x,t.lastSeen.y,S(180));
         }
+        return;
       }
+
+      b.x=bx;b.y=by;
     });
     bullets=bullets.filter(b=>b.life>0&&b.x>0&&b.y>0&&b.x<WORLD_W&&b.y<WORLD_H);
     thrown.forEach(g=>{
@@ -2069,7 +2085,8 @@
 
     // True analogue movement: slight tilt = cautious walk, full tilt = run.
     const intensity=Math.max(0,Math.min(1,(mag-deadZone)/(1-deadZone)));
-    const speed=58+(205-58)*Math.pow(intensity,.82);
+    const smoothIntensity=intensity*intensity*(3-2*intensity);
+    const speed=205*smoothIntensity;
     const nx=touchState.moveX/(mag||1);
     const ny=touchState.moveY/(mag||1);
     const dx=nx*speed*dt;
@@ -2909,20 +2926,51 @@
     if(e.key.toLowerCase()==='f')keyboardFireHeld=false;
   });
 
-  window.addEventListener('blur',releaseAllFireInputs);
+  function releaseInterruptedInput(){
+    releaseAllFireInputs();
+    releaseTouchMove();
+    pinchPointers.clear();
+    pinchGesture=null;
+  }
+
+  window.addEventListener('blur',releaseInterruptedInput);
   document.addEventListener('visibilitychange',()=>{
-    if(document.hidden)releaseAllFireInputs();
+    if(document.hidden)releaseInterruptedInput();
   });
+  window.addEventListener('pagehide',releaseInterruptedInput);
+  window.addEventListener('orientationchange',releaseInterruptedInput);
+
+  function simulateStep(dt){
+    applyTouchMovement(dt);
+    if(keyboardFireHeld)refreshCursorWorld();
+    if((rightHeld||macFireHeld||keyboardFireHeld)&&cursorWorld&&!bothLatched)squadFireAt(cursorWorld.x,cursorWorld.y);
+    if(touchState.fireHeld)fireMobile();
+    updateSquad(dt);
+    updateEnemies(dt);
+    updateCivilians(dt);
+    updateProjectiles(dt);
+    [...squad,...enemies,...civilians].forEach(ent=>art.animate(ent,dt));
+    updateCamera(dt);
+    checkFailure();
+    updateHud();
+  }
 
   function tick(now){
-    const dt=Math.min(.033,(now-last)/1000||0);last=now;
+    const frameDt=Math.min(.1,Math.max(0,(now-last)/1000||0));
+    last=now;
+
     if(started&&!menuOpen&&!paused&&!finished&&!mapOpen){
-      applyTouchMovement(dt);
-      if(keyboardFireHeld)refreshCursorWorld();
-      if((rightHeld||macFireHeld||keyboardFireHeld)&&cursorWorld&&!bothLatched)squadFireAt(cursorWorld.x,cursorWorld.y);
-      if(touchState.fireHeld)fireMobile();
-      updateSquad(dt);updateEnemies(dt);updateCivilians(dt);updateProjectiles(dt);[...squad,...enemies,...civilians].forEach(ent=>art.animate(ent,dt));updateCamera(dt);checkFailure();updateHud();
+      simulationAccumulator=Math.min(FIXED_DT*MAX_CATCHUP_STEPS,simulationAccumulator+frameDt);
+      let steps=0;
+      while(simulationAccumulator>=FIXED_DT&&steps<MAX_CATCHUP_STEPS){
+        simulateStep(FIXED_DT);
+        simulationAccumulator-=FIXED_DT;
+        steps++;
+      }
+    }else{
+      simulationAccumulator=0;
     }
+
     if(started)drawWorld();
     requestAnimationFrame(tick);
   }
