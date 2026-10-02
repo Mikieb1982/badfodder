@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "masterCrs": "EPSG:27700",
+  "confidenceLabels": [
+    "directly depicted",
+    "corroborated",
+    "inferred",
+    "fictional gameplay"
+  ],
+  "requiredFeatureAttributes": [
+    "id",
+    "kind",
+    "sourceIds",
+    "sourceDate",
+    "confidence",
+    "geometry",
+    "interpretationNote",
+    "gameplayAdjustment"
+  ],
+  "layers": [
+    {
+      "id": "carriageway-edge",
+      "purpose": "trace carriageway edges rather than road centre lines",
+      "productionCritical": true
+    },
+    {
+      "id": "building-envelope",
+      "purpose": "trace building footprints/envelopes",
+      "productionCritical": true
+    },
+    {
+      "id": "railway",
+      "purpose": "trace railway alignment and structures relevant to orientation",
+      "productionCritical": true
+    },
+    {
+      "id": "event-zone",
+      "purpose": "store supported approximate event locations as areas",
+      "productionCritical": false
+    },
+    {
+      "id": "gameplay-adjustment",
+      "purpose": "record deliberate readability/playability adaptations separately from historical geometry",
+      "productionCritical": false
+    }
+  ],
+  "rules": [
+    "Historical geography and gameplay tuning must remain separate.",
+    "Apparent gaps remain unknown until checked.",
+    "No essential route may depend on an unverified historic passage.",
+    "Approximate event locations must remain areas rather than false exact points.",
+    "Confidence applies to the individual feature claim, not to the prestige of the source."
+  ]
+}
