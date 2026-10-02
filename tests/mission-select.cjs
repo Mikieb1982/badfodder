@@ -56,6 +56,9 @@ assert.equal(launch.current().id,2);
 assert(!launch.select(2),'Placeholder Mission 3 must not be directly selectable');
 
 assert(index.includes('id="menuMissionSelect"'),'Main menu Mission Select button missing');
+assert(!index.includes('id="menuMissionSelect" class="menu-button" type="button" disabled'),'Mission Select must be available before the current mission finishes loading');
+assert(!index.includes('id="menuMissionBad" class="menu-button" type="button" disabled'),'Bad Belzig choice must not be load-gated');
+assert(!index.includes('id="menuMissionWigan" class="menu-button" type="button" disabled'),'Wigan choice must not be load-gated');
 assert(index.includes('id="menuMissionBad"'),'Bad Belzig mission button missing');
 assert(index.includes('id="menuMissionWigan"'),'Wigan mission button missing');
 assert(index.includes('CAMPAIGN PLAYS MISSIONS IN ORDER'),'Campaign ordering is not explained');
