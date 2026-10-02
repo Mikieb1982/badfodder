@@ -1,0 +1,40 @@
+{
+  "id": "cable-street-historical-review-v1",
+  "missionId": "cable-street-1936",
+  "status": "pending-contradiction-review",
+  "mapDescription": "historical reconstruction",
+  "checks": [
+    {
+      "id": "junction-order",
+      "description": "Real junction order and street bearings are preserved.",
+      "status": "pending",
+      "blocking": true
+    },
+    {
+      "id": "modern-anachronisms",
+      "description": "Modern Cable Street mural and other post-1936 features are excluded from the 1936 world.",
+      "status": "pending",
+      "blocking": true
+    },
+    {
+      "id": "institution-identity",
+      "description": "St George's Town Hall, St George's Methodist mission and St George-in-the-East church are not conflated.",
+      "status": "pending",
+      "blocking": true
+    },
+    {
+      "id": "passage-evidence",
+      "description": "No essential route depends on an unverified historic courtyard, alley or passage.",
+      "status": "pending",
+      "blocking": true
+    },
+    {
+      "id": "event-footprint-wording",
+      "description": "Approximate barricade/event locations are described as interpretations rather than surveyed 1936 coordinates.",
+      "status": "pending",
+      "blocking": true
+    }
+  ],
+  "remainingUncertainty": [],
+  "reviewNotes": []
+}
