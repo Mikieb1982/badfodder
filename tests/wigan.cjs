@@ -37,16 +37,29 @@ for(const [key,z] of Object.entries(map.zones)){assert(map.pois[key].approach);a
 const scope={window:{},localStorage:{getItem:()=>null,setItem(){}}};
 vm.runInNewContext(fs.readFileSync(path.join(root,'campaign.js'),'utf8'),scope);
 const mission=scope.window.BadFodderCampaign.missions[1];
-assert.deepEqual(Array.from(mission.phases,p=>p.zone),['tudor','grandArcade','wallgate']);assert.equal(mission.phases.length,3);
+assert.deepEqual(Array.from(mission.phases,p=>p.zone),['tudor','grandArcade','wallgate']);assert.equal(mission.phases.length,3);assert(mission.phases.every(p=>p.hold>0),'Wigan objectives should use short secure holds');
+assert(map.optionalEncounters&&map.optionalEncounters.kingStreet,'King Street optional encounter missing');
+assert.deepEqual(Array.from(map.defenderGroups.kingStreet),[2,3]);
+assert(!map.defenderGroups.wallgate.includes(2)&&!map.defenderGroups.wallgate.includes(3),'Optional King Street defenders still block station completion');
+const kingSupply=map.spawns.pickups.find(p=>p.optional);
+assert(kingSupply&&kingSupply.type==='grenade'&&kingSupply.amount===3,'King Street optional reward is not a useful grenade cache');
 const evaluator=new Function('map','const S=n=>n*2;const zones=Object.fromEntries(Object.entries(map.zones).map(([k,z])=>[k,{x:z.x*2,y:z.y*2,r:z.r*2}]));let enemies=[];'+body('pointInCircle')+body('phaseZone')+body('phaseDefenders')+body('phaseEvaluation')+';return{phaseEvaluation,setEnemies(e){enemies=e}};')(map);
 for(const phase of mission.phases){
  const z=map.zones[phase.zone],at={x:z.x*2,y:z.y*2};
- evaluator.setEnemies([]);assert(evaluator.phaseEvaluation(phase,[at],0).complete,phase.zone+' does not complete at its frontage');
- assert(!evaluator.phaseEvaluation(phase,[{x:0,y:0}],0).complete,'An objective completes before arrival');
+ evaluator.setEnemies([]);
+ const clear=evaluator.phaseEvaluation(phase,[at],0);
+ assert(clear.ready,phase.zone+' is not ready at its cleared frontage');
+ assert(!clear.complete,phase.zone+' skips its secure hold');
+ assert(!evaluator.phaseEvaluation(phase,[{x:0,y:0}],0).ready,'An objective becomes ready before arrival');
+
  const assigned={...at,alive:true,objectiveGroup:phase.defenderGroup};
- const unrelated={x:0,y:0,alive:true,objectiveGroup:'unrelated'};
- evaluator.setEnemies([assigned]);assert(!evaluator.phaseEvaluation(phase,[at],1).complete,'An assigned defender is ignored');
- evaluator.setEnemies([unrelated]);assert(evaluator.phaseEvaluation(phase,[at],1).complete,'An unrelated enemy blocks the objective');
+ evaluator.setEnemies([assigned]);assert(!evaluator.phaseEvaluation(phase,[at],1).ready,'An assigned defender is ignored');
+
+ const far={x:0,y:0,alive:true,objectiveGroup:'unrelated'};
+ evaluator.setEnemies([far]);assert(evaluator.phaseEvaluation(phase,[at],1).ready,'A distant unrelated enemy blocks the objective');
+
+ const local={...at,alive:true,objectiveGroup:'unrelated'};
+ evaluator.setEnemies([local]);assert(!evaluator.phaseEvaluation(phase,[at],1).ready,'A local unrelated enemy fails to contest the objective');
 }
 f.reset();f.addPickup('grenade');f.updateSquad(0);assert.equal(f.grenades,7);assert(!f.pickups[0].active);
 f.addPickup('grenade');f.updateSquad(0);assert.equal(f.grenades,8);f.addPickup('grenade');f.updateSquad(0);assert(f.pickups.at(-1).active,'A full grenade reserve wastes a supply crate');
@@ -67,5 +80,5 @@ assert(courtyard.findPath(20,120,50,120).length,'Clicking a roof loses its reach
 const open=makeNavigation({...ring,buildings:ring.buildings.slice(0,2).concat(rectangle(20,30,10,24),rectangle(20,66,10,24),rectangle(90,30,10,60))});
 assert(open.findPath(20,120,120,120).length,'A courtyard with an open alley is rejected');
 console.log('PASS: real Wigan landmark IDs, 180-degree gameplay orientation, Tudor start, bounded footprints; individual and full-squad routes to all '+Object.keys(map.pois).length+' frontages and '+checked+' town-centre street segments.');
-console.log('PASS: three Tudor-to-town-centre-to-stations objectives use assigned defenders, final clearance ignores unrelated enemies, supplies are useful, and geography remains unchanged with '+details.props.length+' curb props.');
+console.log('PASS: three Tudor-to-town-centre-to-stations objectives use secure holds and local contesting; King Street is an optional guarded grenade detour and distant enemies do not block completion.');
 console.log('PASS: cached disconnected courtyards, roof-click approaches and open-alley connectivity.');
