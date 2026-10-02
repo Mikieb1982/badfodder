@@ -45,6 +45,10 @@ assert(menu.includes("if(!actions.isFullscreen())await actions.fullscreen()"),'F
 assert(menu.includes("orientation.lock('landscape')"),'Landscape orientation lock missing');
 assert(menu.includes('orientation.unlock()'),'Landscape orientation is not released when the user exits fullscreen');
 assert(menu.includes('setTimeout(()=>this.mobilePresentation?.prompt(),0)'),'Startup prompt is not shown when the menu initializes');
+assert(menu.includes("const PRESENTATION_PROMPT_KEY='badfodder.presentation.prompted.v1'"),'Startup prompt session key missing');
+assert(menu.includes("sessionStorage.getItem(PRESENTATION_PROMPT_KEY)==='1'"),'Startup prompt does not remember that it was already shown this session');
+assert(menu.includes("sessionStorage.setItem(PRESENTATION_PROMPT_KEY,'1')"),'Startup prompt does not mark itself as shown');
+assert(menu.includes('let promptShown=wasPromptedThisSession()'),'Startup prompt state is not restored after mission reloads');
 assert(!menu.includes("window.addEventListener('pointerdown',retry"),'Fullscreen must not hijack the first unrelated touch');
 assert(!menu.includes('Fill the mobile viewport immediately'),'Mobile presentation must not auto-enter fullscreen before consent');
 assert(menuCss.includes('.presentation-prompt'),'Fullscreen choice prompt is not styled');
@@ -52,4 +56,4 @@ assert(menu.includes("link.href='manifest.webmanifest'"),'Web app manifest is no
 assert.equal(manifest.display,'standalone','Installed web app must wait for the in-game fullscreen choice');
 assert.equal(manifest.orientation,'any','Installed web app must not force landscape before the player agrees');
 
-console.log('PASS: mobile/browser contract asks before fullscreen landscape, preserves the chosen mode until changed, and covers pinch zoom, input recovery and fixed-step simulation.');
+console.log('PASS: mobile/browser contract asks once per session before fullscreen landscape, preserves the chosen mode until changed, and covers pinch zoom, input recovery and fixed-step simulation.');
