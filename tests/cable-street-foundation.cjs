@@ -140,7 +140,7 @@ assert(index.includes('missionCrowd=cableStreetCrowd.create'),'Cable Street crow
 assert(index.includes('missionCrowd.fixedUpdate(dt)'),'Cable Street crowd is not connected to fixed-step simulation');
 assert(fs.readFileSync(path.join(root,'cable-street-crowd.js'),'utf8').includes('syncHelperSupport'),'Cable Street functional helpers do not support the barricade');
 assert(index.includes("missionCrowd&&typeof missionCrowd.dispose==='function'"),'Cable Street helper support is not released during reset');
-assert(index.includes('cableStreetArt.drawCrowd(ctx,historicalCrowdState)'),'Cable Street crowd is not rendered in the historical world');
+assert(index.includes('cableStreetArt.drawCrowd(ctx,historicalCrowdState,historicalClock)'),'Cable Street crowd is not rendered in the historical world');
 assert(index.includes("if(MAP_DATA.key==='cable-street'){"),'Cable Street renderer does not use the historical urban art path');
 assert(index.includes('cableStreetArt.drawRoad(ctx,r,S,art)'),'Cable Street street edges are not delegated to historical art');
 assert(index.includes("MAP_DATA.key!=='bad-belzig'"),'Non-Bad-Belzig maps can still enter the Bad Belzig landmark renderer');
