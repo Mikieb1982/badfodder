@@ -6,7 +6,7 @@ const KEY='badfodder.campaign.v1';
 
 const missions=[
   {
-    id:1,title:'Operation Bad Belzig',environment:'temperate-town',squadSize:4,playable:true,
+    id:1,title:'Operation Bad Belzig',environment:'temperate-town',map:'bad-belzig',squadSize:4,playable:true,
     phases:[
       {type:'secure-zone',zone:'post',defenderGroup:'post',hold:1.0,contestRadius:72,title:'Secure the Postdistanzsäule',brief:'Move up Bahnhofstraße, clear the small Postdistanzsäule patrol, then hold the position.'},
       {type:'secure-zone',zone:'castle',defenderGroup:'castle',hold:1.4,contestRadius:105,title:'Secure Burg Eisenhardt',brief:'Clear the castle defenders, enter the Burg Eisenhardt objective area and hold it briefly.'},
