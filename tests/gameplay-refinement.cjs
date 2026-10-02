@@ -40,7 +40,7 @@ assert(index.includes('reactionTimer<=0'),'Enemies can fire before reaction dela
 assert(index.includes("prepareEnemyReaction(e,sees?.48:.58,sees?'!':'?')"));
 assert(index.includes("prepareEnemyReaction(t,.22,'!')"));
 assert(index.includes("ent.searching"));
-assert(index.includes('<span>TARGETS</span>'),'HUD should show objective targets rather than imply all enemies are compulsory');
+assert(index.includes('id="hudEnemyLabel">TARGETS</span>'),'HUD should show objective targets rather than imply all enemies are compulsory');
 assert(index.includes('function drawOptionalEncounters'));
 assert(index.includes("fillText('OPTIONAL SUPPLY'"));
 
