@@ -562,7 +562,7 @@
 <script src="cable-street-runtime.js?v=20261002-cable-interactions-4"></script>
 <script src="cable-street-interactions.js?v=20261002-cable-pressure-7"></script>
 <script src="cable-street-director.js?v=20261002-cable-director-1"></script>
-<script src="cable-street-crowd.js?v=20261002-cable-crowd-1"></script>
+<script src="cable-street-crowd.js?v=20261002-cable-helpers-2"></script>
 <script src="cable-street-art.js?v=20261002-cable-urban-2"></script>
 <script>
 (() => {
@@ -1171,6 +1171,7 @@
     const mission=activeMission();
     missionInteractionLayer=null;
     missionDirector=null;
+    if(missionCrowd&&typeof missionCrowd.dispose==='function')missionCrowd.dispose();
     missionCrowd=null;
     if(missionController&&!missionController.disposed)missionController.dispose();
     missionController=createActiveMissionController();
