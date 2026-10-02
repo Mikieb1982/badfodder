@@ -59,32 +59,122 @@ function evaluate(baseDir){
   const map02=evidenceComplete&&boundarySources.every(id=>sourceIds.has(id));
   if(!map02)problems.push('MAP-02 source catalogue is not complete.');
 
+  const confidence=new Set(schema.confidenceLabels||[]);
+  const requiredLabels=['directly depicted','corroborated','inferred','fictional gameplay'];
+  const layerIds=new Set((schema.layers||[]).map(x=>x&&x.id).filter(Boolean));
+  const requiredAttrs=schema.requiredFeatureAttributes||[];
+  const schemaReady=
+    schema.masterCrs==='EPSG:27700'&&
+    requiredLabels.every(x=>confidence.has(x))&&
+    ['carriageway-edge','building-envelope','railway','event-zone','gameplay-adjustment'].every(x=>layerIds.has(x));
+  if(!schemaReady)problems.push('Authoring confidence/layer schema is incomplete.');
+
   const calibrationReady=
     calibration.status==='calibrated'&&
     calibration.masterCrs==='EPSG:27700'&&
     Array.isArray(calibration.controls)&&calibration.controls.length>=3&&
     Array.isArray(calibration.checkControls)&&calibration.checkControls.length>=1&&
     calibration.transform&&calibration.transform.type==='affine-2d'&&
-    calibration.residuals&&calibration.residuals.controlSummary;
-  const traceHasFeatures=Array.isArray(trace.features)&&trace.features.length>0;
+    calibration.residuals&&
+    calibration.residuals.controlSummary&&
+    Number.isFinite(calibration.residuals.controlSummary.rmsMetres)&&
+    calibration.residuals.checkSummary&&
+    Number.isFinite(calibration.residuals.checkSummary.rmsMetres);
+
+  const traceFeatures=Array.isArray(trace.features)?trace.features:[];
+  const traceHasFeatures=traceFeatures.length>0;
   const traceCrs=trace.properties&&trace.properties.crs==='EPSG:27700';
-  const requiredAttrs=schema.requiredFeatureAttributes||[];
-  const traceAttributesValid=traceHasFeatures&&trace.features.every(feature=>{
+  const traceAttributesValid=traceHasFeatures&&traceFeatures.every(feature=>{
     const props=feature.properties||{};
-    return requiredAttrs.every(attr=>attr==='geometry'?!!feature.geometry:Object.prototype.hasOwnProperty.call(props,attr));
+    if(!requiredAttrs.every(attr=>attr==='geometry'?!!feature.geometry:Object.prototype.hasOwnProperty.call(props,attr)))return false;
+    if(!layerIds.has(props.layer))return false;
+    if(!confidence.has(props.confidence)||!confidence.has(props.eventDateConfidence))return false;
+    if(typeof props.affectsMovement!=='boolean')return false;
+    if(!sourceListValid(props.sourceIds,sourceIds))return false;
+    return !!feature.geometry&&nonEmptyString(feature.geometry.type);
   });
   const map03=!!(calibrationReady&&traceCrs&&traceHasFeatures&&traceAttributesValid);
   if(!map03)problems.push('MAP-03 calibrated production trace is not complete.');
 
-  const confidence=new Set(schema.confidenceLabels||[]);
-  const requiredLabels=['directly depicted','corroborated','inferred','fictional gameplay'];
-  const schemaReady=schema.masterCrs==='EPSG:27700'&&requiredLabels.every(x=>confidence.has(x));
-  if(!schemaReady)problems.push('Authoring confidence schema is incomplete.');
+  const movementFeatures=traceFeatures.filter(feature=>feature.properties&&feature.properties.affectsMovement===true);
+  const decisions=Array.isArray(reconciliation.decisions)?reconciliation.decisions:[];
+  const decisionsByFeature=new Map(decisions.map(d=>[d&&d.featureId,d]));
+  const treatmentLabels=new Set(reconciliation.decisionLabels||[]);
+  const reconciliationSources=[
+    ...(reconciliation.baselineSourceIds||[]),
+    ...(reconciliation.nearPeriodSourceIds||[])
+  ];
+  let reconciliationReady=
+    reconciliation.status==='complete'&&
+    reconciliation.eventDate==='1936-10-04'&&
+    reconciliationSources.length>0&&
+    reconciliationSources.every(id=>sourceIds.has(id));
 
-  // MAP-04 to MAP-06 intentionally require explicit review artifacts that do not exist yet.
-  const map04=false;
-  const map05=false;
-  const map06=false;
+  if(reconciliationReady){
+    for(const feature of movementFeatures){
+      const props=feature.properties||{};
+      const decision=decisionsByFeature.get(props.id);
+      if(!decision){reconciliationReady=false;break}
+      const validDecision=
+        nonEmptyString(decision.featureId)&&
+        confidence.has(decision.sourceGeometryConfidence)&&
+        confidence.has(decision.eventDateConfidence)&&
+        sourceListValid(decision.sourceIds,sourceIds)&&
+        treatmentLabels.has(decision.treatment)&&
+        typeof decision.essentialRouteUse==='boolean'&&
+        nonEmptyString(decision.note);
+      if(!validDecision){reconciliationReady=false;break}
+      const strong=decision.eventDateConfidence==='directly depicted'||decision.eventDateConfidence==='corroborated';
+      if(decision.essentialRouteUse&&!strong&&decision.treatment!=='fictional adaptation'){
+        reconciliationReady=false;break;
+      }
+    }
+  }
+  const map04=!!(map03&&reconciliationReady);
+  if(!map04)problems.push('MAP-04 near-period reconciliation is not complete.');
+
+  const overlayFeatures=Array.isArray(eventOverlay.features)?eventOverlay.features:[];
+  const overlayReady=
+    eventOverlay.type==='FeatureCollection'&&
+    eventOverlay.properties&&eventOverlay.properties.status==='complete'&&
+    sourceListValid(eventOverlay.properties.sourceIds,sourceIds)&&
+    overlayFeatures.length>0&&
+    overlayFeatures.every(feature=>{
+      const props=feature.properties||{};
+      return geometryType(feature,'Polygon','MultiPolygon')&&
+        nonEmptyString(props.id)&&
+        nonEmptyString(props.kind)&&
+        sourceListValid(props.sourceIds,sourceIds)&&
+        confidence.has(props.confidence)&&
+        nonEmptyString(props.interpretationNote);
+    });
+  const map05=!!(map02&&map04&&overlayReady);
+  if(!map05)problems.push('MAP-05 event overlay is not complete.');
+
+  const reviewChecks=Array.isArray(historicalReview.checks)?historicalReview.checks:[];
+  const reviewReady=
+    historicalReview.status==='complete'&&
+    nonEmptyString(historicalReview.mapDescription)&&
+    /reconstruction/i.test(historicalReview.mapDescription)&&
+    reviewChecks.length>0&&
+    reviewChecks.every(check=>
+      check&&nonEmptyString(check.id)&&
+      ['passed','resolved'].includes(check.status)
+    )&&
+    Array.isArray(historicalReview.remainingUncertainty);
+  const map06=!!(map03&&map04&&map05&&reviewReady);
+  if(!map06)problems.push('MAP-06 historical contradiction review is not complete.');
+
+  const gameTransformReady=
+    gameTransform.status==='ready'&&
+    gameTransform.sourceCrs==='EPSG:27700'&&
+    gameTransform.orientation==='north-up'&&
+    finitePair(gameTransform.originBng)&&
+    Number.isFinite(gameTransform.metresPerMapUnit)&&gameTransform.metresPerMapUnit>0&&
+    gameTransform.axis&&
+    gameTransform.axis.x==='east-positive'&&
+    gameTransform.axis.y==='south-positive';
+  if(!gameTransformReady)problems.push('Game transform is not ready for SLICE-01 compilation.');
 
   const gates={
     'MAP-01':map01,
