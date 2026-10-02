@@ -54,6 +54,8 @@ assert.equal(report.calibrationReady,false,'Real calibration record must remain 
 assert.equal(report.reconciliationReady,false);
 assert.equal(report.eventOverlayReady,false);
 assert.equal(report.reviewReady,false);
+assert.equal(report.uncertaintyReady,false);
+assert.equal(report.blockingUncertaintyCount,2);
 assert.equal(report.runtimeProjectionReady,false,'Runtime projection must remain locked before approved geometry');
 assert.equal(report.traceFeatureCount,0,'Production trace must stay empty until source geometry is traced');
 
@@ -105,6 +107,12 @@ assert.equal(review.status,'pending-contradiction-review');
 assert(review.checks.every(x=>x.status==='pending'));
 assert(/reconstruction/i.test(review.mapDescription));
 
+const uncertainty=JSON.parse(fs.readFileSync(path.join(authoringDir,'uncertainty-log.json'),'utf8'));
+assert.equal(uncertainty.status,'active');
+assert.equal(uncertainty.entries.filter(x=>x.blocking&&x.status==='open').length,2);
+assert(uncertainty.entries.some(x=>x.id==='u-barricade-footprint'));
+assert(uncertainty.entries.some(x=>x.id==='u-passages'));
+
 const runtimeProjection=JSON.parse(fs.readFileSync(path.join(authoringDir,'runtime-projection.json'),'utf8'));
 assert.equal(runtimeProjection.status,'awaiting-approved-trace');
 assert.equal(runtimeProjection.masterCrs,'EPSG:27700');
@@ -120,6 +128,7 @@ assert.equal(mission.mapResearch.productionGeometryReady,false);
 assert.equal(mission.mapResearch.reconciliationRecord,'authoring/cable-street/reconciliation.json');
 assert.equal(mission.mapResearch.eventOverlay,'authoring/cable-street/event-overlay.geojson');
 assert.equal(mission.mapResearch.contradictionReview,'authoring/cable-street/historical-review.json');
+assert.equal(mission.mapResearch.uncertaintyLog,'authoring/cable-street/uncertainty-log.json');
 assert.equal(mission.mapResearch.runtimeProjection,'authoring/cable-street/runtime-projection.json');
 assert.equal(mission.mapReady,false);
 assert.equal(mission.playable,false);
