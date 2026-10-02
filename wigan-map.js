@@ -54,8 +54,21 @@ const WIGAN_MAP=(()=>{
   map.defenderGroups={
     tudor:[14,15,16],
     grandArcade:[5,6,7,8,10,11,12,13,17],
-    wallgate:[0,1,2,3,4,9]
+    kingStreet:[2,3],
+    wallgate:[0,1,4,9]
   };
+
+  map.optionalEncounters={
+    kingStreet:{
+      zone:'kingStreet',
+      defenderGroup:'kingStreet',
+      title:'King Street supplies',
+      reward:'grenades'
+    }
+  };
+
+  const kingSupply=(map.spawns.pickups||[]).find(p=>Math.hypot(p.x-map.zones.kingStreet.x,p.y-map.zones.kingStreet.y)<8);
+  if(kingSupply){kingSupply.type='grenade';kingSupply.amount=3;kingSupply.optional=true;}
 
   if(Array.isArray(map.landing))map.landing=rotatePoint(map.landing);
   if(Array.isArray(map.exit))map.exit=rotatePoint(map.exit);
