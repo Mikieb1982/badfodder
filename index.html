@@ -593,7 +593,7 @@
   };
 
 
-  let zoom=1,selection='all',paused=false,mapOpen=false,finished=false,win=false,missionStage=0;
+  let zoom=1,selection='all',paused=false,mapOpen=false,finished=false,win=false,missionStage=0,phaseHoldTime=0;
   const FIXED_DT=1/60,MAX_CATCHUP_STEPS=5;
   let simulationAccumulator=0;
   let camera={x:S(620),y:S(1260)},last=performance.now(),squadGrenades=5;
@@ -1265,7 +1265,8 @@
       objectiveGroup:objectiveGroupForEnemy(i),
       role:['anchor','left','right'][i%3],
       tacticTimer:.2+(i%3)*.18,tacticalPoint:null,
-      burstCount:0,burstLimit:2+(i%2),burstPause:0,searchTimer:0
+      burstCount:0,burstLimit:2+(i%2),burstPause:0,searchTimer:0,
+      reactionTimer:0,cueTimer:0,alertCue:''
     }));
 
     const civilianSpots=missionSpawns.civilians;
@@ -1275,12 +1276,12 @@
     }));
 
     const pickupSource=missionSpawns.pickups;
-    pickups=pickupSource.map(p=>({type:p.type,amount:p.amount,x:S(p.x),y:S(p.y),active:true}));
+    pickups=pickupSource.map(p=>({type:p.type,amount:p.amount,optional:!!p.optional,x:S(p.x),y:S(p.y),active:true}));
 
     validateMissionSpawns();
 
     [...squad,...enemies,...civilians].forEach(ent=>art.animate(ent,0));
-    bullets=[];thrown=[];effects=[];noise=[];squadGrenades=5;missionStage=0;
+    bullets=[];thrown=[];effects=[];noise=[];squadGrenades=5;missionStage=0;phaseHoldTime=0;
     finished=false;win=false;paused=false;mapOpen=false;selection='all';zoom=preferredZoom;
     releaseAllFireInputs();
     cursorWorld=null;
@@ -1318,45 +1319,55 @@
   }
 
   function phaseEvaluation(phase,living,remaining){
-    if(!phase)return{complete:true,status:'Mission complete.'};
+    if(!phase)return{complete:true,ready:true,status:'Mission complete.'};
     const zone=phaseZone(phase);
-    const inZone=zone&&living.some(s=>pointInCircle(s.x,s.y,zone));
+    const inZone=!!(zone&&living.some(s=>pointInCircle(s.x,s.y,zone)));
 
     if(phase.type==='reach'){
-      return{complete:!!inZone,status:phase.brief};
+      return{complete:inZone,ready:inZone,inZone,status:phase.brief};
     }
 
-    if(phase.type==='secure-zone'){
+    if(phase.type==='secure-zone'||phase.type==='eliminate-and-reach'){
       const assigned=phaseDefenders(phase);
       const radius=S(phase.radius||160);
       const defenders=assigned||(
         zone?enemies.filter(e=>e.alive&&Math.hypot(e.x-zone.x,e.y-zone.y)<radius):[]
       );
+      const contestRadius=S(phase.contestRadius||75);
+      const contesters=zone&&defenders.length===0
+        ?enemies.filter(e=>e.alive&&Math.hypot(e.x-zone.x,e.y-zone.y)<contestRadius)
+        :[];
+      const ready=inZone&&defenders.length===0&&contesters.length===0;
+      let detail='';
+      if(defenders.length){
+        const label=phase.type==='eliminate-and-reach'?'final defender':'assigned defender';
+        detail=defenders.length+' '+label+(defenders.length===1?'':'s')+' remain.';
+      }else if(!inZone){
+        detail='Area clear — move the squad into the objective.';
+      }else if(contesters.length){
+        detail='Objective contested by '+contesters.length+' nearby hostile'+(contesters.length===1?'':'s')+'.';
+      }else{
+        detail=phase.hold?'Area clear — hold position.':'Area secured.';
+      }
       return{
-        complete:!!inZone&&defenders.length===0,
-        status:phase.brief+' '+defenders.length+' assigned defender'+(defenders.length===1?'':'s')+' remain.'
+        complete:ready&&!phase.hold,
+        ready,inZone,contested:contesters.length>0,
+        defenders:defenders.length,contesters:contesters.length,
+        status:phase.brief+' '+detail
       };
     }
 
     if(phase.type==='eliminate'){
-      return{complete:remaining===0,status:phase.brief+' '+remaining+' hostile'+(remaining===1?'':'s')+' remain.'};
-    }
-
-    if(phase.type==='eliminate-and-reach'){
-      const assigned=phaseDefenders(phase);
-      const defenders=assigned||enemies.filter(e=>e.alive);
-      return{
-        complete:defenders.length===0&&!!inZone,
-        status:phase.brief+' '+defenders.length+' final defender'+(defenders.length===1?'':'s')+' remain.'
-      };
+      const ready=remaining===0;
+      return{complete:ready,ready,status:phase.brief+' '+remaining+' hostile'+(remaining===1?'':'s')+' remain.'};
     }
 
     // Future mission systems plug into these objective types without changing campaign data.
-    if(phase.type==='destroy')return{complete:false,status:phase.brief};
-    if(phase.type==='rescue')return{complete:false,status:phase.brief};
-    if(phase.type==='protect')return{complete:false,status:phase.brief};
+    if(phase.type==='destroy')return{complete:false,ready:false,status:phase.brief};
+    if(phase.type==='rescue')return{complete:false,ready:false,status:phase.brief};
+    if(phase.type==='protect')return{complete:false,ready:false,status:phase.brief};
 
-    return{complete:false,status:phase.brief||phase.title||'Complete the objective.'};
+    return{complete:false,ready:false,status:phase.brief||phase.title||'Complete the objective.'};
   }
 
   function rebuildHudProgress(count){
@@ -1385,6 +1396,57 @@
     hudStage.textContent='MISSION COMPLETE';
     setStatus('Mission complete. '+activeMission().title+' complete.');
     syncTouchControlState();
+  }
+
+  function phaseStatus(phase,result){
+    if(!phase||!result)return'Mission complete.';
+    if(result.ready&&phase.hold){
+      const left=Math.max(0,phase.hold-phaseHoldTime);
+      return result.status+' Hold '+left.toFixed(1)+'s.';
+    }
+    return result.status;
+  }
+
+  function announceNextPhase(){
+    const phase=(activeMission().phases||[])[missionStage];
+    if(!phase)return;
+    if(MAP_DATA.key==='wigan'&&phase.zone==='wallgate'&&MAP_DATA.optionalEncounters&&MAP_DATA.optionalEncounters.kingStreet){
+      setStatus('Optional: King Street has a guarded grenade cache.');
+    }else{
+      setStatus('Objective secured. '+phase.title+' is now active.');
+    }
+  }
+
+  function advanceMissionPhase(){
+    const phases=activeMission().phases||[];
+    missionStage++;
+    phaseHoldTime=0;
+    wiganRouteCache={key:null,path:[]};
+    if(missionStage>=phases.length){
+      completeCurrentMission();
+      return;
+    }
+    announceNextPhase();
+    updateHud(true);
+  }
+
+  function updateMissionProgress(dt){
+    if(finished)return;
+    const mission=activeMission(),phases=mission.phases||[];
+    const phase=phases[missionStage];
+    if(!phase){completeCurrentMission();return}
+    const living=squad.filter(s=>s.alive);
+    const remaining=enemies.filter(e=>e.alive).length;
+    const result=phaseEvaluation(phase,living,remaining);
+
+    if(phase.hold){
+      if(result.ready)phaseHoldTime=Math.min(phase.hold,phaseHoldTime+dt);
+      else phaseHoldTime=0;
+      if(phaseHoldTime>=phase.hold)advanceMissionPhase();
+      return;
+    }
+
+    if(result.complete)advanceMissionPhase();
   }
 
   function updateHud(force=false){
@@ -1416,21 +1478,9 @@
     if(finished)return;
 
     const phase=phases[missionStage];
-    if(!phase){completeCurrentMission();return}
-
+    if(!phase)return;
     const result=phaseEvaluation(phase,living,remaining);
-    setStatus('Phase '+(missionStage+1)+': '+result.status);
-
-    if(result.complete){
-      missionStage++;
-      if(missionStage>=phaseCount){
-        completeCurrentMission();
-        return;
-      }
-      const next=phases[missionStage];
-      setStatus('Phase '+(missionStage+1)+': '+(next.brief||next.title));
-      updateHud(true);
-    }
+    setStatus('Phase '+(missionStage+1)+': '+phaseStatus(phase,result));
   }
 
 
@@ -1456,17 +1506,27 @@
     ent.dir=Math.atan2(dy,dx);
   }
 
+  function prepareEnemyReaction(e,minDelay=.42,cue='!'){
+    const delay=minDelay+unit(Math.floor(e.homeX+e.homeY),31)*.22;
+    e.reactionTimer=Math.max(e.reactionTimer||0,delay);
+    e.cueTimer=Math.max(e.cueTimer||0,.9);
+    e.alertCue=cue;
+    e.burstPause=Math.max(e.burstPause||0,delay+.12);
+  }
+
   function alertNearbyEnemies(source,x,y,r=S(230)){
     enemies.forEach(e=>{
       if(!e.alive||e===source)return;
       const sameGroup=source&&e.groupId===source.groupId;
       if(!sameGroup&&Math.hypot(e.x-x,e.y-y)>r)return;
+      const newlyAlerted=!e.alert;
       e.alert=true;
       e.aiState='combat';
       e.lastSeen={x,y};
       e.searchTimer=Math.max(e.searchTimer||0,3.2);
       e.tacticTimer=0;
       e.repath=0;
+      if(newlyAlerted)prepareEnemyReaction(e,.48,'?');
     });
   }
 
@@ -1566,7 +1626,9 @@
       const damage=shielded?1:(d<S(27)?3:2);
       applyDamage(e,damage,x,y);
       if(e.alive){
+        const newlyAlerted=!e.alert;
         e.alert=true;e.aiState='combat';e.lastSeen={x,y};e.repath=0;
+        if(newlyAlerted)prepareEnemyReaction(e,.28,'!');
       }
     });
 
@@ -1886,6 +1948,8 @@
       e.tacticTimer=Math.max(0,(e.tacticTimer||0)-dt);
       e.burstPause=Math.max(0,(e.burstPause||0)-dt);
       e.searchTimer=Math.max(0,(e.searchTimer||0)-dt);
+      e.reactionTimer=Math.max(0,(e.reactionTimer||0)-dt);
+      e.cueTimer=Math.max(0,(e.cueTimer||0)-dt);
 
       const near=nearestLivingSquad(e);
       if(!near.unit)return;
@@ -1900,7 +1964,7 @@
         e.lastSeen={x:near.unit.x,y:near.unit.y};
         e.searchTimer=3.4;
         if(newlyAlerted){
-          e.burstPause=Math.max(e.burstPause||0,.45+Math.random()*.3);
+          prepareEnemyReaction(e,sees?.48:.58,sees?'!':'?');
           alertNearbyEnemies(e,near.unit.x,near.unit.y,S(215));
         }
       }
@@ -1948,6 +2012,7 @@
             near.d<S(130)&&
             e.cooldown<=0&&
             e.burstPause<=0&&
+            e.reactionTimer<=0&&
             (!moving||e.role==='anchor'||near.d<S(72));
 
           if(canFire){
@@ -2559,6 +2624,23 @@
     });
   }
 
+  function drawOptionalEncounters(){
+    const encounters=MAP_DATA.optionalEncounters||{};
+    Object.values(encounters).forEach(encounter=>{
+      const zone=zones[encounter.zone];
+      if(!zone)return;
+      const defenders=enemies.filter(e=>e.alive&&e.objectiveGroup===encounter.defenderGroup);
+      const reward=pickups.find(p=>p.active&&p.optional);
+      if(!defenders.length&&!reward)return;
+      ctx.save();
+      ctx.setLineDash([5,8]);ctx.strokeStyle='rgba(128,207,214,.58)';ctx.lineWidth=1.6;
+      ctx.beginPath();ctx.arc(zone.x,zone.y,zone.r*.72,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle='rgba(216,239,225,.9)';ctx.font='700 '+S(5)+'px system-ui,sans-serif';ctx.textAlign='center';
+      ctx.fillText('OPTIONAL SUPPLY',zone.x,zone.y-zone.r*.78);
+      ctx.restore();
+    });
+  }
+
   function guidanceTarget(){
     const phase=(activeMission().phases||[])[missionStage],leader=squad.find(s=>s.alive);
     if(!phase||!leader)return null;
@@ -2664,8 +2746,16 @@
     sceneryTiles.draw(ctx,camera.x,camera.y,VIEW_W/zoom,VIEW_H/zoom);
     if(MAP_DATA.key==='wigan')BadFodderWigan.labels(ctx,MAP_DATA,zoom,canvasScale,camera,VIEW_W,VIEW_H);
     drawObjectiveZones();
+    drawOptionalEncounters();
 
-    pickups.forEach(p=>{if(p.active)art.pickup(ctx,p);});
+    pickups.forEach(p=>{
+      if(!p.active)return;
+      art.pickup(ctx,p);
+      if(p.optional){
+        ctx.fillStyle='rgba(221,239,226,.9)';ctx.font='700 '+S(4.6)+'px system-ui,sans-serif';ctx.textAlign='center';
+        ctx.fillText('SUPPLY',p.x,p.y-S(20));
+      }
+    });
 
     // Depth order avoids a whole team painting over everyone in front of it.
     const actors=[...civilians.map(ent=>({ent,team:'civilian'})),...enemies.map(ent=>({ent,team:'enemy'})),...squad.map(ent=>({ent,team:'squad'}))];
@@ -2681,7 +2771,15 @@
       }
       drawSoldier(ent,team);
       if(team==='enemy'&&ent.alert&&ent.alive){
-        ctx.fillStyle='#f0db97';ctx.fillRect(ent.x-2,ent.y-50,4,8);ctx.fillRect(ent.x-2,ent.y-40,4,2);
+        if((ent.cueTimer||0)>0){
+          const pulse=.72+Math.sin((ent.cueTimer||0)*18)*.12;
+          ctx.save();ctx.globalAlpha=pulse;ctx.strokeStyle='#f2d18c';ctx.lineWidth=1.8;
+          ctx.beginPath();ctx.arc(ent.x,ent.y-43,8,0,Math.PI*2);ctx.stroke();
+          ctx.fillStyle='#f5deb0';ctx.font='900 11px system-ui,sans-serif';ctx.textAlign='center';
+          ctx.fillText(ent.alertCue||'!',ent.x,ent.y-39);ctx.restore();
+        }else{
+          ctx.fillStyle='#f0db97';ctx.fillRect(ent.x-2,ent.y-50,4,8);ctx.fillRect(ent.x-2,ent.y-40,4,2);
+        }
         ctx.fillStyle=ent.role==='anchor'?'#d6be6b':'#b88b57';
         const pipX=ent.role==='left'?-5:ent.role==='right'?5:0;
         ctx.fillRect(ent.x+pipX-2,ent.y-56,4,3);
@@ -3142,6 +3240,7 @@
     [...squad,...enemies,...civilians].forEach(ent=>art.animate(ent,dt));
     updateCamera(dt);
     checkFailure();
+    updateMissionProgress(dt);
     updateHud();
   }
 
