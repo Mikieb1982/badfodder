@@ -1412,7 +1412,11 @@
       hudGrenadeLabel.textContent='CONFIDENCE';
       hudEnemies.textContent=Math.round(historicalProgress.barricadeRatio*100)+'%';
       hudGrenades.textContent=Math.round(historicalProgress.confidence*100)+'%';
-      setStatus(historicalProgress.status);
+      const nextHistoricalObjective=historicalProgress.objectives.find(o=>!o.done);
+      const historicalBrief=historicalProgress.phaseTitle+
+        (nextHistoricalObjective?' · '+nextHistoricalObjective.label:'');
+      if(hudMission.textContent!==historicalBrief)hudMission.textContent=historicalBrief;
+      if(statusEl.textContent!==historicalProgress.status)statusEl.textContent=historicalProgress.status;
       return;
     }
     hudEnemyLabel.textContent='TARGETS';
