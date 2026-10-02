@@ -460,7 +460,7 @@
         <div class="menu-panel menu-card menu-historical-card" data-view="historical-cable" hidden>
           <h2>CABLE STREET</h2>
           <p class="menu-historical-date">LONDON · 4 OCTOBER 1936</p>
-          <p class="menu-historical-status">GROUNDWORK · MAP RECONSTRUCTION PENDING</p>
+          <p id="menuHistoricalCableStatus" class="menu-historical-status">GROUNDWORK · MAP RECONSTRUCTION PENDING</p>
           <p class="menu-copy">A separate historical mission built around maintaining obstructions, assisting residents, carrying materials and managing withdrawal rather than a standard military firefight.</p>
           <ol class="menu-phase-list">
             <li><strong>Gathering</strong><span>Inspect the defence, deliver material and assist a resident.</span></li>
@@ -469,6 +469,7 @@
             <li><strong>They Shall Not Pass</strong><span>Keep the final route blocked until the hold is complete.</span></li>
           </ol>
           <p class="menu-copy">The mechanics framework is now in development. Playable street geometry will only be added after the period map has been verified.</p>
+          <button id="menuHistoricalCablePlay" class="menu-button primary" type="button" disabled>MAP NOT READY</button>
           <button class="menu-button" data-back data-back-to="historical" type="button">BACK</button>
         </div>
         <div class="menu-panel menu-card" data-view="controls" hidden>
@@ -3433,10 +3434,14 @@
   }
 
   menu=new BadFodderMenu({
-    root,screen:document.getElementById('menuScreen'),start:startCampaignFromMenu,selectMission:startStandaloneMission,resume:resumeMission,restart:beginMission,main:showTitle,
+    root,screen:document.getElementById('menuScreen'),start:startCampaignFromMenu,selectMission:startStandaloneMission,selectHistorical:startHistoricalMission,resume:resumeMission,restart:beginMission,main:showTitle,
     fullscreen:toggleMobileFullscreen,isFullscreen:isFullscreenActive,
     zoom:value=>{preferredZoom=zoom=Number(value);clampCamera();},dust:value=>{showDust=value;},dustEnabled:showDust
   });
+  const cableMission=historicalMissions.get('cable-street-1936');
+  menu.setHistoricalCableReady(!!(
+    cableMission&&cableMission.playable&&cableMission.mapReady&&mapRegistry.get('cable-street')
+  ));
   menu.show('title');syncTouchControlState();
   window.addEventListener('resize',resizeGame);
   if(window.ResizeObserver)new ResizeObserver(resizeGame).observe(gameViewport);
