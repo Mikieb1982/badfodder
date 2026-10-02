@@ -160,6 +160,19 @@ const withdrawX=police.x;
 interactions.fixedUpdate(.5);
 assert(police.x>withdrawX,'Withdraw state did not move the formation toward its withdrawal point');
 
+// A pressure wave can also be repelled without requiring a breach.
+controller.reinforceBarricadeById('B',12);
+assert.equal(barricade.breached,false);
+police.state='dismantle';police.stateTime=0;police.damageRate=1;police.dismantleSeconds=.2;
+const intactBefore=barricade.integrity;
+interactions.fixedUpdate(.1);
+assert.equal(police.state,'dismantle');
+interactions.fixedUpdate(.11);
+assert.equal(police.state,'regroup','Intact defence did not repel a bounded pressure wave');
+assert.equal(barricade.breached,false);
+assert(barricade.integrity<intactBefore&&barricade.integrity>0);
+assert(controller.state.events.some(e=>e.type==='police-state'&&e.state==='regroup'&&e.reason==='repelled'));
+
 // Render state exposes visible world objects but omits consumed materials.
 const view=interactions.renderState();
 assert.equal(view.barricades.length,1);
@@ -175,5 +188,5 @@ assert.equal(mission.actionProfile.grenades,false);
 
 console.log('PASS: synthetic Cable Street slice completes carry, world-space carry, reinforce, drop, assist/rescue and hold jobs.');
 console.log('PASS: active workers reduce police dismantling damage with a bounded mitigation cap.');
-console.log('PASS: one non-firearm police formation advances through approach, halt, dismantle, regroup and withdraw while breaching the live barricade.');
+console.log('PASS: police pressure can end through either a breach or a successfully repelled bounded dismantling wave.');
 console.log('PASS: render state exposes visible barricade/material/rescue/formation state without making the synthetic fixture a production map.');
