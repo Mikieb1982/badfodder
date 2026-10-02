@@ -114,8 +114,8 @@ window.BadFodderArt = (() => {
     const civilian=team==='civilian',enemy=team==='enemy',dx=Math.cos(angle),dy=Math.sin(angle),back=dy<-.35;
     const coat=civilian?['#6389a5','#bf985c','#9385ab','#c69a76'][variant%4]:enemy?'#ba8963':'#82985a';
     const dark=enemy?'#775641':civilian?'#53676d':'#4d6445',light=enemy?'#dfb18a':'#b4c78b',ink=P.ink;
-    const walking=state==='walk',stride=walking?Math.sin(phase):0;
-    const bob=walking?Math.cos(phase*2)*.45:Math.sin(clock*2)*.15;
+    const walking=state==='walk'||state==='run',running=state==='run',stride=walking?Math.sin(phase)*(running?1.22:1):0;
+    const bob=walking?Math.cos(phase*2)*(running?.72:.45):Math.sin(clock*2)*.15;
     const skin=['#e9c69a','#d7aa80','#bb8b63','#efd2a7'][variant%4];
     // Rounded ground contact and independently swinging boots, rather than a bouncing box.
     ellipse(g,16,27.8,8.3,2.1,'#263e3533');
@@ -193,7 +193,7 @@ window.BadFodderArt = (() => {
     m.clock+=dt;
     const turn=Math.atan2(Math.sin((ent.dir||0)-m.facing),Math.cos((ent.dir||0)-m.facing));
     m.facing+=turn*(1-Math.exp(-dt*16));
-    const distance=Math.hypot(ent.x-m.x,ent.y-m.y);m.x=ent.x;m.y=ent.y;
+    const distance=Math.hypot(ent.x-m.x,ent.y-m.y),speed=dt>0?distance/dt:0;m.x=ent.x;m.y=ent.y;m.speed=speed;
     m.dust=m.dust.map(p=>({...p,life:p.life-dt})).filter(p=>p.life>0);
     const previousStep=Math.floor(m.stride/6)%8;
     if(ent.alive===false){m.death+=dt;m.state='dead';m.frame=Math.min(2,Math.floor(m.death*12));return;}
@@ -208,11 +208,11 @@ window.BadFodderArt = (() => {
       }
     }
     if(ent.fireTimer>0){m.state='fire';m.frame=ent.fireTimer>.065?0:1;}
-    else if(distance>.03){m.state='walk';m.frame=Math.floor(m.stride/6)%8;}
+    else if(distance>.03){m.state=speed>195?'run':'walk';m.frame=Math.floor(m.stride/6)%8;}
     else {m.state='idle';m.frame=0;}
   }
   function pose(ent){
-    const m=motion.get(ent);return m?{dir:((m.dir%8)+8)%8,state:m.state||'idle',frame:m.frame||0,dust:m.dust,facing:m.facing,phase:m.stride/48*TAU,clock:m.clock,death:m.death}:{dir:0,state:'idle',frame:0,dust:[]};
+    const m=motion.get(ent);return m?{dir:((m.dir%8)+8)%8,state:m.state||'idle',frame:m.frame||0,dust:m.dust,facing:m.facing,phase:m.stride/48*TAU,clock:m.clock,death:m.death,speed:m.speed||0}:{dir:0,state:'idle',frame:0,dust:[],speed:0};
   }
   function blast(ctx,x,y,age){
     const t=Math.max(0,Math.min(1,age));
