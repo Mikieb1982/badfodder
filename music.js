@@ -1,7 +1,17 @@
 /* Ambient music follows Sagenhaft's looping, volume and fade behaviour. */
 (function(){
 'use strict';
-const SOURCE='assets/audio/bad_fodder.mp3';
+const DEFAULT_SOURCE='assets/audio/bad_fodder.mp3';
+const CABLE_STREET_SOURCE='assets/audio/cable_street.mp3';
+const LAUNCH_KEY='badfodder.launch.v1';
+function sourceForLaunch(){
+  try{
+    const launch=JSON.parse(sessionStorage.getItem(LAUNCH_KEY)||'null');
+    if(launch&&launch.mode==='historical'&&launch.id==='cable-street-1936')return CABLE_STREET_SOURCE;
+  }catch(e){}
+  return DEFAULT_SOURCE;
+}
+let source=sourceForLaunch();
 const KEY='badfodder.music.v1';
 const VOLUME_KEY='badfodder.music.volume.v1';
 const DEFAULT_VOLUME=.22;
@@ -14,7 +24,7 @@ try{
   if(savedVolume!==null&&Number.isFinite(Number(savedVolume)))volume=Math.max(0,Math.min(1,Number(savedVolume)));
 }catch(e){}
 const audio=document.createElement('audio');
-audio.src=SOURCE;
+audio.src=source;
 audio.loop=true;
 audio.preload='auto';
 audio.volume=0;
@@ -48,7 +58,7 @@ function fadeTo(target,duration){
 async function start(){
   if(!enabled||document.hidden||pending)return;
   if(loadError){
-    audio.pause();audio.src=SOURCE+'?v='+Date.now();audio.load();
+    audio.pause();audio.src=source+'?v='+Date.now();audio.load();
     loadError=false;started=false;render();
   }
   if(started&&!audio.paused)return;
@@ -105,6 +115,10 @@ document.addEventListener('visibilitychange',()=>{
 });
 audio.addEventListener('error',()=>{loadError=true;started=false;render()});
 audio.addEventListener('canplay',render);
-window.BadFodderMusic={toggle,setEnabled,setVolume,start,audio,get volume(){return volume}};
+window.BadFodderMusic={
+  toggle,setEnabled,setVolume,start,audio,
+  get volume(){return volume},
+  get source(){return source}
+};
 render();
 })();
