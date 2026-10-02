@@ -45,10 +45,6 @@ map.spawns.enemies.forEach((p,i)=>checkSpawn('Enemy spawn',p,i,6));
 map.spawns.civilians.forEach((p,i)=>checkSpawn('Civilian spawn',p,i,4));
 map.spawns.pickups.forEach((p,i)=>checkSpawn('Supply spawn',p,i,4));
 
-for(const [name,z] of Object.entries(zones)){
-  const route=q.findPath(start[0]*2,start[1]*2,z.x,z.y);
-  assert(route.length,'Bad Belzig objective '+name+' is unreachable from the mission start');
-}
 
 assert(source.includes('const pathComponents=new Int32Array(PATH_COLS*PATH_ROWS);'),'Connected-area cache must apply to both playable maps');
 assert(!source.includes("filter(e=>!obstacleAt(e.x,e.y,12))"),'Invalid enemy spawns must not be silently deleted');
@@ -75,6 +71,11 @@ const zones={
   castle:{x:map.pois.castle.x*2,y:map.pois.castle.y*2,r:82*2},
   market:{x:map.pois.market.x*2,y:map.pois.market.y*2,r:86*2}
 };
+
+for(const [name,z] of Object.entries(zones)){
+  const route=q.findPath(start[0]*2,start[1]*2,z.x,z.y);
+  assert(route.length,'Bad Belzig objective '+name+' is unreachable from the mission start');
+}
 const evaluator=new Function(
   'zones',
   'const S=n=>n*2;let enemies=[];'+
