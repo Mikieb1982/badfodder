@@ -1,5 +1,6 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),vm=require('node:vm');
+const Navigation=require('../navigation.js');
 const root=path.join(__dirname,'..');
 const source=fs.readFileSync(path.join(root,'index.html'),'utf8');
 
@@ -23,13 +24,18 @@ assert.equal(map.spawns.squad.length,4);
 assert(map.spawns.pickups.every(p=>p.type==='grenade'||p.type==='med'),'Bad Belzig has misleading supply types');
 assert(map.spawns.pickups.filter(p=>p.type==='grenade').every(p=>p.amount>0));
 
-const geometry=`const MAP_DATA=TOWN_MAP;const WORLD_W=TOWN_MAP.width*2,WORLD_H=TOWN_MAP.height*2;const S=n=>n*2;const buildings=TOWN_MAP.buildings.map((b,i)=>{const points=b.points.map(p=>p.map(v=>v*2));return{i,points,minX:Math.min(...points.map(p=>p[0])),maxX:Math.max(...points.map(p=>p[0])),minY:Math.min(...points.map(p=>p[1])),maxY:Math.max(...points.map(p=>p[1]))};});`;
-const nav=source.slice(source.indexOf('  const CELL=150;'),source.indexOf('  function pointInCircle('));
-const q=new Function(
-  'TOWN_MAP',
-  geometry+body('pointInPoly')+nav+body('moveEntity')+body('updateFacing')+
-  ';return {obstacleAt,pathComponent,findPath,PATH_CELL};'
-)(map);
+function scaledBuildings(TOWN_MAP){
+  return TOWN_MAP.buildings.map((b,i)=>{
+    const points=b.points.map(p=>[p[0]*2,p[1]*2]),xs=points.map(p=>p[0]),ys=points.map(p=>p[1]);
+    return{i,solid:b.solid!==false,points,minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys)};
+  });
+}
+const q=Navigation.create({
+  worldWidth:map.width*2,
+  worldHeight:map.height*2,
+  buildings:scaledBuildings(map),
+  mapKey:map.key
+});
 
 const start=map.spawns.squad[0],startComponent=q.pathComponent(Math.floor(start[0]*2/q.PATH_CELL),Math.floor(start[1]*2/q.PATH_CELL));
 assert(startComponent>0);
@@ -46,7 +52,7 @@ map.spawns.civilians.forEach((p,i)=>checkSpawn('Civilian spawn',p,i,4));
 map.spawns.pickups.forEach((p,i)=>checkSpawn('Supply spawn',p,i,4));
 
 
-assert(source.includes('const pathComponents=new Int32Array(PATH_COLS*PATH_ROWS);'),'Connected-area cache must apply to both playable maps');
+assert(q.pathComponents instanceof Int32Array,'Connected-area cache must be exported by shared navigation');
 assert(!source.includes("filter(e=>!obstacleAt(e.x,e.y,12))"),'Invalid enemy spawns must not be silently deleted');
 
 const scope={window:{},localStorage:{getItem:()=>null,setItem(){}}};
@@ -100,9 +106,12 @@ for(const phase of badMission.phases.filter(p=>p.defenderGroup)){
 
 const formationCode=source.slice(source.indexOf('  function clearSquadFormation('),source.indexOf('  function pointSegmentDistance('));
 const supplies=new Function(
-  'TOWN_MAP',
-  geometry+body('pointInPoly')+nav+body('moveEntity')+body('updateFacing')+
-  `let squad=[],squadFormation={active:false},pickups=[],squadGrenades=5;
+  'TOWN_MAP','navApi',
+  `const WORLD_W=TOWN_MAP.width*2,WORLD_H=TOWN_MAP.height*2,NAV_RADIUS=navApi.NAV_RADIUS;
+   const {findPath,routeClear,followPath,assignPath,obstacleAt}=navApi;
+   const updateFacing=(ent,dx,dy)=>{if(Math.abs(dx)>.001||Math.abs(dy)>.001)ent.dir=Math.atan2(dy,dx)};
+   const moveEntity=(ent,dx,dy,r=NAV_RADIUS)=>{const nx=Math.max(r,Math.min(WORLD_W-r,ent.x+dx));if(!obstacleAt(nx,ent.y,r))ent.x=nx;const ny=Math.max(r,Math.min(WORLD_H-r,ent.y+dy));if(!obstacleAt(ent.x,ny,r))ent.y=ny};
+   let squad=[],squadFormation={active:false},pickups=[],squadGrenades=5;
    const selectedUnits=()=>squad.filter(s=>s.alive),setStatus=()=>{};
   `+
   formationCode+body('resolveSquadSpacing')+body('updateSquad')+
@@ -118,7 +127,7 @@ const supplies=new Function(
       squadFormation={active:false};pickups=[];squadGrenades=5;
     }
   };`
-)(map);
+)(map,q);
 
 supplies.reset();
 supplies.addPickup('med',4);
