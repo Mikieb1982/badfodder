@@ -615,7 +615,7 @@
   const FIXED_DT=1/60,MAX_CATCHUP_STEPS=5;
   let simulationAccumulator=0;
   let camera={x:S(620),y:S(1260)},last=performance.now(),squadGrenades=5;
-  let bullets=[],thrown=[],effects=[],noise=[],squad=[],enemies=[],civilians=[],pickups=[];
+  let bullets=[],thrown=[],effects=[],noise=[],squad=[],enemies=[],civilians=[],pickups=[],enemyPathQueue=[];
   let started=false,menuOpen=true,preferredZoom=1.3,showDust=!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches);
   let menu=null;
   let cursorWorld=null,lastCanvasPointer=null,rightHeld=false,bothLatched=false;
@@ -1042,7 +1042,8 @@
       role:['anchor','left','right'][i%3],
       tacticTimer:.2+(i%3)*.18,tacticalPoint:null,
       burstCount:0,burstLimit:2+(i%2),burstPause:0,searchTimer:0,
-      reactionTimer:0,cueTimer:0,alertCue:''
+      reactionTimer:0,cueTimer:0,alertCue:'',
+      pathQueued:false,pendingPath:null
     }));
 
     const civilianSpots=missionSpawns.civilians;
@@ -1057,7 +1058,7 @@
     validateMissionSpawns();
 
     [...squad,...enemies,...civilians].forEach(ent=>art.animate(ent,0));
-    bullets=[];thrown=[];effects=[];noise=[];squadGrenades=5;missionStage=0;phaseHoldTime=0;
+    bullets=[];thrown=[];effects=[];noise=[];enemyPathQueue=[];squadGrenades=5;missionStage=0;phaseHoldTime=0;
     finished=false;win=false;paused=false;mapOpen=false;selection='all';zoom=preferredZoom;
     releaseAllFireInputs();
     cursorWorld=null;
@@ -1658,6 +1659,30 @@
   }
 
 
+  function queueEnemyPath(e,x,y){
+    if(!e||!e.alive||!Number.isFinite(x)||!Number.isFinite(y))return false;
+    e.pendingPath={x,y};
+    if(!e.pathQueued){
+      e.pathQueued=true;
+      enemyPathQueue.push(e);
+    }
+    return true;
+  }
+
+  function processEnemyPathQueue(){
+    const budget=LOW_POWER?1:2;
+    let processed=0;
+    while(enemyPathQueue.length&&processed<budget){
+      const e=enemyPathQueue.shift();
+      e.pathQueued=false;
+      const target=e.pendingPath;
+      e.pendingPath=null;
+      if(!e.alive||!target)continue;
+      assignPath(e,target.x,target.y);
+      processed++;
+    }
+  }
+
   function updateEnemies(dt){
     enemies.forEach(e=>{
       if(!e.alive){
@@ -1709,7 +1734,7 @@
           if(near.d<S(48)&&e.tacticTimer<=0){
             const retreat=chooseRetreatPoint(e,near.unit);
             if(retreat){
-              assignPath(e,retreat.x,retreat.y);
+              queueEnemyPath(e,retreat.x,retreat.y);
               e.tacticalPoint=retreat;
             }
             e.tacticTimer=.65;
@@ -1726,7 +1751,8 @@
           if(needsPosition){
             const tactical=chooseEnemyTacticalPoint(e,near.unit);
             if(tactical&&Math.hypot(tactical.x-e.x,tactical.y-e.y)>22){
-              if(assignPath(e,tactical.x,tactical.y))e.tacticalPoint=tactical;
+              queueEnemyPath(e,tactical.x,tactical.y);
+              e.tacticalPoint=tactical;
             }
             e.tacticTimer=.9+unit(Math.floor(e.x+e.y),e.groupId+11)*.65;
           }
@@ -1770,11 +1796,11 @@
 
           // Search the shared last-known position instead of immediately giving up.
           if(d>18){
-            if(e.repath<=0||!e.path){
-              assignPath(e,e.lastSeen.x,e.lastSeen.y);
+            if(e.repath<=0||(!e.path&&!e.pathQueued)){
+              queueEnemyPath(e,e.lastSeen.x,e.lastSeen.y);
               e.repath=.72+unit(Math.floor(e.x+e.y),5)*.38;
             }
-            moving=followPath(e,70,dt);
+            if(e.path)moving=followPath(e,70,dt);
           }else if(e.searchTimer<=0){
             e.aiState='patrol';
             e.alert=false;e.searching=false;
@@ -3000,6 +3026,7 @@
     if((rightHeld||macFireHeld||keyboardFireHeld)&&cursorWorld&&!bothLatched)squadFireAt(cursorWorld.x,cursorWorld.y);
     if(touchState.fireHeld)fireMobile();
     updateSquad(dt);
+    processEnemyPathQueue();
     updateEnemies(dt);
     updateCivilians(dt);
     updateProjectiles(dt);
