@@ -559,6 +559,7 @@
 <script src="historical-missions.js?v=20261002-cable-groundwork-1"></script>
 <script src="cable-street-runtime.js?v=20261002-cable-interactions-4"></script>
 <script src="cable-street-interactions.js?v=20261002-cable-interactions-4"></script>
+<script src="cable-street-director.js?v=20261002-cable-director-1"></script>
 <script src="cable-street-art.js?v=20261002-cable-interactions-4"></script>
 <script>
 (() => {
@@ -581,6 +582,7 @@
   const historicalMissions=BadFodderHistoricalMissions;
   const cableStreetRuntime=BadFodderCableStreet;
   const cableStreetInteractions=BadFodderCableInteractions;
+  const cableStreetDirector=BadFodderCableDirector;
   const cableStreetArt=BadFodderCableArt;
   const missionBootstrap=BadFodderMissionBootstrap;
   const missionLaunch=BadFodderMissionLaunch.create({
@@ -674,7 +676,7 @@
   let macFireHeld=false,keyboardFireHeld=false;
   let lastHudStats='',lastRosterSignature='',hudNoticeUntil=0;
   let runtimeFaultCount=0,runtimeFaultAt=0,runtimeSafeStop=false;
-  let missionController=null,missionInteractionLayer=null;
+  let missionController=null,missionInteractionLayer=null,missionDirector=null;
   const hudChips=new Map();
   let fallbackFullscreen=false;
   let squadFormation={active:false,leader:null,members:[],trail:[],destination:null,manualMoving:false};
@@ -1151,6 +1153,7 @@
   function resetGame(){
     const mission=activeMission();
     missionInteractionLayer=null;
+    missionDirector=null;
     if(missionController&&!missionController.disposed)missionController.dispose();
     missionController=createActiveMissionController();
     if(missionController)missionController.attachNavigation(navigation);
@@ -1211,6 +1214,10 @@
       missionInteractionLayer.initialize({
         actors:squad.map((s,i)=>({id:'player-'+i,name:s.name,x:s.x,y:s.y,active:s.alive})),
         mapData:MAP_DATA
+      });
+      missionDirector=cableStreetDirector.create({
+        controller:missionController,
+        mission
       });
     }
 
@@ -1368,6 +1375,22 @@
     updateRoster(force);
     updateHistoricalActionButton();
     if(finished)return;
+
+    if(missionDirector){
+      const historicalProgress=missionDirector.snapshot();
+      missionStage=historicalProgress.phaseIndex;
+      hudProgress.querySelectorAll('i').forEach((p,i)=>{
+        p.className=i<missionStage?'done':i===missionStage?'current':'';
+      });
+      hudStage.textContent='OBJECTIVE '+Math.min(phaseCount,missionStage+1)+'/'+phaseCount;
+      hudEnemies.textContent=String(
+        missionController
+          ?[...missionController.state.formations.values()].filter(f=>f.state!=='withdraw').length
+          :0
+      );
+      setStatus(historicalProgress.status);
+      return;
+    }
 
     const phase=phases[missionStage];
     if(!phase)return;
@@ -3259,9 +3282,16 @@
       }else{
         missionController.fixedUpdate(dt);
       }
+      if(missionDirector){
+        missionDirector.fixedUpdate(dt);
+        const historicalProgress=missionDirector.snapshot();
+        missionStage=historicalProgress.phaseIndex;
+        if(historicalProgress.completed)completeCurrentMission();
+      }
       updateCivilians(dt);
       [...squad,...civilians].forEach(ent=>art.animate(ent,dt));
       updateCamera(dt);
+      checkFailure();
       updateHud();
       return;
     }
