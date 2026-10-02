@@ -143,7 +143,7 @@ assert(index.includes('missionDirector=cableStreetDirector.create'),'Cable Stree
 assert(index.includes('missionDirector.fixedUpdate(dt)'),'Cable Street phase director is not connected to fixed-step simulation');
 assert(index.includes('const historicalProgress=missionDirector.snapshot()'),'Historical HUD/progression does not read the Cable Street director');
 assert(index.includes("cable-street-interactions.js?v=20261002-cable-interactions-4"),'Historical interaction module is not cache-busted');
-assert(index.includes("cable-street-art.js?v=20261002-cable-interactions-4"),'Historical art module is not cache-busted');
+assert(index.includes("cable-street-art.js?v=20261002-cable-crowd-1"),'Historical art module is not cache-busted');
 
 
 console.log('PASS: historical launch resolves stable IDs without altering campaign progress and rejects locked/stale historical selections.');
