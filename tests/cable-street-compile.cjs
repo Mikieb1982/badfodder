@@ -1,10 +1,12 @@
 'use strict';
 
+const fs=require('node:fs');
 const path=require('node:path');
 const assert=require('node:assert/strict');
 const Compiler=require('../tools/cable-street/compile-trace.cjs');
 
 const root=path.join(__dirname,'..');
+const schema=JSON.parse(fs.readFileSync(path.join(root,'authoring/cable-street/authoring-schema.json'),'utf8'));
 
 function props(id,kind,layer,extra={}){
   return{
@@ -14,46 +16,34 @@ function props(id,kind,layer,extra={}){
     confidence:'directly depicted',
     eventDateConfidence:'corroborated',
     affectsMovement:true,
-    interpretationNote:'synthetic runtime compiler fixture',
+    interpretationNote:'synthetic compiler fixture',
     gameplayAdjustment:'',
     ...extra
   };
 }
 
-const pkg={
-  id:'compiled-cable-fixture',
-  missionId:'cable-street-1936',
-  status:'compiled-authoring-package',
-  sourceCrs:'EPSG:27700',
-  localCrs:'bad-fodder-local-map',
-  orientation:'north-up',
-  transform:{
-    originBng:[534000,181000],
-    metresPerMapUnit:1,
-    axis:{x:'east-positive',y:'south-positive'}
-  },
-  width:260,
-  height:140,
+const trace={
+  type:'FeatureCollection',
+  properties:{id:'cable-compiler-fixture',crs:'EPSG:27700',productionReady:false},
   features:[
     {
       type:'Feature',
       properties:props('road-north-edge','street-edge','carriageway-edge'),
-      geometry:{type:'LineString',coordinates:[[20,40],[240,40]]}
+      geometry:{type:'LineString',coordinates:[[534500,181000],[534600,181000]]}
     },
     {
       type:'Feature',
       properties:props('building-1','building','building-envelope',{
-        eventDateConfidence:'inferred',
-        affectsMovement:true
+        eventDateConfidence:'inferred'
       }),
       geometry:{type:'Polygon',coordinates:[[
-        [60,50],[100,50],[100,90],[60,90],[60,50]
+        [534520,180990],[534540,180990],[534540,180970],[534520,180970],[534520,180990]
       ]]}
     },
     {
       type:'Feature',
       properties:props('railway-1','railway','railway'),
-      geometry:{type:'LineString',coordinates:[[20,110],[240,110]]}
+      geometry:{type:'LineString',coordinates:[[534510,180950],[534610,180950]]}
     },
     {
       type:'Feature',
@@ -64,78 +54,87 @@ const pkg={
         gameplayAdjustment:'Keep the action target readable.'
       }),
       geometry:{type:'Polygon',coordinates:[[
-        [130,50],[160,50],[160,80],[130,80],[130,50]
+        [534545,180990],[534555,180990],[534555,180980],[534545,180980],[534545,180990]
       ]]}
     }
-  ],
-  eventZones:[
+  ]
+};
+
+const eventOverlay={
+  type:'FeatureCollection',
+  properties:{id:'event-overlay-fixture'},
+  features:[
     {
       type:'Feature',
       properties:{
-        id:'christian-street-barricade-vicinity',
+        id:'event-b',
         kind:'barricade-vicinity',
         sourceIds:['S03'],
         confidence:'corroborated',
         interpretationNote:'Supported vicinity, not an exact point.'
       },
       geometry:{type:'Polygon',coordinates:[[
-        [170,45],[205,45],[205,85],[170,85],[170,45]
+        [534560,180995],[534580,180995],[534580,180975],[534560,180975],[534560,180995]
       ]]}
     }
-  ],
-  evidence:{
-    sourceIds:['S01','S03'],
-    reconciliationId:'fixture-reconciliation',
-    historicalReviewId:'fixture-review'
-  }
+  ]
 };
 
-const map=Compiler.compilePackage(pkg,{mapKey:'fixture-cable'});
+const projection={
+  status:'configured',
+  masterCrs:'EPSG:27700',
+  originEastingNorthing:[534500,181000],
+  metresToWorldUnits:2,
+  padding:20,
+  northUp:true
+};
+
+const map=Compiler.compileAuthoring({trace,schema,projection,eventOverlay,mapKey:'fixture-cable'});
 assert.equal(map.key,'fixture-cable');
-assert.equal(map.width,260);
-assert.equal(map.height,140);
 assert.equal(map.buildings.length,1);
 assert.equal(map.roads.length,1);
 assert.equal(map.railways.length,1);
 assert.equal(map.gameplayAdjustments.length,1);
 assert.equal(map.eventZones.length,1);
-assert.deepEqual(map.buildings[0].points[0],[60,50]);
+assert.deepEqual(map.buildings[0].points[0],[60,40]);
 assert.equal(map.buildings[0].minX,60);
-assert.equal(map.buildings[0].maxY,90);
+assert.equal(map.buildings[0].maxY,80);
 assert.equal(map.buildings[0].kind,'building');
 assert.equal(map.buildings[0].layer,'building-envelope');
 assert.equal(map.buildings[0].eventDateConfidence,'inferred');
 assert.equal(map.eventZones[0].role,'barricade-vicinity');
-assert.equal(map.authoring.productionReady,true);
+assert(map.width>map.buildings[0].maxX);
+assert(map.height>map.buildings[0].maxY);
 assert.equal(map.authoring.runtimeObjectsReady,false);
 assert.deepEqual(map.historicalObjects,{barricades:[],materials:[],civilians:[],formations:[]});
 
-const missingRail={
-  ...pkg,
-  features:pkg.features.filter(f=>f.properties.layer!=='railway')
+assert.throws(
+  ()=>Compiler.compileAuthoring({trace,schema,projection:{...projection,status:'awaiting-approved-trace'}}),
+  /not configured/
+);
+
+const noRail={...trace,features:trace.features.filter(f=>f.properties.layer!=='railway')};
+assert.throws(
+  ()=>Compiler.compileAuthoring({trace:noRail,schema,projection,eventOverlay}),
+  /missing production-critical layers: railway/
+);
+
+const duplicate={...trace,features:[...trace.features,trace.features[0]]};
+assert.throws(
+  ()=>Compiler.compileAuthoring({trace:duplicate,schema,projection,eventOverlay}),
+  /Duplicate trace feature id/
+);
+
+const invalidConfidence={
+  ...trace,
+  features:trace.features.map((feature,index)=>index?feature:{
+    ...feature,
+    properties:{...feature.properties,eventDateConfidence:'certain'}
+  })
 };
 assert.throws(
-  ()=>Compiler.compilePackage(missingRail),
-  /missing a production-critical runtime layer/
-);
-
-const duplicate={
-  ...pkg,
-  features:[...pkg.features,pkg.features[0]]
-};
-assert.throws(
-  ()=>Compiler.compilePackage(duplicate),
-  /Duplicate compiled trace feature id/
-);
-
-assert.throws(
-  ()=>Compiler.compilePackage({...pkg,width:200}),
-  /geometry exceeds declared Cable Street world bounds/
-);
-
-assert.throws(
-  ()=>Compiler.compilePackage({...pkg,status:'draft'}),
-  /requires a guarded compiled authoring package/
+  ()=>Compiler.compileAuthoring({trace:invalidConfidence,schema,projection,eventOverlay}),
+  /invalid confidence label/
 );
 
 assert.throws(
@@ -143,6 +142,6 @@ assert.throws(
   /not MAP-01 to MAP-06 ready/
 );
 
-console.log('PASS: Cable Street runtime compiler converts approved local authoring layers into navigation/rendering map structures.');
-console.log('PASS: runtime compiler preserves evidence metadata, keeps historical interaction objects empty for SLICE-02 and rejects missing critical layers or invalid bounds.');
-console.log('PASS: the real Cable Street authoring package remains blocked until MAP-01 through MAP-06 and the game transform are ready.');
+console.log('PASS: Cable Street compiler converts current layer/kind authoring data into deterministic runtime geometry.');
+console.log('PASS: compiler preserves evidence metadata, projects event areas and rejects missing critical layers, duplicate IDs and invalid confidence.');
+console.log('PASS: the real Cable Street map remains blocked until MAP-01 through MAP-06 and the runtime projection are ready.');
