@@ -80,6 +80,56 @@ const eventOverlay={
   ]
 };
 
+
+const runtimeObjects={
+  id:'runtime-objects-fixture',
+  status:'ready',
+  crs:'EPSG:27700',
+  requirements:{
+    mainBarricades:1,
+    materialTypes:['timber','crates','furniture'],
+    rescueInteractions:1,
+    policeFormations:1
+  },
+  objects:{
+    barricades:[
+      {
+        id:'barricade-b',label:'Main defence',
+        polygon:[
+          [534565,180990],[534575,180990],[534575,180980],[534565,180980],[534565,180990]
+        ],
+        maxIntegrity:30,integrity:10,constructionTier:1,workPositions:2,
+        interactionRadiusMetres:2.5,
+        historicalStatus:'historically-supported-vicinity',
+        sourceIds:['S03'],
+        interpretationNote:'Synthetic test placement inside a supported-area fixture.'
+      }
+    ],
+    materials:[
+      {id:'mat-timber',type:'timber',label:'Timber',position:[534550,180970],interactionRadiusMetres:2,historicalStatus:'gameplay-placement'},
+      {id:'mat-crates',type:'crates',label:'Crates',position:[534555,180970],interactionRadiusMetres:2,historicalStatus:'gameplay-placement'},
+      {id:'mat-furniture',type:'furniture',label:'Furniture',position:[534560,180970],interactionRadiusMetres:2,historicalStatus:'gameplay-placement'}
+    ],
+    civilians:[
+      {
+        id:'resident-1',label:'Resident',position:[534545,180965],
+        optional:true,interactionRadiusMetres:2,exitSeconds:0.8,
+        historicalStatus:'fictional-gameplay'
+      }
+    ],
+    formations:[
+      {
+        id:'police-west',label:'Police formation',widthMetres:6,
+        objective:'barricade-b',state:'approach',
+        position:[534510,180990],target:[534565,180985],withdraw:[534505,180995],
+        speedMetresPerSecond:3,stopDistanceMetres:2,
+        haltSeconds:0.7,regroupSeconds:0.8,damageRate:5,
+        historicalStatus:'route-level-evidence'
+      }
+    ]
+  }
+};
+
 const projection={
   status:'configured',
   masterCrs:'EPSG:27700',
@@ -89,7 +139,7 @@ const projection={
   northUp:true
 };
 
-const map=Compiler.compileAuthoring({trace,schema,projection,eventOverlay,mapKey:'fixture-cable'});
+const map=Compiler.compileAuthoring({trace,schema,projection,eventOverlay,runtimeObjects,mapKey:'fixture-cable'});
 assert.equal(map.key,'fixture-cable');
 assert.equal(map.buildings.length,1);
 assert.equal(map.roads.length,1);
@@ -105,8 +155,34 @@ assert.equal(map.buildings[0].eventDateConfidence,'inferred');
 assert.equal(map.eventZones[0].role,'barricade-vicinity');
 assert(map.width>map.buildings[0].maxX);
 assert(map.height>map.buildings[0].maxY);
-assert.equal(map.authoring.runtimeObjectsReady,false);
-assert.deepEqual(map.historicalObjects,{barricades:[],materials:[],civilians:[],formations:[]});
+assert.equal(map.authoring.runtimeObjectsReady,true);
+assert.equal(map.historicalObjects.barricades.length,1);
+assert.equal(map.historicalObjects.materials.length,3);
+assert.equal(map.historicalObjects.civilians.length,1);
+assert.equal(map.historicalObjects.formations.length,1);
+assert.deepEqual(
+  {x:map.historicalObjects.barricades[0].x,y:map.historicalObjects.barricades[0].y},
+  {x:160,y:50}
+);
+assert.equal(map.historicalObjects.materials[0].interactionRadius,4);
+assert.equal(map.historicalObjects.formations[0].width,12);
+assert.equal(map.historicalObjects.formations[0].speed,6);
+assert.equal(map.historicalObjects.formations[0].objective,'barricade-b');
+
+const pendingMap=Compiler.compileAuthoring({
+  trace,schema,projection,eventOverlay,
+  runtimeObjects:{status:'awaiting-approved-map'},
+  mapKey:'fixture-pending'
+});
+assert.equal(pendingMap.authoring.runtimeObjectsReady,false);
+assert.deepEqual(pendingMap.historicalObjects,{barricades:[],materials:[],civilians:[],formations:[]});
+
+const badRuntimeObjects=JSON.parse(JSON.stringify(runtimeObjects));
+badRuntimeObjects.objects.formations[0].objective='missing-barricade';
+assert.throws(
+  ()=>Compiler.compileAuthoring({trace,schema,projection,eventOverlay,runtimeObjects:badRuntimeObjects}),
+  /references unknown barricade objective/
+);
 
 assert.throws(
   ()=>Compiler.compileAuthoring({trace,schema,projection:{...projection,status:'awaiting-approved-trace'}}),
@@ -143,5 +219,5 @@ assert.throws(
 );
 
 console.log('PASS: Cable Street compiler converts current layer/kind authoring data into deterministic runtime geometry.');
-console.log('PASS: compiler preserves evidence metadata, projects event areas and rejects missing critical layers, duplicate IDs and invalid confidence.');
+console.log('PASS: compiler preserves evidence metadata, projects event areas and validates/project SLICE-02 barricade, material, rescue and police placements.');
 console.log('PASS: the real Cable Street map remains blocked until MAP-01 through MAP-06 and the runtime projection are ready.');
