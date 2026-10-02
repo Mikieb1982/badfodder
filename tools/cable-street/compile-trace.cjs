@@ -3,6 +3,7 @@
 
 const fs=require('node:fs');
 const path=require('node:path');
+const Authoring=require('./validate-authoring.cjs');
 
 function readJson(file){return JSON.parse(fs.readFileSync(file,'utf8'))}
 function finiteNumber(v){return Number.isFinite(v)}
@@ -73,6 +74,9 @@ function evidence(props){
     sourceIds:Array.isArray(props.sourceIds)?[...props.sourceIds]:[],
     sourceDate:props.sourceDate??null,
     confidence:props.confidence,
+    eventDateConfidence:props.eventDateConfidence,
+    affectsMovement:props.affectsMovement===true,
+    layer:props.layer,
     interpretationNote:props.interpretationNote||'',
     gameplayAdjustment:props.gameplayAdjustment||''
   };
@@ -105,16 +109,19 @@ function compileAuthoring({trace,schema,projection,mapKey='cable-street'}={}){
     if(!nonEmptyString(props.id))throw new Error('Trace feature requires a stable id.');
     if(seenIds.has(props.id))throw new Error('Duplicate trace feature id: '+props.id);
     seenIds.add(props.id);
-    if(!knownLayers.has(props.kind))throw new Error('Unknown Cable Street authoring kind: '+props.kind);
+    if(!nonEmptyString(props.kind))throw new Error('Feature '+props.id+' requires a descriptive kind.');
+    if(!knownLayers.has(props.layer))throw new Error('Unknown Cable Street authoring layer: '+props.layer);
     if(!confidenceLabels.has(props.confidence))throw new Error('Feature '+props.id+' has an invalid confidence label.');
+    if(!confidenceLabels.has(props.eventDateConfidence))throw new Error('Feature '+props.id+' has an invalid eventDateConfidence label.');
+    if(typeof props.affectsMovement!=='boolean')throw new Error('Feature '+props.id+' affectsMovement must be boolean.');
     if(!Array.isArray(props.sourceIds))throw new Error('Feature '+props.id+' sourceIds must be an array.');
 
     const parts=geometryParts(feature.geometry);
     if(!parts.length)throw new Error('Feature '+props.id+' has unsupported or empty geometry.');
-    seenLayers.add(props.kind);
+    seenLayers.add(props.layer);
 
     for(let partIndex=0;partIndex<parts.length;partIndex++){
-      const raw=props.kind==='building-envelope'||props.kind==='event-zone'||props.kind==='gameplay-adjustment'
+      const raw=props.layer==='building-envelope'||props.layer==='event-zone'||props.layer==='gameplay-adjustment'
         ?normalizeRing(parts[partIndex],props.id)
         :parts[partIndex].map((p,i)=>{validateCoordinate(p,props.id+' point '+i);return[p[0],p[1]]});
       const points=raw.map(projector.project);
@@ -122,17 +129,17 @@ function compileAuthoring({trace,schema,projection,mapKey='cable-street'}={}){
       const id=parts.length>1?props.id+':'+(partIndex+1):props.id;
       const base={id,points,...evidence(props)};
 
-      if(props.kind==='building-envelope'){
+      if(props.layer==='building-envelope'){
         buildings.push({...base,...bounds(points),solid:true,name:props.label||props.name||''});
-      }else if(props.kind==='carriageway-edge'){
+      }else if(props.layer==='carriageway-edge'){
         if(points.length<2)throw new Error('Carriageway edge '+props.id+' requires at least two points.');
         roads.push({...base,name:props.label||props.name||'',kind:'historical-carriageway-edge'});
-      }else if(props.kind==='railway'){
+      }else if(props.layer==='railway'){
         if(points.length<2)throw new Error('Railway feature '+props.id+' requires at least two points.');
         railways.push({...base,name:props.label||props.name||''});
-      }else if(props.kind==='event-zone'){
+      }else if(props.layer==='event-zone'){
         eventZones.push({...base,...bounds(points),role:props.role||null,label:props.label||props.id});
-      }else if(props.kind==='gameplay-adjustment'){
+      }else if(props.layer==='gameplay-adjustment'){
         gameplayAdjustments.push({...base,...bounds(points),role:props.role||null,label:props.label||props.id});
       }
     }
@@ -162,10 +169,18 @@ function compileAuthoring({trace,schema,projection,mapKey='cable-street'}={}){
 }
 
 function compileDirectory(baseDir){
+  const readiness=Authoring.evaluate(baseDir);
+  if(!readiness.productionReady)throw new Error('Cable Street authoring package is not MAP-01 to MAP-06 ready.');
+  if(!readiness.runtimeProjectionReady)throw new Error('Cable Street runtime projection is not configured for SLICE-01.');
   const schema=readJson(path.join(baseDir,'authoring-schema.json'));
   const trace=readJson(path.join(baseDir,'trace.geojson'));
   const projection=readJson(path.join(baseDir,'runtime-projection.json'));
-  return compileAuthoring({trace,schema,projection,mapKey:'cable-street'});
+  const map=compileAuthoring({trace,schema,projection,mapKey:'cable-street'});
+  map.authoring.gates={...readiness.gates};
+  map.authoring.reconciliationReady=readiness.reconciliationReady;
+  map.authoring.eventOverlayReady=readiness.eventOverlayReady;
+  map.authoring.reviewReady=readiness.reviewReady;
+  return map;
 }
 
 function main(argv){
