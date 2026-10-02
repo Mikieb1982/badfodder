@@ -4,6 +4,8 @@ const root=path.join(__dirname,'..');
 const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const wiganSource=fs.readFileSync(path.join(root,'wigan-map.js'),'utf8');
 const scenery=fs.readFileSync(path.join(root,'wigan-scenery.js'),'utf8');
+const menu=fs.readFileSync(path.join(root,'menu-ui.js'),'utf8');
+const navigation=fs.readFileSync(path.join(root,'navigation.js'),'utf8');
 const map=new Function(wiganSource+';return WIGAN_MAP;')();
 
 assert(index.includes('function intersectsSceneryBounds'),'Scenery bounds culling missing');
@@ -25,7 +27,10 @@ const tick=index.slice(tickStart,tickEnd);
 assert(tick.indexOf('requestAnimationFrame(tick);')>=0,'Animation loop does not schedule another frame');
 assert(tick.indexOf('requestAnimationFrame(tick);')<tick.indexOf('try{'),'Animation loop schedules too late and can hard-freeze after an exception');
 assert(tick.includes('catch(err)')&&tick.includes('handleRuntimeFault(err)'),'Animation loop does not recover from runtime exceptions');
-assert(index.includes("badge.textContent='RUNTIME RECOVERY'"),'Repeated runtime faults do not expose a recoverable state');
+assert(index.includes("menu.showRecovery("),'Repeated runtime faults do not enter the dedicated recovery menu');
+assert(menu.includes("showRecovery(message="),'Menu controller has no runtime recovery state');
+assert(menu.includes("this.get('menuResume').hidden=true"),'Runtime recovery incorrectly offers Resume');
+assert(index.includes("if(runtimeSafeStop){\n      beginMission();"),'A recovery Resume path can still return to the stopped loop');
 
 function geometryBounds(points){
   const xs=points.map(p=>p[0]*2),ys=points.map(p=>p[1]*2);
@@ -43,7 +48,13 @@ assert(average<map.roads.length*.12,'Wigan tile culling still visits too much of
 assert(Math.max(...counts)<map.roads.length*.2,'A Wigan tile still visits too much of the complete road network');
 
 assert(scenery.includes("map.projection&&map.projection.northUp===false?'N ↓':'N ↑'"),'Rotated Wigan tactical map has an incorrect north indicator');
+assert(scenery.includes("function roundRectPath("),'Wigan overlay has no Canvas roundRect compatibility fallback');
+assert(index.includes("Scenery tile rendering failed; using a lightweight fallback tile."),'Tile-render exceptions can still take down live play');
+assert(index.includes("wigan-scenery.js?v=20261002-stability-3"),'Wigan runtime fix is not cache-busted');
+assert(index.includes("navigation.js?v=20261002-stability-3"),'Navigation runtime fix is not cache-busted');
+assert(navigation.includes("fallbackDepth<1"),'Navigation fallback recursion is not bounded');
+assert(navigation.includes("if(d<1e-6)"),'Zero-distance path steps are not guarded');
 
 console.log('PASS: Wigan tile painting is spatially culled, vegetation is indexed and enemy A* work is staggered.');
-console.log('PASS: animation-loop exceptions cannot silently kill requestAnimationFrame; repeated faults enter runtime recovery.');
+console.log('PASS: animation-loop exceptions cannot silently kill requestAnimationFrame; recovery cannot Resume into a stopped loop.');
 console.log('PASS: Wigan road work per tile averages '+average.toFixed(1)+' of '+map.roads.length+' roads.');
