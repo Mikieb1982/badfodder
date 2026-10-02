@@ -1,7 +1,93 @@
 /* Keyboard/touch menu controller. Game state stays in the game renderer. */
+(function(){
+  'use strict';
+
+  function ensureMobileManifest(){
+    if(!document.querySelector('link[rel="manifest"]')){
+      const link=document.createElement('link');
+      link.rel='manifest';link.href='manifest.webmanifest';
+      document.head.appendChild(link);
+    }
+    if(!document.querySelector('meta[name="mobile-web-app-capable"]')){
+      const meta=document.createElement('meta');
+      meta.name='mobile-web-app-capable';meta.content='yes';
+      document.head.appendChild(meta);
+    }
+    if(!document.querySelector('meta[name="apple-mobile-web-app-capable"]')){
+      const meta=document.createElement('meta');
+      meta.name='apple-mobile-web-app-capable';meta.content='yes';
+      document.head.appendChild(meta);
+    }
+  }
+
+  function installMobilePresentation(root){
+    const mobile=(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)||(navigator.maxTouchPoints||0)>0;
+    if(!mobile)return null;
+    const viewport=root&&root.querySelector?root.querySelector('.viewport'):document.querySelector('.viewport');
+    if(!viewport)return null;
+
+    ensureMobileManifest();
+    let promoting=false;
+
+    function applyFallback(){
+      viewport.classList.add('full-window');
+      document.body.classList.add('mobile-fullscreen-fallback');
+      try{window.scrollTo(0,0)}catch(_){}
+    }
+
+    async function lockLandscape(){
+      const orientation=window.screen&&window.screen.orientation;
+      if(!orientation||typeof orientation.lock!=='function')return false;
+      try{await orientation.lock('landscape');return true}catch(_){return false}
+    }
+
+    async function promoteNative(){
+      if(document.fullscreenElement===viewport){await lockLandscape();return true}
+      if(promoting)return false;
+      promoting=true;
+      try{
+        if(typeof viewport.requestFullscreen==='function'){
+          await viewport.requestFullscreen({navigationUI:'hide'});
+          viewport.classList.remove('full-window');
+          document.body.classList.remove('mobile-fullscreen-fallback');
+          await lockLandscape();
+          return true;
+        }
+      }catch(_){}
+      finally{promoting=false}
+      applyFallback();
+      await lockLandscape();
+      return false;
+    }
+
+    // Fill the mobile viewport immediately. Installed web apps may also rotate immediately.
+    applyFallback();
+    lockLandscape();
+    promoteNative();
+
+    // Normal browser tabs require a trusted gesture for native fullscreen.
+    // Upgrade the immediate full-window view on the first touch/key press.
+    const retry=()=>{if(document.fullscreenElement!==viewport)promoteNative();else lockLandscape()};
+    window.addEventListener('pointerdown',retry,{capture:true,passive:true});
+    window.addEventListener('keydown',retry,{capture:true});
+    document.addEventListener('fullscreenchange',()=>{
+      if(document.fullscreenElement===viewport){
+        viewport.classList.remove('full-window');
+        document.body.classList.remove('mobile-fullscreen-fallback');
+        lockLandscape();
+      }else applyFallback();
+    });
+
+    return{lockLandscape,promoteNative};
+  }
+
+  window.BadFodderMobilePresentation={install:installMobilePresentation};
+})();
+
 window.BadFodderMenu=class{
   constructor(actions){
     this.actions=actions;this.root=actions.root;this.screen=actions.screen;this.mode='title';this.panel='main';this.loaded=false;
+    this.mobilePresentation=window.BadFodderMobilePresentation?.install(this.root)||null;
     this.get=id=>this.screen.querySelector('#'+id);
     for(const [id,action] of [['menuStart','start'],['menuResume','resume'],['menuRestart','restart'],['menuMain','main']])this.get(id).addEventListener('click',()=>actions[action]());
     this.get('menuMissionSelect').addEventListener('click',()=>this.showPanel('missions'));
@@ -17,7 +103,11 @@ window.BadFodderMenu=class{
     this.get('menuZoom').addEventListener('change',e=>actions.zoom(e.target.value));
     this.get('menuDust').checked=actions.dustEnabled;
     this.get('menuDust').addEventListener('change',e=>actions.dust(e.target.checked));
-    this.get('menuFull').addEventListener('click',async()=>{await actions.fullscreen();this.syncFullscreen();});
+    this.get('menuFull').addEventListener('click',async()=>{
+      await actions.fullscreen();
+      if(actions.isFullscreen())await this.mobilePresentation?.lockLandscape();
+      this.syncFullscreen();
+    });
     document.addEventListener('fullscreenchange',()=>this.syncFullscreen());
     this.screen.addEventListener('keydown',e=>this.keydown(e));
   }
