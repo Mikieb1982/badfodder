@@ -25,7 +25,8 @@ It is intentionally **not** a production game map yet.
 - `trace.geojson` - calibrated authoring geometry in EPSG:27700; currently empty.
 - `reconciliation.json` - per-feature 1916/1937/1936 reconciliation decisions.
 - `event-overlay.geojson` - approximate event-location areas, kept separate from surveyed geometry.
-- `historical-review.json` - contradiction/anachronism review and remaining uncertainty.
+- `historical-review.json` - contradiction/anachronism review.
+- `uncertainty-log.json` - feature/navigation/provenance uncertainty with explicit blocking status.
 - `runtime-projection.json` - separate EPSG:27700-to-runtime projection used only after the trace is approved.
 
 ## Calibration workflow
@@ -106,8 +107,9 @@ After MAP-03 has real traced features:
 2. Record source-geometry confidence separately from 1936 event-date confidence.
 3. Do not use an inferred/uncertain passage as an essential route unless the decision explicitly records it as a fictional gameplay adaptation.
 4. Add supported event areas to `event-overlay.geojson`; keep approximate locations as Polygon/MultiPolygon geometry rather than false precise points.
-5. Complete every blocking check in `historical-review.json` and record remaining uncertainty.
-6. Only then set `runtime-projection.json` to `status:"ready"` with a top-left BNG origin and positive `metresPerMapUnit`.
+5. Resolve or explicitly accept every blocking entry in `uncertainty-log.json`.
+6. Complete every blocking check in `historical-review.json` and record remaining non-blocking uncertainty.
+7. Only then set `runtime-projection.json` to `status:"ready"` with a top-left BNG origin and positive `metresPerMapUnit`.
 
 The guarded compiler is:
 
