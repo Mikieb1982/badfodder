@@ -153,6 +153,10 @@ assert(index.includes('id="hudGrenadeLabel"'),'HUD grenade label cannot switch f
 assert(index.includes("hudEnemyLabel.textContent='DEFENCE'"),'Cable Street HUD does not show defence integrity');
 assert(index.includes("hudGrenadeLabel.textContent='CONFIDENCE'"),'Cable Street HUD does not show crowd confidence');
 assert(index.includes("Math.round(historicalProgress.barricadeRatio*100)+'%'"),'Cable Street defence percentage is not displayed');
+assert(index.includes('historicalProgress.objectives.find(o=>!o.done)'),'Cable Street HUD does not select the next incomplete historical objective');
+assert(index.includes("historicalProgress.phaseTitle+"),'Cable Street HUD does not display the current historical phase title');
+assert(index.includes('statusEl.textContent!==historicalProgress.status'),'Cable Street persistent status is still routed through transient HUD notices');
+
 
 assert(index.includes("cable-street-interactions.js?v=20261002-cable-pressure-7"),'Historical interaction module is not cache-busted');
 assert(index.includes('options:{scale:SCALE,pressureControlled:true}'),'Live Cable Street interactions do not wait for the historical pressure director');
