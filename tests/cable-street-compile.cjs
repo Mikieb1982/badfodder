@@ -190,6 +190,7 @@ assert.deepEqual(
 assert.equal(map.historicalObjects.materials[0].interactionRadius,4);
 assert.equal(map.historicalObjects.formations[0].width,12);
 assert.equal(map.historicalObjects.formations[0].speed,6);
+assert.equal(map.historicalObjects.formations[0].dismantleSeconds,4.5);
 assert.equal(map.historicalObjects.formations[0].objective,'barricade-b');
 
 const pendingMap=Compiler.compileAuthoring({
