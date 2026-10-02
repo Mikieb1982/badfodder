@@ -9,16 +9,16 @@ const missions=[
     id:1,title:'Operation Bad Belzig',environment:'temperate-town',squadSize:4,playable:true,
     phases:[
       {type:'reach',zone:'post',title:'Reach the Postdistanzsäule',brief:'Push up Bahnhofstraße and reach the Postdistanzsäule.'},
-      {type:'secure-zone',zone:'castle',radius:185,title:'Secure Burg Eisenhardt',brief:'Clear the castle sector and move into Burg Eisenhardt.'},
-      {type:'eliminate-and-reach',zone:'market',title:'Take Marktplatz',brief:'Eliminate remaining hostiles and reach Marktplatz and Rathaus.'}
+      {type:'secure-zone',zone:'castle',defenderGroup:'castle',title:'Secure Burg Eisenhardt',brief:'Clear the assigned castle defenders and move into Burg Eisenhardt.'},
+      {type:'eliminate-and-reach',zone:'market',defenderGroup:'market',title:'Take Marktplatz',brief:'Defeat the final Marktplatz defenders and reach Marktplatz and Rathaus.'}
     ]
   },
   {
     id:2,title:'Wigan Town Centre',environment:'wigan-town',map:'wigan',squadSize:4,playable:true,
     phases:[
-      {type:'secure-zone',zone:'tudor',radius:115,title:'Tudor Breakout',brief:'Start at Tudor House. Secure the New Market Street and bus-station end of town.'},
-      {type:'secure-zone',zone:'grandArcade',radius:120,title:'Town Centre Sweep',brief:'Push through Market Place past Moon Under Water and John Bull Chophouse, then secure Grand Arcade.'},
-      {type:'eliminate-and-reach',zone:'wallgate',title:'Station Run',brief:'Clear the remaining hostiles and reach the Wigan Wallgate and North Western station gateway.'}
+      {type:'secure-zone',zone:'tudor',defenderGroup:'tudor',title:'Tudor Breakout',brief:'Start at Tudor House. Defeat the Tudor-sector defenders and secure the New Market Street end of town.'},
+      {type:'secure-zone',zone:'grandArcade',defenderGroup:'grandArcade',title:'Town Centre Sweep',brief:'Push through Market Place past Moon Under Water and John Bull Chophouse, then defeat the town-centre defenders at Grand Arcade.'},
+      {type:'eliminate-and-reach',zone:'wallgate',defenderGroup:'wallgate',title:'Station Run',brief:'Defeat the station defenders and reach the Wigan Wallgate and North Western station gateway.'}
     ]
   },
   {
