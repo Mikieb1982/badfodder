@@ -25,6 +25,7 @@ function evaluate(baseDir){
     reconciliation:path.join(baseDir,'reconciliation.json'),
     eventOverlay:path.join(baseDir,'event-overlay.geojson'),
     historicalReview:path.join(baseDir,'historical-review.json'),
+    uncertaintyLog:path.join(baseDir,'uncertainty-log.json'),
     runtimeProjection:path.join(baseDir,'runtime-projection.json')
   };
   const missing=Object.entries(files).filter(([,file])=>!exists(file)).map(([key])=>key);
@@ -38,6 +39,7 @@ function evaluate(baseDir){
   const reconciliation=readJson(files.reconciliation);
   const eventOverlay=readJson(files.eventOverlay);
   const historicalReview=readJson(files.historicalReview);
+  const uncertaintyLog=readJson(files.uncertaintyLog);
   const runtimeProjection=readJson(files.runtimeProjection);
   const problems=[];
 
@@ -152,6 +154,18 @@ function evaluate(baseDir){
   if(!map05)problems.push('MAP-05 event overlay is not complete.');
 
   const reviewChecks=Array.isArray(historicalReview.checks)?historicalReview.checks:[];
+  const uncertaintyEntries=Array.isArray(uncertaintyLog.entries)?uncertaintyLog.entries:[];
+  const blockingOpen=uncertaintyEntries.filter(entry=>entry&&entry.blocking===true&&!['resolved','accepted'].includes(entry.status));
+  const uncertaintyReady=
+    uncertaintyLog.status==='reviewed'&&
+    uncertaintyEntries.every(entry=>
+      entry&&nonEmptyString(entry.id)&&nonEmptyString(entry.topic)&&
+      sourceListValid(entry.sourceIds,sourceIds)&&
+      ['open','accepted','resolved'].includes(entry.status)&&
+      typeof entry.blocking==='boolean'&&
+      nonEmptyString(entry.note)
+    )&&
+    blockingOpen.length===0;
   const reviewReady=
     historicalReview.status==='complete'&&
     nonEmptyString(historicalReview.mapDescription)&&
@@ -161,7 +175,8 @@ function evaluate(baseDir){
       check&&nonEmptyString(check.id)&&
       ['passed','resolved'].includes(check.status)
     )&&
-    Array.isArray(historicalReview.remainingUncertainty);
+    Array.isArray(historicalReview.remainingUncertainty)&&
+    uncertaintyReady;
   const map06=!!(map03&&map04&&map05&&reviewReady);
   if(!map06)problems.push('MAP-06 historical contradiction review is not complete.');
 
@@ -192,6 +207,8 @@ function evaluate(baseDir){
     reconciliationReady,
     eventOverlayReady:overlayReady,
     reviewReady,
+    uncertaintyReady,
+    blockingUncertaintyCount:blockingOpen.length,
     traceFeatureCount:traceFeatures.length,
     eventOverlayFeatureCount:overlayFeatures.length,
     movementFeatureCount:movementFeatures.length,
