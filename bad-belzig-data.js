@@ -30,8 +30,11 @@
   };
 
   TOWN_MAP.defenderGroups={
+    // Compulsory defenders stay close enough to their objective to avoid map-wide cleanup hunts.
     post:[0,1,2],
-    castle:[3,4,5,6,7],
-    market:[8,9,10,11,12,13,14,15,16,17,18,19]
+    castle:[3,4,5,6],
+    market:[8,9,10,11,12,13,14,15]
   };
+
+  TOWN_MAP.ambientEnemyIndexes=[7,16,17,18,19];
 })();
