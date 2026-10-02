@@ -16,6 +16,15 @@
       status:'groundwork',
       playable:false,
       mapReady:false,
+      mapResearch:{
+        boundaryId:'cable-street-christian-street-slice-v1',
+        masterCrs:'EPSG:27700',
+        evidenceRegister:'authoring/cable-street/evidence-register.json',
+        calibrationRecord:'authoring/cable-street/calibration.json',
+        tracePackage:'authoring/cable-street/trace.geojson',
+        requiredGates:['MAP-01','MAP-02','MAP-03','MAP-04','MAP-05','MAP-06'],
+        productionGeometryReady:false
+      },
       integration:'historical',
       campaignLinked:false,
       successHeadline:'THE EAST END MARCH HAS BEEN STOPPED.',
