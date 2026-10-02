@@ -160,6 +160,24 @@ function makeReadyPackage(){
     reviewNotes:['Synthetic ready package used only for validator/compiler tests.']
   });
 
+  write(dir,'uncertainty-log.json',{
+    id:'uncertainty-ready',
+    missionId:'cable-street-1936',
+    status:'reviewed',
+    entries:[
+      {
+        id:'u-fixture',
+        topic:'Synthetic retained uncertainty',
+        sourceIds:['S03'],
+        status:'accepted',
+        blocking:false,
+        impact:'event placement',
+        resolutionNeeded:'None in synthetic fixture',
+        note:'Accepted non-blocking uncertainty for gate testing.'
+      }
+    ]
+  });
+
   write(dir,'runtime-projection.json',{
     id:'runtime-projection-ready',
     missionId:'cable-street-1936',
@@ -193,6 +211,8 @@ assert.deepEqual(ready.gates,{
 });
 assert.equal(ready.productionReady,true);
 assert.equal(ready.runtimeProjectionReady,true);
+assert.equal(ready.uncertaintyReady,true);
+assert.equal(ready.blockingUncertaintyCount,0);
 assert.equal(ready.traceFeatureCount,3);
 assert.equal(ready.movementFeatureCount,3);
 assert.equal(ready.eventOverlayFeatureCount,1);
@@ -238,6 +258,27 @@ write(readyDir,'reconciliation.json',reconciliation);
 const adapted=Authoring.evaluate(readyDir);
 assert.equal(adapted.gates['MAP-04'],true);
 assert.equal(adapted.productionReady,true);
+
+// A blocking unresolved uncertainty must stop MAP-06 even after geometry/reconciliation pass.
+const uncertaintyPath=path.join(readyDir,'uncertainty-log.json');
+const uncertainty=JSON.parse(fs.readFileSync(uncertaintyPath,'utf8'));
+uncertainty.entries.push({
+  id:'u-blocking',
+  topic:'Synthetic blocking route uncertainty',
+  sourceIds:['S01'],
+  status:'open',
+  blocking:true,
+  impact:'navigation',
+  resolutionNeeded:'Resolve before release',
+  note:'Synthetic blocking uncertainty.'
+});
+write(readyDir,'uncertainty-log.json',uncertainty);
+const blockedByUncertainty=Authoring.evaluate(readyDir);
+assert.equal(blockedByUncertainty.gates['MAP-06'],false);
+assert.equal(blockedByUncertainty.blockingUncertaintyCount,1);
+uncertainty.entries.at(-1).status='resolved';
+write(readyDir,'uncertainty-log.json',uncertainty);
+assert.equal(Authoring.evaluate(readyDir).gates['MAP-06'],true);
 
 // Approximate event locations may not be encoded as precise points.
 const overlayPath=path.join(readyDir,'event-overlay.geojson');
