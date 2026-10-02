@@ -104,6 +104,11 @@ function compile(baseDir){
 
   const bounds=boundsForFeatures(features);
   if(!bounds||bounds.width<=0||bounds.height<=0)throw new Error('Compiled Cable Street trace has no usable bounds.');
+  if(bounds.minX<-.001||bounds.minY<-.001){
+    throw new Error('Game transform origin must be north-west of the approved trace so local coordinates remain non-negative.');
+  }
+  const worldWidth=Math.max(1,Math.ceil(bounds.maxX));
+  const worldHeight=Math.max(1,Math.ceil(bounds.maxY));
 
   const layers={};
   for(const feature of features){
@@ -125,8 +130,8 @@ function compile(baseDir){
       axis:{...transform.axis}
     },
     bounds,
-    width:bounds.width,
-    height:bounds.height,
+    width:worldWidth,
+    height:worldHeight,
     layers,
     eventZones,
     features,
