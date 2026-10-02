@@ -27,5 +27,10 @@ assert.equal(typeof Art.drawCrowd,'function');
 assert.equal(typeof Art.drawGround,'function');
 assert.equal(typeof Art.drawCarried,'function');
 assert.equal(typeof Art.drawHint,'function');
+assert.equal(typeof Art.drawFacadeDetails,'function');
+assert.equal(typeof Art.drawStreetProps,'function');
+assert.equal(typeof Art.drawVolunteer,'function');
+assert.equal(typeof Art.drawEffects,'function');
+assert.equal(typeof Art.drawAtmosphere,'function');
 
 console.log('PASS: Cable Street art exposes deterministic East End brick styling and dedicated carriageway-edge / railway drawing.');
