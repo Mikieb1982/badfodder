@@ -46,8 +46,15 @@ assert.equal(report.ok,true,'MAP-01/MAP-02 authoring package should be structura
 assert.equal(report.gates['MAP-01'],true,'Research boundary should be frozen');
 assert.equal(report.gates['MAP-02'],true,'Evidence register should be complete');
 assert.equal(report.gates['MAP-03'],false,'Production trace must remain incomplete before real calibration/tracing');
+assert.equal(report.gates['MAP-04'],false,'Reconciliation must remain pending before traced features exist');
+assert.equal(report.gates['MAP-05'],false,'Event overlay must remain pending before reconciliation');
+assert.equal(report.gates['MAP-06'],false,'Historical review must remain pending before overlay/reconciliation');
 assert.equal(report.productionReady,false,'Cable Street must not become production-ready from metadata alone');
 assert.equal(report.calibrationReady,false,'Real calibration record must remain pending');
+assert.equal(report.reconciliationReady,false);
+assert.equal(report.eventOverlayReady,false);
+assert.equal(report.reviewReady,false);
+assert.equal(report.gameTransformReady,false,'Game transform must remain locked before approved geometry');
 assert.equal(report.traceFeatureCount,0,'Production trace must stay empty until source geometry is traced');
 
 const boundary=JSON.parse(fs.readFileSync(path.join(authoringDir,'first-slice-boundary.json'),'utf8'));
@@ -73,7 +80,7 @@ assert.deepEqual(schema.confidenceLabels,[
   'inferred',
   'fictional gameplay'
 ]);
-for(const attr of ['id','kind','sourceIds','sourceDate','confidence','geometry','interpretationNote','gameplayAdjustment']){
+for(const attr of ['id','kind','layer','sourceIds','sourceDate','confidence','eventDateConfidence','affectsMovement','geometry','interpretationNote','gameplayAdjustment']){
   assert(schema.requiredFeatureAttributes.includes(attr),'Missing required authoring attribute '+attr);
 }
 
@@ -83,16 +90,41 @@ assert.equal(trace.properties.status,'empty-awaiting-calibrated-trace');
 assert.equal(trace.properties.productionReady,false);
 assert.deepEqual(trace.features,[]);
 
+const reconciliation=JSON.parse(fs.readFileSync(path.join(authoringDir,'reconciliation.json'),'utf8'));
+assert.equal(reconciliation.status,'pending-feature-reconciliation');
+assert.deepEqual(reconciliation.baselineSourceIds,['S01']);
+assert(reconciliation.nearPeriodSourceIds.includes('S02'));
+
+const overlay=JSON.parse(fs.readFileSync(path.join(authoringDir,'event-overlay.geojson'),'utf8'));
+assert.equal(overlay.properties.status,'pending-event-overlay');
+assert.deepEqual(overlay.features,[]);
+assert(overlay.properties.rules.some(x=>/Polygon or MultiPolygon/i.test(x)));
+
+const review=JSON.parse(fs.readFileSync(path.join(authoringDir,'historical-review.json'),'utf8'));
+assert.equal(review.status,'pending-contradiction-review');
+assert(review.checks.every(x=>x.status==='pending'));
+assert(/reconstruction/i.test(review.mapDescription));
+
+const gameTransform=JSON.parse(fs.readFileSync(path.join(authoringDir,'game-transform.json'),'utf8'));
+assert.equal(gameTransform.status,'awaiting-approved-trace');
+assert.equal(gameTransform.sourceCrs,'EPSG:27700');
+assert.equal(gameTransform.originBng,null);
+assert.equal(gameTransform.metresPerMapUnit,null);
+
 const mission=Historical.get('cable-street-1936');
 assert(mission&&mission.mapResearch);
 assert.equal(mission.mapResearch.boundaryId,boundary.id);
 assert.equal(mission.mapResearch.masterCrs,'EPSG:27700');
 assert.deepEqual(mission.mapResearch.requiredGates,['MAP-01','MAP-02','MAP-03','MAP-04','MAP-05','MAP-06']);
 assert.equal(mission.mapResearch.productionGeometryReady,false);
+assert.equal(mission.mapResearch.reconciliationRecord,'authoring/cable-street/reconciliation.json');
+assert.equal(mission.mapResearch.eventOverlay,'authoring/cable-street/event-overlay.geojson');
+assert.equal(mission.mapResearch.contradictionReview,'authoring/cable-street/historical-review.json');
+assert.equal(mission.mapResearch.gameTransform,'authoring/cable-street/game-transform.json');
 assert.equal(mission.mapReady,false);
 assert.equal(mission.playable,false);
 assert.equal(mission.map,undefined,'Authoring groundwork must not prematurely add a production map key');
 
 console.log('PASS: Cable Street authoring package freezes the Christian Street research boundary and catalogues S01-S06 without inventing production geometry.');
 console.log('PASS: affine calibration tooling recovers known EPSG:27700 control/check points and rejects degenerate control sets.');
-console.log('PASS: readiness validation reports MAP-01/MAP-02 complete but correctly blocks MAP-03 and production readiness until real calibration/tracing exists.');
+console.log('PASS: readiness validation keeps MAP-03 through MAP-06 and the game transform locked until real calibration, reconciliation, event overlay and review exist.');
