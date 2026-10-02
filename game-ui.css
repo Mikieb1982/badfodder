@@ -1,53 +1,97 @@
-/* One tactical HUD, with the same hierarchy on desktop and touch screens. */
-:root{--bg:#111916;--panel:#202c27;--panel2:#2c3d34;--text:#f0ecd9;--muted:#a5b3a5;--border:#4a5b4e;--accent:#e4cb83;--accent-soft:#394536}
+/* Compact tactical HUD shared by desktop and touch layouts. */
+:root{
+  --bg:#111916;--panel:#202c27;--panel2:#2c3d34;--text:#f0ecd9;--muted:#a5b3a5;
+  --border:#536451;--accent:#e4cb83;--accent-soft:#394536;
+}
 body{padding:16px;background:radial-gradient(ellipse at top,#26372b,#111916 65%)}
 .app{max-width:1320px}
-.topbar{align-items:center;margin-bottom:14px}
-h1{font:800 28px/1 system-ui,sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#efe3b5}
-.subtitle{font:11px/1.5 system-ui,sans-serif;letter-spacing:.2em;text-transform:uppercase;margin:6px 0 0;color:#aab89f}
+.topbar{align-items:center;margin-bottom:12px}
+h1{font:800 27px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#efe3b5}
+.subtitle{font:11px/1.5 system-ui,sans-serif;letter-spacing:.18em;text-transform:uppercase;margin:6px 0 0;color:#aab89f}
 #status,.topbar .stats,.roster,.squad-controls{display:none}
-.toolbar{margin:0 0 10px;display:flex;justify-content:flex-end}
+.toolbar{margin:0 0 9px;display:flex;justify-content:flex-end}
 .controls{gap:6px}
-.controls button{min-height:36px;padding:7px 12px;font:600 11px system-ui,sans-serif;letter-spacing:.03em;background:#24312a;border-color:#405144;box-shadow:none;border-radius:4px}
+.controls button{min-height:34px;padding:6px 11px;font:600 10px system-ui,sans-serif;letter-spacing:.03em;background:#24312a;border-color:#405144;box-shadow:none;border-radius:4px}
 #mapBtn,#pauseBtn{display:none}
-.viewport{padding:0;border:1px solid #5c694f;border-radius:8px;box-shadow:0 12px 40px #0005;isolation:isolate}
+
+.viewport{padding:0;border:1px solid #5c694f;border-radius:7px;box-shadow:0 12px 36px #0005;isolation:isolate}
 #game{width:100%;height:auto;aspect-ratio:16/10;min-height:0;max-height:none;object-fit:fill;image-rendering:auto;touch-action:none;border-radius:0;background:#7e8b4a}
-.game-hud{inset:0;font-family:system-ui,sans-serif;text-shadow:none}
-.hud-topline{position:absolute;inset:14px 14px auto;display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
-.hud-mission{position:static;max-width:none;width:min(440px,52%);padding:12px 14px;border:1px solid #66745d;background:#17241eeb;border-radius:5px;box-shadow:0 4px 12px #0003;font:600 15px/1.35 system-ui,sans-serif}
-.hud-kicker{display:flex;flex-wrap:wrap;gap:5px 10px;align-items:center;color:#8fa48d;font:700 9px system-ui,sans-serif;letter-spacing:.1em;margin-bottom:5px}
-.hud-mission strong{display:inline;color:#e4cb83;font:700 9px system-ui,sans-serif;margin:0;letter-spacing:.07em}
-.hud-progress{display:flex;gap:4px;margin-top:10px;height:3px}
-.hud-progress i{flex:1;background:#3b4b3d;border-radius:1px}
+.loading{inset:0;background:#19251b;color:#e8dfbd;font-family:system-ui,sans-serif;z-index:8}
+.loading strong{font:800 21px system-ui,sans-serif;letter-spacing:.11em;text-transform:uppercase}
+.loading span{font:12px system-ui,sans-serif;color:#b8c3ac}
+
+.game-hud{inset:0;font-family:system-ui,sans-serif;text-shadow:0 1px 1px #0008;pointer-events:none}
+.wigan-tactical .hud-topline,.wigan-tactical .hud-roster,.wigan-tactical .hud-notice{visibility:hidden}
+.wigan-tactical .touch-gameplay{visibility:hidden}
+
+.hud-topline{position:absolute;inset:10px 10px auto;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.hud-mission{
+  position:static;width:min(430px,52%);max-width:none;padding:9px 11px;
+  border:1px solid #746f58;border-radius:5px;
+  background-color:#252a21e8;background-image:url('assets/painted/panel.webp'),linear-gradient(#3a3a2f,#262820);
+  background-size:220px 220px,100% 100%;background-blend-mode:multiply,normal;
+  box-shadow:inset 0 0 0 1px #171b16,0 3px 10px #0004;
+  font:650 13px/1.32 system-ui,sans-serif;color:#eee6c6;
+}
+.hud-kicker{display:flex;flex-wrap:wrap;gap:3px 8px;align-items:center;color:#b8b28f;font:700 8px system-ui,sans-serif;letter-spacing:.09em;margin-bottom:4px}
+.hud-mission strong{display:inline;color:#e6cf88;font:750 8px system-ui,sans-serif;letter-spacing:.06em;margin:0}
+.hud-progress{display:flex;gap:3px;margin-top:7px;height:3px}
+.hud-progress i{flex:1;background:#3c4335;border-radius:2px}
 .hud-progress i.current{background:#e4cb83}
 .hud-progress i.done{background:#9cc0b8}
-.hud-right{display:flex;flex-direction:column;gap:7px;align-items:flex-end}
-.hud-tools{display:flex;gap:5px;pointer-events:auto}
-.hud-tools button{min-width:48px;min-height:44px;padding:6px 9px;border-radius:4px;box-shadow:none;background:#17241eed;border:1px solid #63745d;color:#f0ecd9;font:700 10px system-ui,sans-serif;letter-spacing:.06em}
-.hud-tools button:hover,.hud-unit:hover,#hudAll:hover{background:#344936}
+
+.hud-right{display:flex;flex-direction:column;gap:5px;align-items:flex-end}
+.hud-tools{display:flex;gap:4px;pointer-events:auto}
+.hud-tools button{
+  min-width:46px;min-height:38px;padding:5px 7px;border-radius:4px;box-shadow:none;
+  background:#20271fed;border:1px solid #5d6953;color:#eee6c6;
+  font:750 9px system-ui,sans-serif;letter-spacing:.05em;
+}
+.hud-tools button:hover,.hud-unit:hover,#hudAll:hover{background:#344536}
 .hud-tools button.active{outline:none;background:#4e5938;border-color:#e4cb83;color:#fff3bd}
 .hud-tools button:focus-visible,.hud-unit:focus-visible,#hudAll:focus-visible{outline:2px solid #f3dc99;outline-offset:2px}
-.hud-counters{position:static;display:flex;gap:0;border:1px solid #56664f;border-radius:4px;background:#17241eed}
-.hud-counter{min-width:55px;padding:6px 10px;border:0;background:none;font:700 8px system-ui,sans-serif;color:#b5c0ac;text-align:center}
-.hud-counter+.hud-counter{border-left:1px solid #42543f}
-.hud-counter b{display:block;font:700 17px/1.1 "Courier New",monospace;letter-spacing:.04em;color:#f0e5bf;margin:0 0 3px}
-.hud-roster{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:5px;pointer-events:auto;width:min(540px,calc(100% - 32px));padding:5px;background:#122119ed;border:1px solid #5a6c51;border-radius:6px;box-shadow:0 4px 16px #0004}
+
+.hud-counters{position:static;display:flex;gap:0;border:1px solid #615f4e;border-radius:4px;background:#20251fec;overflow:hidden}
+.hud-counter{min-width:58px;padding:5px 8px;border:0;background:none;font:700 7px system-ui,sans-serif;color:#babba1;text-align:center}
+.hud-counter+.hud-counter{border-left:1px solid #494d3f}
+.hud-counter b{display:block;font:800 16px/1 "Courier New",monospace;color:#f0e5bf;margin:0 0 2px}
+.hud-counter:last-child{display:none}
+
+.hud-roster{
+  position:absolute;left:50%;bottom:10px;transform:translateX(-50%);
+  display:flex;gap:4px;pointer-events:auto;width:min(610px,calc(100% - 24px));
+  padding:4px;background:#1c241de8;border:1px solid #5d6650;border-radius:5px;box-shadow:0 3px 12px #0005;
+}
 .hud-squad{position:static;left:auto;bottom:auto;transform:none;flex:1;min-width:0;gap:4px;display:flex}
-.hud-unit{flex:1;min-width:0;width:auto;min-height:50px;padding:5px;display:flex;gap:6px;align-items:center;border-radius:3px;background:#25382b;border:1px solid #40573e;box-shadow:none;outline:none;font-family:system-ui,sans-serif;transition:background .12s,border-color .12s}
-.hud-unit.selected{background:#344832;border:1px solid #e4cb83;outline:none;box-shadow:inset 0 -2px #e4cb83}
-.hud-unit.down{opacity:.65;background:#1f2923}
-.hud-portrait{flex:0 0 32px;width:32px!important;height:32px!important;aspect-ratio:1!important;min-height:0!important;max-height:none!important;object-fit:fill!important;background:#1b2a20;image-rendering:auto!important;border-radius:2px}
-.hud-unit-info{flex:1;min-width:0}
-.hud-name{font:700 10px/1.2 system-ui,sans-serif;color:#f2edda}
-.hud-name em{font:700 9px "Courier New",monospace;color:#e4cb83;margin-right:4px;font-style:normal}
-.hud-health{gap:2px;margin-top:5px}
+.hud-unit{
+  flex:1;min-width:0;width:auto;min-height:52px;padding:5px 6px;
+  display:grid;grid-template-columns:32px 1fr;grid-template-rows:auto auto;gap:3px 6px;align-items:center;
+  border-radius:3px;background:#29352a;border:1px solid #40513f;box-shadow:none;outline:none;
+  font-family:system-ui,sans-serif;text-align:left;
+}
+.hud-unit.selected{background:#374535;border-color:#dfc980;box-shadow:inset 0 -2px #dfc980}
+.hud-unit.down{opacity:.7;background:#342922;border-color:#674a3b}
+.hud-portrait{grid-column:1;grid-row:1/3;width:30px!important;height:30px!important;min-height:0!important;object-fit:fill!important;background:#1b2a20;border:1px solid #8e8a70;border-radius:2px;transform:rotate(-2deg);image-rendering:auto!important}
+.hud-unit-info{display:contents}
+.hud-name{grid-column:2;grid-row:1;font:700 9px/1.15 system-ui,sans-serif;color:#f2edda;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hud-name em{font:700 8px "Courier New",monospace;color:#e4cb83;margin-right:3px;font-style:normal}
+.hud-health{grid-column:2;grid-row:2;display:flex;gap:2px;margin:0}
 .hud-health i{height:4px;flex:1;width:auto;background:#14221a;border-radius:1px}
-.hud-health i.on{background:#c3d2b0}
-.hud-health i.low{background:#d9b274}
-.hud-state{display:block;margin-top:3px;color:#aabd9f;font:600 8px/1 system-ui,sans-serif;letter-spacing:.05em}
-#hudAll{min-height:50px;flex:0 0 50px;padding:5px;border-radius:3px;background:#293b2c;border:1px solid #4e6245;box-shadow:none;font:800 11px system-ui,sans-serif;color:#efe4bd}
-#hudAll span{display:block;font:600 7px system-ui,sans-serif;letter-spacing:.04em;margin-top:5px;color:#b2c0a4}
-#hudAll.selected{background:#44533a;border-color:#e4cb83}
+.hud-health i.on{background:#c6d6b4}
+.hud-health i.low{background:#d5a067}
+.hud-state{display:none}
+#hudAll{min-height:52px;flex:0 0 44px;padding:4px;border-radius:3px;background:#2d3a2e;border:1px solid #4e5c46;box-shadow:none;font:800 9px system-ui,sans-serif;color:#efe4bd}
+#hudAll span{display:block;font:600 6px system-ui,sans-serif;letter-spacing:.03em;margin-top:3px;color:#b2c0a4}
+#hudAll.selected{background:#44533a;border-color:#dfc980}
+
+.hud-notice{
+  position:absolute;left:50%;top:72px;transform:translate(-50%,-6px);
+  max-width:min(520px,70%);padding:6px 10px;border:1px solid #776f54;border-radius:4px;
+  background:#20261fe8;color:#f0e4bd;font:700 11px/1.25 system-ui,sans-serif;
+  opacity:0;transition:opacity .12s,transform .12s;pointer-events:none;
+}
+.hud-notice.show{opacity:1;transform:translate(-50%,0)}
+
 .touch-controls{inset:0}
 .touch-joystick{width:112px;height:112px;right:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));border:1px solid #d6d9b899;background:#192c1d40;box-shadow:inset 0 0 0 10px #75856a12;opacity:.5}
 .touch-joystick.active{opacity:1;background:#263a2780}
@@ -57,85 +101,37 @@ h1{font:800 28px/1 system-ui,sans-serif;letter-spacing:.13em;text-transform:uppe
 #touchFire{width:74px;height:74px;font-size:12px}
 #touchGrenade{width:60px;height:60px;font-size:9px}
 .touch-action.active{transform:scale(.98);background:#607148;border-color:#f5dfa2}
-.loading{inset:0;background:#19251b;color:#e8dfbd;font-family:system-ui,sans-serif;z-index:8}
-.loading strong{font:800 22px system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase}
-.loading span{font:12px system-ui,sans-serif;color:#b8c3ac}
+
 .help{display:flex;flex-wrap:wrap;gap:8px 20px;font:11px/1.5 system-ui,sans-serif;color:#9da996;margin:14px 0 0}
-.help>div{flex:1 1 30%;min-width:220px}
-.help strong{color:#c5cfb9}
+.help>div{flex:1 1 30%;min-width:220px}.help strong{color:#c5cfb9}
 .note{color:#778674;font:10px/1.5 system-ui,sans-serif}
+
 .viewport.full-window #game,.viewport:fullscreen #game{width:100%;height:100%;aspect-ratio:auto;object-fit:fill}
-.viewport.full-window .hud-topline,.viewport:fullscreen .hud-topline{top:calc(10px + env(safe-area-inset-top,0px));left:calc(12px + env(safe-area-inset-left,0px));right:calc(12px + env(safe-area-inset-right,0px))}
+.viewport.full-window .hud-topline,.viewport:fullscreen .hud-topline{
+  top:calc(10px + env(safe-area-inset-top,0px));
+  left:calc(10px + env(safe-area-inset-left,0px));
+  right:calc(10px + env(safe-area-inset-right,0px));
+}
+
 @media(pointer:coarse),(max-width:720px){
-  body{padding:8px}.topbar{margin-bottom:10px}h1{font-size:21px}.subtitle{font-size:9px}.toolbar{display:none}
+  body{padding:8px}.topbar{margin-bottom:8px}h1{font-size:20px}.subtitle{font-size:9px}.toolbar{display:none}
   #game{height:clamp(420px,68svh,640px);aspect-ratio:auto}
-  .hud-topline{inset:10px 10px auto;gap:8px}.hud-mission{width:auto;flex:1;padding:9px 10px;font-size:12px;min-width:0}.hud-kicker{font-size:8px;gap:3px}.hud-mission strong{font-size:8px}.hud-progress{margin-top:8px}
-  .hud-tools{gap:4px}.hud-tools button{min-width:42px;min-height:44px;padding:5px;font-size:9px}.hud-right{gap:5px}.hud-counter{min-width:43px;padding:5px 6px;font-size:7px}.hud-counter b{font-size:15px}
-  .hud-roster{bottom:calc(140px + env(safe-area-inset-bottom,0px));width:min(520px,calc(100% - 20px));padding:4px;gap:4px}
-  .hud-unit{min-height:44px;padding:4px;gap:4px}.hud-portrait{flex-basis:24px;width:24px!important;height:24px!important}.hud-name{font-size:9px}.hud-name em{display:none}.hud-state{font-size:7px}.hud-health{gap:1px}.hud-health i{height:3px}
-  #hudAll{flex-basis:38px;min-height:44px;font-size:9px}#hudAll span{font-size:6px}
+  .hud-topline{inset:7px 7px auto;gap:6px}
+  .hud-mission{width:auto;flex:1;padding:7px 8px;font-size:10px;min-width:0}
+  .hud-kicker{font-size:7px;gap:2px 5px}.hud-mission strong{font-size:7px}.hud-progress{margin-top:5px;height:2px}
+  .hud-tools{gap:3px}.hud-tools button{min-width:39px;min-height:38px;padding:4px;font-size:8px}
+  .hud-right{gap:4px}.hud-counter{min-width:39px;padding:4px;font-size:6px}.hud-counter b{font-size:13px}
+  .hud-roster{bottom:calc(133px + env(safe-area-inset-bottom,0px));width:min(500px,calc(100% - 16px));padding:3px;gap:3px}
+  .hud-unit{min-height:43px;padding:3px;grid-template-columns:22px 1fr;gap:2px 4px}
+  .hud-portrait{width:21px!important;height:21px!important}.hud-name{font-size:8px}.hud-name em{display:none}.hud-health{gap:1px}.hud-health i{height:3px}
+  #hudAll{flex-basis:34px;min-height:43px;font-size:8px}#hudAll span{font-size:5px}
+  .hud-notice{top:60px;max-width:64%;font-size:9px;padding:5px 7px}
   .touch-controls{display:block}.help{font-size:10px}.help>div{flex-basis:45%;min-width:150px}.note{font-size:9px}
 }
 @media(pointer:coarse) and (orientation:landscape){
   #game{height:clamp(300px,78svh,600px)}
-  .hud-roster{bottom:calc(12px + env(safe-area-inset-bottom,0px));width:min(520px,calc(100% - 340px))}
-  .hud-portrait{display:none}.hud-state{display:none}.hud-unit{min-height:42px}.hud-topline{inset:8px 10px auto}.hud-mission{flex:0 1 360px}
-  .touch-joystick{width:100px;height:100px}#touchFire{width:66px;height:66px}#touchGrenade{width:54px;height:54px}
+  .hud-roster{bottom:calc(8px + env(safe-area-inset-bottom,0px));width:min(440px,calc(100% - 330px))}
+  .hud-portrait{display:none}.hud-unit{grid-template-columns:1fr;grid-template-rows:auto auto;min-height:36px}.hud-name{font-size:8px}.hud-health{grid-column:1}.hud-topline{inset:6px 8px auto}
+  .hud-mission{flex:0 1 330px}.touch-joystick{width:100px;height:100px}#touchFire{width:66px;height:66px}#touchGrenade{width:54px;height:54px}
 }
-@media(prefers-reduced-motion:reduce){.touch-gameplay,.touch-joystick,.hud-unit{transition:none}.touch-action.active{transform:none}}
-
-/* Weathered field equipment, inspired by the supplied miniature-town guide. */
-.hud-mission,.hud-counters,.hud-roster,.hud-tools button,.hud-unit,#hudAll{
-  background-color:#444336;
-  background-image:url('assets/painted/panel.webp'),linear-gradient(#595747,#35352c);
-  background-size:240px 240px,100% 100%;background-blend-mode:multiply,normal;
-  border:3px ridge #9d9276;border-radius:11px;
-  box-shadow:inset 0 0 0 2px #272820,inset 0 3px 8px #e2d8ae24,0 3px 6px #0007;
-  color:#eee3b3;text-shadow:0 2px 1px #25241e;
-}
-.hud-mission{font:800 21px/1.25 'Arial Narrow',system-ui,sans-serif;width:min(580px,55%);padding:14px 19px;position:relative}
-.hud-mission::before,.hud-mission::after{content:'';position:absolute;top:8px;width:7px;height:7px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#c3b89e,#514c3e 60%,#25241d);box-shadow:0 1px 2px #0008}
-.hud-mission::before{left:6px}.hud-mission::after{right:6px}
-.hud-kicker{color:#c2ba95}.hud-mission strong{color:#e9d7a0}
-.hud-tools button{min-width:62px;min-height:58px;font-size:14px}
-.hud-counter{min-width:70px;padding:9px 12px;color:#d0c9a5;font-size:9px}
-.hud-counter b{font:800 24px/1.1 'Arial Narrow',system-ui,sans-serif;color:#eee3b3}
-.hud-roster{width:min(720px,calc(100% - 32px));padding:7px;gap:7px}
-.hud-squad{gap:7px}
-.hud-unit{min-height:106px;align-items:center;flex-wrap:wrap;gap:5px;padding:9px;position:relative}
-.hud-unit.selected{background-image:url('assets/painted/panel.webp');background-color:#454b38;background-blend-mode:multiply;border-color:#d5c6a1;box-shadow:inset 0 0 0 2px #2f3229,inset 0 0 18px #c4b47730,0 2px 4px #0006}
-.hud-unit.down{opacity:1;background-color:#5c3e30;background-blend-mode:multiply;border-color:#a86f4b}
-.hud-portrait{flex-basis:46px;width:46px!important;height:46px!important;border:3px solid #b8af94;border-radius:2px;background:#9b9b7a;transform:rotate(-3deg);box-shadow:0 2px 3px #0006}
-.hud-unit-info{min-width:58px}.hud-name{font-size:15px;color:#eee3b3}.hud-name em{display:none}
-.hud-health{gap:3px;margin-top:9px;display:flex}
-.hud-health i{width:10px;height:10px;flex:0 1 10px;border-radius:50%;background:#171914;box-shadow:inset 0 1px 2px #0009}
-.hud-health i.on{background:#e3d6a6;box-shadow:inset 0 1px #fff2c8,0 1px 2px #0009}.hud-health i.low{background:#cd9a67}
-.hud-state{font-size:10px;color:#d8cba2;margin-top:7px}.hud-unit.down .hud-state{color:#e2a077;font-weight:800}
-#hudAll{flex-basis:50px}#hudAll.selected{border-color:#d5c6a1}
-@media(pointer:coarse),(max-width:720px){
- .hud-mission{width:auto;padding:10px 12px;font-size:12px}.hud-tools button{min-width:42px;min-height:44px;font-size:9px}
- .hud-counter{min-width:42px;padding:5px;font-size:7px}.hud-counter b{font-size:17px}
- .hud-roster{width:calc(100% - 20px);gap:3px;padding:4px}.hud-squad{gap:3px}.hud-unit{min-height:86px;padding:5px;gap:4px;justify-content:center}
- .hud-portrait{flex-basis:30px;width:30px!important;height:30px!important;border-width:2px}.hud-unit-info{min-width:0;width:100%;flex:auto}.hud-name{font-size:10px}.hud-health{gap:2px;margin-top:5px;justify-content:center}.hud-health i{width:7px;height:7px;flex-basis:7px}.hud-state{font-size:8px;text-align:center}
- #hudAll{flex-basis:32px;font-size:8px}
-}
-@media(pointer:coarse) and (orientation:landscape){
- .hud-roster{width:min(520px,calc(100% - 340px))}.hud-unit{min-height:44px;padding:4px}.hud-portrait{display:none}.hud-name{font-size:9px}.hud-health i{width:6px;height:6px;flex-basis:6px}
-}
-/* Portrait cards use the reference's name / face / health hierarchy. */
-.hud-unit{display:grid;grid-template-columns:54px 1fr;grid-template-rows:auto 54px auto;gap:6px 7px;text-align:left}
-.hud-unit-info{display:contents}.hud-name{grid-column:1/-1;grid-row:1;font-size:17px}
-.hud-portrait{grid-column:1;grid-row:2;width:52px!important;height:52px!important;align-self:center}
-.hud-state{grid-column:2;grid-row:2;font-size:15px;align-self:center;margin:0}
-.hud-health{grid-column:1/-1;grid-row:3;justify-content:center;margin:2px 0 0}.hud-health i{width:12px;height:12px;flex-basis:12px}
-.hud-unit.down .hud-state{font-size:12px}.hud-unit.down .hud-portrait{filter:sepia(.4) brightness(.72)}
-@media(pointer:coarse),(max-width:720px){
- .hud-unit{grid-template-columns:1fr;grid-template-rows:auto 34px auto auto;gap:5px;padding:6px 3px;text-align:center}
- .hud-name{font-size:10px}.hud-portrait{grid-column:1;grid-row:2;justify-self:center;width:32px!important;height:32px!important}
- .hud-health{grid-column:1;grid-row:3;gap:2px}.hud-health i{width:7px;height:7px;flex-basis:7px}
- .hud-state{grid-column:1;grid-row:4;font-size:9px}.hud-unit.down .hud-state{font-size:9px}
-}
-@media(pointer:coarse) and (orientation:landscape){
- .hud-unit{grid-template-rows:auto auto;gap:3px}.hud-portrait{display:none}.hud-health{grid-row:2}.hud-state{display:none}
-}
-@media(pointer:coarse) and (orientation:landscape){.hud-unit.down .hud-name::after{content:'DOWN';display:block;font-size:7px;margin-top:2px;color:#e2a077}}
+@media(prefers-reduced-motion:reduce){.touch-gameplay,.touch-joystick,.hud-unit,.hud-notice{transition:none}.touch-action.active{transform:none}}
