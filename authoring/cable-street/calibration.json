@@ -1,0 +1,21 @@
+{
+  "id": "cable-street-s01-grid-calibration-v1",
+  "status": "awaiting-control-points",
+  "sourceId": "S01",
+  "masterCrs": "EPSG:27700",
+  "sourceCrop": null,
+  "controls": [],
+  "checkControls": [],
+  "transform": null,
+  "residuals": null,
+  "requirements": {
+    "minimumControls": 3,
+    "wellSeparated": true,
+    "retainIndependentChecks": true,
+    "reportMeasuredError": true
+  },
+  "notes": [
+    "The supplied evidence pack identifies a 1:2500 baseline and recommends retaining the original image-to-grid transform separately from game scale/origin.",
+    "No image-pixel control coordinates are invented here."
+  ]
+}
