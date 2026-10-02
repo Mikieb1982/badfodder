@@ -1,0 +1,140 @@
+{
+  "checkpointDate": "2026-10-02",
+  "accessDate": "2026-10-02",
+  "usageNotice": "Research references only. This register does not grant permission to redistribute source imagery in the game.",
+  "sources": [
+    {
+      "id": "S01",
+      "title": "Cable Street technical report / Groundsure historical mapping",
+      "issuerOrArchive": "Greater London Authority-hosted technical report / Groundsure historical mapping",
+      "url": "https://www.london.gov.uk/sites/default/files/cablestreet-technical.pdf",
+      "inspectedReference": "PDF viewer pages 130, 154 and 345 in the supplied evidence pack",
+      "recordId": "GS-4021732",
+      "reportedGridReference": [
+        534565,
+        180929
+      ],
+      "crs": "EPSG:27700",
+      "reportedScale": "1:2500",
+      "supports": [
+        "measured baseline around Cable Street, Christian Street, Cannon Street Road and railway",
+        "street/building/railway relationships",
+        "near-period massing cross-check via 1937 aerial reproduced in report"
+      ],
+      "limits": [
+        "baseline plan predates the event",
+        "not every yard/passage can be assumed unchanged in 1936",
+        "1955 imagery must not be used as the baseline"
+      ],
+      "verification": {
+        "evidencePack": true,
+        "webCrossCheck": "GLA report availability and a 1:2500 County Series sheet/grid reference were independently confirmed; the exact page-154 date stated in the evidence pack was not independently re-read in this automated pass."
+      }
+    },
+    {
+      "id": "S02",
+      "title": "EPW055344 - Cannon Street Road, Commercial Road East and surrounding residential area, Whitechapel",
+      "issuerOrArchive": "Britain from Above",
+      "url": "https://britainfromabove.org.uk/en/image/EPW055344",
+      "recordId": "EPW055344",
+      "date": "1937-09-08",
+      "catalogueEastingNorthing": [
+        534552,
+        181303
+      ],
+      "supports": [
+        "near-period aerial cross-check of broad massing and alignments"
+      ],
+      "limits": [
+        "oblique photograph is not a plan",
+        "catalogue coordinate is not a barricade control point",
+        "do not derive widths from perspective without rectification"
+      ],
+      "verification": {
+        "evidencePack": true,
+        "webCrossCheck": true
+      }
+    },
+    {
+      "id": "S03",
+      "title": "Lessons 3 & 4 - Sir Philip Game's Report extract",
+      "issuerOrArchive": "Learn About Britain educational resource",
+      "url": "https://learnaboutbritain.uk/cable-street-resources",
+      "recordId": "L3-4 Sir Phillip Game's Report FINAL",
+      "date": "1936 event account reproduced in modern educational material",
+      "supports": [
+        "attempted route through Cable Street toward Cannon Street Road",
+        "police pressure from western approach",
+        "lorry obstruction in the vicinity of Christian Street"
+      ],
+      "limits": [
+        "educational reproduction of selected report text",
+        "no archival call number supplied in inspected reproduction",
+        "locates a vicinity, not a surveyed barricade footprint"
+      ],
+      "verification": {
+        "evidencePack": true,
+        "resourcePageWebCrossCheck": true
+      }
+    },
+    {
+      "id": "S04",
+      "title": "Lessons 3 & 4 - Map of the Day",
+      "issuerOrArchive": "Learn About Britain / credited Cable Street Group publication",
+      "url": "https://learnaboutbritain.uk/cable-street-resources",
+      "recordId": "L3-4 Map of the Day FINAL",
+      "supports": [
+        "event topology and relationship between western approaches and Cable Street"
+      ],
+      "limits": [
+        "schematic reconstruction only",
+        "must not be traced into collision geometry"
+      ],
+      "verification": {
+        "evidencePack": true,
+        "resourcePageWebCrossCheck": true
+      }
+    },
+    {
+      "id": "S05",
+      "title": "View of Lucas Street",
+      "issuerOrArchive": "London Picture Archive",
+      "url": "https://www.londonpicturearchive.org.uk/view-item?i=121058",
+      "recordId": "118830 / SC_PHL_01_392_B6172",
+      "date": "1937",
+      "supports": [
+        "period streetscape proportions/frontages/art reference"
+      ],
+      "limits": [
+        "farther east than the proposed core",
+        "does not establish Christian Street geometry or shop identities"
+      ],
+      "verification": {
+        "evidencePack": true
+      }
+    },
+    {
+      "id": "S06",
+      "title": "Cable Street booklet",
+      "issuerOrArchive": "TUC/SERTUC, Peta Steel",
+      "url": "https://www.tuc.org.uk/sites/default/files/Cable-Street-book.pdf",
+      "date": "2017",
+      "inspectedReference": "PDF pages 11-13 in the supplied evidence pack",
+      "supports": [
+        "secondary context on improvised obstacles and abandonment/diversion of march"
+      ],
+      "limits": [
+        "later narrative, not dimensional evidence",
+        "material varieties remain gameplay choices unless separately supported"
+      ],
+      "verification": {
+        "evidencePack": true
+      }
+    }
+  ],
+  "unresolvedResearch": [
+    "Locate original/archive catalogue reference for Sir Philip Game's report.",
+    "Confirm detailed visual relationship between S02 and the 1937 aerial reproduced in S01 before recording a match.",
+    "Inspect street-level S05 image in detail before using it for the art brief."
+  ]
+}
