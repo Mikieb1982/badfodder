@@ -180,13 +180,40 @@ assert.equal(view.formations.length,1);
 assert(view.civilians.some(p=>p.id==='resident-1'&&p.status==='exited'));
 assert(!view.materials.some(m=>m.id==='timber-1'),'Consumed material remains in render state');
 assert(view.materials.some(m=>m.id==='crates-1'&&!m.carriedBy),'Dropped material is missing from render state');
+assert(view.conflict&&Array.isArray(view.conflict.projectiles)&&Array.isArray(view.conflict.charges),'Conflict render state is missing');
 
-// Contextual permissions come from the historical mission profile.
+// ACTIVE FIGHTBACK: holding the barricade during police dismantling generates
+// repeated improvised attacks and can force the formation into regroup.
+const fightController=Cable.createController({mission});
+fightController.attachNavigation(Navigation.create({
+  worldWidth:fixture.worldWidth,worldHeight:fixture.worldHeight,
+  buildings:fixture.buildings,mapKey:'cable-fightback-fixture',moveEntity,updateFacing
+}));
+const fight=Interactions.create({
+  controller:fightController,runtime:Cable,mission,
+  options:{scale:1,pressureControlled:true,fightPulseSeconds:.05,fightResistancePerPulse:55,crowdResistancePerPulse:0,repelResistance:100,mountedChargeFirstDelay:999}
+});
+fight.initialize({actors:[{id:'player-0',name:'Volunteer',x:160,y:90,active:true}],mapData:fixture.mapData});
+const fightBarricade=fightController.state.barricades.get('B');
+const fightPolice=fightController.state.formations.get('police-1');
+fightController.state.pressureStarted=true;
+fightPolice.state='dismantle';fightPolice.x=210;fightPolice.y=90;fightPolice.damageRate=.1;fightPolice.dismantleSeconds=99;
+assert.equal(fight.hint('player-0'),'FIGHT BACK');
+const fightJob=fight.assignAt('player-0',180,90);
+assert(fightJob&&fightJob.action==='hold');
+fight.fixedUpdate(.11);
+assert.equal(fightPolice.state,'regroup','Player fightback did not repel the police line');
+assert(fightController.state.events.some(e=>e.type==='street-resistance'&&e.source==='player-0'));
+assert(fightController.state.events.some(e=>e.type==='crowd-fightback'&&e.formationId==='police-1'));
+const fightView=fight.renderState();
+assert(fightView.conflict.impacts.length>0||fightView.conflict.projectiles.length>0,'Fightback produced no visible street-conflict effect');
+assert.equal(fightBarricade.breached,false);
+
+// Contextual permissions remain historical: no firearms or grenades are enabled.
 assert.deepEqual(mission.actionProfile.contextualActions,['reinforce','carry','assist','hold','drop']);
 assert.equal(mission.actionProfile.firearms,false);
 assert.equal(mission.actionProfile.grenades,false);
 
-console.log('PASS: synthetic Cable Street slice completes carry, world-space carry, reinforce, drop, assist/rescue and hold jobs.');
-console.log('PASS: active workers reduce police dismantling damage with a bounded mitigation cap.');
-console.log('PASS: police pressure can end through either a breach or a successfully repelled bounded dismantling wave.');
-console.log('PASS: render state exposes visible barricade/material/rescue/formation state without making the synthetic fixture a production map.');
+console.log('PASS: synthetic Cable Street slice completes carry, reinforce, drop, assist/rescue and hold jobs.');
+console.log('PASS: active workers reduce police dismantling damage and active fightback can physically repel a police push.');
+console.log('PASS: conflict render state exposes improvised missiles, impacts and mounted-charge state without enabling firearms.');
