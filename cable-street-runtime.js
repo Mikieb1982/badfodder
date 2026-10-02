@@ -218,6 +218,8 @@
 
     let disposed=false;
     let initialized=false;
+    let navigation=null;
+    const navigationBindings=new Map();
     const state={
       phaseIndex:0,
       pressureStarted:false,
@@ -236,7 +238,15 @@
       if(disposed)throw new Error('Cable Street controller has been disposed.');
     }
 
+    function clearNavigationBindings(){
+      if(navigation){
+        for(const obstacleId of navigationBindings.values())navigation.removeDynamicObstacle(obstacleId);
+      }
+      navigationBindings.clear();
+    }
+
     function clear(){
+      clearNavigationBindings();
       state.phaseIndex=0;
       state.pressureStarted=false;
       state.confidence=.65;
@@ -264,6 +274,98 @@
       for(const formation of seed.formations||[])state.formations.set(formation.id,formation);
       initialized=true;
       return state;
+    }
+
+    function attachNavigation(nav){
+      ensureLive();
+      if(!nav||
+        typeof nav.registerDynamicObstacle!=='function'||
+        typeof nav.updateDynamicObstacle!=='function'||
+        typeof nav.removeDynamicObstacle!=='function'){
+        throw new Error('Cable Street navigation requires dynamic-obstacle support.');
+      }
+      if(navigation===nav)return true;
+      clearNavigationBindings();
+      navigation=nav;
+      return true;
+    }
+
+    function detachNavigation(){
+      ensureLive();
+      clearNavigationBindings();
+      navigation=null;
+      return true;
+    }
+
+    function registerBarricadeGeometry(barricadeId,{points,kind='barricade'}={}){
+      ensureLive();
+      if(!navigation)throw new Error('Cable Street navigation has not been attached.');
+      const barricade=state.barricades.get(barricadeId);
+      if(!barricade)throw new Error('Unknown barricade: '+barricadeId);
+      if(navigationBindings.has(barricadeId))throw new Error('Barricade geometry is already registered: '+barricadeId);
+      const obstacleId='cable-barricade:'+barricadeId;
+      navigation.registerDynamicObstacle({
+        id:obstacleId,
+        kind,
+        points,
+        solid:!barricade.breached
+      });
+      navigationBindings.set(barricadeId,obstacleId);
+      return obstacleId;
+    }
+
+    function updateBarricadeGeometry(barricadeId,{points}={}){
+      ensureLive();
+      if(!navigation)throw new Error('Cable Street navigation has not been attached.');
+      const obstacleId=navigationBindings.get(barricadeId);
+      if(!obstacleId)return false;
+      return navigation.updateDynamicObstacle(obstacleId,{points});
+    }
+
+    function removeBarricadeGeometry(barricadeId){
+      ensureLive();
+      const obstacleId=navigationBindings.get(barricadeId);
+      if(!obstacleId)return false;
+      const removed=navigation?navigation.removeDynamicObstacle(obstacleId):false;
+      navigationBindings.delete(barricadeId);
+      return removed;
+    }
+
+    function syncBarricadeNavigation(barricadeId){
+      if(!navigation)return false;
+      const barricade=state.barricades.get(barricadeId);
+      const obstacleId=navigationBindings.get(barricadeId);
+      if(!barricade||!obstacleId)return false;
+      const obstacle=navigation.getDynamicObstacle(obstacleId);
+      const shouldBlock=!barricade.breached;
+      if(obstacle&&obstacle.solid===shouldBlock)return true;
+      return navigation.updateDynamicObstacle(obstacleId,{solid:shouldBlock});
+    }
+
+    function damageBarricadeById(barricadeId,value){
+      ensureLive();
+      const barricade=state.barricades.get(barricadeId);
+      if(!barricade)return 0;
+      const wasBreached=barricade.breached;
+      const applied=damageBarricade(barricade,value);
+      if(applied>0&&barricade.breached!==wasBreached){
+        syncBarricadeNavigation(barricadeId);
+        state.events.push({type:'barricade-breach-change',barricadeId,breached:barricade.breached});
+      }
+      return applied;
+    }
+
+    function reinforceBarricadeById(barricadeId,value,options){
+      ensureLive();
+      const barricade=state.barricades.get(barricadeId);
+      if(!barricade)return 0;
+      const wasBreached=barricade.breached;
+      const applied=reinforceBarricade(barricade,value,options);
+      if(applied>0&&barricade.breached!==wasBreached){
+        syncBarricadeNavigation(barricadeId);
+        state.events.push({type:'barricade-breach-change',barricadeId,breached:barricade.breached});
+      }
+      return applied;
     }
 
     function cancelActor(actorId,{dropCarried=true}={}){
@@ -347,6 +449,7 @@
       if(disposed)return false;
       if(initialized)[...state.actors.keys()].forEach(id=>cancelActor(id,{dropCarried:true}));
       clear();
+      navigation=null;
       initialized=false;
       disposed=true;
       return true;
@@ -358,6 +461,9 @@
       get initialized(){return initialized},
       get disposed(){return disposed},
       initialize,fixedUpdate,reset,dispose,
+      attachNavigation,detachNavigation,
+      registerBarricadeGeometry,updateBarricadeGeometry,removeBarricadeGeometry,syncBarricadeNavigation,
+      damageBarricadeById,reinforceBarricadeById,
       cancelActor,removeActor,
       reserveForActor,carryForActor,dropForActor,deliverForActor
     };
