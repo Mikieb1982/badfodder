@@ -20,7 +20,7 @@ const formation=Cable.createPoliceFormation({
 Object.assign(formation,{
   x:300,y:90,targetX:210,targetY:90,
   withdrawX:330,withdrawY:90,
-  stopDistance:8,stateTime:0
+  stopDistance:8,stateTime:0,resistance:0,resistanceMax:100
 });
 controller.initialize({
   actors:[{id:'player-0',x:155,y:90,active:true}],
@@ -48,13 +48,12 @@ assert.equal(typeof snap.instruction,'string');
 assert(snap.instruction.length>10,'Cable Street snapshot must explain the next player action');
 assert(snap.guidance&&Number.isFinite(snap.guidance.x)&&Number.isFinite(snap.guidance.y),'Cable Street snapshot must expose an in-world guidance target');
 
-
 // Gathering does not advance just because the player reaches the defence.
 director.fixedUpdate(.01);
 assert.equal(director.snapshot().phaseId,'gathering');
 
 // Material delivery + rescue make the gathering ready, but the player must
-// deliberately take position with a HOLD action after those jobs are done.
+// deliberately take position at the barricade after those jobs are done.
 controller.state.events.push({type:'barricade-reinforced',barricadeId:'B',amount:8});
 controller.state.events.push({type:'civilian-exited',civilianId:'resident-1'});
 director.fixedUpdate(.01);
@@ -62,13 +61,26 @@ snap=director.snapshot();
 assert.equal(snap.materialDeliveries,1);
 assert.equal(snap.rescues,1);
 assert.equal(snap.phaseId,'gathering');
-assert.match(snap.status,/HOLD/i);
+assert.match(snap.status,/position|police push/i);
+assert.match(snap.instruction,/position|ACTION/i);
 
 controller.state.events.push({type:'barricade-held',barricadeId:'B',actorId:'player-0'});
 director.fixedUpdate(.01);
-assert.equal(director.snapshot().phaseId,'hold-approach');
+snap=director.snapshot();
+assert.equal(snap.phaseId,'hold-approach');
 assert.equal(controller.state.pressureStarted,true);
 assert.equal(formation.state,'approach');
+assert.match(snap.instruction,/FIGHT BACK/i);
+assert.equal(snap.resistanceRatio,0);
+
+// Active street resistance is reflected by the director and boosts confidence.
+formation.resistance=45;
+controller.state.events.push({type:'crowd-fightback',formationId:'police-1'});
+director.fixedUpdate(.01);
+snap=director.snapshot();
+assert.equal(snap.fightbackSignals,1);
+assert(Math.abs(snap.resistanceRatio-.45)<1e-9);
+assert(snap.objectives.some(o=>o.id==='hold-main-defence'&&o.done));
 
 // One completed pressure cycle moves the mission into regroup.
 formation.state='regroup';
@@ -83,6 +95,7 @@ assert.equal(director.snapshot().phaseId,'regroup');
 director.fixedUpdate(.1);
 assert.equal(director.snapshot().phaseId,'they-shall-not-pass');
 assert.equal(formation.state,'approach','Final phase should launch renewed pressure');
+assert.equal(formation.resistance,0,'A new police push should reset old resistance');
 
 // A breach pauses the final hold timer rather than awarding progress.
 barricade.integrity=0;
@@ -113,6 +126,6 @@ assert.equal(snap.finalHoldSeconds,.5);
 assert(controller.state.events.some(e=>e.type==='mission-complete'&&e.missionId==='cable-street-1936'));
 assert(snap.confidence>0&&snap.confidence<=1);
 
-console.log('PASS: Cable Street director advances gathering, first pressure, regroup and final hold without military phase rules.');
-console.log('PASS: gathering requires deliberate HOLD after material/rescue tasks, regroup requires a stable intact defence and the final timer pauses on breach.');
+console.log('PASS: Cable Street director advances gathering, police pressure, regroup and final defence without military phase rules.');
+console.log('PASS: player guidance now explicitly calls for fightback and exposes live police-resistance progress.');
 console.log('PASS: final pressure formations recycle after withdrawal and mission completion is emitted only after the configured hold duration.');
