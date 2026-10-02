@@ -11,7 +11,7 @@ window.BadFodderMenu=class{
     this.get('menuMissionWigan').addEventListener('click',()=>actions.selectMission(1));
     this.get('menuControls').addEventListener('click',()=>this.showPanel('controls'));
     this.get('menuOptions').addEventListener('click',()=>this.showPanel('options'));
-    this.screen.querySelectorAll('[data-back]').forEach(b=>b.addEventListener('click',()=>this.showPanel('main')));
+    this.screen.querySelectorAll('[data-back]').forEach(b=>b.addEventListener('click',()=>this.showPanel(b.dataset.backTo||'main')));
     this.get('menuZoom').addEventListener('change',e=>actions.zoom(e.target.value));
     this.get('menuDust').checked=actions.dustEnabled;
     this.get('menuDust').addEventListener('change',e=>actions.dust(e.target.checked));
@@ -68,7 +68,11 @@ window.BadFodderMenu=class{
   keydown(e){
     if(e.repeat&&e.key==='Enter'){e.preventDefault();return;}
     if(e.key==='Escape'){
-      e.preventDefault();e.stopPropagation();if(this.panel!=='main')this.showPanel('main');else if(this.mode==='pause')this.actions.resume();return;
+      e.preventDefault();e.stopPropagation();
+      if(this.panel==='historical-cable')this.showPanel('historical');
+      else if(this.panel!=='main')this.showPanel('main');
+      else if(this.mode==='pause')this.actions.resume();
+      return;
     }
     const buttons=this.buttons(),index=buttons.indexOf(document.activeElement);if(!buttons.length)return;
     if(e.key==='Tab'){
