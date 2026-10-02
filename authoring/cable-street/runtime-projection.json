@@ -1,0 +1,15 @@
+{
+  "id": "cable-street-runtime-projection-v1",
+  "missionId": "cable-street-1936",
+  "status": "awaiting-approved-trace",
+  "masterCrs": "EPSG:27700",
+  "originEastingNorthing": null,
+  "metresToWorldUnits": null,
+  "padding": 32,
+  "northUp": true,
+  "notes": [
+    "Configure this only after the approved trace extent is known.",
+    "Use a north-west origin that bounds the approved trace so projected runtime coordinates remain non-negative.",
+    "This runtime projection is separate from the source-image calibration stored in calibration.json."
+  ]
+}
