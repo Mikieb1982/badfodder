@@ -560,7 +560,7 @@
 <script src="mission-launch.js?v=20261002-cable-foundation-2"></script>
 <script src="historical-missions.js?v=20261002-cable-groundwork-1"></script>
 <script src="cable-street-runtime.js?v=20261002-cable-interactions-4"></script>
-<script src="cable-street-interactions.js?v=20261002-cable-interactions-4"></script>
+<script src="cable-street-interactions.js?v=20261002-cable-pressure-5"></script>
 <script src="cable-street-director.js?v=20261002-cable-director-1"></script>
 <script src="cable-street-crowd.js?v=20261002-cable-crowd-1"></script>
 <script src="cable-street-art.js?v=20261002-cable-urban-2"></script>
@@ -1225,7 +1225,7 @@
         controller:missionController,
         runtime:cableStreetRuntime,
         mission,
-        options:{scale:SCALE}
+        options:{scale:SCALE,pressureControlled:true}
       });
       missionInteractionLayer.initialize({
         actors:squad.map((s,i)=>({id:'player-'+i,name:s.name,x:s.x,y:s.y,active:s.alive})),
