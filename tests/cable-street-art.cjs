@@ -33,6 +33,20 @@ assert.equal(typeof Art.drawVolunteer,'function');
 assert.equal(typeof Art.drawEffects,'function');
 assert.equal(typeof Art.drawAtmosphere,'function');
 assert.equal(typeof Art.drawGuidance,'function');
+const runtimeCtx={
+  save(){},restore(){},translate(){},scale(){},beginPath(){},ellipse(){},fill(){},stroke(){},
+  moveTo(){},lineTo(){},setLineDash(){},fillRect(){},strokeRect(){},closePath(){},arc(){},
+  fillText(){},strokeText(){},roundRect(){},rotate(){},
+  filter:'none',strokeStyle:'',fillStyle:'',lineWidth:1,font:'',textAlign:''
+};
+const fakeArt={
+  animate(ent){ent._animated=true;},
+  drawActor(ctx,ent,team){assert(ctx===runtimeCtx);assert(ent._animated);assert.equal(team,'civilian');}
+};
+assert.doesNotThrow(()=>Art.drawCrowd(runtimeCtx,[{
+  id:'npc-test',x:40,y:50,dir:0,variant:1,role:'civilian'
+}],1,fakeArt),'Cable Street shared NPC rendering must receive its canvas context explicitly');
+
 assert(require('node:fs').readFileSync(require('node:path').join(__dirname,'..','cable-street-art.js'),'utf8').includes("art.drawActor(ctx,ent,team)"),'Cable Street NPCs do not reuse the main character renderer');
 
 console.log('PASS: Cable Street art exposes deterministic East End brick styling and dedicated carriageway-edge / railway drawing.');
