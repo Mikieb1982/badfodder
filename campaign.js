@@ -16,11 +16,9 @@ const missions=[
   {
     id:2,title:'Wigan Town Centre',environment:'wigan-town',map:'wigan',squadSize:4,playable:true,
     phases:[
-      {type:'secure-zone',zone:'wallgate',radius:120,title:'Secure the station gateway',brief:'Secure the Wigan Wallgate and North Western station gateway.'},
-      {type:'secure-zone',zone:'tudor',radius:115,title:'Reach the Tudor',brief:'Follow Market Street to New Market Street. Clear the Tudor frontage and collect supplies.'},
-      {type:'reach',zone:'market',title:'Push through Market Place',brief:'Return to Market Place, between Moon Under Water and John Bull Chophouse.'},
-      {type:'secure-zone',zone:'kingStreet',radius:110,title:'Clear King Street',brief:'Sweep the nightclub street and secure the King Street supply point.'},
-      {type:'eliminate-and-reach',zone:'grandArcade',title:'Secure Grand Arcade',brief:'Clear remaining hostiles and reach the Grand Arcade entrance on Standishgate.'}
+      {type:'secure-zone',zone:'tudor',radius:115,title:'Tudor Breakout',brief:'Start at Tudor House. Secure the New Market Street and bus-station end of town.'},
+      {type:'secure-zone',zone:'grandArcade',radius:120,title:'Town Centre Sweep',brief:'Push through Market Place past Moon Under Water and John Bull Chophouse, then secure Grand Arcade.'},
+      {type:'eliminate-and-reach',zone:'wallgate',title:'Station Run',brief:'Clear the remaining hostiles and reach the Wigan Wallgate and North Western station gateway.'}
     ]
   },
   {
