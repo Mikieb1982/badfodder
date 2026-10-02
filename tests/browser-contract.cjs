@@ -3,6 +3,8 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 const root=path.join(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const css=fs.readFileSync(path.join(root,'game-ui.css'),'utf8');
+const menu=fs.readFileSync(path.join(root,'menu-ui.js'),'utf8');
+const manifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.webmanifest'),'utf8'));
 
 assert(/<meta name="viewport" content="[^"]*viewport-fit=cover/.test(html),'Mobile viewport-fit support missing');
 assert(html.includes('id="touchJoystick"'),'Touch joystick missing');
@@ -35,4 +37,12 @@ assert(css.includes('.viewport.full-window'),'Fullscreen fallback styling missin
 assert(html.includes("requestFullscreen({navigationUI:'hide'})"),'Native fullscreen path missing');
 assert(html.includes("mobile-fullscreen-fallback"),'iOS/browser fullscreen fallback missing');
 
-console.log('PASS: mobile/browser interaction contract covers pinch zoom, fullscreen, firing recovery, interrupted movement and fixed-step simulation.');
+assert(menu.includes("viewport.classList.add('full-window')"),'Mobile load does not immediately fill the screen');
+assert(menu.includes("viewport.requestFullscreen({navigationUI:'hide'})"),'Mobile presentation does not upgrade to native fullscreen');
+assert(menu.includes("orientation.lock('landscape')"),'Landscape orientation lock missing');
+assert(menu.includes("window.addEventListener('pointerdown',retry"),'Native fullscreen is not retried on the first trusted touch');
+assert(menu.includes("link.href='manifest.webmanifest'"),'Fullscreen landscape manifest is not attached');
+assert.equal(manifest.display,'fullscreen','Installed web app must launch fullscreen');
+assert.equal(manifest.orientation,'landscape','Installed web app must launch landscape');
+
+console.log('PASS: mobile/browser contract covers automatic full-window startup, landscape/fullscreen promotion, pinch zoom, input recovery and fixed-step simulation.');
