@@ -745,7 +745,13 @@
     };
   }
 
-  const roads=MAP_DATA.roads.map(r=>{
+  const roadSource=MAP_DATA.key==='cable-street'
+    ?[
+      ...(MAP_DATA.roads||[]),
+      ...(MAP_DATA.railways||[]).map(r=>({...r,kind:'railway'}))
+    ]
+    :(MAP_DATA.roads||[]);
+  const roads=roadSource.map(r=>{
     const points=r.points.map(p=>[S(p[0]),S(p[1])]);
     const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]);
     return{
@@ -755,7 +761,7 @@
     };
   });
 
-  const areas=MAP_DATA.areas.map(a=>{
+  const areas=(MAP_DATA.areas||[]).map(a=>{
     const points=a.points.map(p=>[S(p[0]),S(p[1])]);
     const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]);
     return{
@@ -776,12 +782,16 @@
     const pts=b.points.map(p=>[S(p[0]),S(p[1])]);
     const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
     const seed=hash((i+1)*2654435761);
-    const bb=MAP_DATA.key==='wigan'?null:badBelzigBuildingStyle(seed,b);
+    const bb=MAP_DATA.key==='bad-belzig'
+      ?badBelzigBuildingStyle(seed,b)
+      :MAP_DATA.key==='cable-street'
+        ?cableStreetArt.buildingStyle(seed,b,S)
+        :null;
     return {
       i,name:b.name||'',points:pts,solid:b.solid!==false,landmark:b.landmark||'',levels:b.levels||2,roofShape:b.roofShape||'gable',material:b.material||'stone',detail:wiganDetails&&wiganDetails.buildings.get(b.osmId),
       family:bb?bb.family:'urban',
       minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys),
-      height:MAP_DATA.key==='wigan'?S(4+(b.levels||2)*5):bb.height,
+      height:MAP_DATA.key==='wigan'?S(4+(b.levels||2)*5):(bb?bb.height:S(10)),
       wall:bb?bb.wall:WALLS[Math.floor(unit(seed,2)*WALLS.length)],
       roof:bb?bb.roof:ROOFS[Math.floor(unit(seed,3)*ROOFS.length)],
       door:bb?bb.door:DOORS[Math.floor(unit(seed,4)*DOORS.length)],
@@ -797,7 +807,7 @@
     :null;
 
   const poi={};
-  Object.keys(MAP_DATA.pois).forEach(k=>{
+  Object.keys(MAP_DATA.pois||{}).forEach(k=>{
     const p=MAP_DATA.pois[k];
     poi[k]={x:S(p.x),y:S(p.y)};
   });
@@ -2297,6 +2307,10 @@
 
   function drawRoad(r){
     if(r.points.length<2||!intersectsSceneryBounds(r,S(24)))return;
+    if(MAP_DATA.key==='cable-street'){
+      cableStreetArt.drawRoad(ctx,r,S,art);
+      return;
+    }
     if(r.kind==='railway'&&MAP_DATA.key!=='wigan'){
       ctx.lineCap='round';ctx.lineJoin='round';
       ctx.beginPath();ctx.moveTo(r.points[0][0],r.points[0][1]);
@@ -2429,7 +2443,7 @@
 
 
   function drawLandmarks(){
-    if(MAP_DATA.key==='wigan')return;
+    if(MAP_DATA.key!=='bad-belzig')return;
     landmarkImage('castle',poi.castle.x,poi.castle.y+S(45),S(145),S(95));
     landmarkImage('butter',S(325),S(1147),S(52),S(88));
     landmarkImage('rathaus',poi.market.x,poi.market.y+S(35),S(118),S(98));
@@ -2475,12 +2489,14 @@
 
   function drawTerrain(){
     const bounds=sceneryBounds;
-    ctx.fillStyle=art.texture(ctx,MAP_DATA.key==='wigan'?'urban-paving':'grass');
+    ctx.fillStyle=art.texture(ctx,(MAP_DATA.key==='wigan'||MAP_DATA.key==='cable-street')?'urban-paving':'grass');
     if(bounds)ctx.fillRect(bounds.x,bounds.y,bounds.w,bounds.h);
     else ctx.fillRect(0,0,WORLD_W,WORLD_H);
     areas.forEach(a=>{
       if(!intersectsSceneryBounds(a,S(10)))return;
-      polygon(a.points,art.texture(ctx,MAP_DATA.key==='wigan'?({paving:'urban-paving',asphalt:'urban-asphalt',railbed:'urban-asphalt'}[a.type]||a.type):a.type));
+      polygon(a.points,art.texture(ctx,(MAP_DATA.key==='wigan'||MAP_DATA.key==='cable-street')
+        ?({paving:'urban-paving',asphalt:'urban-asphalt',railbed:'urban-asphalt'}[a.type]||a.type)
+        :a.type));
     });
   }
 
@@ -2588,7 +2604,7 @@
         console.error('Scenery tile rendering failed; using a lightweight fallback tile.',{x,y,w,h,err});
         const g=tile.getContext('2d',{alpha:false});
         if(g){
-          g.fillStyle=MAP_DATA.key==='wigan'?'#77796b':'#79864f';
+          g.fillStyle=(MAP_DATA.key==='wigan'||MAP_DATA.key==='cable-street')?'#77796b':'#79864f';
           g.fillRect(0,0,w,h);
           g.strokeStyle='rgba(255,255,255,.035)';g.lineWidth=1;
           for(let px=0;px<w;px+=64){g.beginPath();g.moveTo(px,0);g.lineTo(px,h);g.stroke()}
