@@ -154,7 +154,7 @@ function centroid(points){
 
 function projectRuntimeObjects(record,projector){
   const empty={barricades:[],materials:[],civilians:[],formations:[]};
-  if(!record||record.status!=='ready')return{ready:false,objects:empty};
+  if(!record||record.status!=='ready')return{ready:false,objects:empty,squadSpawns:[],routeRequirements:[]};
   if(record.crs!==projector.metadata.masterCrs)throw new Error('Runtime object CRS does not match the Cable Street runtime projection.');
   const source=record.objects||{};
   for(const key of Object.keys(empty)){
@@ -249,7 +249,28 @@ function projectRuntimeObjects(record,projector){
     };
   });
 
+  const squadSpawns=(Array.isArray(record.squadSpawns)?record.squadSpawns:[]).map((value,index)=>{
+    const p=position(value,'Squad spawn '+(index+1));
+    return[p.x,p.y];
+  });
+
+  const routeRequirements=(Array.isArray(record.routeRequirements)?record.routeRequirements:[]).map((req,index)=>{
+    if(!req||!nonEmptyString(req.id))throw new Error('Route requirement '+(index+1)+' requires a stable id.');
+    const from=position(req.from,req.id+' from');
+    const to=position(req.to,req.id+' to');
+    const expect=req.expect==='blocked'?'blocked':'reachable';
+    return{
+      id:req.id,
+      phase:req.phase||null,
+      side:req.side||null,
+      expect,
+      from:{x:from.x,y:from.y},
+      to:{x:to.x,y:to.y}
+    };
+  });
+
   const req=record.requirements||{};
+  if(Number.isInteger(req.squadSpawns)&&squadSpawns.length<req.squadSpawns)throw new Error('SLICE-02 requires more authored squad spawns.');
   if(Number.isInteger(req.mainBarricades)&&barricades.length<req.mainBarricades)throw new Error('SLICE-02 requires more authored barricades.');
   if(Array.isArray(req.materialTypes)){
     const types=new Set(materials.map(x=>x.type));
@@ -258,7 +279,12 @@ function projectRuntimeObjects(record,projector){
   if(Number.isInteger(req.rescueInteractions)&&civilians.length<req.rescueInteractions)throw new Error('SLICE-02 requires more rescue interactions.');
   if(Number.isInteger(req.policeFormations)&&formations.length<req.policeFormations)throw new Error('SLICE-02 requires more police formations.');
 
-  return{ready:true,objects:{barricades,materials,civilians,formations}};
+  return{
+    ready:true,
+    objects:{barricades,materials,civilians,formations},
+    squadSpawns,
+    routeRequirements
+  };
 }
 
 function compileAuthoring({trace,schema,projection,eventOverlay=null,runtimeObjects=null,mapKey='cable-street',gates=null}={}){
@@ -322,16 +348,41 @@ function compileAuthoring({trace,schema,projection,eventOverlay=null,runtimeObje
       if(Number.isFinite(item.withdrawX)&&Number.isFinite(item.withdrawY))allProjected.push([item.withdrawX,item.withdrawY]);
     }
   }
+  allProjected.push(...runtime.squadSpawns);
+  for(const req of runtime.routeRequirements){
+    allProjected.push([req.from.x,req.from.y],[req.to.x,req.to.y]);
+  }
 
   const maxX=Math.max(...allProjected.map(p=>p[0]));
   const maxY=Math.max(...allProjected.map(p=>p[1]));
   const padding=projector.metadata.padding;
+  const eventZones=[...tracedEventZones,...overlayEventZones];
+  const zones={};
+  for(const zone of eventZones){
+    const centre=centroid(zone.points);
+    if(!centre)continue;
+    const radius=Math.max(12,...zone.points.map(p=>Math.hypot(p[0]-centre.x,p[1]-centre.y)));
+    zones[zone.id]={x:centre.x,y:centre.y,r:round(radius),kind:zone.kind||zone.role||'event-zone'};
+  }
+
   return{
     key:mapKey,
+    title:'Cable Street',
     width:Math.max(1,Math.ceil(maxX+padding)+1),
     height:Math.max(1,Math.ceil(maxY+padding)+1),
     buildings,roads,railways,
-    eventZones:[...tracedEventZones,...overlayEventZones],
+    areas:[],
+    pois:{},
+    zones,
+    vegetation:[],
+    spawns:{
+      squad:runtime.squadSpawns,
+      enemies:[],
+      civilians:[],
+      pickups:[]
+    },
+    routeRequirements:runtime.routeRequirements,
+    eventZones,
     gameplayAdjustments,
     historicalObjects:runtime.objects,
     projection:projector.metadata,
