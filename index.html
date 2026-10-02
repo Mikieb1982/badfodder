@@ -428,6 +428,7 @@
           <nav class="menu-actions" aria-label="Game menu">
             <button id="menuStart" class="menu-button primary" type="button" disabled>PREPARING CAMPAIGN…</button>
             <button id="menuMissionSelect" class="menu-button" type="button">MISSION SELECT</button>
+            <button id="menuHistorical" class="menu-button" type="button">HISTORICAL MISSIONS</button>
             <button id="menuResume" class="menu-button primary" type="button" hidden>RESUME</button>
             <button id="menuRestart" class="menu-button" type="button" hidden>RESTART MISSION</button>
             <button id="menuControls" class="menu-button" type="button">CONTROLS</button>
@@ -443,6 +444,31 @@
             <button id="menuMissionBad" class="menu-button" type="button"><span>MISSION 01</span>BAD BELZIG</button>
             <button id="menuMissionWigan" class="menu-button" type="button"><span>MISSION 02</span>WIGAN TOWN CENTRE</button>
           </div>
+          <button class="menu-button" data-back type="button">BACK</button>
+        </div>
+        <div class="menu-panel menu-card" data-view="historical" hidden>
+          <h2>HISTORICAL MISSIONS</h2>
+          <p class="menu-copy">Separate historical scenarios. These do not alter campaign progress.</p>
+          <div class="menu-mission-list">
+            <button id="menuHistoricalCable" class="menu-button" type="button">
+              <span>SPECIAL MISSION · GROUNDWORK</span>
+              CABLE STREET
+            </button>
+          </div>
+          <button class="menu-button" data-back type="button">BACK</button>
+        </div>
+        <div class="menu-panel menu-card menu-historical-card" data-view="historical-cable" hidden>
+          <h2>CABLE STREET</h2>
+          <p class="menu-historical-date">LONDON · 4 OCTOBER 1936</p>
+          <p class="menu-historical-status">GROUNDWORK · MAP RECONSTRUCTION PENDING</p>
+          <p class="menu-copy">A separate historical mission built around maintaining obstructions, assisting residents, carrying materials and managing withdrawal rather than a standard military firefight.</p>
+          <ol class="menu-phase-list">
+            <li><strong>Gathering</strong><span>Inspect the defence, deliver material and assist a resident.</span></li>
+            <li><strong>Hold the approach</strong><span>Maintain the forward obstruction while the principal defence is prepared.</span></li>
+            <li><strong>Regroup</strong><span>Fall back, assist civilians and restore support access.</span></li>
+            <li><strong>They Shall Not Pass</strong><span>Keep the final route blocked until the hold is complete.</span></li>
+          </ol>
+          <p class="menu-copy">The mechanics framework is now in development. Playable street geometry will only be added after the period map has been verified.</p>
           <button class="menu-button" data-back type="button">BACK</button>
         </div>
         <div class="menu-panel menu-card" data-view="controls" hidden>
@@ -526,6 +552,8 @@
 <script src="mission-rules.js"></script>
 <script src="campaign.js"></script>
 <script src="mission-launch.js?v=20261002-mission-select-2"></script>
+<script src="historical-missions.js?v=20261002-cable-groundwork-1"></script>
+<script src="cable-street-runtime.js?v=20261002-cable-groundwork-1"></script>
 <script>
 (() => {
   'use strict';
@@ -543,6 +571,8 @@
   const combatGeometry=BadFodderCombatGeometry;
   const missionRules=BadFodderMissionRules;
   const campaign=BadFodderCampaign;
+  const historicalMissions=BadFodderHistoricalMissions;
+  const cableStreetRuntime=BadFodderCableStreet;
   const missionLaunch=BadFodderMissionLaunch.create({storage:sessionStorage,missions:campaign.missions,campaign});
   const activeMissionIndex=missionLaunch.currentIndex();
   const initialMission=campaign.mission(activeMissionIndex);
