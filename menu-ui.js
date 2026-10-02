@@ -5,6 +5,8 @@ window.BadFodderMenu=class{
     this.get=id=>this.screen.querySelector('#'+id);
     for(const [id,action] of [['menuStart','start'],['menuResume','resume'],['menuRestart','restart'],['menuMain','main']])this.get(id).addEventListener('click',()=>actions[action]());
     this.get('menuMissionSelect').addEventListener('click',()=>this.showPanel('missions'));
+    this.get('menuHistorical').addEventListener('click',()=>this.showPanel('historical'));
+    this.get('menuHistoricalCable').addEventListener('click',()=>this.showPanel('historical-cable'));
     this.get('menuMissionBad').addEventListener('click',()=>actions.selectMission(0));
     this.get('menuMissionWigan').addEventListener('click',()=>actions.selectMission(1));
     this.get('menuControls').addEventListener('click',()=>this.showPanel('controls'));
@@ -22,7 +24,7 @@ window.BadFodderMenu=class{
     this.screen.setAttribute('aria-label',mode==='pause'?'Mission paused':'Bad Fodder main menu');
     const badge=this.get('menuBadge');badge.hidden=mode!=='pause';badge.textContent=mode==='pause'?'MISSION PAUSED':'';
     for(const id of ['menuResume','menuRestart','menuMain'])this.get(id).hidden=mode!=='pause';
-    for(const id of ['menuStart','menuMissionSelect'])this.get(id).hidden=mode!=='title';
+    for(const id of ['menuStart','menuMissionSelect','menuHistorical'])this.get(id).hidden=mode!=='title';
     this.showPanel('main');
   }
   close(){this.screen.hidden=true;this.root.classList.remove('menu-open');}
@@ -33,7 +35,7 @@ window.BadFodderMenu=class{
     this.get('menuResume').hidden=true;
     this.get('menuRestart').hidden=false;this.get('menuRestart').textContent='RESTART MISSION';
     this.get('menuMain').hidden=false;
-    this.get('menuStart').hidden=true;this.get('menuMissionSelect').hidden=true;
+    this.get('menuStart').hidden=true;this.get('menuMissionSelect').hidden=true;this.get('menuHistorical').hidden=true;
     this.showPanel('main');
     this.get('menuHelp').textContent=message;
     this.get('menuRestart').focus({preventScroll:true});
