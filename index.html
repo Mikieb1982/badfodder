@@ -427,7 +427,7 @@
         <div class="menu-panel" data-view="main">
           <nav class="menu-actions" aria-label="Game menu">
             <button id="menuStart" class="menu-button primary" type="button" disabled>PREPARING CAMPAIGN…</button>
-            <button id="menuMissionSelect" class="menu-button" type="button" disabled>MISSION SELECT</button>
+            <button id="menuMissionSelect" class="menu-button" type="button">MISSION SELECT</button>
             <button id="menuResume" class="menu-button primary" type="button" hidden>RESUME</button>
             <button id="menuRestart" class="menu-button" type="button" hidden>RESTART MISSION</button>
             <button id="menuControls" class="menu-button" type="button">CONTROLS</button>
@@ -440,8 +440,8 @@
           <h2>MISSION SELECT</h2>
           <p class="menu-copy">Choose a standalone mission. This does not change campaign progress.</p>
           <div class="menu-mission-list">
-            <button id="menuMissionBad" class="menu-button" type="button" disabled><span>MISSION 01</span>BAD BELZIG</button>
-            <button id="menuMissionWigan" class="menu-button" type="button" disabled><span>MISSION 02</span>WIGAN TOWN CENTRE</button>
+            <button id="menuMissionBad" class="menu-button" type="button"><span>MISSION 01</span>BAD BELZIG</button>
+            <button id="menuMissionWigan" class="menu-button" type="button"><span>MISSION 02</span>WIGAN TOWN CENTRE</button>
           </div>
           <button class="menu-button" data-back type="button">BACK</button>
         </div>
@@ -876,7 +876,7 @@
   function startStandaloneMission(index){
     const selected=campaign.missions[index];
     if(!selected||!selected.playable)return;
-    if(missionLaunch.isSelection()&&activeMissionIndex===index){
+    if(missionLaunch.isSelection()&&activeMissionIndex===index&&started){
       beginMission();
       return;
     }
