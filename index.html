@@ -504,8 +504,8 @@
             <button id="touchPause" type="button" aria-label="Pause game">II</button>
           </div>
           <div class="hud-counters">
-            <div class="hud-counter"><b id="hudEnemies">20</b><span>TARGETS</span></div>
-            <div class="hud-counter"><b id="hudGrenades">5</b><span>GRENADES</span></div>
+            <div class="hud-counter"><b id="hudEnemies">20</b><span id="hudEnemyLabel">TARGETS</span></div>
+            <div class="hud-counter"><b id="hudGrenades">5</b><span id="hudGrenadeLabel">GRENADES</span></div>
             <div class="hud-counter"><b id="hudSquad">4</b><span>SQUAD</span></div>
           </div>
         </div>
@@ -638,7 +638,9 @@
   const hudCampaign=document.getElementById('hudCampaign');
   const hudStage=document.getElementById('hudStage');
   const hudEnemies=document.getElementById('hudEnemies');
+  const hudEnemyLabel=document.getElementById('hudEnemyLabel');
   const hudGrenades=document.getElementById('hudGrenades');
+  const hudGrenadeLabel=document.getElementById('hudGrenadeLabel');
   const hudSquad=document.getElementById('hudSquad');
   const hudSquadBar=document.getElementById('hudSquadBar');
   const hudAll=document.getElementById('hudAll');
@@ -1405,15 +1407,16 @@
       hudProgress.querySelectorAll('i').forEach((p,i)=>{
         p.className=i<missionStage?'done':i===missionStage?'current':'';
       });
-      hudStage.textContent='OBJECTIVE '+Math.min(phaseCount,missionStage+1)+'/'+phaseCount;
-      hudEnemies.textContent=String(
-        missionController
-          ?[...missionController.state.formations.values()].filter(f=>f.state!=='withdraw').length
-          :0
-      );
+      hudStage.textContent='PHASE '+Math.min(phaseCount,missionStage+1)+'/'+phaseCount;
+      hudEnemyLabel.textContent='DEFENCE';
+      hudGrenadeLabel.textContent='CONFIDENCE';
+      hudEnemies.textContent=Math.round(historicalProgress.barricadeRatio*100)+'%';
+      hudGrenades.textContent=Math.round(historicalProgress.confidence*100)+'%';
       setStatus(historicalProgress.status);
       return;
     }
+    hudEnemyLabel.textContent='TARGETS';
+    hudGrenadeLabel.textContent='GRENADES';
 
     const phase=phases[missionStage];
     if(!phase)return;
