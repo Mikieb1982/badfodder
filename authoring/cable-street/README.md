@@ -28,6 +28,7 @@ It is intentionally **not** a production game map yet.
 - `historical-review.json` - contradiction/anachronism review.
 - `uncertainty-log.json` - feature/navigation/provenance uncertainty with explicit blocking status.
 - `runtime-projection.json` - separate EPSG:27700-to-runtime projection used only after the trace is approved.
+- `runtime-objects.json` - SLICE-02 barricade, material, rescue and police placements; deliberately empty until the map is approved.
 
 ## Calibration workflow
 
@@ -118,3 +119,16 @@ npm run cable:compile-map
 ```
 
 It is expected to fail against the current authoring package. That failure is intentional until MAP-01 through MAP-06 and the separate runtime projection are ready.
+
+## SLICE-02 object placement
+
+`runtime-objects.json` is the handoff from the approved historical map into the interaction runtime. Production positions stay in EPSG:27700 and are projected by the same runtime projection as the street geometry.
+
+The first playable slice requires:
+
+- 1 main barricade;
+- timber, crates and furniture material loads;
+- 1 rescue interaction;
+- 1 police formation.
+
+Keep `status:"awaiting-approved-map"` and all object arrays empty until the production map gates are approved. Synthetic fixture coordinates must never be copied into this file. When the placement record is eventually set to `status:"ready"`, the compiler validates object IDs, supported material types, barricade references and required counts before emitting `historicalObjects` for `cable-street-interactions.js`.
