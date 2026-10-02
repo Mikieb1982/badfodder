@@ -26,6 +26,18 @@ window.BadFodderMenu=class{
     this.showPanel('main');
   }
   close(){this.screen.hidden=true;this.root.classList.remove('menu-open');}
+  showRecovery(message='A runtime error was caught. Restart the mission.'){
+    this.mode='recovery';this.screen.hidden=false;this.screen.dataset.mode='recovery';this.root.classList.add('menu-open');
+    this.screen.setAttribute('aria-label','Runtime recovery');
+    const badge=this.get('menuBadge');badge.hidden=false;badge.textContent='RUNTIME RECOVERY';
+    this.get('menuResume').hidden=true;
+    this.get('menuRestart').hidden=false;this.get('menuRestart').textContent='RESTART MISSION';
+    this.get('menuMain').hidden=false;
+    this.get('menuStart').hidden=true;this.get('menuMissionSelect').hidden=true;
+    this.showPanel('main');
+    this.get('menuHelp').textContent=message;
+    this.get('menuRestart').focus({preventScroll:true});
+  }
   showPanel(panel){
     this.panel=panel;this.screen.dataset.panel=panel;this.screen.scrollTop=0;
     this.screen.querySelectorAll('[data-view]').forEach(p=>p.hidden=p.dataset.view!==panel);
