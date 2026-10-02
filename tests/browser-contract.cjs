@@ -4,6 +4,7 @@ const root=path.join(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const css=fs.readFileSync(path.join(root,'game-ui.css'),'utf8');
 const menu=fs.readFileSync(path.join(root,'menu-ui.js'),'utf8');
+const menuCss=fs.readFileSync(path.join(root,'menu-ui.css'),'utf8');
 const manifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.webmanifest'),'utf8'));
 
 assert(/<meta name="viewport" content="[^"]*viewport-fit=cover/.test(html),'Mobile viewport-fit support missing');
@@ -37,12 +38,18 @@ assert(css.includes('.viewport.full-window'),'Fullscreen fallback styling missin
 assert(html.includes("requestFullscreen({navigationUI:'hide'})"),'Native fullscreen path missing');
 assert(html.includes("mobile-fullscreen-fallback"),'iOS/browser fullscreen fallback missing');
 
-assert(menu.includes("viewport.classList.add('full-window')"),'Mobile load does not immediately fill the screen');
-assert(menu.includes("viewport.requestFullscreen({navigationUI:'hide'})"),'Mobile presentation does not upgrade to native fullscreen');
+assert(menu.includes('FULL SCREEN + LANDSCAPE?'),'Mobile startup prompt is missing');
+assert(menu.includes('GO FULL SCREEN'),'Startup prompt has no explicit fullscreen action');
+assert(menu.includes('NOT NOW'),'Startup prompt cannot be dismissed');
+assert(menu.includes("if(!actions.isFullscreen())await actions.fullscreen()"),'Fullscreen request is not tied to the explicit user choice');
 assert(menu.includes("orientation.lock('landscape')"),'Landscape orientation lock missing');
-assert(menu.includes("window.addEventListener('pointerdown',retry"),'Native fullscreen is not retried on the first trusted touch');
-assert(menu.includes("link.href='manifest.webmanifest'"),'Fullscreen landscape manifest is not attached');
-assert.equal(manifest.display,'fullscreen','Installed web app must launch fullscreen');
-assert.equal(manifest.orientation,'landscape','Installed web app must launch landscape');
+assert(menu.includes('orientation.unlock()'),'Landscape orientation is not released when the user exits fullscreen');
+assert(menu.includes('setTimeout(()=>this.mobilePresentation?.prompt(),0)'),'Startup prompt is not shown when the menu initializes');
+assert(!menu.includes("window.addEventListener('pointerdown',retry"),'Fullscreen must not hijack the first unrelated touch');
+assert(!menu.includes('Fill the mobile viewport immediately'),'Mobile presentation must not auto-enter fullscreen before consent');
+assert(menuCss.includes('.presentation-prompt'),'Fullscreen choice prompt is not styled');
+assert(menu.includes("link.href='manifest.webmanifest'"),'Web app manifest is not attached');
+assert.equal(manifest.display,'standalone','Installed web app must wait for the in-game fullscreen choice');
+assert.equal(manifest.orientation,'any','Installed web app must not force landscape before the player agrees');
 
-console.log('PASS: mobile/browser contract covers automatic full-window startup, landscape/fullscreen promotion, pinch zoom, input recovery and fixed-step simulation.');
+console.log('PASS: mobile/browser contract asks before fullscreen landscape, preserves the chosen mode until changed, and covers pinch zoom, input recovery and fixed-step simulation.');
