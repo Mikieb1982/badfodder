@@ -315,7 +315,12 @@ function compileAuthoring({trace,schema,projection,eventOverlay=null,runtimeObje
       if(layer==='building-envelope'){
         buildings.push({...item,...bounds(item.points),solid:true,name:item.label||''});
       }else if(layer==='carriageway-edge'){
-        roads.push({...item,name:item.label||'',roadKind:'historical-carriageway-edge'});
+        roads.push({
+          ...item,
+          featureKind:item.kind,
+          kind:'historical-carriageway-edge',
+          name:item.label||''
+        });
       }else if(layer==='railway'){
         railways.push(item);
       }else if(layer==='event-zone'){
