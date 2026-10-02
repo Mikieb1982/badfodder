@@ -1,4 +1,4 @@
-/* Procedural combat sound effects: no external audio assets required. */
+/* Procedural combat and Cable Street action sound effects: no external SFX assets required. */
 (function(){
 'use strict';
 
@@ -15,6 +15,9 @@ let compressor=null;
 let noiseBuffer=null;
 let lastSquadShot=0;
 let lastEnemyShot=0;
+let lastScuffle=0;
+let lastCrowd=0;
+let lastMounted=0;
 
 const button=document.getElementById('menuSfx');
 
@@ -90,16 +93,19 @@ function noiseBurst({volume=.12,duration=.08,filter='bandpass',frequency=1000,q=
   src.stop(env.end+.03);
 }
 
-function tone({type='square',from=220,to=90,volume=.08,duration=.07}={}){
+function tone({type='square',from=220,to=90,volume=.08,duration=.07,delay=0}={}){
   const audio=ready();if(!audio)return;
-  const env=gainEnvelope(audio,volume,.001,.006,Math.max(.015,duration-.007));
+  const gain=audio.createGain();
+  const start=audio.currentTime+Math.max(0,delay),end=start+duration;
+  gain.gain.setValueAtTime(.0001,start);
+  gain.gain.exponentialRampToValueAtTime(Math.max(.0001,volume),start+.002);
+  gain.gain.exponentialRampToValueAtTime(.0001,end);
+  gain.connect(master);
   const osc=audio.createOscillator();
   osc.type=type;
-  osc.frequency.setValueAtTime(Math.max(20,from),env.now);
-  osc.frequency.exponentialRampToValueAtTime(Math.max(20,to),env.now+duration);
-  osc.connect(env.gain);
-  osc.start(env.now);
-  osc.stop(env.end+.02);
+  osc.frequency.setValueAtTime(Math.max(20,from),start);
+  osc.frequency.exponentialRampToValueAtTime(Math.max(20,to),end);
+  osc.connect(gain);osc.start(start);osc.stop(end+.02);
 }
 
 function shoot(owner='squad'){
@@ -114,20 +120,8 @@ function shoot(owner='squad'){
   }
 
   const player=owner==='squad';
-  noiseBurst({
-    volume:player?.16:.095,
-    duration:player?.065:.055,
-    filter:'bandpass',
-    frequency:player?1450:1120,
-    q:.55
-  });
-  tone({
-    type:'square',
-    from:player?235:195,
-    to:player?78:68,
-    volume:player?.085:.055,
-    duration:.055
-  });
+  noiseBurst({volume:player?.16:.095,duration:player?.065:.055,filter:'bandpass',frequency:player?1450:1120,q:.55});
+  tone({type:'square',from:player?235:195,to:player?78:68,volume:player?.085:.055,duration:.055});
 }
 
 function grenadeThrow(){
@@ -147,20 +141,47 @@ function death(team='enemy'){
   if(!ready())return;
   const squadDeath=team==='squad';
   const variance=.9+Math.random()*.2;
+  noiseBurst({volume:squadDeath?.105:.075,duration:.22,filter:'bandpass',frequency:390*variance,q:1.25});
+  tone({type:'sawtooth',from:(squadDeath?175:195)*variance,to:(squadDeath?72:88)*variance,volume:squadDeath?.075:.05,duration:.24});
+}
 
-  noiseBurst({
-    volume:squadDeath?.105:.075,
-    duration:.22,
-    filter:'bandpass',
-    frequency:390*variance,
-    q:1.25
-  });
-  tone({
-    type:'sawtooth',
-    from:(squadDeath?175:195)*variance,
-    to:(squadDeath?72:88)*variance,
-    volume:squadDeath?.075:.05,
-    duration:.24
+// Short, non-firearm impacts for the Cable Street street fighting.
+function scuffle(kind='shove'){
+  if(!ready())return;
+  const now=performance.now();
+  if(now-lastScuffle<105)return;
+  lastScuffle=now;
+  if(kind==='brick'){
+    noiseBurst({volume:.11,duration:.055,filter:'bandpass',frequency:1350,q:.7});
+    tone({type:'triangle',from:310,to:135,volume:.035,duration:.05});
+  }else if(kind==='stick'){
+    noiseBurst({volume:.085,duration:.045,filter:'highpass',frequency:1700,q:.6});
+    tone({type:'square',from:250,to:115,volume:.03,duration:.045});
+  }else{
+    noiseBurst({volume:.12,duration:.075,filter:'lowpass',frequency:720,q:.4});
+    tone({type:'sine',from:115,to:62,volume:.055,duration:.075});
+  }
+}
+
+function crowdSurge(){
+  if(!ready())return;
+  const now=performance.now();
+  if(now-lastCrowd<900)return;
+  lastCrowd=now;
+  noiseBurst({volume:.075,duration:.48,filter:'bandpass',frequency:520,q:.32});
+  noiseBurst({volume:.045,duration:.36,filter:'bandpass',frequency:920,q:.45});
+  tone({type:'triangle',from:150,to:105,volume:.022,duration:.34});
+}
+
+function mountedCharge(){
+  if(!ready())return;
+  const now=performance.now();
+  if(now-lastMounted<1800)return;
+  lastMounted=now;
+  // Four uneven hoof beats and a low rush. This is deliberately distinct from gunfire.
+  noiseBurst({volume:.12,duration:.42,filter:'lowpass',frequency:430,q:.25});
+  [0,.105,.245,.35].forEach((delay,i)=>{
+    tone({type:'sine',from:92+(i%2)*18,to:46,volume:.075,duration:.075,delay});
   });
 }
 
@@ -177,14 +198,8 @@ function setEnabled(on){
   render();
 }
 
-function toggle(){
-  setEnabled(!enabled);
-}
-
-function arm(event){
-  if(event&&event.target===button)return;
-  unlock();
-}
+function toggle(){setEnabled(!enabled)}
+function arm(event){if(event&&event.target===button)return;unlock()}
 
 addEventListener('pointerdown',arm,{passive:true});
 addEventListener('touchstart',arm,{passive:true});
@@ -192,13 +207,9 @@ addEventListener('keydown',arm);
 if(button)button.addEventListener('click',toggle);
 
 window.BadFodderSfx={
-  unlock,
-  shoot,
-  grenadeThrow,
-  explosion,
-  death,
-  toggle,
-  setEnabled,
+  unlock,shoot,grenadeThrow,explosion,death,
+  scuffle,crowdSurge,mountedCharge,
+  toggle,setEnabled,
   get enabled(){return enabled}
 };
 
