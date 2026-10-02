@@ -236,15 +236,21 @@ window.BadFodderArt = (() => {
     ctx.restore();
   }
   function pickup(ctx,p){
-    const x=p.x,y=p.y;
+    const x=p.x,y=p.y,isGrenade=p.type==='grenade';
     ctx.save();ellipse(ctx,x+1,y+11,15,3,'#30463333');
-    rounded(ctx,x-13,y-12,26,23,3,p.type==='ammo'?'#aa9971':'#dedbc2',P.ink,1.2);
-    rounded(ctx,x-12,y-11,24,5,2,p.type==='ammo'?'#d1c093':'#f3eedb');
+    rounded(ctx,x-13,y-12,26,23,3,isGrenade?'#8f956c':'#dedbc2',P.ink,1.2);
+    rounded(ctx,x-12,y-11,24,5,2,isGrenade?'#b8bd8c':'#f3eedb');
     line(ctx,x-11,y+8,x+11,y+8,'#8a8c76',1.1);
-    if(p.type==='ammo'){
-      line(ctx,x-8,y-10,x-8,y+9,'#707959',2);line(ctx,x+8,y-10,x+8,y+9,'#707959',2);
-      for(let i=-1;i<=1;i++)rounded(ctx,x+i*4-1,y-3,2,8,1,'#f1db9f',P.stoneDark,.5);
-    }else{rounded(ctx,x-3,y-7,6,14,1,'#548ca6');rounded(ctx,x-7,y-3,14,6,1,'#548ca6');}
+    if(isGrenade){
+      line(ctx,x-8,y-10,x-8,y+9,'#667052',2);line(ctx,x+8,y-10,x+8,y+9,'#667052',2);
+      for(let i=-1;i<=1;i++){
+        const gx=x+i*6,gy=y+1;
+        ellipse(ctx,gx,gy,3.2,4.2,'#46523d',P.ink,.7);
+        line(ctx,gx-1,gy-5,gx+2,gy-7,'#d9cf9d',1);
+      }
+    }else{
+      rounded(ctx,x-3,y-7,6,14,1,'#548ca6');rounded(ctx,x-7,y-3,14,6,1,'#548ca6');
+    }
     ctx.restore();
   }
   return {P,texture,landmark,soldier,drawActor,tree,pickup,animate,pose,blast};
