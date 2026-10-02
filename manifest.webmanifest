@@ -1,0 +1,11 @@
+{
+  "name": "Bad Fodder",
+  "short_name": "Bad Fodder",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#0b100d",
+  "theme_color": "#1e281b"
+}
