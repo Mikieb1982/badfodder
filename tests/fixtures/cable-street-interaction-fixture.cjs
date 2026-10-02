@@ -18,7 +18,8 @@ const mapData={
       }
     ],
     materials:[
-      {id:'timber-1',type:'timber',label:'Timber',x:138,y:90,interactionRadius:28}
+      {id:'timber-1',type:'timber',label:'Timber',x:138,y:90,interactionRadius:28},
+      {id:'crates-1',type:'crates',label:'Crates',x:132,y:90,interactionRadius:28}
     ],
     civilians:[
       {id:'resident-1',label:'Resident',x:112,y:90,optional:true,interactionRadius:30,exitSeconds:.3}
