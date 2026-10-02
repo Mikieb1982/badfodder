@@ -17,18 +17,41 @@
   }
   g.restore();
  }
+ function buildingFamily(b){
+  if(['tudor','moon','johnBull'].includes(b.landmark))return 'pub';
+  if(['wallgate','northWestern'].includes(b.landmark))return 'station';
+  if(b.landmark==='grandArcade')return 'arcade';
+  if(b.landmark==='busStation'||b.material==='painted-brick')return 'civic';
+  const street=b.detail&&b.detail.street||'';
+  if(/Market|Standishgate|King Street|Coopers Row/.test(street))return 'shop';
+  return (b.levels||2)>=3?'terrace':'residential';
+ }
  function building(g,b,art){
   const p=b.points.slice(0,-1),h=b.height,flat=b.roofShape==='flat';
   const mesh=b.artMesh||(b.artMesh=BadFodderBuildings.mesh(p,h));if(!mesh)return;
-  const red=['#97674f','#a87357','#8b5e48','#a37b60'][b.i%4];
-  const color=b.material==='painted-brick'?'#c6bea5':b.landmark==='moon'?'#b7a481':red;
+  const family=buildingFamily(b);
+  const palette={
+    terrace:['#8e5b46','#9b644b','#7f5242','#a16e54'],
+    residential:['#9a6d55','#88604d','#a2765c','#7f5a48'],
+    shop:['#98634a','#a46d50','#895845','#a87558'],
+    civic:['#beb69e','#afa993','#c8c1aa','#aaa48f'],
+    station:['#a17a5f','#8f694f','#b39170','#8c6a56'],
+    arcade:['#c3b8a0','#b7ad98','#ccc1aa','#aaa28f'],
+    pub:['#8d6049','#9b6b50','#755043','#a1775c']
+  }[family];
+  const color=b.landmark==='tudor'?'#d7cfb4':b.landmark==='moon'?'#ad9d80':palette[b.i%palette.length];
   g.save();g.lineJoin='round';g.lineCap='round';g.save();g.translate(6,9);poly(g,p,'#20291f44');g.restore();
   const walls=flat?p.map((a,i)=>{const d=p[(i+1)%p.length];return{a,b:d,points:[a,d,[d[0],d[1]-h],[a[0],a[1]-h]]}}):mesh.walls;
   for(const wall of walls){
    const {a,b:d,points:side}=wall,dx=d[0]-a[0],dy=d[1]-a[1],len=Math.hypot(dx,dy);if(len<2)continue;
    poly(g,side,color,'#514637',.7);
-   g.save();poly(g,side,null);g.clip();g.globalAlpha=b.material==='painted-brick'?.32:.65;g.globalCompositeOperation='multiply';g.fillStyle=art.texture(g,'urban-brick');g.fillRect(b.minX-2,b.minY-h-mesh.rise-2,b.maxX-b.minX+4,b.maxY-b.minY+h+mesh.rise+4);g.restore();
+   g.save();poly(g,side,null);g.clip();g.globalAlpha=family==='civic'||family==='arcade'?.26:family==='pub'?.52:.64;g.globalCompositeOperation='multiply';g.fillStyle=art.texture(g,'urban-brick');g.fillRect(b.minX-2,b.minY-h-mesh.rise-2,b.maxX-b.minX+4,b.maxY-b.minY+h+mesh.rise+4);g.restore();
    poly(g,side,dy>0?'#26342635':'#fff2c509');
+   if(family==='terrace'&&len>22){
+    g.save();poly(g,side,null);g.clip();g.strokeStyle='#d0b79738';g.lineWidth=1;
+    for(const level of [.32,.63]){g.beginPath();g.moveTo(a[0],a[1]-h*level);g.lineTo(d[0],d[1]-h*level);g.stroke();}
+    g.restore();
+   }
    BadFodderWiganDetails.base(g,b,wall);
    line(g,[[a[0],a[1]-h+2],[d[0],d[1]-h+2]],'#c4b598',1.7);
    line(g,[[a[0],a[1]-1],[d[0],d[1]-1]],'#50483a',2);
@@ -58,7 +81,8 @@
    g.restore();
   }else{
    for(const plane of [...mesh.planes].sort((a,b)=>a.points[0][1]-b.points[0][1])){
-    poly(g,plane.points,'#67695e','#3c4037',2);g.save();poly(g,plane.points,null);g.clip();g.transform(...plane.transform);g.fillStyle=art.texture(g,'roof-slate');g.fillRect(-mesh.length/2-2,-mesh.half-2,mesh.length+4,mesh.half*2+4);g.restore();poly(g,plane.points,plane.sign<0?'#e6cca617':'#16252a43');
+    const roofBase=family==='pub'?'#58544d':family==='station'?'#5f625d':family==='residential'?'#6a6258':'#61635d';
+    poly(g,plane.points,roofBase,'#3c4037',2);g.save();poly(g,plane.points,null);g.clip();g.transform(...plane.transform);g.fillStyle=art.texture(g,'roof-slate');g.fillRect(-mesh.length/2-2,-mesh.half-2,mesh.length+4,mesh.half*2+4);g.restore();poly(g,plane.points,plane.sign<0?'#e6cca617':'#16252a43');
    }
    for(const ridge of mesh.ridges){line(g,ridge,'#404239',3);line(g,ridge,'#b2aa94',.9)}
    if(mesh.length>22){const [x,y]=mesh.project({u:mesh.length*.2,v:-mesh.half*.3});poly(g,[[x-2,y],[x+3,y],[x+3,y-8],[x-2,y-8]],'#94745c','#443f34',.8);poly(g,[[x-3,y-8],[x+3,y-8],[x+5,y-10],[x-1,y-10]],'#bba88a','#484637',.6)}
@@ -140,5 +164,5 @@
   g.textAlign='center';g.fillStyle='#a9c0b0';g.font='10px system-ui,sans-serif';g.fillText(hint.contact?'Gold: route · Red: hostiles · Blue: squad':'Gold: route / objective · Blue: squad · MAP / M to return',W/2,H-12);
   g.restore();
  }
- window.BadFodderWigan={road,building,ground,labels,guidance,tactical};
+ window.BadFodderWigan={road,building,buildingFamily,ground,labels,guidance,tactical};
 })();
