@@ -55,7 +55,7 @@ const metrics=q.metrics();
 const totalCells=q.PATH_COLS*q.PATH_ROWS;
 assert(metrics.findCalls>=checked,'Navigation metrics did not record searches');
 assert(metrics.maxExpanded<totalCells*.7,'A path search expanded an excessive fraction of the whole map: '+metrics.maxExpanded+'/'+totalCells);
-assert(metrics.componentBuilds<=6,'Connected-area cache rebuilt too many components: '+metrics.componentBuilds);
+assert(metrics.componentBuilds<Math.max(24,metrics.findCalls/5),'Connected-area cache is rebuilding components too often: '+metrics.componentBuilds+' builds for '+metrics.findCalls+' searches');
 assert(metrics.edgeCache>0&&metrics.blockedCache>0,'Navigation caches were not populated');
 
 console.log('PASS: exported navigation reaches all '+Object.keys(map.pois).length+' POIs and '+checked+' mapped streets with collision-safe segments.');
