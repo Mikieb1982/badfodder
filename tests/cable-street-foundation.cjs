@@ -154,9 +154,10 @@ assert(index.includes("hudEnemyLabel.textContent='DEFENCE'"),'Cable Street HUD d
 assert(index.includes("hudGrenadeLabel.textContent='CONFIDENCE'"),'Cable Street HUD does not show crowd confidence');
 assert(index.includes("Math.round(historicalProgress.barricadeRatio*100)+'%'"),'Cable Street defence percentage is not displayed');
 
-assert(index.includes("cable-street-interactions.js?v=20261002-cable-pressure-6"),'Historical interaction module is not cache-busted');
+assert(index.includes("cable-street-interactions.js?v=20261002-cable-pressure-7"),'Historical interaction module is not cache-busted');
 assert(index.includes('options:{scale:SCALE,pressureControlled:true}'),'Live Cable Street interactions do not wait for the historical pressure director');
 assert(fs.readFileSync(path.join(root,'cable-street-interactions.js'),'utf8').includes('pressureDamageMultiplier'),'Cable Street HOLD actions do not mitigate police pressure');
+assert(fs.readFileSync(path.join(root,'cable-street-interactions.js'),'utf8').includes("reason:'repelled'"),'Cable Street pressure waves cannot be repelled without a breach');
 assert(index.includes("cable-street-art.js?v=20261002-cable-urban-2"),'Historical art module is not cache-busted');
 
 
