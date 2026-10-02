@@ -17,6 +17,10 @@
 .menu-footer{margin:0;line-height:1.5}
 .menu-card{padding:18px;background:#14200ef5;border:2px solid #a8a357;box-shadow:inset 0 0 0 2px #354325,0 4px 0 #090e07;box-sizing:border-box}
 .menu-card h2{margin:0 0 15px;color:#e8ca76;font-size:20px;text-align:center;letter-spacing:.07em}
+.menu-copy{margin:0 0 14px;color:#d8d9bb;font:12px/1.45 system-ui,sans-serif;text-align:center}
+.menu-mission-list{display:flex;flex-direction:column;gap:9px}
+.menu-mission-list .menu-button{margin-top:0;text-align:left}
+.menu-mission-list .menu-button span{display:block;margin-bottom:3px;color:#e8ca76;font-size:10px;letter-spacing:.1em}
 .menu-card dl{display:grid;grid-template-columns:auto 1fr;gap:12px 14px;margin:0 0 18px;font-family:system-ui,sans-serif;font-size:12px;line-height:1.4}
 .menu-card dt{font:900 11px/1.6 "Courier New",monospace;color:#e7ce8c}.menu-card dd{margin:0;color:#e5e5c8}
 .menu-card .menu-button{font-size:15px;margin-top:14px}
