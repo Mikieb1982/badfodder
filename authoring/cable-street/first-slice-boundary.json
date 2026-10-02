@@ -1,0 +1,33 @@
+{
+  "id": "cable-street-christian-street-slice-v1",
+  "missionId": "cable-street-1936",
+  "status": "frozen-research-boundary",
+  "productionGeometry": false,
+  "masterCrs": "EPSG:27700",
+  "description": "First playable research slice centred on Cable Street near Christian Street.",
+  "includes": [
+    "supported barricade vicinity near Christian Street",
+    "western police approach lane",
+    "player work/material area",
+    "defender withdrawal destination",
+    "street/railway relationships needed to understand the slice"
+  ],
+  "excludes": [
+    "Aldgate unless later evidence requires it inside the approved crop",
+    "Gardiner's Corner unless later evidence requires it inside the approved crop",
+    "full four-phase mission geography",
+    "unverified courtyards and escape alleys"
+  ],
+  "evidenceSourceIds": [
+    "S01",
+    "S03",
+    "S04"
+  ],
+  "exactCropGeometry": null,
+  "exactBarricadeCoordinate": null,
+  "notes": [
+    "The exact crop extent remains adjustable during calibration.",
+    "The supported barricade location is a vicinity, not a surveyed footprint.",
+    "Synthetic test-fixture geometry has no historical authority."
+  ]
+}
