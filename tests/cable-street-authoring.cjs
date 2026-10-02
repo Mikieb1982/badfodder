@@ -123,6 +123,9 @@ const runtimeObjects=JSON.parse(fs.readFileSync(path.join(authoringDir,'runtime-
 assert.equal(runtimeObjects.status,'awaiting-approved-map');
 assert.equal(runtimeObjects.crs,'EPSG:27700');
 assert.deepEqual(runtimeObjects.requirements.materialTypes,['timber','crates','furniture']);
+assert.equal(runtimeObjects.requirements.squadSpawns,4);
+assert.deepEqual(runtimeObjects.squadSpawns,[]);
+assert.deepEqual(runtimeObjects.routeRequirements,[]);
 assert.deepEqual(runtimeObjects.objects,{barricades:[],materials:[],civilians:[],formations:[]});
 
 const mission=Historical.get('cable-street-1936');
