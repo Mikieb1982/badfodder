@@ -208,7 +208,7 @@
       return candidates.length?[candidates[0].x,candidates[0].y]:null;
     }
 
-    function findPath(sx,sy,tx,ty){
+    function findPath(sx,sy,tx,ty,fallbackDepth=0){
       perf.findCalls++;
       if(routeClear(sx,sy,tx,ty,NAV_RADIUS)){
         perf.directRoutes++;
@@ -317,7 +317,10 @@
       perf.maxExpanded=Math.max(perf.maxExpanded,expanded);
       perf.maxOpen=Math.max(perf.maxOpen,maxOpen);
 
-      if(approach&&approachDistance<=160)return findPath(sx,sy,approach.x,approach.y);
+      if(
+        approach&&approachDistance<=160&&fallbackDepth<1&&
+        Math.hypot(approach.x-tx,approach.y-ty)>PATH_CELL*.5
+      )return findPath(sx,sy,approach.x,approach.y,fallbackDepth+1);
       perf.failedPaths++;
       return[];
     }
@@ -338,6 +341,11 @@
       }
       const p=ent.path[ent.pathIndex];
       const dx=p.x-ent.x,dy=p.y-ent.y,d=Math.hypot(dx,dy);
+      if(d<1e-6){
+        ent.pathIndex++;
+        if(ent.pathIndex>=ent.path.length){ent.path=null;ent.target=null;return false}
+        return true;
+      }
       if(d<=Math.max(1,speed*dt)&&routeClear(ent.x,ent.y,p.x,p.y,NAV_RADIUS)){
         ent.x=p.x;ent.y=p.y;
         ent.pathIndex++;
