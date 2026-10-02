@@ -516,13 +516,13 @@
 <script src="painted-art.js"></script>
 <script src="building-art.js"></script>
 <script src="wigan-details.js"></script>
-<script src="wigan-scenery.js"></script>
+<script src="wigan-scenery.js?v=20261002-stability-3"></script>
 <script src="scenery-cache.js"></script>
-<script src="menu-ui.js?v=20261002-mission-select-2"></script>
+<script src="menu-ui.js?v=20261002-stability-3"></script>
 <script src="music.js"></script>
 <script src="sfx.js"></script>
 <script src="combat-geometry.js"></script>
-<script src="navigation.js"></script>
+<script src="navigation.js?v=20261002-stability-3"></script>
 <script src="mission-rules.js"></script>
 <script src="campaign.js"></script>
 <script src="mission-launch.js?v=20261002-mission-select-2"></script>
@@ -2382,7 +2382,20 @@
     paintScenery(scenery,0,0,scale,true);
     sceneryTiles=new BadFodderScenery({width:WORLD_W,height:WORLD_H,gutter:2,limit:LOW_POWER?12:24,paint:(x,y,w,h)=>{
       const tile=document.createElement('canvas');tile.width=w;tile.height=h;
-      paintScenery(tile,x,y,1,forceLight);return tile;
+      try{
+        paintScenery(tile,x,y,1,forceLight);
+      }catch(err){
+        console.error('Scenery tile rendering failed; using a lightweight fallback tile.',{x,y,w,h,err});
+        const g=tile.getContext('2d',{alpha:false});
+        if(g){
+          g.fillStyle=MAP_DATA.key==='wigan'?'#77796b':'#79864f';
+          g.fillRect(0,0,w,h);
+          g.strokeStyle='rgba(255,255,255,.035)';g.lineWidth=1;
+          for(let px=0;px<w;px+=64){g.beginPath();g.moveTo(px,0);g.lineTo(px,h);g.stroke()}
+          for(let py=0;py<h;py+=64){g.beginPath();g.moveTo(0,py);g.lineTo(w,py);g.stroke()}
+        }
+      }
+      return tile;
     }});
   }
 
