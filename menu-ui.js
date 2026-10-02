@@ -4,6 +4,9 @@ window.BadFodderMenu=class{
     this.actions=actions;this.root=actions.root;this.screen=actions.screen;this.mode='title';this.panel='main';this.loaded=false;
     this.get=id=>this.screen.querySelector('#'+id);
     for(const [id,action] of [['menuStart','start'],['menuResume','resume'],['menuRestart','restart'],['menuMain','main']])this.get(id).addEventListener('click',()=>actions[action]());
+    this.get('menuMissionSelect').addEventListener('click',()=>this.showPanel('missions'));
+    this.get('menuMissionBad').addEventListener('click',()=>actions.selectMission(0));
+    this.get('menuMissionWigan').addEventListener('click',()=>actions.selectMission(1));
     this.get('menuControls').addEventListener('click',()=>this.showPanel('controls'));
     this.get('menuOptions').addEventListener('click',()=>this.showPanel('options'));
     this.screen.querySelectorAll('[data-back]').forEach(b=>b.addEventListener('click',()=>this.showPanel('main')));
@@ -19,7 +22,8 @@ window.BadFodderMenu=class{
     this.screen.setAttribute('aria-label',mode==='pause'?'Mission paused':'Bad Fodder main menu');
     const badge=this.get('menuBadge');badge.hidden=mode!=='pause';badge.textContent=mode==='pause'?'MISSION PAUSED':'';
     for(const id of ['menuResume','menuRestart','menuMain'])this.get(id).hidden=mode!=='pause';
-    this.get('menuStart').hidden=mode!=='title';this.showPanel('main');
+    for(const id of ['menuStart','menuMissionSelect'])this.get(id).hidden=mode!=='title';
+    this.showPanel('main');
   }
   close(){this.screen.hidden=true;this.root.classList.remove('menu-open');}
   showPanel(panel){
@@ -28,8 +32,20 @@ window.BadFodderMenu=class{
     this.get('menuHelp').textContent=panel==='main'?(this.mode==='pause'?'ENTER / ESC TO RESUME':'SELECT AN OPTION TO BEGIN'):'ESC TO GO BACK';
     this.syncFullscreen();this.buttons()[0]?.focus({preventScroll:true});
   }
-  ready(){this.loaded=true;this.get('menuStart').disabled=false;this.get('menuStart').textContent='START MISSION';if(!this.screen.hidden&&this.mode==='title'&&this.panel==='main')this.get('menuStart').focus({preventScroll:true});}
-  fail(){this.get('menuStart').disabled=true;this.get('menuStart').textContent='MISSION UNAVAILABLE';this.get('menuHelp').textContent='Reload the page to try again.';}
+  ready(){
+    this.loaded=true;
+    this.get('menuStart').disabled=false;
+    this.get('menuStart').textContent='CAMPAIGN';
+    this.get('menuMissionSelect').disabled=false;
+    this.get('menuMissionBad').disabled=false;
+    this.get('menuMissionWigan').disabled=false;
+    if(!this.screen.hidden&&this.mode==='title'&&this.panel==='main')this.get('menuStart').focus({preventScroll:true});
+  }
+  fail(){
+    this.get('menuStart').disabled=true;
+    this.get('menuStart').textContent='CAMPAIGN UNAVAILABLE';
+    this.get('menuHelp').textContent='The current mission failed to load. You can still try another mission from Mission Select.';
+  }
   syncFullscreen(){this.get('menuFull').textContent=this.actions.isFullscreen()?'EXIT FULL SCREEN':'FULL SCREEN';}
   buttons(){return [...this.screen.querySelectorAll('button,select,input')].filter(b=>!b.disabled&&!b.closest('[hidden]'));}
   keydown(e){
