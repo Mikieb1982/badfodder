@@ -4,6 +4,15 @@
  const TAU=Math.PI*2;
  function poly(g,p,fill,stroke,width=1){if(p.length<3)return;g.beginPath();g.moveTo(...p[0]);p.slice(1).forEach(a=>g.lineTo(...a));g.closePath();if(fill){g.fillStyle=fill;g.fill()}if(stroke){g.strokeStyle=stroke;g.lineWidth=width;g.stroke()}}
  function line(g,p,color,width){if(p.length<2)return;g.beginPath();g.moveTo(...p[0]);p.slice(1).forEach(a=>g.lineTo(...a));g.strokeStyle=color;g.lineWidth=width;g.stroke()}
+ function roundRectPath(g,x,y,w,h,r){
+  g.beginPath();
+  if(typeof g.roundRect==='function'){g.roundRect(x,y,w,h,r);return;}
+  const rr=Math.max(0,Math.min(r,Math.abs(w)/2,Math.abs(h)/2));
+  g.moveTo(x+rr,y);g.lineTo(x+w-rr,y);g.quadraticCurveTo(x+w,y,x+w,y+rr);
+  g.lineTo(x+w,y+h-rr);g.quadraticCurveTo(x+w,y+h,x+w-rr,y+h);
+  g.lineTo(x+rr,y+h);g.quadraticCurveTo(x,y+h,x,y+h-rr);
+  g.lineTo(x,y+rr);g.quadraticCurveTo(x,y,x+rr,y);g.closePath();
+ }
  function road(g,r,S,art){
   g.save();g.lineCap='round';g.lineJoin='round';const w=S(r.width||7);
   if(r.kind==='railway'){
@@ -115,7 +124,7 @@
    if(!box)continue;placed.push(box);
    line(g,[[x,y-12],[x,box.y+box.h]],'#e5dec0aa',unit*.7);
    g.fillStyle='#202e27e8';g.strokeStyle=item.kind==='station'?'#a5c2c8':'#bcae84';g.lineWidth=unit;
-   g.beginPath();g.roundRect(box.x,box.y,box.w,box.h,4*unit);g.fill();g.stroke();
+   roundRectPath(g,box.x,box.y,box.w,box.h,4*unit);g.fill();g.stroke();
    g.fillStyle='#f0e7c6';g.fillText(text,x,box.y+box.h/2);
   }
   g.restore();
@@ -127,7 +136,7 @@
   g.save();g.scale(scale,scale);const y=W<600?132:124;
   const text=reached&&hint.phase.type==='secure-zone'?'Clear this sector':hint.caption+' · '+metres+' m';
   g.font='700 11px system-ui,sans-serif';const w=Math.min(W-32,g.measureText(text).width+46);
-  g.fillStyle='#253b2bea';g.strokeStyle='#a69771';g.lineWidth=1;g.beginPath();g.roundRect(16,y,w,29,5);g.fill();g.stroke();
+  g.fillStyle='#253b2bea';g.strokeStyle='#a69771';g.lineWidth=1;roundRectPath(g,16,y,w,29,5);g.fill();g.stroke();
   g.save();g.translate(31,y+14);g.rotate(Math.atan2(dy,dx));poly(g,[[7,0],[-3,-5],[-1,0],[-3,5]],hint.contact?'#e0a281':'#e9d294');g.restore();
   g.fillStyle='#e8dfc6';g.textAlign='left';g.textBaseline='middle';g.fillText(text,45,y+14,w-34);g.restore();
  }
