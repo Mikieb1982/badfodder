@@ -43,6 +43,11 @@
     return n?{x:x/n,y:y/n}:null;
   }
   function clonePoints(points){return Array.isArray(points)?points.map(p=>[p[0],p[1]]):[]}
+  function playCableSfx(name,arg){
+    if(typeof window==='undefined')return;
+    const fn=window.BadFodderSfx&&window.BadFodderSfx[name];
+    if(typeof fn==='function')fn(arg);
+  }
 
   function pressureDamageMultiplier(barricade,settings=DEFAULTS){
     if(!barricade||!Array.isArray(barricade.occupiedWorkPositions))return 1;
@@ -68,7 +73,8 @@
 
     const conflict={
       elapsed:0,
-      pulseSequence:0,
+      projectileSequence:0,
+      fightSequence:0,
       projectiles:[],
       impacts:[],
       charges:[],
@@ -88,7 +94,6 @@
     function material(id){return controller.state.materials.get(id)||null}
     function barricade(id){return controller.state.barricades.get(id)||null}
     function civilian(id){return controller.state.civilians.get(id)||null}
-    function formation(id){return controller.state.formations.get(id)||null}
 
     function targetPoint(targetType,targetId){
       let target=null;
@@ -162,7 +167,7 @@
       for(const b of seed.barricades){
         if(Array.isArray(b.points)&&b.points.length>=3)controller.registerBarricadeGeometry(b.id,{points:b.points});
       }
-      conflict.elapsed=0;conflict.pulseSequence=0;conflict.projectiles=[];conflict.impacts=[];conflict.charges=[];
+      conflict.elapsed=0;conflict.projectileSequence=0;conflict.fightSequence=0;conflict.projectiles=[];conflict.impacts=[];conflict.charges=[];
       conflict.mountedTimer=settings.mountedChargeFirstDelay;conflict.chargeSequence=0;conflict.crowdPulse=0;
       conflict.dramaText='BUILD THE BARRICADE';conflict.dramaTime=2.2;conflict.marchThreat=0;
       initialized=true;
@@ -223,7 +228,6 @@
         }
       });
 
-      // Clicking directly on the police line is also a request to join the defence.
       if(!carrying&&allowed('hold')){
         controller.state.formations.forEach(f=>{
           if(!finitePoint(f)||!['approach','halt','dismantle'].includes(f.state))return;
@@ -306,7 +310,7 @@
     }
     function addProjectile(from,to,kind='brick',source='crowd'){
       if(!finitePoint(from)||!finitePoint(to))return;
-      conflict.projectiles.push({id:'missile-'+(++conflict.pulseSequence),kind,source,startX:from.x,startY:from.y,targetX:to.x,targetY:to.y,x:from.x,y:from.y,t:0,duration:kind==='stick'?.34:.28,arc:kind==='brick'?20:12});
+      conflict.projectiles.push({id:'missile-'+(++conflict.projectileSequence),kind,source,startX:from.x,startY:from.y,targetX:to.x,targetY:to.y,x:from.x,y:from.y,t:0,duration:kind==='stick'?.34:.28,arc:kind==='brick'?20:12});
       if(conflict.projectiles.length>36)conflict.projectiles.shift();
     }
     function repelFormation(f,reason='crowd-fightback'){
@@ -315,6 +319,7 @@
       controller.state.events.push({type:'police-state',formationId:f.id,state:'regroup',reason});
       controller.state.events.push({type:'crowd-fightback',formationId:f.id});
       conflict.dramaText='POLICE PUSHED BACK';conflict.dramaTime=1.8;
+      playCableSfx('crowdSurge');
       return true;
     }
     function applyResistance(f,amount,source='crowd'){
@@ -327,12 +332,13 @@
     }
     function fightPulse(job,a,b){
       const f=activeFormationForBarricade(b.id);if(!f||!['halt','dismantle'].includes(f.state))return;
-      const type=['shove','brick','stick'][conflict.pulseSequence%3];
+      const type=['shove','brick','stick'][(conflict.fightSequence++)%3];
       if(type==='shove'){
         const dx=f.x-a.x,dy=f.y-a.y,d=Math.hypot(dx,dy)||1;
         f.x+=dx/d*3.5*worldScale;f.y+=dy/d*3.5*worldScale;
         addImpact(f.x,f.y,'shove');
       }else addProjectile(a,f,type,job.actorId);
+      playCableSfx('scuffle',type);
       applyResistance(f,settings.fightResistancePerPulse,job.actorId);
       conflict.dramaText='FIGHT FOR THE BARRICADE';conflict.dramaTime=Math.max(conflict.dramaTime,.35);
     }
@@ -403,7 +409,7 @@
         return;
       }
       if(p.state==='halt'){
-        if(p.stateTime>=p.haltSeconds){runtime.setPoliceState(p,'dismantle');p.stateTime=0;controller.state.events.push({type:'police-state',formationId:p.id,state:'dismantle'});conflict.dramaText='POLICE CHARGE - FIGHT BACK';conflict.dramaTime=2}
+        if(p.stateTime>=p.haltSeconds){runtime.setPoliceState(p,'dismantle');p.stateTime=0;controller.state.events.push({type:'police-state',formationId:p.id,state:'dismantle'});conflict.dramaText='POLICE CHARGE - FIGHT BACK';conflict.dramaTime=2;playCableSfx('crowdSurge')}
         return;
       }
       if(p.state==='dismantle'){
@@ -442,6 +448,7 @@
       conflict.charges.push({id:'mounted-'+(++conflict.chargeSequence),startX:start.x,startY:start.y,targetX:bp.x,targetY:bp.y,x:start.x,y:start.y,t:0,duration:settings.mountedChargeDuration,hit:false,done:false});
       conflict.mountedTimer=settings.mountedChargeRepeat+(conflict.chargeSequence%3)*3;
       conflict.dramaText='MOUNTED POLICE CHARGE';conflict.dramaTime=2;
+      playCableSfx('mountedCharge');
       controller.state.events.push({type:'mounted-charge-start',formationId:f.id,barricadeId:b.id});
     }
     function updateConflictEffects(dt){
@@ -456,13 +463,12 @@
         c.t=Math.min(1,c.t+dt/c.duration);c.x=c.startX+(c.targetX-c.startX)*c.t;c.y=c.startY+(c.targetY-c.startY)*c.t;
         if(c.t>=.72&&!c.hit){
           c.hit=true;const b=mainBarricade();if(b&&!b.breached)controller.damageBarricadeById(b.id,settings.mountedChargeDamage);
-          addImpact(c.targetX,c.targetY,'mounted');controller.state.events.push({type:'mounted-charge-impact',barricadeId:b&&b.id||null,damage:settings.mountedChargeDamage});
+          addImpact(c.targetX,c.targetY,'mounted');playCableSfx('scuffle','shove');controller.state.events.push({type:'mounted-charge-impact',barricadeId:b&&b.id||null,damage:settings.mountedChargeDamage});
         }
         if(c.t>=1)c.done=true;
       });
       conflict.charges=conflict.charges.filter(c=>!c.done);
 
-      // The wider crowd adds intermittent missiles during close police pressure.
       conflict.crowdPulse+=dt;
       if(conflict.crowdPulse>=.9){
         conflict.crowdPulse=0;
@@ -471,8 +477,10 @@
           const b=barricade(f.objective),bp=b&&targetPoint('barricade',b.id);if(!b||!bp)continue;
           const workers=(b.occupiedWorkPositions||[]).filter(Boolean).length;
           if(!workers)continue;
-          const offset=(conflict.pulseSequence%5-2)*7*worldScale;
-          addProjectile({x:bp.x+offset,y:bp.y+14*worldScale},f,conflict.pulseSequence%2?'brick':'stick','crowd');
+          const offset=(conflict.projectileSequence%5-2)*7*worldScale;
+          const kind=conflict.projectileSequence%2?'brick':'stick';
+          addProjectile({x:bp.x+offset,y:bp.y+14*worldScale},f,kind,'crowd');
+          playCableSfx('scuffle',kind);
           applyResistance(f,Math.max(settings.crowdResistancePerPulse,workers*settings.crowdResistancePerPulse),'crowd');
         }
       }
