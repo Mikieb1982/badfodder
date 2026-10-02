@@ -17,7 +17,8 @@
     rescueExitSeconds:.8,
     pressureControlled:false,
     holdMitigationPerWorker:.28,
-    maxHoldMitigation:.7
+    maxHoldMitigation:.7,
+    dismantleSeconds:4.5
   });
 
   function finitePoint(value){
@@ -150,6 +151,7 @@
           stopDistance:Number.isFinite(def.stopDistance)?def.stopDistance*worldScale:18*worldScale,
           haltSeconds:Number.isFinite(def.haltSeconds)?def.haltSeconds:.7,
           regroupSeconds:Number.isFinite(def.regroupSeconds)?def.regroupSeconds:.8,
+          dismantleSeconds:Number.isFinite(def.dismantleSeconds)&&def.dismantleSeconds>0?def.dismantleSeconds:settings.dismantleSeconds,
           damageRate:Number.isFinite(def.damageRate)?def.damageRate:5,
           stateTime:0,
           label:def.label||'Police formation'
@@ -461,7 +463,10 @@
         controller.damageBarricadeById(p.objective,p.damageRate*dt*multiplier);
         if(b.breached){
           runtime.setPoliceState(p,'regroup');p.stateTime=0;
-          controller.state.events.push({type:'police-state',formationId:p.id,state:'regroup'});
+          controller.state.events.push({type:'police-state',formationId:p.id,state:'regroup',reason:'breach'});
+        }else if(Number.isFinite(p.dismantleSeconds)&&p.dismantleSeconds>0&&p.stateTime>=p.dismantleSeconds){
+          runtime.setPoliceState(p,'regroup');p.stateTime=0;
+          controller.state.events.push({type:'police-state',formationId:p.id,state:'regroup',reason:'repelled'});
         }
         return;
       }
