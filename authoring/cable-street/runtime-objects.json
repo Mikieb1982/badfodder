@@ -1,0 +1,29 @@
+{
+  "id": "cable-street-runtime-objects-v1",
+  "missionId": "cable-street-1936",
+  "status": "awaiting-approved-map",
+  "crs": "EPSG:27700",
+  "requirements": {
+    "mainBarricades": 1,
+    "materialTypes": ["timber", "crates", "street-furniture"],
+    "rescueInteractions": 1,
+    "policeFormations": 1
+  },
+  "objects": {
+    "barricades": [],
+    "materials": [],
+    "civilians": [],
+    "formations": []
+  },
+  "rules": [
+    "Do not copy coordinates from synthetic tests or fixtures.",
+    "Author production positions in EPSG:27700 and let the runtime compiler project them.",
+    "The main barricade must remain inside the supported event-area interpretation rather than being presented as a surveyed exact 1936 coordinate.",
+    "Every police formation objective must reference an authored barricade.",
+    "Gameplay-only placements must be labelled as such rather than presented as historical claims."
+  ],
+  "notes": [
+    "This file is intentionally empty until MAP-03 through MAP-06 are approved.",
+    "It is the SLICE-02 handoff into cable-street-interactions.js."
+  ]
+}
