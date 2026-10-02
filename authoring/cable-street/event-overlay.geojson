@@ -1,0 +1,17 @@
+{
+  "type": "FeatureCollection",
+  "properties": {
+    "id": "cable-street-event-overlay-v1",
+    "missionId": "cable-street-1936",
+    "status": "pending-event-overlay",
+    "eventDate": "1936-10-04",
+    "sourceIds": ["S03", "S04"],
+    "rules": [
+      "Approximate event locations are authored as Polygon or MultiPolygon areas, not precise point coordinates.",
+      "The Christian Street barricade remains a supported vicinity until its footprint is explicitly interpreted.",
+      "Western police pressure is route-level evidence, not a certified officer spawn point.",
+      "Contextual off-map locations remain contextual unless the approved boundary includes them."
+    ]
+  },
+  "features": []
+}
