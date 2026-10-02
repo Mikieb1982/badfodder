@@ -551,9 +551,10 @@
 <script src="navigation.js?v=20261002-stability-3"></script>
 <script src="mission-rules.js"></script>
 <script src="campaign.js"></script>
-<script src="mission-launch.js?v=20261002-mission-select-2"></script>
+<script src="mission-bootstrap.js?v=20261002-cable-foundation-2"></script>
+<script src="mission-launch.js?v=20261002-cable-foundation-2"></script>
 <script src="historical-missions.js?v=20261002-cable-groundwork-1"></script>
-<script src="cable-street-runtime.js?v=20261002-cable-groundwork-1"></script>
+<script src="cable-street-runtime.js?v=20261002-cable-foundation-2"></script>
 <script>
 (() => {
   'use strict';
@@ -573,10 +574,22 @@
   const campaign=BadFodderCampaign;
   const historicalMissions=BadFodderHistoricalMissions;
   const cableStreetRuntime=BadFodderCableStreet;
-  const missionLaunch=BadFodderMissionLaunch.create({storage:sessionStorage,missions:campaign.missions,campaign});
+  const missionBootstrap=BadFodderMissionBootstrap;
+  const missionLaunch=BadFodderMissionLaunch.create({
+    storage:sessionStorage,
+    missions:campaign.missions,
+    campaign,
+    historicalMissions:historicalMissions.missions
+  });
   const activeMissionIndex=missionLaunch.currentIndex();
-  const initialMission=campaign.mission(activeMissionIndex);
-  const MAP_DATA=(initialMission&&initialMission.playable&&initialMission.map==='wigan')?WIGAN_MAP:TOWN_MAP;
+  const initialMission=missionLaunch.current();
+  const mapRegistry=missionBootstrap.createMapRegistry({
+    'bad-belzig':TOWN_MAP,
+    'wigan':WIGAN_MAP
+  });
+  const MAP_DATA=missionBootstrap.resolveMap(initialMission,mapRegistry);
+  const ACTION_PROFILE=missionBootstrap.actionProfile(initialMission);
+  const actionAllowed=action=>missionBootstrap.allows(ACTION_PROFILE,action);
   const statusEl=document.getElementById('status');
   const squadCountEl=document.getElementById('squadCount');
   const squadMaxEl=document.getElementById('squadMax');
@@ -624,8 +637,8 @@
   const LOW_POWER=TOUCH_DEVICE;
   const SCALE=2;
   const wiganDetails=MAP_DATA.key==='wigan'?BadFodderWiganDetails.prepare(MAP_DATA):null;
-  document.querySelector('.subtitle').textContent=MAP_DATA.key==='wigan'?'Wigan Town Centre':'Operation Bad Belzig';
-  canvas.setAttribute('aria-label','Top-down tactical game in '+(MAP_DATA.key==='wigan'?'Wigan town centre':'Bad Belzig'));
+  document.querySelector('.subtitle').textContent=initialMission.subtitle||initialMission.title||MAP_DATA.title||'Bad Fodder';
+  canvas.setAttribute('aria-label','Top-down tactical game in '+(MAP_DATA.title||initialMission.title||MAP_DATA.key));
   const WORLD_W=MAP_DATA.width*SCALE;
   const WORLD_H=MAP_DATA.height*SCALE;
   const S=n=>n*SCALE;
@@ -652,6 +665,7 @@
   let macFireHeld=false,keyboardFireHeld=false;
   let lastHudStats='',lastRosterSignature='',hudNoticeUntil=0;
   let runtimeFaultCount=0,runtimeFaultAt=0,runtimeSafeStop=false;
+  let missionController=null;
   const hudChips=new Map();
   let fallbackFullscreen=false;
   let squadFormation={active:false,leader:null,members:[],trail:[],destination:null,manualMoving:false};
@@ -785,13 +799,18 @@
   }
 
   function activeMission(){
-    const mission=campaign.mission(activeMissionIndex);
-    return mission&&mission.playable?mission:campaign.missions[0];
+    return initialMission;
+  }
+
+  function createActiveMissionController(){
+    if(!missionLaunch.isHistorical())return null;
+    if(initialMission.id==='cable-street-1936')return cableStreetRuntime.createController({mission:initialMission});
+    throw new Error('No mission controller is registered for historical mission "'+initialMission.id+'".');
   }
 
   async function preload(){
     await art.preloadPainted(MAP_DATA.key);
-    if(MAP_DATA.key!=='wigan'){
+    if(MAP_DATA.key==='bad-belzig'){
       ['castle','butter','post','rathaus','reissiger','briccius','marien'].forEach(art.landmark);
     }
     return Promise.resolve();
@@ -873,6 +892,10 @@
     const nextAvailable=finished&&win&&hasPlayableNextMission();
     touchPause.textContent=nextAvailable?'NEXT':finished?'RETRY':paused?'▶':'II';
     touchPause.setAttribute('aria-label',nextAvailable?'Next mission':finished?'Restart mission':paused?'Resume game':'Pause game');
+    touchFire.hidden=!actionAllowed('firearms');
+    touchFire.disabled=!actionAllowed('firearms');
+    touchGrenade.hidden=!actionAllowed('grenades');
+    touchGrenade.disabled=!actionAllowed('grenades');
     syncFullscreenButton();
   }
 
@@ -940,6 +963,16 @@
     location.reload();
   }
 
+  function startHistoricalMission(id){
+    if(!missionLaunch.selectHistorical(id)){
+      setStatus('Historical mission is not ready for play.');
+      return false;
+    }
+    missionLaunch.requestAutoStart();
+    location.reload();
+    return true;
+  }
+
   function showTitle(){
     menuOpen=true;paused=true;
     releaseAllFireInputs();
@@ -984,7 +1017,7 @@
     squad.forEach((s,i)=>{
       const d=document.createElement('div');
       d.className='card'+(s.selected?' selected':'');
-      d.innerHTML='<strong>'+(i+1)+' '+s.name+'</strong><div>'+(s.alive?'HP '+s.hp+'/'+s.maxHp:'DOWN')+'</div><div>'+(s.alive?'Machine gun ∞':'')+'</div>';
+      d.innerHTML='<strong>'+(i+1)+' '+s.name+'</strong><div>'+(s.alive?'HP '+s.hp+'/'+s.maxHp:'DOWN')+'</div><div>'+(s.alive&&actionAllowed('firearms')?'Machine gun ∞':'')+'</div>';
       rosterEl.appendChild(d);
 
       let chip=hudChips.get(i);
@@ -1045,11 +1078,15 @@
 
   function resetGame(){
     const mission=activeMission();
+    if(missionController&&!missionController.disposed)missionController.dispose();
+    missionController=createActiveMissionController();
     const missionSpawns=MAP_DATA.spawns;
     if(!missionSpawns||!Array.isArray(missionSpawns.squad)||!Array.isArray(missionSpawns.enemies)||!Array.isArray(missionSpawns.civilians)||!Array.isArray(missionSpawns.pickups)){
       throw new Error('Mission map is missing required spawn data.');
     }
-    const rosterNames=['Müller','Becker','Klein','Jansen','Fischer','Wagner','Schulz','Koch'];
+    const rosterNames=Array.isArray(mission.roster)&&mission.roster.length
+      ?mission.roster
+      :['Müller','Becker','Klein','Jansen','Fischer','Wagner','Schulz','Koch'];
     const names=rosterNames.slice(0,Math.max(1,Math.min(8,mission.squadSize||4)));
     const mapSquad=missionSpawns.squad;
     const startX=S(786),startY=S(1450);
@@ -1066,7 +1103,7 @@
     squadMaxEl.textContent=String(squad.length);
 
     const hostileSpots=missionSpawns.enemies;
-    enemies=hostileSpots.map((p,i)=>({
+    enemies=missionController?[]:hostileSpots.map((p,i)=>({
       x:S(p[0]),y:S(p[1]),homeX:S(p[0]),homeY:S(p[1]),
       hp:3,maxHp:3,alive:true,phase:i*.67,cooldown:.25+i*.04,
       alert:false,lastSeen:null,aiState:'patrol',flash:0,
@@ -1090,10 +1127,17 @@
     const pickupSource=missionSpawns.pickups;
     pickups=pickupSource.map(p=>({type:p.type,amount:p.amount,optional:!!p.optional,x:S(p.x),y:S(p.y),active:true}));
 
+    if(missionController){
+      missionController.initialize({
+        actors:squad.map((s,i)=>({id:'player-'+i,name:s.name,active:s.alive}))
+      });
+    }
+
     validateMissionSpawns();
 
     [...squad,...enemies,...civilians].forEach(ent=>art.animate(ent,0));
-    bullets=[];thrown=[];effects=[];noise=[];enemyPathQueue=[];squadGrenades=5;missionStage=0;phaseHoldTime=0;
+    bullets=[];thrown=[];effects=[];noise=[];enemyPathQueue=[];
+    squadGrenades=actionAllowed('grenades')?5:0;missionStage=0;phaseHoldTime=0;
     finished=false;win=false;paused=false;mapOpen=false;selection='all';zoom=preferredZoom;
     releaseAllFireInputs();
     cursorWorld=null;
@@ -1329,14 +1373,17 @@
   }
 
   function fireBullet(owner,sx,sy,tx,ty){
+    if(!actionAllowed('firearms'))return false;
     const a=Math.atan2(ty-sy,tx-sx);
     window.BadFodderSfx?.shoot(owner);
     bullets.push({owner,x:sx,y:sy,vx:Math.cos(a)*760,vy:Math.sin(a)*760,life:1.7});
     noise.push({x:sx,y:sy,r:S(190),life:.4});
     effects.push({type:'muzzle',x:sx,y:sy,life:.08});
+    return true;
   }
 
   function squadFireAt(x,y){
+    if(!actionAllowed('firearms'))return false;
     const units=selectedUnits();
     if(!units.length)return false;
 
@@ -1362,8 +1409,9 @@
 
 
   function throwGrenade(x,y){
+    if(!actionAllowed('grenades'))return false;
     const units=selectedUnits();
-    if(!units.length||squadGrenades<=0)return;
+    if(!units.length||squadGrenades<=0)return false;
     const s=units[0];
     if(Math.hypot(x-s.x,y-s.y)>S(190)){setStatus('Grenade target is out of range.');return}
 
@@ -1374,6 +1422,7 @@
       t:0,flight:.55,fuse:.42,z:0,landed:false
     });
     updateHud(true);
+    return true;
   }
 
 
@@ -2066,12 +2115,14 @@
   }
 
   function fireMobile(){
+    if(!actionAllowed('firearms'))return false;
     if(!selectedUnits().length&&squad.some(s=>s.alive))setSelection('all');
     const p=mobileAimPoint(S(190));
     if(p)squadFireAt(p.x,p.y);
   }
 
   function grenadeMobile(){
+    if(!actionAllowed('grenades'))return false;
     const p=mobileAimPoint(S(145));
     if(!p)return;
     if(selection==='all')clearSquadFormation();
@@ -2713,6 +2764,7 @@
   }
 
   function throwGrenadeAtCursor(){
+    if(!actionAllowed('grenades'))return false;
     refreshCursorWorld();
     if(!cursorWorld||!started||menuOpen||paused||finished||mapOpen)return;
     if(selection==='all')clearSquadFormation();
@@ -2808,6 +2860,7 @@
     if((evt.buttons&1)&&(evt.buttons&2)){
       evt.preventDefault();
       rightHeld=false;macFireHeld=false;
+      if(!actionAllowed('grenades'))return;
       if(!bothLatched){
         bothLatched=true;
         if(selection==='all')clearSquadFormation();
@@ -2819,6 +2872,7 @@
 
     if(evt.button===2){
       evt.preventDefault();
+      if(!actionAllowed('firearms'))return;
       rightHeld=true;
       squadFireAt(p.x,p.y);
       return;
@@ -2829,6 +2883,7 @@
       // Shift + click/hold fires; Option/Alt + click throws a grenade.
       if(evt.altKey){
         evt.preventDefault();
+        if(!actionAllowed('grenades'))return;
         macFireHeld=false;
         if(selection==='all')clearSquadFormation();
         selectedUnits().forEach(s=>{s.target=null;s.path=null;s.pathIndex=0});
@@ -2838,6 +2893,7 @@
 
       if(evt.shiftKey){
         evt.preventDefault();
+        if(!actionAllowed('firearms'))return;
         macFireHeld=true;
         squadFireAt(p.x,p.y);
         return;
@@ -2917,7 +2973,7 @@
   touchJoystick.addEventListener('lostpointercapture',()=>releaseTouchMove());
 
   touchFire.addEventListener('pointerdown',evt=>{
-    if(!started||menuOpen||paused||finished||mapOpen)return;
+    if(!actionAllowed('firearms')||!started||menuOpen||paused||finished||mapOpen)return;
     evt.preventDefault();evt.stopPropagation();
     touchState.firePointer=evt.pointerId;
     touchState.fireHeld=true;
@@ -2964,7 +3020,7 @@
   },true);
 
   touchGrenade.addEventListener('pointerdown',evt=>{
-    if(!started||menuOpen||paused||finished||mapOpen)return;
+    if(!actionAllowed('grenades')||!started||menuOpen||paused||finished||mapOpen)return;
     evt.preventDefault();evt.stopPropagation();
     touchGrenade.classList.add('active');
     grenadeMobile();
@@ -3016,6 +3072,7 @@
     // MacBook/one-button mouse alternatives.
     if(key==='f'){
       e.preventDefault();
+      if(!actionAllowed('firearms'))return;
       refreshCursorWorld();
       keyboardFireHeld=true;
       if(cursorWorld&&!e.repeat)squadFireAt(cursorWorld.x,cursorWorld.y);
@@ -3023,6 +3080,7 @@
     }
     if(key==='g'){
       e.preventDefault();
+      if(!actionAllowed('grenades'))return;
       if(!e.repeat)throwGrenadeAtCursor();
       return;
     }
@@ -3071,10 +3129,20 @@
 
   function simulateStep(dt){
     applyTouchMovement(dt);
-    if(keyboardFireHeld)refreshCursorWorld();
-    if((rightHeld||macFireHeld||keyboardFireHeld)&&cursorWorld&&!bothLatched)squadFireAt(cursorWorld.x,cursorWorld.y);
-    if(touchState.fireHeld)fireMobile();
+    if(keyboardFireHeld&&actionAllowed('firearms'))refreshCursorWorld();
+    if(actionAllowed('firearms')&&(rightHeld||macFireHeld||keyboardFireHeld)&&cursorWorld&&!bothLatched)squadFireAt(cursorWorld.x,cursorWorld.y);
+    if(actionAllowed('firearms')&&touchState.fireHeld)fireMobile();
     updateSquad(dt);
+
+    if(missionController){
+      missionController.fixedUpdate(dt);
+      updateCivilians(dt);
+      [...squad,...civilians].forEach(ent=>art.animate(ent,dt));
+      updateCamera(dt);
+      updateHud();
+      return;
+    }
+
     processEnemyPathQueue();
     updateEnemies(dt);
     updateCivilians(dt);
