@@ -28,7 +28,7 @@ const nav=source.slice(source.indexOf('  const CELL=150;'),source.indexOf('  fun
 const q=new Function(
   'TOWN_MAP',
   geometry+body('pointInPoly')+nav+body('moveEntity')+body('updateFacing')+
-  ';return {obstacleAt,pathComponent,PATH_CELL};'
+  ';return {obstacleAt,pathComponent,findPath,PATH_CELL};'
 )(map);
 
 const start=map.spawns.squad[0],startComponent=q.pathComponent(Math.floor(start[0]*2/q.PATH_CELL),Math.floor(start[1]*2/q.PATH_CELL));
@@ -45,6 +45,11 @@ map.spawns.enemies.forEach((p,i)=>checkSpawn('Enemy spawn',p,i,6));
 map.spawns.civilians.forEach((p,i)=>checkSpawn('Civilian spawn',p,i,4));
 map.spawns.pickups.forEach((p,i)=>checkSpawn('Supply spawn',p,i,4));
 
+for(const [name,z] of Object.entries(zones)){
+  const route=q.findPath(start[0]*2,start[1]*2,z.x,z.y);
+  assert(route.length,'Bad Belzig objective '+name+' is unreachable from the mission start');
+}
+
 assert(source.includes('const pathComponents=new Int32Array(PATH_COLS*PATH_ROWS);'),'Connected-area cache must apply to both playable maps');
 assert(!source.includes("filter(e=>!obstacleAt(e.x,e.y,12))"),'Invalid enemy spawns must not be silently deleted');
 
@@ -52,8 +57,10 @@ const scope={window:{},localStorage:{getItem:()=>null,setItem(){}}};
 vm.runInNewContext(fs.readFileSync(path.join(root,'campaign.js'),'utf8'),scope);
 const badMission=scope.window.BadFodderCampaign.missions[0];
 const wiganMission=scope.window.BadFodderCampaign.missions[1];
+assert.equal(badMission.phases[0].defenderGroup,'post');
 assert.equal(badMission.phases[1].defenderGroup,'castle');
 assert.equal(badMission.phases[2].defenderGroup,'market');
+assert(badMission.phases.every(p=>p.hold>0),'Every Bad Belzig encounter should require a short secure hold');
 assert.equal(wiganMission.phases[0].defenderGroup,'tudor');
 assert.equal(wiganMission.phases[1].defenderGroup,'grandArcade');
 assert.equal(wiganMission.phases[2].defenderGroup,'wallgate');
@@ -78,9 +85,16 @@ const evaluator=new Function(
 for(const phase of badMission.phases.filter(p=>p.defenderGroup)){
   const z=zones[phase.zone],at={x:z.x,y:z.y};
   evaluator.setEnemies([{x:z.x,y:z.y,alive:true,objectiveGroup:phase.defenderGroup}]);
-  assert(!evaluator.phaseEvaluation(phase,[at],1).complete,phase.defenderGroup+' assigned defender is ignored');
+  assert(!evaluator.phaseEvaluation(phase,[at],1).ready,phase.defenderGroup+' assigned defender is ignored');
+
   evaluator.setEnemies([{x:0,y:0,alive:true,objectiveGroup:'unrelated'}]);
-  assert(evaluator.phaseEvaluation(phase,[at],1).complete,'Unrelated enemy blocks '+phase.defenderGroup);
+  const clear=evaluator.phaseEvaluation(phase,[at],1);
+  assert(clear.ready,'A distant unrelated enemy blocks '+phase.defenderGroup);
+  assert(!clear.complete,'A held objective completes instantly without its secure timer');
+
+  evaluator.setEnemies([{x:z.x,y:z.y,alive:true,objectiveGroup:'unrelated'}]);
+  const contested=evaluator.phaseEvaluation(phase,[at],1);
+  assert(!contested.ready,'A nearby hostile does not contest '+phase.defenderGroup);
 }
 
 const formationCode=source.slice(source.indexOf('  function clearSquadFormation('),source.indexOf('  function pointSegmentDistance('));
@@ -124,5 +138,5 @@ supplies.updateSquad(0);
 assert.equal(supplies.grenades,7);
 assert(!supplies.pickups[0].active,'Grenade supply should be consumed when useful');
 
-console.log('PASS: Bad Belzig mission data is externalised, reachable and validated; both missions use assigned objective defenders.');
+console.log('PASS: Bad Belzig mission data is externalised, objective routes are reachable, and compulsory encounters use assigned defenders plus secure holds.');
 console.log('PASS: medkits wait for injury, grenade supplies are explicit, full reserves do not waste crates, and connected-area caching is shared.');
