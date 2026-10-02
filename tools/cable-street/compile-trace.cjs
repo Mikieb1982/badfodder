@@ -198,8 +198,8 @@ function compileAuthoring({trace,schema,projection,eventOverlay=null,mapKey='cab
   const padding=projector.metadata.padding;
   return{
     key:mapKey,
-    width:Math.max(1,Math.ceil(maxX+padding)),
-    height:Math.max(1,Math.ceil(maxY+padding)),
+    width:Math.max(1,Math.ceil(maxX+padding)+1),
+    height:Math.max(1,Math.ceil(maxY+padding)+1),
     buildings,roads,railways,
     eventZones:[...tracedEventZones,...overlayEventZones],
     gameplayAdjustments,
