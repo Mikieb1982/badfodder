@@ -306,9 +306,9 @@ window.BadFodderMenu=class{
     const begin=overlay.querySelector('[data-briefing-begin]');
     if(begin)begin.addEventListener('click',()=>{
       begin.disabled=true;this.closeBriefing();
-      if(descriptor.mode==='historical')actions.selectHistorical?.(descriptor.id);
-      else if(descriptor.mode==='select')actions.selectMission(descriptor.index);
-      else actions.start();
+      if(descriptor.mode==='historical')this.actions.selectHistorical?.(descriptor.id);
+      else if(descriptor.mode==='select')this.actions.selectMission(descriptor.index);
+      else this.actions.start();
     });
     requestAnimationFrame(()=>((begin||back).focus({preventScroll:true})));
   }
