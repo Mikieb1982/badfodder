@@ -170,7 +170,7 @@ assert(index.includes("cable-street-interactions.js?v=20261003-tactical-1"),'His
 assert(index.includes('options:{scale:SCALE,pressureControlled:true,navigation}'),'Live Cable Street interactions do not wait for the historical pressure director');
 assert(fs.readFileSync(path.join(root,'cable-street-interactions.js'),'utf8').includes('pressureDamageMultiplier'),'Cable Street HOLD actions do not mitigate police pressure');
 assert(fs.readFileSync(path.join(root,'cable-street-interactions.js'),'utf8').includes("reason:'repelled'"),'Cable Street pressure waves cannot be repelled without a breach');
-assert(index.includes("cable-street-art.js?v=20261003-tactical-1"),'Historical art module is not cache-busted');
+assert(/cable-street-art\.js\?v=[^"\s]+/.test(index),'Historical art module is not cache-busted');
 
 
 console.log('PASS: historical launch resolves stable IDs without altering campaign progress and rejects locked/stale historical selections.');

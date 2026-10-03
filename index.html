@@ -538,8 +538,8 @@
 <script src="cable-street-map.js?v=20261003-tactical-1"></script>
 <script src="pixel-art.js"></script>
 <script src="mission-identities.js?v=20261003-wartime-1"></script>
-<script src="painted-art.js"></script>
-<script src="mission-character-art.js?v=20261003-wartime-1"></script>
+<script src="painted-art.js?v=20261003-visual-2"></script>
+<script src="mission-character-art.js?v=20261003-visual-2"></script>
 <script src="wartime-scenery.js?v=20261003-wartime-1"></script>
 <script src="building-art.js"></script>
 <script src="wigan-details.js"></script>
@@ -560,7 +560,7 @@
 <script src="cable-street-interactions.js?v=20261003-tactical-1"></script>
 <script src="cable-street-director.js?v=20261003-tactical-1"></script>
 <script src="cable-street-crowd.js?v=20261003-tactical-1"></script>
-<script src="cable-street-art.js?v=20261003-tactical-1"></script>
+<script src="cable-street-art.js?v=20261003-visual-2"></script>
 <script>
 (() => {
   'use strict';
@@ -2481,6 +2481,7 @@
     const bounds=sceneryBounds||{x:camera.x,y:camera.y,w:vw,h:vh};
     if(b.maxX<bounds.x-margin||b.minX>bounds.x+bounds.w+margin||b.maxY<bounds.y-margin||b.minY>bounds.y+bounds.h+margin)return;
     if(MAP_DATA.key==='wigan'){BadFodderWigan.building(ctx,b,art);return;}
+    if(MAP_DATA.key==='cable-street'){cableStreetArt.drawBuilding(ctx,b,art,BadFodderBuildings.mesh);return;}
     const h=b.height;
     const mesh=b.artMesh||(b.artMesh=BadFodderBuildings.mesh(b.points,h));
     if(!mesh)return;
@@ -2731,6 +2732,7 @@
       ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.setTransform(scale,0,0,scale,-x*scale,-y*scale);
       renderingStatic=true;sceneryBounds={x,y,w:target.width/scale,h:target.height/scale};
       drawTerrain();
+      if(MAP_DATA.key==='cable-street')cableStreetArt.drawStreetSurface(ctx,MAP_DATA,S,art,sceneryBounds);
       drawingRoads.forEach(drawRoad);
       if(MAP_DATA.key==='cable-street')cableStreetArt.drawStreetProps(ctx,MAP_DATA,S,sceneryBounds);
       if(MAP_DATA.key==='wigan')BadFodderWigan.ground(ctx,MAP_DATA,S,art);

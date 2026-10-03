@@ -7,7 +7,7 @@ const styleA=Art.buildingStyle(12345,{},n=>n*2);
 const styleB=Art.buildingStyle(12345,{},n=>n*2);
 assert.deepEqual(styleA,styleB,'Cable Street building style must be deterministic');
 assert.equal(styleA.family,'east-end-brick');
-assert(styleA.height>=8&&styleA.height<=14,'Low roof rise keeps the narrow street and volunteers visible');
+assert(styleA.height>=28&&styleA.height<=34,'Terraces need two readable storeys at the shared scene scale');
 assert.match(styleA.wall,/^#/);
 assert.match(styleA.roof,/^#/);
 assert.match(styleA.door,/^#/);

@@ -4,7 +4,7 @@
 (()=>{'use strict';
 const art=window.BadFodderArt,identities=window.BadFodderIdentities;
 if(!art||!identities)return;
-const previous=art.drawActor,cache=new Map(),portraits=new Map(),assets=new Map();
+const previous=art.drawActor,cache=new Map(),portraits=new Map(),assets=new Map(),crowdAtlases=new Map(),roleAtlases=new Map();
 let mission='belzig';
 const sets=Object.fromEntries(['cable-street','wigan','belzig'].map((key,row)=>[key,{sprites:'assets/characters/'+key+'.png',portraits:'assets/characters/portraits-1936-1945.png',portraitRow:row}]));
 const frames={"cable-street":[[[51,18,110,226],[229,18,119,227],[413,18,136,217],[612,18,128,226],[819,17,99,228],[1013,17,113,226],[1179,16,141,222],[1371,18,115,225]],[[50,263,96,239],[239,262,108,239],[420,259,125,238],[616,262,117,238],[816,264,102,232],[1014,264,106,236],[1185,262,125,238],[1375,264,107,236]],[[53,516,101,252],[232,516,122,252],[416,516,133,252],[614,517,121,251],[818,516,93,252],[1011,516,113,252],[1181,516,135,252],[1373,518,115,250]],[[43,768,111,235],[225,768,126,234],[407,768,151,230],[619,768,127,234],[818,768,105,229],[1002,768,128,232],[1177,768,149,230],[1369,768,127,232]]],"wigan":[[[45,26,147,222],[192,26,192,220],[384,24,192,216],[576,24,175,223],[786,24,140,221],[967,26,146,220],[1171,23,129,222],[1366,25,137,220]],[[45,264,147,237],[192,267,192,232],[384,263,192,232],[576,264,169,237],[783,271,134,228],[962,264,145,237],[1170,266,132,235],[1365,267,133,234]],[[47,522,145,246],[192,522,192,246],[384,518,192,250],[576,520,170,248],[773,522,153,246],[961,523,152,245],[1168,521,135,247],[1364,522,136,246]],[[41,768,151,232],[192,768,192,232],[384,768,192,225],[576,768,180,233],[774,768,164,231],[965,768,161,235],[1161,768,154,232],[1353,768,156,233]]],"belzig":[[[30,25,162,231],[192,28,186,228],[415,29,151,220],[612,28,129,228],[788,27,139,225],[986,28,134,226],[1182,27,130,221],[1367,26,140,230]],[[27,256,158,254],[227,270,154,239],[412,272,147,228],[615,256,122,254],[783,271,142,233],[984,273,141,231],[1170,270,144,232],[1372,270,139,240]],[[31,518,161,250],[192,519,192,249],[384,522,190,246],[609,521,124,247],[784,521,154,247],[988,522,136,246],[1190,522,116,246],[1364,521,149,247]],[[28,768,160,234],[226,768,147,233],[413,768,136,224],[604,768,134,234],[781,768,146,233],[981,768,135,231],[1173,768,141,225],[1375,768,128,234]]]};
@@ -60,15 +60,46 @@ function paintedBody(g,atlas,key,index,dir,phase,moving){
  g.drawImage(atlas,sx,sy+split,half,leg,-w/2,-leg*scale+stride,half*scale,leg*scale);
  g.drawImage(atlas,sx+half,sy+split,sw-half,leg,-w/2+half*scale,-leg*scale-stride,(sw-half)*scale,leg*scale);
 }
+// Crowd variants reuse the volunteers' painted silhouettes and fabric detail.
+// Only clothing is tinted; faces, hands, headwear and transparent edges stay intact.
+function crowdAtlas(atlas,variant){
+ const index=Math.abs(variant||0)%8;if(index<4)return atlas;
+ if(crowdAtlases.has(index))return crowdAtlases.get(index);
+ const c=canvas(atlas.naturalWidth,atlas.naturalHeight),g=c.getContext('2d');g.drawImage(atlas,0,0);
+ g.globalCompositeOperation='source-atop';g.globalAlpha=.3;
+ g.fillStyle=['#536d78','#956348','#68765b','#756387'][index-4];
+ for(const row of frames['cable-street'])for(const [x,y,w,h] of row)g.fillRect(x,y+h*.34,w,h*.39);
+ crowdAtlases.set(index,c);return c;
+}
+function roleAtlas(atlas,role){
+ if(roleAtlases.has(role))return roleAtlases.get(role);
+ const c=canvas(atlas.naturalWidth,atlas.naturalHeight),g=c.getContext('2d');g.drawImage(atlas,0,0);
+ g.globalCompositeOperation='source-atop';g.globalAlpha=.76;g.fillStyle=role==='police'?'#1d344c':'#282b2c';
+ for(const row of frames['cable-street'])for(const [x,y,w,h] of row)g.fillRect(x,y+h*.28,w,h*.61);
+ roleAtlases.set(role,c);return c;
+}
 art.drawActor=(g,ent,team='squad')=>{
- if(!identities.missions[mission]||((team==='civilian'||ent.periodRole)&&ent.identityRole!=='squad'))return previous(g,ent,team);
+ const streetNPC=mission==='cable-street'&&(team==='civilian'||ent.periodRole);
+ if(!identities.missions[mission]||(!streetNPC&&(team==='civilian'||ent.periodRole)&&ent.identityRole!=='squad'))return previous(g,ent,team);
  const v=art.pose(ent),s=descriptor(ent,team),dir=v.dir??0,moving=v.moving||/walk|run/.test(v.state),step=moving?Math.round((v.phase||0)/(Math.PI/4))%8:0;
- const atlas=(ent.identityRole==='squad'||team==='squad')?assets.get(mission+'/sprites'):null;
+ let atlas=(ent.identityRole==='squad'||team==='squad'||streetNPC)?assets.get(mission+'/sprites'):null;
+ if(atlas&&streetNPC&&ent.identityRole!=='squad')atlas=ent.periodRole?roleAtlas(atlas,ent.periodRole):crowdAtlas(atlas,ent.variant);
  g.save();ellipse(g,ent.x,ent.y+2,9,3,'#17251f50');g.translate(ent.x,ent.y);
  if(v.state==='dead'){g.rotate(Math.min(1,(v.death||0)/.24)*1.45);g.scale(1,.8);}
- else{const recoil=v.state==='fire'?1:0;g.translate(-Math.cos(v.facing||0)*recoil,(moving?Math.cos((v.phase||0)*2)*.45:0)-Math.sin(v.facing||0)*recoil);if(v.state==='hurt'||v.state==='stumble')g.rotate(.07);}
- if(atlas)paintedBody(g,atlas,mission,Math.abs(ent.variant||0)%4,dir,v.phase||0,moving);
- else g.drawImage(sprite(s,dir,step),-21.3,-48,42.67,53.33);
+ else{const recoil=v.state==='fire'?1:0;g.translate(-Math.cos(v.facing||0)*recoil,(moving?Math.cos((v.phase||0)*2)*.45:0)-Math.sin(v.facing||0)*recoil);if(v.state==='hurt'||v.state==='stumble')g.rotate(.07);
+  if(streetNPC&&v.state==='idle')g.translate(0,Math.sin((v.clock||0)*2+(ent.variant||0))*.16);}
+ if(atlas){
+  const index=streetNPC&&ent.periodRole?(ent.periodRole==='police'?2:0):Math.abs(ent.variant||0)%4;
+  paintedBody(g,atlas,mission,index,dir,v.phase||0,moving);
+  if(streetNPC&&ent.periodRole){
+   hat(g,s,0,-39,.83);
+   if(ent.periodRole==='police'&&Math.sin(dir*Math.PI/4)>=-.35){
+    for(let y=-26;y<-13;y+=4)ellipse(g,.5,y,.55,.55,'#bac1b5');
+    g.fillStyle='#202d38';g.fillRect(-5,-13,10,1.7);g.fillStyle='#aab2a4';g.fillRect(-.7,-13,1.4,1.7);
+   }
+  }
+ }
+ else{if(streetNPC)g.scale(.9,.9);g.drawImage(sprite(s,dir,step),-21.3,-48,42.67,53.33);}
  g.restore();
 };
 art.missionPortrait=(key,index,state='idle')=>{const id=identities.get(key),s=id.characters[Math.abs(index)%4],k=id.key+'/'+index+'/'+state;if(portraits.has(k))return portraits.get(k);const c=canvas(144,144),g=c.getContext('2d'),atlas=assets.get(id.key+'/portraits');if(atlas){const w=atlas.naturalWidth/4,h=atlas.naturalHeight/3;g.drawImage(atlas,(Math.abs(index)%4)*w,sets[id.key].portraitRow*h,w,h,0,0,144,144);}else{g.fillStyle=shade(g,60,0,144,'#666c57');g.fillRect(0,0,144,144);g.save();g.translate(72,244);g.scale(4.7,4.7);body(g,s,2,0,true);g.restore();for(let i=0;i<80;i++){g.fillStyle=i%2?'#ead4a20a':'#1a271809';g.fillRect((i*37)%144,(i*53)%144,2,1);}}
