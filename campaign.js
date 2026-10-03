@@ -6,7 +6,7 @@ const KEY='badfodder.campaign.v1';
 
 const missions=[
   {
-    id:1,title:'Operation Bad Belzig',environment:'temperate-town',map:'bad-belzig',squadSize:4,playable:true,
+    id:1,title:'Belzig, 1945',environment:'temperate-town',map:'bad-belzig',squadSize:4,playable:true,
     phases:[
       {type:'secure-zone',zone:'post',defenderGroup:'post',hold:1.0,contestRadius:72,title:'Secure the Postdistanzsäule',brief:'Move up Bahnhofstraße, clear the small Postdistanzsäule patrol, then hold the position.'},
       {type:'secure-zone',zone:'castle',defenderGroup:'castle',hold:1.4,contestRadius:105,title:'Secure Burg Eisenhardt',brief:'Clear the castle defenders, enter the Burg Eisenhardt objective area and hold it briefly.'},
@@ -14,7 +14,7 @@ const missions=[
     ]
   },
   {
-    id:2,title:'Wigan Town Centre',environment:'wigan-town',map:'wigan',squadSize:4,playable:true,
+    id:2,title:'Wigan, 1941',environment:'wigan-town',map:'wigan',squadSize:4,playable:true,
     phases:[
       {type:'secure-zone',zone:'tudor',defenderGroup:'tudor',hold:1.0,contestRadius:75,title:'Tudor Breakout',brief:'Clear the Tudor House opening defenders and hold the New Market Street end of town.'},
       {type:'secure-zone',zone:'grandArcade',defenderGroup:'grandArcade',hold:1.3,contestRadius:95,title:'Town Centre Sweep',brief:'Choose your route through Market Place and the side streets, defeat the Grand Arcade defenders and secure the centre.'},

@@ -10,7 +10,7 @@
   const missions=[
     {
       id:'cable-street-1936',
-      title:'Cable Street',
+      title:'Cable Street, 1936',
       subtitle:'London, 4 October 1936',
       blueprintVersion:'0.2',
       status:'playable-slice',

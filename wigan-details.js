@@ -67,7 +67,7 @@
    }
    g.fillStyle='#d1bc91';g.fillRect(0,-height-6,len,6);g.fillStyle=fascia;g.fillRect(1,-height-5,len-2,4);
    const names={tudor:'TUDOR HOUSE',johnBull:'JOHN BULL',moon:'MOON UNDER WATER',wallgate:'WALLGATE',northWestern:'NORTH WESTERN',busStation:'BUS STATION',grandArcade:'GRAND ARCADE'};
-   const text=names[b.landmark]||(club?['LIVE MUSIC','LATE BAR','CLUB'][b.i%3]:['SHOPS','CAFE','TOWN STORES'][b.i%3]);
+   const text=names[b.landmark]||(club?['DANCE HALL','SOCIAL CLUB','MUSIC HALL'][b.i%3]:['SHOPS','CAFE','TOWN STORES'][b.i%3]);
    g.textAlign='center';g.textBaseline='middle';g.fillStyle='#f1e4bc';g.font='700 3.4px system-ui,sans-serif';g.fillText(text,len/2,-height-2.6,len-5);
    g.fillStyle='#cab991';g.fillRect(1,-1,len-2,1);
    if(station||b.landmark==='grandArcade'){

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>Bad Fodder: Operation Bad Belzig</title>
+  <title>Bad Fodder</title>
   <style>
     :root{
       color-scheme:dark;
@@ -383,15 +383,15 @@
     }
   </style>
   <link rel="stylesheet" href="game-ui.css?v=20261003-tactical-1">
-  <link rel="stylesheet" href="menu-ui.css">
+  <link rel="stylesheet" href="menu-ui.css?v=20261003-wartime-1">
 </head>
 <body>
 <main class="app" id="gameRoot">
   <div class="topbar">
     <div>
       <h1>Bad Fodder</h1>
-      <div class="subtitle">Operation Bad Belzig</div>
-      <div id="status">Loading Bad Belzig…</div>
+      <div class="subtitle">Belzig, 1945</div>
+      <div id="status">Loading Belzig…</div>
     </div>
     <div class="stats">
       <span class="pill">Squad <strong id="squadCount">4</strong>/<strong id="squadMax">4</strong></span>
@@ -417,12 +417,11 @@
   <section id="roster" class="roster"></section>
 
   <div class="viewport">
-    <div id="loading" class="loading"><div><strong>Bad Belzig</strong><span>Preparing game…</span></div></div>
-    <canvas id="game" width="1040" height="650" aria-label="Top-down tactical game using the established Bad Belzig map"></canvas>
+    <div id="loading" class="loading"><div><strong>BAD FODDER</strong><small id="loadingEra"></small><span>Preparing game…</span></div></div>
+    <canvas id="game" width="1040" height="650" aria-label="Top-down tactical game using the established Belzig map"></canvas>
     <section id="menuScreen" class="menu-screen" role="dialog" aria-modal="true" aria-label="Bad Fodder main menu" data-mode="title" data-panel="main">
       <div class="menu-backdrop" aria-hidden="true"></div>
       <div class="menu-layout">
-        <img class="menu-logo" src="assets/menu/logo.webp" alt="Bad Fodder" width="650" height="340">
         <p id="menuBadge" class="menu-badge" hidden></p>
         <div class="menu-panel" data-view="main">
           <nav class="menu-actions" aria-label="Game menu">
@@ -432,6 +431,7 @@
             <button id="menuRestart" class="menu-button" type="button" hidden>RESTART MISSION</button>
             <button id="menuControls" class="menu-button" type="button">CONTROLS</button>
             <button id="menuOptions" class="menu-button" type="button">OPTIONS</button>
+            <button id="menuViewBriefing" class="menu-button" type="button" hidden>VIEW BRIEFING</button>
             <button id="menuMain" class="menu-button" type="button" hidden>MAIN MENU</button>
           </nav>
           <p class="menu-hint">CAMPAIGN PLAYS MISSIONS IN ORDER · MOUSE · TOUCH · KEYBOARD</p>
@@ -440,19 +440,26 @@
           <h2>SELECT MISSION</h2>
           <p class="menu-copy">Choose a standalone mission. This does not change campaign progress.</p>
           <div class="menu-mission-list">
-            <button id="menuMissionBad" class="menu-button" type="button"><span>MISSION 01</span>BAD BELZIG</button>
-            <button id="menuMissionWigan" class="menu-button" type="button"><span>MISSION 02</span>WIGAN TOWN CENTRE</button>
-            <button id="menuHistoricalCable" class="menu-button" type="button"><span>LONDON · 1936</span>CABLE STREET</button>
+            <button id="menuMissionBad" class="menu-button" type="button"><span>Fictional Resistance Mission</span>BELZIG, 1945</button>
+            <button id="menuMissionWigan" class="menu-button" type="button"><span>Alternate History</span>WIGAN, 1941</button>
+            <button id="menuHistoricalCable" class="menu-button" type="button"><span>Historical Prologue</span>CABLE STREET, 1936</button>
           </div>
           <button class="menu-button" data-back type="button">BACK</button>
         </div>
-        <div class="menu-panel menu-card menu-historical-card" data-view="historical-cable" hidden>
-          <h2>CABLE STREET</h2>
-          <p class="menu-historical-date">LONDON · 4 OCTOBER 1936</p>
-          <p id="menuHistoricalCableStatus" class="menu-historical-status">READY · CHRISTIAN STREET DEFENCE</p>
-          <p class="menu-copy">Prevent the route through Cable Street from being opened.</p>
-          <button id="menuHistoricalCablePlay" class="menu-button primary" type="button">PLAY CABLE STREET</button>
-          <button class="menu-button" data-back data-back-to="missions" type="button">BACK</button>
+        <div class="menu-panel menu-card mission-briefing" data-view="briefing" hidden>
+          <p id="briefingClassification" class="briefing-classification"></p>
+          <h2 id="briefingTitle"></h2><p id="briefingLocation" class="briefing-location"></p>
+          <div class="briefing-columns"><div><h3>THE STORY</h3><div id="briefingStory"></div><h3>YOUR MISSION</h3><p id="briefingMission"></p></div>
+          <aside><h3>OBJECTIVES</h3><ol id="briefingObjectives"></ol><h3>YOUR PEOPLE</h3><div id="briefingCharacters" class="briefing-characters"></div></aside></div>
+          <p id="briefingFinal" class="briefing-final"></p>
+          <div class="briefing-actions"><button id="briefingBegin" class="menu-button primary" type="button">BEGIN MISSION</button><button id="briefingBack" class="menu-button" type="button">BACK</button></div>
+        </div>
+        <div class="menu-panel menu-card mission-result" data-view="result" hidden>
+          <p id="resultLocation" class="briefing-classification"></p><h2 id="resultTitle"></h2><p id="resultSubtitle"></p><p id="resultFlavour"></p>
+          <button id="resultNext" class="menu-button primary" type="button" hidden>NEXT MISSION</button>
+          <button id="resultRetry" class="menu-button" type="button">RETRY</button>
+          <button id="resultBriefing" class="menu-button" type="button">VIEW BRIEFING</button>
+          <button id="resultMenu" class="menu-button" type="button">RETURN TO MENU</button>
         </div>
         <div class="menu-panel menu-card" data-view="controls" hidden>
           <h2>CONTROLS</h2>
@@ -461,6 +468,7 @@
         </div>
         <div class="menu-panel menu-card" data-view="options" hidden>
           <h2>OPTIONS</h2>
+          <p class="menu-copy">This game uses real locations and historical settings. Some events are historical, while the main wartime battles and playable characters are fictional or alternate history.</p>
           <button id="menuMusic" class="menu-button" type="button" aria-pressed="true">MUSIC: ON</button>
           <label class="menu-setting menu-volume" for="menuMusicVolume"><span>MUSIC VOLUME</span><span class="menu-range-control"><input id="menuMusicVolume" type="range" min="0" max="100" step="1" value="22"><output id="menuMusicVolumeValue" for="menuMusicVolume">22%</output></span></label>
           <button id="menuSfx" class="menu-button" type="button" aria-pressed="true">SFX: ON</button>
@@ -475,7 +483,7 @@
     <div id="gameHud" class="game-hud" aria-label="Game status">
       <div class="hud-topline">
         <div class="hud-mission">
-          <div class="hud-kicker"><span id="hudCampaign">MISSION 01/24 · BAD BELZIG</span> <strong id="hudStage">OBJECTIVE 1/3</strong></div>
+          <div class="hud-kicker"><span id="hudCampaign">MISSION 01/24 · BELZIG</span> <strong id="hudStage">OBJECTIVE 1/3</strong></div>
           <span id="hudMission">Preparing operation…</span>
           <div id="hudInstruction" class="hud-instruction" hidden></div>
           <div id="hudProgress" class="hud-progress" aria-label="Mission progress"><i></i><i></i><i></i></div>
@@ -529,12 +537,15 @@
 <script src="wigan-map.js"></script>
 <script src="cable-street-map.js?v=20261003-tactical-1"></script>
 <script src="pixel-art.js"></script>
+<script src="mission-identities.js?v=20261003-wartime-1"></script>
 <script src="painted-art.js"></script>
+<script src="mission-character-art.js?v=20261003-wartime-1"></script>
+<script src="wartime-scenery.js?v=20261003-wartime-1"></script>
 <script src="building-art.js"></script>
 <script src="wigan-details.js"></script>
 <script src="wigan-scenery.js?v=20261003-upgrade-1"></script>
 <script src="scenery-cache.js"></script>
-<script src="menu-ui.js?v=20261003-menu-cleanup-1"></script>
+<script src="menu-ui.js?v=20261003-wartime-1"></script>
 <script src="music.js?v=20261003-tactical-1"></script>
 <script src="sfx.js?v=20261003-tactical-1"></script>
 <script src="combat-geometry.js"></script>
@@ -583,6 +594,9 @@
   });
   const activeMissionIndex=missionLaunch.currentIndex();
   const initialMission=missionLaunch.current();
+  const missionIdentity=BadFodderIdentities.get(initialMission);
+  art.setMissionIdentity?.(missionIdentity.key);
+  let launchAfterLoad=missionLaunch.consumeAutoStart(),loadingMission=false;
   const mapRegistry=missionBootstrap.createMapRegistry({
     'bad-belzig':TOWN_MAP,
     'wigan':WIGAN_MAP,
@@ -599,7 +613,9 @@
   const rosterEl=document.getElementById('roster');
   const loadingEl=document.getElementById('loading');
   const loadingTitle=loadingEl.querySelector('strong');
-  if(loadingTitle)loadingTitle.textContent=initialMission?.title||'Bad Fodder';
+  if(loadingTitle)loadingTitle.textContent=missionIdentity.title;
+  document.getElementById('loadingEra').textContent=missionIdentity.loading;
+  document.querySelector('.subtitle').textContent=missionIdentity.title+', '+missionIdentity.year;
 
   const selectAllBtn=document.getElementById('selectAll');
   let unitButtons=Array.from(document.querySelectorAll('.unitBtn'));
@@ -828,7 +844,7 @@
   }
 
   async function preload(){
-    await art.preloadPainted(MAP_DATA.key);
+    await Promise.all([art.preloadPainted(MAP_DATA.key),art.preloadMissionArt?.(missionIdentity.key)]);
     if(MAP_DATA.key==='bad-belzig'){
       ['castle','butter','post','rathaus','reissiger','briccius','marien'].forEach(art.landmark);
     }
@@ -1050,6 +1066,7 @@
   function resumeMission(){
     window.BadFodderSfx?.unlock();
     if(!canResumeMission())return;
+    window.BadFodderMusic?.playMission(activeMission());
     simulationAccumulator=0;last=performance.now();
     releaseInterruptedInput();
     paused=false;menuOpen=false;
@@ -1060,15 +1077,29 @@
   function beginMission(){
     window.BadFodderSfx?.unlock();
     if(!started)return;
+    window.BadFodderMusic?.playMission(activeMission());
     try{resetGame()}catch(err){runtimeFaultCount=2;handleRuntimeFault(err);return}
     menuOpen=false;paused=false;
     menu.close();syncTouchControlState();root.focus({preventScroll:true});
     refreshCursorWorld();
   }
 
-  function startCampaignFromMenu(){
-    if(started&&missionLaunch.isCampaign()&&activeMissionIndex===campaign.state.current){
-      beginMission();
+  function requestMissionBriefing(mission,begin,back='missions'){
+    releaseInterruptedInput();menuOpen=true;paused=true;mapOpen=false;simulationAccumulator=0;
+    menu.showBriefing(BadFodderIdentities.get(mission),begin,back);syncTouchControlState();
+  }
+  function startCampaignFromMenu(){requestMissionBriefing(campaign.missions[campaign.state.current]||campaign.missions[0],launchCampaign,'main');}
+  function startStandaloneMission(index){if(campaign.missions[index]?.playable)requestMissionBriefing(campaign.missions[index],()=>launchStandalone(index));}
+  function startHistoricalMission(id){const m=historicalMissions.get(id);if(m?.playable&&m.mapReady&&mapRegistry.get(m.map))requestMissionBriefing(m,()=>launchHistorical(id));}
+  function viewMissionBriefing(){requestMissionBriefing(activeMission(),finished?beginMission:resumeMission,finished?'result':'main');}
+  function showMissionResult(){
+    releaseInterruptedInput();menuOpen=true;paused=true;mapOpen=false;
+    menu.showResult(missionIdentity,win,win&&hasPlayableNextMission());syncTouchControlState();
+  }
+
+  function launchCampaign(){
+    if(missionLaunch.isCampaign()&&activeMissionIndex===campaign.state.current){
+      if(started)beginMission();else{launchAfterLoad=true;startGame();}
       return;
     }
     missionLaunch.useCampaign();
@@ -1076,7 +1107,7 @@
     location.reload();
   }
 
-  function startStandaloneMission(index){
+  function launchStandalone(index){
     const selected=campaign.missions[index];
     if(!selected||!selected.playable)return;
     if(missionLaunch.isSelection()&&activeMissionIndex===index&&started){
@@ -1088,7 +1119,7 @@
     location.reload();
   }
 
-  function startHistoricalMission(id){
+  function launchHistorical(id){
     if(!missionLaunch.selectHistorical(id)){
       setStatus('Historical mission is not ready for play.');
       return false;
@@ -1102,6 +1133,7 @@
     menuOpen=true;paused=true;
     releaseAllFireInputs();
     releaseInterruptedInput();mapOpen=false;simulationAccumulator=0;
+    window.BadFodderMusic?.playHome();
     menu.show('title');syncTouchControlState();
   }
 
@@ -1159,7 +1191,7 @@
       const hp=Array.from({length:energy===null?s.maxHp:10},(_,h)=>'<i class="'+(h<(energy===null?s.hp:energy/10)?((energy===null?s.hp<=2:energy<30)?'on low':'on'):'')+'"></i>').join('');
       chip.innerHTML='<span class="hud-unit-info"><span class="hud-name"><em>'+(i+1)+'</em>'+s.name+'</span><span class="hud-health">'+hp+'</span><span class="hud-state">'+(s.alive?(energy===null?'HP '+s.hp+'/'+s.maxHp:'ENERGY '+energy+'%'):'DOWN')+'</span></span>';
       const portrait=cachedPortrait||document.createElement('canvas');portrait.width=96;portrait.height=96;portrait.className='hud-portrait';
-      const pg=portrait.getContext('2d');pg.imageSmoothingEnabled=true;pg.drawImage(art.soldier(missionController?'civilian':'squad',2,s.alive?0:2,s.alive?'idle':'dead',i),0,0);
+      const pg=portrait.getContext('2d');pg.imageSmoothingEnabled=true;pg.drawImage(art.missionPortrait?art.missionPortrait(missionIdentity.key,i,s.alive?'idle':'dead'):art.soldier(missionController?'civilian':'squad',2,s.alive?0:2,s.alive?'idle':'dead',i),0,0,96,96);
       chip.insertBefore(portrait,chip.firstChild);
 
     });
@@ -1235,16 +1267,14 @@
     if(!missionSpawns||!Array.isArray(missionSpawns.squad)||!Array.isArray(missionSpawns.enemies)||!Array.isArray(missionSpawns.civilians)||!Array.isArray(missionSpawns.pickups)){
       throw new Error('Mission map is missing required spawn data.');
     }
-    const rosterNames=Array.isArray(mission.roster)&&mission.roster.length
-      ?mission.roster
-      :['Müller','Becker','Klein','Jansen','Fischer','Wagner','Schulz','Koch'];
+    const rosterNames=missionIdentity.characters.map(c=>c.name);
     const names=rosterNames.slice(0,Math.max(1,Math.min(8,mission.squadSize||4)));
     const mapSquad=missionSpawns.squad;
     const startX=S(786),startY=S(1450);
     squad=names.map((name,i)=>{
       const spawn=mapSquad&&mapSquad[i]?mapSquad[i]:[786+(i%2)*17,1450+Math.floor(i/2)*17];
       return({
-      name,variant:i,x:S(spawn[0]),y:S(spawn[1]),
+      name,variant:i,identityRole:'squad',x:S(spawn[0]),y:S(spawn[1]),
       hp:8,maxHp:8,alive:true,selected:true,target:null,cooldown:0,reload:0,flash:0,
       dir:-Math.PI/2,anim:i*.7,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0,path:null,pathIndex:0,
       fireHeat:0,hitTimer:0,damageGrace:0,formSlot:0,followRepath:0,isFormationLeader:false
@@ -1256,7 +1286,7 @@
     const hostileSpots=missionSpawns.enemies;
     enemies=missionController?[]:hostileSpots.map((p,i)=>({
       x:S(p[0]),y:S(p[1]),homeX:S(p[0]),homeY:S(p[1]),
-      hp:3,maxHp:3,alive:true,phase:i*.67,cooldown:.25+i*.04,
+      variant:i%4,hp:3,maxHp:3,alive:true,phase:i*.67,cooldown:.25+i*.04,
       alert:false,lastSeen:null,aiState:'patrol',flash:0,
       dir:Math.PI/2,anim:i*.51,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0,path:null,pathIndex:0,repath:0,
       hitTimer:0,
@@ -1369,10 +1399,9 @@
 
   function advanceCampaign(){
     if(!finished||!win||!hasPlayableNextMission())return false;
-    campaign.setCurrent(activeMissionIndex+1);
-    missionLaunch.useCampaign();
-    missionLaunch.requestAutoStart();
-    location.reload();
+    requestMissionBriefing(campaign.missions[activeMissionIndex+1],()=>{
+      campaign.setCurrent(activeMissionIndex+1);missionLaunch.useCampaign();missionLaunch.requestAutoStart();location.reload();
+    },'result');
     return true;
   }
 
@@ -1387,7 +1416,7 @@
       :mission.title+' complete.';
     setStatus('Mission complete. '+completion);
     if(missionLaunch.isHistorical())hudMission.textContent=completion;
-    syncTouchControlState();
+    showMissionResult();
   }
 
   function phaseStatus(phase,result){
@@ -1444,10 +1473,10 @@
     const targetCount=objectiveDefenders?objectiveDefenders.length:remaining;
 
     hudCampaign.textContent=missionLaunch.isHistorical()
-      ?'HISTORICAL · '+mission.title.toUpperCase()
+      ?missionIdentity.title+' · '+missionIdentity.year
       :'MISSION '+String(mission.id).padStart(2,'0')+'/24 · '+mission.title.toUpperCase();
     const historicalMode=missionLaunch.isHistorical();
-    hudAll.querySelector('span').textContent=living.length+(historicalMode?' VOLUNTEERS':' TROOPS');
+    hudAll.querySelector('span').textContent=living.length+(historicalMode?' VOLUNTEERS':' LOCALS');
     hudSquadLabel.textContent=historicalMode?'VOLUNTEERS':'SQUAD';
     hudStage.textContent=finished?(win?'MISSION COMPLETE':'MISSION FAILED'):'OBJECTIVE '+Math.min(phaseCount,missionStage+1)+'/'+phaseCount;
     rebuildHudProgress(phaseCount);
@@ -2217,7 +2246,7 @@
   }
 
   function checkFailure(){
-    if(!finished&&!squad.some(s=>s.alive)){finished=true;win=false;hudStage.textContent='MISSION FAILED';setStatus('Mission failed. The squad has been lost.');syncTouchControlState()}
+    if(!finished&&!squad.some(s=>s.alive)){finished=true;win=false;hudStage.textContent='MISSION FAILED';setStatus(missionIdentity.failure);showMissionResult()}
   }
 
   function setMoveTargets(p){
@@ -2493,6 +2522,7 @@
           ctx.fillStyle='#9e9279';ctx.beginPath();ctx.roundRect(x-S(1.35),y-S(1.9),S(2.7),S(3.8),S(.3));ctx.fill();
           ctx.fillStyle='#333d39';ctx.fillRect(x-S(.95),y-S(1.45),S(1.9),S(2.9));
           ctx.fillStyle='#81908b';ctx.fillRect(x-S(.6),y-S(1.1),S(1.2),S(.8));
+          if(MAP_DATA.key==='bad-belzig'&&b.i%5===0){ctx.fillStyle='#7b654c';ctx.fillRect(x-3,y-2,6,1.7);ctx.fillRect(x-3,y+1,6,1.7);}
           ctx.strokeStyle='#c5c4a8';ctx.lineWidth=.6;ctx.beginPath();ctx.moveTo(x,y-S(1.4));ctx.lineTo(x,y+S(1.45));ctx.stroke();
         }
       }
@@ -2692,6 +2722,8 @@
     });
   }
 
+  const wartimeProps=window.BadFodderWartimeScenery?.prepare(MAP_DATA)||[];
+
   function paintScenery(target,x,y,scale=1,light=false){
     const live=ctx;ctx=target.getContext('2d',{alpha:false});
     if(!ctx)throw new Error('Unable to create scenery canvas');
@@ -2707,6 +2739,7 @@
         wiganStaticObjects.forEach(o=>o.building?drawBuilding(o.building):BadFodderWiganDetails.furniture(ctx,[o.prop],sceneryBounds));
       }else [...buildings].filter(b=>!b.landmarkFootprint).sort((a,b)=>a.maxY-b.maxY).forEach(drawBuilding);
       drawLandmarks();
+      window.BadFodderWartimeScenery?.draw(ctx,wartimeProps,sceneryBounds);
     }finally{ctx=live;renderingStatic=false;sceneryBounds=null;}
   }
   function bakeScenery(forceLight=false){
@@ -3480,7 +3513,7 @@
         const historicalProgress=missionDirector.snapshot();
         missionStage=historicalProgress.phaseIndex;
         if(historicalProgress.completed)completeCurrentMission();
-        else if(historicalProgress.failed){finished=true;win=false;hudStage.textContent='MISSION FAILED';setStatus(historicalProgress.status);syncTouchControlState()}
+        else if(historicalProgress.failed){finished=true;win=false;hudStage.textContent='MISSION FAILED';setStatus(historicalProgress.status);showMissionResult()}
       }
       if(missionCrowd)missionCrowd.fixedUpdate(dt);
       updateCivilians(dt);
@@ -3554,6 +3587,8 @@
   }
 
   async function startGame(){
+    if(loadingMission)return;loadingMission=true;
+    menu.close();menuOpen=true;paused=true;syncTouchControlState();
     try{
       loadingEl.classList.remove('hidden');
       const loadingText=loadingEl.querySelector('span');
@@ -3588,34 +3623,32 @@
       setStatus('Phase 1: '+(firstPhase?(firstPhase.brief||firstPhase.title):'Begin mission.'));
       syncTouchControlState();
       updateHud(true);
-      if(missionLaunch.consumeAutoStart())beginMission();
+      if(launchAfterLoad){launchAfterLoad=false;beginMission();}
     }catch(err){
       console.error('Bad Fodder failed to start',err);
       started=false;
       releaseInterruptedInput();
       loadingEl.classList.add('hidden');
-      menu.fail();
+      menu.show('title');menu.fail();
       const loadingText=loadingEl.querySelector('span');
       if(loadingText)loadingText.textContent='Unable to start game. Reload the page to try again.';
       setStatus('Game startup failed.');
-    }
+    }finally{loadingMission=false;}
   }
 
   menu=new BadFodderMenu({
-    root,screen:document.getElementById('menuScreen'),canResume:canResumeMission,start:startCampaignFromMenu,selectMission:startStandaloneMission,selectHistorical:startHistoricalMission,resume:resumeMission,restart:beginMission,main:showTitle,
+    root,screen:document.getElementById('menuScreen'),canResume:canResumeMission,start:startCampaignFromMenu,selectMission:startStandaloneMission,selectHistorical:startHistoricalMission,resume:resumeMission,restart:beginMission,main:showTitle,viewBriefing:viewMissionBriefing,next:advanceCampaign,
     fullscreen:toggleMobileFullscreen,isFullscreen:isFullscreenActive,
     zoom:value=>{preferredZoom=zoom=Number(value);clampCamera();},dust:value=>{showDust=value;},dustEnabled:showDust
   });
-  const cableMission=historicalMissions.get('cable-street-1936');
-  menu.setHistoricalCableReady(!!(
-    cableMission&&cableMission.playable&&cableMission.mapReady&&mapRegistry.get('cable-street')
-  ));
   menu.show('title');syncTouchControlState();
   window.addEventListener('resize',resizeGame);
   if(window.ResizeObserver)new ResizeObserver(resizeGame).observe(gameViewport);
   resizeGame();
   requestAnimationFrame(tick);
-  startGame();
+  // BOOT_MISSION: defer assets and simulation until the briefing is accepted.
+  if(launchAfterLoad)startGame();
+  else{loadingEl.classList.add('hidden');menu.ready(false);menu.show('title');}
 })();
 </script>
 </body>

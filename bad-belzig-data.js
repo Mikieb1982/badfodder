@@ -4,7 +4,7 @@
   'use strict';
 
   TOWN_MAP.key='bad-belzig';
-  TOWN_MAP.title='Bad Belzig';
+  TOWN_MAP.title='Belzig';
 
   TOWN_MAP.spawns={
     squad:[

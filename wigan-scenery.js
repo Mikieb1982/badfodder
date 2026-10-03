@@ -70,6 +70,8 @@
     const pane=[[x-ux*w/2,y-uy*w/2],[x+ux*w/2,y+uy*w/2],[x+ux*w/2,y+uy*w/2-wh],[x-ux*w/2,y-uy*w/2-wh]];
     poly(g,pane,'#293b3a',b.landmark==='tudor'?'#48463b':'#b9ae8d',1);line(g,[[x-ux*w/2,y-uy*w/2-wh+1],[x+ux*w/2,y+uy*w/2-wh+1]],'#718982',.8);
     line(g,[[x,y],[x,y-wh]],'#9d9e85',.7);
+    if(b.i%5===0){poly(g,pane,'#242b28b8');line(g,[[x-ux*w/2,y-uy*w/2-wh*.35],[x+ux*w/2,y+uy*w/2-wh*.35]],'#9d8460',1.8);}
+    else if(b.i%11===0&&row===0){line(g,[[x-ux*w/2,y-uy*w/2],[x+ux*w/2,y+uy*w/2-wh]],'#c9b995',1.1);}
     line(g,[[x-ux*(w/2+1),y-uy*(w/2+1)+1],[x+ux*(w/2+1),y+uy*(w/2+1)+1]],'#d1c6a5',1.2);
    }
    BadFodderWiganDetails.facade(g,b,wall,BadFodderWiganDetails.isFront(b,wall,walls));
