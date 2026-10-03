@@ -27,7 +27,7 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   t.click();t.step(500);assert.equal(t.audio.volume,.22);assert(!t.audio.muted);
   t.document.hidden=true;t.event('visibilitychange');assert(t.audio.paused);
   t.document.hidden=false;t.event('visibilitychange');await settle();assert(!t.audio.paused);
-  t.error();assert.equal(t.button.textContent,'MUSIC: RETRY');t.click();await settle();assert(t.audio.src.startsWith('assets/audio/bad_fodder.mp3?v='));assert.equal(t.button.textContent,'MUSIC: ON');
+  t.error();assert.equal(t.button.textContent,'MUSIC: RETRY');t.click();await settle();assert(t.audio.src.startsWith('assets/audio/mission.mp3?v='));assert.equal(t.button.textContent,'MUSIC: ON');
   const race=setup();race.event('pointerdown');race.api.setEnabled(false);await settle();race.step(1200);assert(race.audio.muted);assert.equal(race.audio.volume,0,'An in-flight play must respect mute');
   console.log('PASS: music gesture unlock/retry, fades, saved mute, visibility pause/resume, one audio element and pending-play mute.');
 })().catch(error=>{console.error(error);process.exitCode=1});
