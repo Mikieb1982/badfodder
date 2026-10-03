@@ -1,21 +1,22 @@
-/* The reference artwork is presentation; every menu control is live HTML. */
+/* Main-menu artwork stays visible; all controls remain live HTML. */
 .menu-screen[hidden],.menu-screen [hidden]{display:none!important}
-.menu-screen{position:absolute;inset:0;z-index:12;overflow:auto;overscroll-behavior:contain;background:#172012;color:#f1dfaa;font-family:"Courier New",monospace}
-.menu-backdrop{position:absolute;inset:0;background:url('assets/menu/if-i-can-shoot-rabbits-title.png') center/cover no-repeat;filter:brightness(.78);pointer-events:none}
-.menu-backdrop::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 15%,#080e0860 100%)}
-.menu-layout{position:relative;min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:26px 24px;box-sizing:border-box}
+.menu-screen{position:absolute;inset:0;z-index:12;overflow:auto;overscroll-behavior:contain;background:#11150f;color:#f1dfaa;font-family:"Courier New",monospace}
+.menu-backdrop{position:absolute;inset:0;background:url('assets/menu/if-i-can-shoot-rabbits-title.png?v=20261003-menu-layout-2') center top/cover no-repeat;filter:brightness(.9);pointer-events:none;transform:translateZ(0)}
+.menu-backdrop::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent 0%,transparent 42%,#0a10097a 68%,#070b07d9 100%),linear-gradient(0deg,#070b07a8 0%,transparent 36%)}
+.menu-layout{position:relative;min-height:100%;display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end;gap:10px;padding:clamp(18px,4vh,42px) clamp(20px,5vw,70px);box-sizing:border-box}
 .menu-logo{display:none}
-.menu-badge{margin:0;padding:8px 18px;max-width:95%;background:#18220ee8;border:2px solid #a69c4b;box-shadow:inset 0 0 0 2px #45542a,0 3px 0 #080d06;color:#e8ca76;font-weight:900;font-size:clamp(12px,1.7vw,19px);letter-spacing:.07em;text-align:center}
-.menu-badge::before,.menu-badge::after{content:'★';padding:0 12px;color:#e4c767}
-.menu-panel{width:min(380px,90%)}
-.menu-actions{display:flex;flex-direction:column;gap:10px}
-.menu-button{position:relative;display:block;width:100%;min-height:48px;padding:9px 16px;border:2px solid #788149;border-radius:2px;background:linear-gradient(#27351c,#17220f);box-shadow:inset 0 0 0 2px #10180c,0 3px 0 #080d07;color:#eee1b7;font:900 clamp(14px,1.8vw,21px)/1.2 "Courier New",monospace;text-shadow:2px 2px #060b06;letter-spacing:.035em;cursor:pointer;touch-action:manipulation}
-.menu-button:hover,.menu-button:focus-visible,.menu-actions:not(:focus-within) .primary:not(:disabled){color:#fff0b2;border-color:#f0cf6c;background:linear-gradient(#384624,#243017);outline:1px solid #fff2b6;outline-offset:1px}
-.menu-button:focus-visible::before{content:'▸';position:absolute;left:-23px;top:50%;transform:translateY(-50%);color:#f0cf6c;text-shadow:2px 2px #000;font-size:28px}
+.menu-badge{margin:0 0 2px;padding:7px 15px;max-width:min(360px,90vw);background:#17210de0;border:1px solid #a69c4b;box-shadow:0 3px 12px #0008;color:#e8ca76;font-weight:900;font-size:clamp(11px,1.4vw,16px);letter-spacing:.07em;text-align:center}
+.menu-badge::before,.menu-badge::after{content:'★';padding:0 9px;color:#e4c767}
+.menu-panel{width:min(330px,86vw)}
+.menu-screen[data-panel="main"] .menu-panel{padding:13px;background:#10170dd6;border:1px solid #8f8b56;box-shadow:0 10px 28px #0009,inset 0 0 0 1px #314027;backdrop-filter:blur(2px);box-sizing:border-box}
+.menu-actions{display:flex;flex-direction:column;gap:7px}
+.menu-button{position:relative;display:block;width:100%;min-height:43px;padding:8px 14px;border:1px solid #848952;border-radius:2px;background:linear-gradient(#29381eeb,#17220feb);box-shadow:inset 0 0 0 1px #10180c,0 2px 0 #080d07;color:#eee1b7;font:900 clamp(13px,1.55vw,18px)/1.2 "Courier New",monospace;text-shadow:2px 2px #060b06;letter-spacing:.035em;cursor:pointer;touch-action:manipulation}
+.menu-button:hover,.menu-button:focus-visible,.menu-actions:not(:focus-within) .primary:not(:disabled){color:#fff0b2;border-color:#f0cf6c;background:linear-gradient(#3a4928,#243017);outline:1px solid #fff2b6;outline-offset:1px}
+.menu-button:focus-visible::before{content:'▸';position:absolute;left:-21px;top:50%;transform:translateY(-50%);color:#f0cf6c;text-shadow:2px 2px #000;font-size:25px}
 .menu-button:disabled{opacity:.7;cursor:wait;color:#c0bf98}
-.menu-hint,.menu-footer{margin:14px 0 0;text-align:center;font-size:10px;font-weight:700;letter-spacing:.12em;color:#cdc8a1;text-shadow:1px 1px #000}
-.menu-footer{margin:0;line-height:1.5}
-.menu-card{padding:18px;background:#14200ef5;border:2px solid #a8a357;box-shadow:inset 0 0 0 2px #354325,0 4px 0 #090e07;box-sizing:border-box}
+.menu-hint,.menu-footer{margin:9px 0 0;text-align:center;font-size:9px;font-weight:700;line-height:1.4;letter-spacing:.09em;color:#d3cfaa;text-shadow:1px 1px #000}
+.menu-footer{margin:0;max-width:min(330px,86vw)}
+.menu-card{padding:18px;background:#14200ef2;border:2px solid #a8a357;box-shadow:inset 0 0 0 2px #354325,0 8px 25px #0009;box-sizing:border-box;backdrop-filter:blur(3px)}
 .menu-card h2{margin:0 0 15px;color:#e8ca76;font-size:20px;text-align:center;letter-spacing:.07em}
 .menu-copy{margin:0 0 14px;color:#d8d9bb;font:12px/1.45 system-ui,sans-serif;text-align:center}
 .menu-mission-list{display:flex;flex-direction:column;gap:9px}
@@ -42,7 +43,10 @@
 .app.menu-open>.topbar,.app.menu-open>.toolbar,.app.menu-open>.help,.app.menu-open>.note{display:none}
 .app.menu-open{margin:0 auto}.app.menu-open .viewport{margin-top:0}
 .app.menu-open .game-hud,.app.menu-open .touch-controls{visibility:hidden}
-.menu-screen[data-panel]:not([data-panel="main"]) .menu-logo{width:min(330px,65%);max-height:150px}
+.menu-screen[data-panel]:not([data-panel="main"]) .menu-backdrop{filter:brightness(.5) saturate(.8);transform:scale(1.01)}
+.menu-screen[data-panel]:not([data-panel="main"]) .menu-backdrop::after{background:#07100878}
+.menu-screen[data-panel]:not([data-panel="main"]) .menu-layout{align-items:center;justify-content:center;padding:24px}
+.menu-screen[data-panel]:not([data-panel="main"]) .menu-panel{width:min(480px,92vw)}
 .presentation-prompt{position:fixed;inset:0;z-index:20000;display:grid;place-items:center;padding:20px;background:#071008e6;backdrop-filter:blur(3px);font-family:"Courier New",monospace}
 .presentation-prompt-card{width:min(430px,94vw);padding:22px 20px;background:#14200ff5;box-shadow:inset 0 0 0 2px #354325,0 12px 36px #000a}
 .presentation-prompt-card h2{margin:0 0 10px;color:#f0d47b;font-size:clamp(18px,5vw,25px);line-height:1.15}
@@ -50,16 +54,25 @@
 .presentation-prompt-actions{display:flex;flex-direction:column;gap:10px}
 .presentation-prompt-actions .menu-button{margin:0;font-size:15px}
 @media(max-width:720px),(pointer:coarse){
- .menu-layout{gap:12px;padding:18px 20px}.menu-logo{width:min(440px,90%);max-height:220px}.menu-panel{width:min(380px,94%)}
- .menu-badge{font-size:12px;padding:7px 8px}.menu-badge::before,.menu-badge::after{padding:0 7px}.menu-button{font-size:17px;min-height:48px}.menu-card{padding:14px}
- .menu-card dl{font-size:11px;gap:9px 10px}.menu-card dt{font-size:10px}.menu-footer{font-size:9px}.menu-hint{font-size:9px;margin-top:12px}
+ .menu-backdrop{background-position:center top}
+ .menu-backdrop::after{background:linear-gradient(0deg,#070b07ed 0%,#070b07a6 36%,transparent 66%)}
+ .menu-layout{align-items:center;justify-content:flex-end;gap:7px;padding:16px 14px}
+ .menu-panel,.menu-screen[data-panel="main"] .menu-panel{width:min(390px,94vw)}
+ .menu-screen[data-panel="main"] .menu-panel{padding:10px}
+ .menu-actions{gap:6px}
+ .menu-badge{font-size:11px;padding:6px 8px}.menu-badge::before,.menu-badge::after{padding:0 6px}.menu-button{font-size:15px;min-height:44px}
+ .menu-card{padding:14px}.menu-card dl{font-size:11px;gap:9px 10px}.menu-card dt{font-size:10px}.menu-footer{font-size:8px}.menu-hint{font-size:8px;margin-top:8px}
  .presentation-prompt{padding:14px}.presentation-prompt-card{width:min(390px,94vw);padding:18px 16px}.presentation-prompt-copy{font-size:12px}
 }
 @media(max-height:500px) and (orientation:landscape){
- .menu-layout{gap:6px;padding:8px 24px}.menu-logo{width:180px;max-height:92px}.menu-badge{font-size:10px;padding:4px 12px}
- .menu-panel{width:min(420px,84%)}.menu-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}.menu-actions .primary{grid-column:1/-1}
- .menu-button{min-height:38px;font-size:13px;padding:6px 10px}.menu-hint{font-size:8px;margin-top:8px}.menu-footer{font-size:8px}
- .menu-screen[data-panel]:not([data-panel="main"]) .menu-logo,.menu-screen[data-panel]:not([data-panel="main"]) .menu-badge{display:none}
+ .menu-backdrop{background-position:center center}
+ .menu-backdrop::after{background:linear-gradient(90deg,transparent 0%,transparent 46%,#070b07a8 66%,#070b07ed 100%)}
+ .menu-layout{align-items:flex-end;justify-content:center;gap:5px;padding:8px 18px}
+ .menu-screen[data-panel="main"] .menu-panel{width:min(355px,43vw);padding:8px}
+ .menu-panel{width:min(420px,84%)}.menu-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}.menu-actions .primary{grid-column:1/-1}
+ .menu-button{min-height:36px;font-size:12px;padding:5px 9px}.menu-hint{font-size:7px;margin-top:6px}.menu-footer{font-size:8px}
+ .menu-screen[data-panel]:not([data-panel="main"]) .menu-badge{display:none}
+ .menu-screen[data-panel]:not([data-panel="main"]) .menu-layout{align-items:center;justify-content:center;padding:8px 18px}
  .menu-card{padding:10px 14px}.menu-card h2{margin-bottom:8px;font-size:17px}.menu-card dl{gap:5px 10px;margin-bottom:10px;font-size:11px}.menu-card .menu-button{margin-top:8px;min-height:36px;font-size:13px}.menu-setting{margin:10px 0}
  .presentation-prompt-card{width:min(520px,88vw);padding:12px 16px}.presentation-prompt-card h2{font-size:18px;margin-bottom:6px}.presentation-prompt-copy{font-size:11px;margin-bottom:10px}.presentation-prompt-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 }
