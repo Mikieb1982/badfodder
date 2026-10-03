@@ -1,17 +1,30 @@
 /* Ambient music follows Sagenhaft's looping, volume and fade behaviour. */
 (function(){
 'use strict';
-const DEFAULT_SOURCE='assets/audio/mission.mp3';
+const HOME_SOURCE='assets/audio/bad_fodder.mp3';
+const MISSION_SOURCE='assets/audio/mission.mp3';
 const CABLE_STREET_SOURCE='assets/audio/cable_street.mp3';
 const LAUNCH_KEY='badfodder.launch.v1';
-function sourceForLaunch(){
-  try{
-    const launch=JSON.parse(sessionStorage.getItem(LAUNCH_KEY)||'null');
-    if(launch&&launch.mode==='historical'&&launch.id==='cable-street-1936')return CABLE_STREET_SOURCE;
-  }catch(e){}
-  return DEFAULT_SOURCE;
+const AUTO_KEY='badfodder.launch.autostart.v1';
+
+function readLaunch(){
+  try{return JSON.parse(sessionStorage.getItem(LAUNCH_KEY)||'null')}catch(e){return null}
 }
-let source=sourceForLaunch();
+function autoStartPending(){
+  try{return sessionStorage.getItem(AUTO_KEY)==='1'}catch(e){return false}
+}
+function sourceForBoot(){
+  if(!autoStartPending())return HOME_SOURCE;
+  const launch=readLaunch();
+  if(launch&&launch.mode==='historical'&&launch.id==='cable-street-1936')return CABLE_STREET_SOURCE;
+  return MISSION_SOURCE;
+}
+function sourceForMission(mission){
+  if(mission&&mission.id==='cable-street-1936')return CABLE_STREET_SOURCE;
+  return MISSION_SOURCE;
+}
+
+let source=sourceForBoot();
 const KEY='badfodder.music.v1';
 const VOLUME_KEY='badfodder.music.volume.v1';
 const DEFAULT_VOLUME=.22;
@@ -34,7 +47,7 @@ document.body.appendChild(audio);
 const button=document.getElementById('menuMusic');
 const volumeInput=document.getElementById('menuMusicVolume');
 const volumeValue=document.getElementById('menuMusicVolumeValue');
-let started=false,loadError=false,pending=false,raf=0;
+let started=false,loadError=false,pending=false,raf=0,generation=0;
 function render(){
   button.textContent=loadError?'MUSIC: RETRY':enabled?'MUSIC: ON':'MUSIC: OFF';
   button.setAttribute('aria-pressed',String(enabled&&!loadError));
@@ -63,8 +76,10 @@ async function start(){
   }
   if(started&&!audio.paused)return;
   pending=true;
+  const attempt=generation;
   try{
     await audio.play();
+    if(attempt!==generation){audio.pause();return}
     started=true;
     if(document.hidden){audio.pause();return}
     if(enabled){audio.muted=false;fadeTo(volume,1200)}
@@ -75,6 +90,22 @@ async function start(){
     render();
   }finally{pending=false}
 }
+function switchSource(next,{autoplay=true}={}){
+  if(!next)return;
+  if(source===next){if(autoplay)start();return}
+  generation++;
+  cancelAnimationFrame(raf);
+  audio.pause();
+  audio.volume=0;
+  source=next;
+  audio.src=source;
+  audio.load();
+  started=false;loadError=false;pending=false;
+  render();
+  if(autoplay)start();
+}
+function playHome(){switchSource(HOME_SOURCE)}
+function playMission(mission){switchSource(sourceForMission(mission))}
 function setEnabled(on){
   enabled=!!on;
   try{localStorage.setItem(KEY,enabled?'1':'0')}catch(e){}
@@ -116,9 +147,13 @@ document.addEventListener('visibilitychange',()=>{
 audio.addEventListener('error',()=>{loadError=true;started=false;render()});
 audio.addEventListener('canplay',render);
 window.BadFodderMusic={
-  toggle,setEnabled,setVolume,start,audio,
+  toggle,setEnabled,setVolume,start,switchSource,playHome,playMission,audio,
   get volume(){return volume},
   get source(){return source}
 };
 render();
+
+// Mission selection reloads the document. Attempt the mission track immediately;
+// if the browser blocks autoplay, the next pointer/key gesture retries it.
+if(autoStartPending())start();
 })();
