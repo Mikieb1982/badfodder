@@ -1,0 +1,110 @@
+name: Apply Wigan road surface to Cable Street
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  update-road:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Match Cable Street road material to Wigan
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('cable-street-art.js')
+          s = p.read_text()
+
+          old_road = """  function drawRoad(ctx,r,S){
+    if(!ctx||!r||!Array.isArray(r.points)||r.points.length<2)return;
+    const scale=typeof S==='function'?S:(n=>n);
+    const path=()=>{ctx.beginPath();ctx.moveTo(r.points[0][0],r.points[0][1]);for(let i=1;i<r.points.length;i++)ctx.lineTo(r.points[i][0],r.points[i][1])};
+    ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
+    if(r.kind==='railway'){
+      path();ctx.strokeStyle='#303436';ctx.lineWidth=scale(7);ctx.stroke();
+      path();ctx.strokeStyle='#68665f';ctx.lineWidth=scale(4);ctx.stroke();
+      ctx.setLineDash([scale(1.5),scale(3.5)]);path();ctx.strokeStyle='#c1b59a';ctx.lineWidth=scale(.85);ctx.stroke();ctx.setLineDash([]);
+    }else{
+      path();ctx.strokeStyle='#343532';ctx.lineWidth=scale(5);ctx.stroke();
+      path();ctx.strokeStyle='#817d72';ctx.lineWidth=scale(3.2);ctx.stroke();
+      path();ctx.strokeStyle='rgba(206,195,168,.68)';ctx.lineWidth=scale(.72);ctx.stroke();
+      ctx.setLineDash([scale(.8),scale(5.6)]);path();ctx.strokeStyle='rgba(45,44,41,.5)';ctx.lineWidth=scale(.55);ctx.stroke();ctx.setLineDash([]);
+    }
+    ctx.restore();
+  }
+"""
+          new_road = """  function drawRoad(ctx,r,S,art){
+    if(!ctx||!r||!Array.isArray(r.points)||r.points.length<2)return;
+    const scale=typeof S==='function'?S:(n=>n);
+    const path=()=>{ctx.beginPath();ctx.moveTo(r.points[0][0],r.points[0][1]);for(let i=1;i<r.points.length;i++)ctx.lineTo(r.points[i][0],r.points[i][1])};
+    ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
+    if(r.kind==='railway'){
+      path();ctx.strokeStyle='#303436';ctx.lineWidth=scale(7);ctx.stroke();
+      path();ctx.strokeStyle='#68665f';ctx.lineWidth=scale(4);ctx.stroke();
+      ctx.setLineDash([scale(1.5),scale(3.5)]);path();ctx.strokeStyle='#c1b59a';ctx.lineWidth=scale(.85);ctx.stroke();ctx.setLineDash([]);
+    }else{
+      const paving=art&&typeof art.texture==='function'?art.texture(ctx,'urban-paving'):'#777969';
+      const asphalt=art&&typeof art.texture==='function'?art.texture(ctx,'urban-asphalt'):'#696b61';
+      path();ctx.strokeStyle='#777969';ctx.lineWidth=scale(5);ctx.stroke();
+      path();ctx.strokeStyle=paving;ctx.lineWidth=scale(3.2);ctx.stroke();
+      path();ctx.strokeStyle=asphalt;ctx.lineWidth=scale(1.8);ctx.stroke();
+    }
+    ctx.restore();
+  }
+"""
+
+          old_surface = """  function drawStreetSurface(ctx,map,S,art,bounds=null){
+    if(!ctx||!map)return;
+    for(const raw of streetSurfaces(map)){
+      const pts=raw.map(p=>[S(p[0]),S(p[1])]),xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),x=Math.min(...xs),y=Math.min(...ys),w=Math.max(...xs)-x,h=Math.max(...ys)-y;
+      if(bounds&&(x+w<bounds.x||x>bounds.x+bounds.w||y+h<bounds.y||y>bounds.y+bounds.h))continue;
+      ctx.save();polygon(ctx,pts,art&&art.texture?art.texture(ctx,'urban-asphalt'):'#686e6c');ctx.clip();
+      const light=ctx.createLinearGradient(x,y,x+w,y+h);light.addColorStop(0,'rgba(215,211,183,.17)');light.addColorStop(.55,'rgba(58,76,83,.12)');light.addColorStop(1,'rgba(36,46,51,.2)');ctx.fillStyle=light;ctx.fillRect(x,y,w,h);
+      // Small deterministic repairs and dirt patches break up the flat road texture.
+      const seed=hashText(raw[0].join('|'));
+      for(let i=0;i<45;i++){
+        const px=x+w*seededUnit(seed,i*3),py=y+h*seededUnit(seed,i*3+1);
+        ellipse(ctx,px,py,5+seededUnit(seed,i*3+2)*17,2+seededUnit(seed,i*3+3)*6,i%3?'rgba(34,42,43,.08)':'rgba(194,179,139,.09)',1,-.56);
+        if(i%5===0)line(ctx,px-5,py+3,px+12,py-7,'rgba(28,39,44,.17)',.7);
+      }
+      ctx.restore();
+    }
+  }
+"""
+          new_surface = """  function drawStreetSurface(ctx,map,S,art,bounds=null){
+    if(!ctx||!map)return;
+    for(const raw of streetSurfaces(map)){
+      const pts=raw.map(p=>[S(p[0]),S(p[1])]),xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),x=Math.min(...xs),y=Math.min(...ys),w=Math.max(...xs)-x,h=Math.max(...ys)-y;
+      if(bounds&&(x+w<bounds.x||x>bounds.x+bounds.w||y+h<bounds.y||y>bounds.y+bounds.h))continue;
+      const asphalt=art&&typeof art.texture==='function'?art.texture(ctx,'urban-asphalt'):'#696b61';
+      const paving=art&&typeof art.texture==='function'?art.texture(ctx,'urban-paving'):'#8b8779';
+      // Match Wigan's road material stack: dark kerb edge, paving strip, then the shared asphalt texture.
+      ctx.save();
+      polygon(ctx,pts,asphalt,'#777969',S(2.5));
+      polygon(ctx,pts,null,paving,S(1.5));
+      ctx.restore();
+    }
+  }
+"""
+
+          if old_road not in s:
+              raise SystemExit('drawRoad block not found')
+          if old_surface not in s:
+              raise SystemExit('drawStreetSurface block not found')
+          s = s.replace(old_road, new_road).replace(old_surface, new_surface)
+          p.write_text(s)
+          PY
+      - name: Run Cable Street art tests
+        run: node tests/cable-street-art.cjs && node tests/cable-street-foundation.cjs
+      - name: Commit change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cable-street-art.js
+          git commit -m "Match Cable Street road surface to Wigan"
+          git push origin HEAD:main
