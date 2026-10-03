@@ -79,40 +79,72 @@
   }
 }
 
-/* Desktop browser fit: use the available window without letting the game grow beyond it. */
+/* Desktop: gameplay and menus use the complete browser content area. */
 @media (hover:hover) and (pointer:fine) {
   html,body{
     width:100%;
     height:100%;
-    overflow:hidden;
+    margin:0!important;
+    padding:0!important;
+    overflow:hidden!important;
+    background:#0b100d!important;
   }
   body{
-    width:100vw;
-    height:100vh;
-    height:100dvh;
-    padding:clamp(8px,1.5vh,16px)!important;
+    width:100vw!important;
+    height:100vh!important;
+    height:100dvh!important;
   }
   body>.app{
-    width:100%;
+    width:100vw!important;
+    height:100vh!important;
+    height:100dvh!important;
     max-width:none!important;
-    margin:0 auto!important;
+    margin:0!important;
+    padding:0!important;
   }
+  body>.app>.topbar,
+  body>.app>.toolbar,
+  body>.app>.roster,
   body>.app>.help,
   body>.app>.note{
     display:none!important;
   }
   body>.app>.viewport{
-    width:min(100%,calc((100dvh - clamp(100px,15vh,124px))*1.6));
-    max-width:100%;
-    margin:0 auto!important;
-    aspect-ratio:16/10;
+    position:fixed!important;
+    inset:0!important;
+    z-index:9999!important;
+    width:100vw!important;
+    height:100vh!important;
+    height:100dvh!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+    aspect-ratio:auto!important;
+    background:#0b100d!important;
+    overflow:hidden!important;
+    display:block!important;
   }
   body>.app>.viewport canvas#game{
+    display:block!important;
     width:100%!important;
     height:100%!important;
+    min-width:0!important;
     min-height:0!important;
-    max-height:100%!important;
+    max-width:none!important;
+    max-height:none!important;
     aspect-ratio:auto!important;
     object-fit:fill!important;
+    border:0!important;
+    border-radius:0!important;
+    margin:0!important;
+    background:#0b100d!important;
+  }
+  body>.app>.viewport .loading,
+  body>.app>.viewport .menu-screen,
+  body>.app>.viewport .game-hud{
+    inset:0!important;
   }
 }
