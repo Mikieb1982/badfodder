@@ -131,10 +131,10 @@ assert(index.includes("enemies=missionController?[]"),'Historical controller can
 assert(index.includes("touchAction"),'Historical ACTION control missing');
 assert(index.includes("performHistoricalContextActionAt"),'Desktop historical contextual action path missing');
 assert(index.includes("performHistoricalNearestAction"),'Keyboard/touch historical contextual action path missing');
-assert(index.includes('cable-street-director.js?v=20261003-tactical-1'),'Cable Street phase director is not loaded by the browser runtime');
+assert(index.includes('cable-street-director.js?v=20261004-adaptive-1'),'Cable Street phase director is not loaded by the browser runtime');
 assert(index.includes('cable-street-map.js?v=20261003-tactical-1'),'Cable Street runtime map slot is not loaded before bootstrap');
 assert(index.includes("...(window.CABLE_STREET_MAP?{'cable-street':window.CABLE_STREET_MAP}:{})"),'Cable Street runtime map is not conditionally registered');
-assert(index.includes('cable-street-crowd.js?v=20261003-tactical-1'),'Cable Street crowd module is not loaded by the browser runtime');
+assert(index.includes('cable-street-crowd.js?v=20261004-adaptive-1'),'Cable Street crowd module is not loaded by the browser runtime');
 assert(index.includes('const cableStreetCrowd=BadFodderCableCrowd'),'Cable Street crowd global is not bound');
 assert(index.includes('missionCrowd=cableStreetCrowd.create'),'Cable Street crowd is not created during historical reset');
 assert(index.includes('missionCrowd.fixedUpdate(dt)'),'Cable Street crowd is not connected to fixed-step simulation');
@@ -166,7 +166,7 @@ assert(index.includes("id=\"hudInstruction\"")&&index.includes("nextHistoricalOb
 assert(index.includes('historicalProgress.instruction||historicalProgress.status'),'Cable Street HUD does not prefer explicit player instructions');
 
 
-assert(index.includes("cable-street-interactions.js?v=20261003-tactical-1"),'Historical interaction module is not cache-busted');
+assert(index.includes("cable-street-interactions.js?v=20261004-adaptive-1"),'Historical interaction module is not cache-busted');
 assert(index.includes('options:{scale:SCALE,pressureControlled:true,navigation}'),'Live Cable Street interactions do not wait for the historical pressure director');
 assert(fs.readFileSync(path.join(root,'cable-street-interactions.js'),'utf8').includes('pressureDamageMultiplier'),'Cable Street HOLD actions do not mitigate police pressure');
 assert(fs.readFileSync(path.join(root,'cable-street-interactions.js'),'utf8').includes("reason:'repelled'"),'Cable Street pressure waves cannot be repelled without a breach');

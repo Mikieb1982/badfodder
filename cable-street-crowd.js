@@ -352,7 +352,18 @@
     }
 
     initialize();
-    return{settings,people,fixedUpdate,renderState,anchor,initialize,syncHelperSupport,releaseHelperSupport,dispose};
+    function rally(target){
+      if(!finitePoint(target))return false;
+      // Redirect eight existing residents/helpers through the existing movement system.
+      const nearest=people.slice().sort((a,b)=>Math.hypot(a.x-target.x,a.y-target.y)-Math.hypot(b.x-target.x,b.y-target.y)).slice(0,8);
+      for(let i=0;i<nearest.length;i++){
+        const p=nearest[i],wp=target.workPoints?.[i%target.workPoints.length]||target;
+        const point=openPoint(wp.x+(i%3-1)*12,wp.y+Math.floor(i/3)*12,4);
+        if(point){p.activityTarget={...point,id:'adaptive-rally-'+i};p.decisionClock=7;p.gestureTimer=0}
+      }
+      return true;
+    }
+    return{settings,people,fixedUpdate,renderState,anchor,initialize,syncHelperSupport,releaseHelperSupport,dispose,rally};
   }
 
   return{create};

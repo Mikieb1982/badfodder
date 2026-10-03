@@ -562,10 +562,11 @@
 <script src="mission-launch.js?v=20261002-cable-foundation-2"></script>
 <script src="historical-missions.js?v=20261003-tactical-1"></script>
 <script src="cable-street-runtime.js?v=20261002-playable-1"></script>
-<script src="cable-street-interactions.js?v=20261003-tactical-1"></script>
-<script src="cable-street-director.js?v=20261003-tactical-1"></script>
-<script src="cable-street-crowd.js?v=20261003-tactical-1"></script>
+<script src="cable-street-interactions.js?v=20261004-adaptive-1"></script>
+<script src="cable-street-director.js?v=20261004-adaptive-1"></script>
+<script src="cable-street-crowd.js?v=20261004-adaptive-1"></script>
 <script src="cable-street-art.js?v=20261003-visual-2"></script>
+<script src="adaptive-director.js?v=20261004-1"></script>
 <script>
 (() => {
   'use strict';
@@ -695,6 +696,30 @@
   let lastHudStats='',lastRosterSignature='',hudNoticeUntil=0;
   let runtimeFaultCount=0,runtimeFaultAt=0,runtimeSafeStop=false;
   let missionController=null,missionInteractionLayer=null,missionDirector=null,missionCrowd=null;
+  let adaptiveDirector=null,enemyCommander=null,adaptiveMemory=null;
+  // Optional Director faults are contained here, outside normal runtime recovery.
+  function runAdaptive(fn,fallback=null){
+    if(!adaptiveDirector||adaptiveDirector.state.disabled)return fallback;
+    try{return adaptiveDirector.guard(fn,fallback)}catch{
+      try{adaptiveDirector.disable()}catch{}
+      return fallback;
+    }
+  }
+  function initializeAdaptiveDirector(){
+    adaptiveDirector=null;enemyCommander=null;
+    try{
+      const adaptive=window.BadFodderAdaptive;if(!adaptive)return;
+      let storage=null;try{storage=window.localStorage}catch{}
+      if(!adaptiveMemory)adaptiveMemory=adaptive.loadProfile(storage);
+      const adapter=missionController?adaptive.createCableAdapter({controller:missionController,director:missionDirector,interactions:missionInteractionLayer,crowd:missionCrowd,scale:SCALE}):
+        (enemyCommander=adaptive.createCommander({getEnemies:()=>enemies,getSquad:()=>squad,
+          getPhase:()=>({...activeMission().phases[missionStage],index:missionStage}),getZones:()=>zones,
+          roads,scale:SCALE,navigation,queuePath:queueEnemyPath,blocked:obstacleAt}));
+      adaptiveDirector=adaptive.create({mission:MAP_DATA.key,adapter,memory:adaptiveMemory,storage,
+        debug:new URLSearchParams(location.search).get('directorDebug')==='1'});
+      if(new URLSearchParams(location.search).get('directorDebug')==='1')window.BadFodderDirectorLog=adaptiveDirector.state.log;
+    }catch{adaptiveDirector=null;enemyCommander=null}
+  }
   const hudChips=new Map();
   let fallbackFullscreen=false;
   let squadFormation={active:false,leader:null,members:[],trail:[],destination:null,manualMoving:false};
@@ -1259,6 +1284,8 @@
 
   function resetGame(){
     const mission=activeMission();
+    try{adaptiveDirector?.disable()}catch{}
+    adaptiveDirector=null;enemyCommander=null;
     releaseInterruptedInput();
     cableStreetArt.reset?.();
     missionInteractionLayer=null;
@@ -1343,6 +1370,7 @@
     [...squad,...enemies,...civilians].forEach(ent=>art.animate(ent,0));
     bullets=[];thrown=[];effects=[];noise=[];enemyPathQueue=[];
     squadGrenades=actionAllowed('grenades')?5:0;missionStage=0;phaseHoldTime=0;
+    initializeAdaptiveDirector();
     finished=false;win=false;paused=false;mapOpen=false;selection='all';zoom=preferredZoom;
     releaseAllFireInputs();
     cursorWorld=null;
@@ -1584,6 +1612,7 @@
       e.alert=true;
       e.aiState='combat';
       e.lastSeen={x,y};
+      e.observedAt=adaptiveDirector?.state.time||0;
       e.searchTimer=Math.max(e.searchTimer||0,3.2);
       e.tacticTimer=0;
       e.repath=0;
@@ -1599,6 +1628,7 @@
     if(isSquad&&(target.damageGrace||0)>0)return;
 
     target.hp-=amount;
+    runAdaptive(()=>adaptiveDirector.notify('combat'));
     target.flash=.14;
     target.hitTimer=.22;
     effects.push({type:'hit',x:target.x,y:target.y-8,life:.16});
@@ -1628,10 +1658,11 @@
 
   function fireBullet(owner,sx,sy,tx,ty){
     if(!actionAllowed('firearms'))return false;
+    runAdaptive(()=>adaptiveDirector.notify(owner==='squad'?'shot':'combat'));
     const a=Math.atan2(ty-sy,tx-sx);
     window.BadFodderSfx?.shoot(owner);
     bullets.push({owner,x:sx,y:sy,vx:Math.cos(a)*760,vy:Math.sin(a)*760,life:1.7});
-    noise.push({x:sx,y:sy,r:S(190),life:.4});
+    noise.push({owner,x:sx,y:sy,r:S(190),life:.4});
     effects.push({type:'muzzle',x:sx+Math.cos(a)*11,y:sy-8+Math.sin(a)*11,angle:a,life:.08});
     return true;
   }
@@ -1670,6 +1701,7 @@
     if(Math.hypot(x-s.x,y-s.y)>S(190)){setStatus('Grenade target is out of range.');return}
 
     squadGrenades--;
+    runAdaptive(()=>adaptiveDirector.notify('grenade'));
     updateFacing(s,x-s.x,y-s.y);s.throwTimer=.32;
     window.BadFodderSfx?.grenadeThrow();
     thrown.push({
@@ -2051,26 +2083,29 @@
       const near=nearestLivingSquad(e);
       if(!near.unit)return;
       // Unalerted distant patrols need no tactical work until the squad approaches.
-      if(!e.alert&&near.d>S(360)){e.state='idle';return;}
+      if(!e.alert&&!e.commandOrder&&near.d>S(360)){e.state='idle';return;}
 
       const sees=near.d<S(160)&&!lineBlocked(e.x,e.y,near.unit.x,near.unit.y);
-      const hears=noise.some(n=>Math.hypot(e.x-n.x,e.y-n.y)<n.r);
+      const heard=noise.find(n=>n.owner!=='enemy'&&Math.hypot(e.x-n.x,e.y-n.y)<n.r);
+      const hears=!!heard;
       e.searching=!!(e.alert&&!sees&&e.lastSeen);
 
       if(sees||hears){
         const newlyAlerted=!e.alert;
         e.alert=true;
         e.aiState='combat';
-        e.lastSeen={x:near.unit.x,y:near.unit.y};
+        e.lastSeen=sees?{x:near.unit.x,y:near.unit.y}:{x:heard.x,y:heard.y};
+        e.observedAt=adaptiveDirector?.state.time||0;
         e.searchTimer=3.4;
         e.searching=!sees;
         if(newlyAlerted){
           prepareEnemyReaction(e,sees?.48:.58,sees?'!':'?');
-          alertNearbyEnemies(e,near.unit.x,near.unit.y,S(215));
+          alertNearbyEnemies(e,e.lastSeen.x,e.lastSeen.y,S(215));
         }
       }
 
-      let moving=false;
+      const command=runAdaptive(()=>enemyCommander?.control(e,dt,followPath));
+      let moving=command?.moving||false;
 
       if(e.aiState==='combat'&&e.lastSeen){
         if(sees){
@@ -2078,7 +2113,7 @@
           e.searchTimer=3.4;
 
           // Too close: back off instead of blindly charging through the squad.
-          if(near.d<S(48)&&e.tacticTimer<=0){
+          if(!command&&near.d<S(48)&&e.tacticTimer<=0){
             const retreat=chooseRetreatPoint(e,near.unit);
             if(retreat){
               queueEnemyPath(e,retreat.x,retreat.y);
@@ -2089,7 +2124,7 @@
 
           // Anchor holds a firing lane; flankers deliberately seek a different street/corner angle.
           const needsPosition=
-            e.tacticTimer<=0&&(
+            !command&&e.tacticTimer<=0&&(
               !e.tacticalPoint||
               (e.role!=='anchor'&&near.d>S(62))||
               (e.role==='anchor'&&near.d>S(132))
@@ -2104,7 +2139,7 @@
             e.tacticTimer=.9+unit(Math.floor(e.x+e.y),e.groupId+11)*.65;
           }
 
-          if(e.path){
+          if(!command&&e.path){
             const tacticalSpeed=e.role==='anchor'?62:78;
             moving=followPath(e,tacticalSpeed,dt);
           }
@@ -2115,6 +2150,7 @@
             e.cooldown<=0&&
             e.burstPause<=0&&
             e.reactionTimer<=0&&
+            (!command||command.canFire)&&
             (!moving||e.role==='anchor'||near.d<S(72));
 
           if(canFire){
@@ -2138,7 +2174,7 @@
               e.cooldown=.2+unit(Math.floor(e.x+e.y),23)*.14;
             }
           }
-        }else{
+        }else if(!command){
           const dx=e.lastSeen.x-e.x,dy=e.lastSeen.y-e.y,d=Math.hypot(dx,dy);
 
           // Search the shared last-known position instead of immediately giving up.
@@ -2157,7 +2193,7 @@
             e.dir+=(e.role==='right'?-1:1)*dt*.7;
           }
         }
-      }else{
+      }else if(!command){
         e.phase+=dt*.65;
         const tx=e.homeX+Math.cos(e.phase)*S(28),ty=e.homeY+Math.sin(e.phase*.8)*S(20);
         const dx=tx-e.x,dy=ty-e.y,d=Math.hypot(dx,dy);
@@ -3499,6 +3535,7 @@
   window.addEventListener('orientationchange',releaseInterruptedInput);
 
   function simulateStep(dt){
+    runAdaptive(()=>adaptiveDirector.update(dt));
     applyTouchMovement(dt);
     if(keyboardFireHeld&&actionAllowed('firearms'))refreshCursorWorld();
     if(actionAllowed('firearms')&&(rightHeld||macFireHeld||keyboardFireHeld)&&cursorWorld&&!bothLatched)squadFireAt(cursorWorld.x,cursorWorld.y);

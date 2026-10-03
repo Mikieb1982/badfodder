@@ -11,6 +11,8 @@ fault:()=>{for(let i=0;i<3;i++)handleRuntimeFault(new Error('Injected unrecovera
 restart:beginMission, pause:togglePause, main:showTitle, resume:resumeMission,
 fail:()=>{squad.forEach(s=>s.alive=false);checkFailure()},complete:completeCurrentMission,
 identity:()=>missionIdentity, phase:()=>missionStage,
+adaptive:()=>({enabled:!!adaptiveDirector&&!adaptiveDirector.state.disabled,decisions:adaptiveDirector?.state.decisions,commander:!!enemyCommander,militaryEnemies:enemies.length}),
+directorFault:()=>{adaptiveDirector.update=()=>{throw new Error('Injected optional Director fault')};simulateStep(1/60)},
 
 prepare:()=>{if(missionController){const b=[...missionController.state.barricades.values()][0];Object.assign(squad[0],b.workPoints[0]);missionInteractionLayer.syncActors(squad.map((s,i)=>({id:'player-'+i,x:s.x,y:s.y,active:true})));}}, action:performHistoricalNearestAction,
 battle:()=>{missionDirector.enterPhase(1);const b=[...missionController.state.barricades.values()][0],f=[...missionController.state.formations.values()][0];Object.assign(f,{x:b.workPoints[0].x+35,y:b.workPoints[0].y,state:'dismantle',stateTime:0,resistance:0});squad.forEach((s,i)=>{Object.assign(s,{x:b.workPoints[0].x,y:b.workPoints[0].y+i*5,path:null,target:null});missionInteractionLayer.cancelJob('player-'+i)});missionInteractionLayer.syncActors(squad.map((s,i)=>({id:'player-'+i,x:s.x,y:s.y,active:true})));missionController.state.actors.forEach(a=>{a.stamina=100;a.attackCooldown=0});setSelection('all');cursorWorld=null;updateHud(true)}};
@@ -46,6 +48,10 @@ const server=http.createServer((req,res)=>{
   const after=await page.evaluate(()=>window.__testGame.state().units[0]);assert(Math.hypot(before.x-after.x,before.y-after.y)>1,'Click movement did not move leader');
   await page.mouse.click(660,550,{button:'right'});await page.keyboard.press('g');
   await page.waitForTimeout(600);await active();
+  assert((await page.evaluate(()=>window.__testGame.adaptive())).enabled,'Military Director did not initialise');
+  assert((await page.evaluate(()=>window.__testGame.adaptive())).commander,'Military Commander missing');
+  await page.evaluate(()=>window.__testGame.directorFault());await active();
+  assert(!(await page.evaluate(()=>window.__testGame.adaptive())).enabled,'Failed Director was not disabled');
   for(let i=0;i<3;i++)await pauseMenuResume();
   await page.evaluate(()=>window.__testGame.pause());await page.locator('#menuRestart').click();await active();
   await page.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp',map+'-upgrade.png')});
@@ -63,6 +69,8 @@ const server=http.createServer((req,res)=>{
  await page.evaluate(()=>window.__testGame.battle());await page.keyboard.press('f');assert((await active()).streetActors.some(a=>a.attackKind==='shove'),'Keyboard shove did not attack');
  await page.keyboard.press('g');assert((await active()).streetActors.some(a=>a.attackKind==='throw'),'Keyboard debris did not attack');
  await page.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp','cable-street-fight.png')});
+ assert((await page.evaluate(()=>window.__testGame.adaptive())).enabled);assert.equal((await page.evaluate(()=>window.__testGame.adaptive())).militaryEnemies,0);assert(!(await page.evaluate(()=>window.__testGame.adaptive())).commander);
+ await page.evaluate(()=>window.__testGame.directorFault());await active();
  await resultCycle(page,'cable-street');
  assert.equal(await page.evaluate(()=>BadFodderMusic.source),'assets/audio/cable_street.mp3');
  await pauseMenuResume();await page.evaluate(()=>window.__testGame.pause());await page.locator('#menuRestart').click();await active();

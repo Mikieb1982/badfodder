@@ -130,7 +130,7 @@
       });
       const materials=(source.materials||[]).map(def=>{
         const m=runtime.createMaterial({id:def.id,type:def.type});
-        Object.assign(m,{x:scaleValue(def.x),y:scaleValue(def.y),label:def.label||def.type,interactionRadius:scaleValue(def.interactionRadius)});
+        Object.assign(m,{x:scaleValue(def.x),y:scaleValue(def.y),originX:scaleValue(def.x),originY:scaleValue(def.y),label:def.label||def.type,interactionRadius:scaleValue(def.interactionRadius)});
         return m;
       });
       const civilians=(source.civilians||[]).map(def=>{
@@ -489,6 +489,7 @@
       const phase=Number(controller.state.phaseIndex)||0;
       conflict.marchThreat=phase===0?0:phase===1?.45:phase===2?.6:.88;
       if(!controller.state.pressureStarted||phase<1)return;
+      if(controller.state.elapsed<adaptiveMountedAfter)return;
       conflict.mountedTimer-=dt;
       if(conflict.mountedTimer>0)return;
       const f=[...controller.state.formations.values()].find(x=>finitePoint(x)&&!['withdraw','regroup'].includes(x.state));
@@ -626,8 +627,52 @@
       };
     }
 
+    let adaptiveMountedAfter=0,materialOpportunities=0;
+    function canAdaptiveAction(action){
+      const formations=[...controller.state.formations.values()];
+      const attacking=f=>['approach','halt','dismantle'].includes(f.state);
+      if(action==='ESCALATE_PRESSURE')return formations.some(f=>f.state==='withdraw'&&(f.activationPhase||1)<=controller.state.phaseIndex);
+      if(['PRESSURE_MAIN','PRESSURE_SIDE','SWITCH_PRESSURE'].includes(action)){
+        const side=action!=='PRESSURE_MAIN';
+        return formations.some(f=>(f.objective==='S')===side&&(f.state==='withdraw'||f.advanceDelay>0))||formations.some(f=>(f.objective==='S')!==side&&attacking(f));
+      }
+      if(action==='MATERIAL_OPPORTUNITY')return materialOpportunities<3&&[...controller.state.materials.values()].some(m=>m.consumed&&!m.carriedBy&&!m.reservedBy);
+      if(action==='CIVILIAN_EVENT')return [...controller.state.civilians.values()].some(c=>c.status==='waiting');
+      if(action==='MOUNTED_PRESSURE')return conflict.charges.length===0&&[...controller.state.formations.values()].some(f=>['approach','halt','dismantle'].includes(f.state));
+      return true;
+    }
+    function adaptiveAction(action,{crowd,director}={}){
+      if(!canAdaptiveAction(action))return false;
+      if(action==='MATERIAL_OPPORTUNITY'){
+        const m=[...controller.state.materials.values()].find(m=>m.consumed&&!m.carriedBy&&!m.reservedBy);
+        m.consumed=false;m.remainingValue=runtime.MATERIAL_VALUES[m.type]||20;m.x=m.originX;m.y=m.originY;materialOpportunities++;
+        conflict.dramaText='MORE MATERIAL: '+String(m.label).toUpperCase();conflict.dramaTime=3;
+      }else if(action==='CIVILIAN_EVENT'){
+        const c=[...controller.state.civilians.values()].find(c=>c.status==='waiting');
+        addImpact(c.x,c.y,'shove');conflict.dramaText='RESIDENT NEEDS HELP: '+String(c.label).toUpperCase();conflict.dramaTime=3;
+        crowd?.rally?.(c);
+      }else if(action==='CROWD_EVENT'){
+        const b=[...controller.state.barricades.values()].sort((a,b)=>a.integrity/a.maxIntegrity-b.integrity/b.maxIntegrity)[0];
+        crowd?.rally?.(b);conflict.crowdPulse=1;conflict.dramaText='RESIDENTS RALLY TO THE DEFENCE';conflict.dramaTime=2;
+        playCableSfx('crowdSurge');
+      }else if(action==='MOUNTED_PRESSURE'){
+        adaptiveMountedAfter=controller.state.elapsed;conflict.mountedTimer=Math.min(conflict.mountedTimer,1.5);
+      }else{
+        if(!director.adaptivePressure(action))return false;
+        if(['REGROUP','DELAY_PRESSURE','RECOVERY_WINDOW'].includes(action)){
+          adaptiveMountedAfter=controller.state.elapsed+12;
+          conflict.dramaText='POLICE FALL BACK: REPAIR AND REGROUP';conflict.dramaTime=2.5;
+        }else{
+          conflict.dramaText=['SWITCH_PRESSURE','PRESSURE_SIDE'].includes(action)?'POLICE SHIFT TO THE SIDE STREET':'POLICE TEST THE DEFENCE';conflict.dramaTime=2;
+        }
+      }
+      controller.state.events.push({type:'adaptive-event',action});
+      return true;
+    }
+    function releaseAdaptivePressure(){adaptiveMountedAfter=0}
     return{
       settings,initialize,syncActors,fixedUpdate,streetAttack,
+      canAdaptiveAction,adaptiveAction,releaseAdaptivePressure,
       contextAt,contextNearActor,assignJob,assignAt,assignNearest,cancelJob,
       hint,renderState,
       get initialized(){return initialized}

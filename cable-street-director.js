@@ -127,11 +127,11 @@
       }
     }
 
-    function resetFormationForPressure(formation){
+    function resetFormationForPressure(formation,adaptive=false){
       if(!formation)return false;
       if(!Number.isFinite(formation.x)||!Number.isFinite(formation.y)||
          !Number.isFinite(formation.targetX)||!Number.isFinite(formation.targetY))return false;
-      if(mission.fastAction){
+      if(mission.fastAction&&!adaptive){
         formation.wave=(formation.wave||0)+1;
         formation.baseSpeed=formation.baseSpeed||formation.speed;formation.baseDamage=formation.baseDamage||formation.damageRate;
         const escalation=Math.min(4,formation.wave-1);
@@ -225,6 +225,7 @@
 
     function updateRepeatedPressure(dt){
       controller.state.formations.forEach(f=>{
+        if((f.adaptiveRepeatAfter||0)>controller.state.elapsed)return;
         if(f.state!=='withdraw'){
           state.waveCooldowns.delete(f.id);
           return;
@@ -455,7 +456,34 @@
     }
 
     controller.state.phaseIndex=0;
-    return{settings,state,fixedUpdate,snapshot,guidanceTarget,statusText,startPressureWave,enterPhase};
+    function adaptivePressure(action){
+      if(state.phaseIndex!==1&&state.phaseIndex!==3)return false;
+      const formations=[...controller.state.formations.values()].filter(f=>(f.activationPhase||1)<=state.phaseIndex);
+      const recovery=['REGROUP','DELAY_PRESSURE','RECOVERY_WINDOW'].includes(action);
+      const side=action==='PRESSURE_SIDE'||action==='SWITCH_PRESSURE';
+      const eligible=formations.filter(f=>side?f.objective==='S':f.objective!=='S');
+      const selected=action==='ESCALATE_PRESSURE'?formations:eligible.slice(0,1);
+      if(!recovery&&!selected.length)return false;
+      for(const f of formations){
+        state.waveCooldowns.delete(f.id);
+        if(recovery||(!selected.includes(f)&&['PRESSURE_MAIN','SWITCH_PRESSURE','PRESSURE_SIDE','PROBE_DEFENCE'].includes(action))){
+          if(['approach','halt','dismantle'].includes(f.state)){
+            f.state='regroup';f.stateTime=0;f.charging=false;
+            controller.state.events.push({type:'police-state',formationId:f.id,state:'regroup',reason:'adaptive-withdrawal'});
+          }
+          f.adaptiveRepeatAfter=controller.state.elapsed+(recovery?12:9);
+        }else if(selected.includes(f)){
+          // Reuse formations and their authored approaches without extra damage/health.
+          if(f.state==='withdraw')resetFormationForPressure(f,true);
+          f.advanceDelay=action==='PROBE_DEFENCE'?2:0;
+          f.adaptiveRepeatAfter=controller.state.elapsed+9;
+        }
+      }
+      controller.state.events.push({type:'adaptive-pressure',action});
+      return true;
+    }
+    function releaseAdaptivePressure(){controller.state.formations.forEach(f=>{delete f.adaptiveRepeatAfter})}
+    return{settings,state,fixedUpdate,snapshot,guidanceTarget,statusText,startPressureWave,enterPhase,adaptivePressure,releaseAdaptivePressure};
   }
 
   return{create,DEFAULTS};
