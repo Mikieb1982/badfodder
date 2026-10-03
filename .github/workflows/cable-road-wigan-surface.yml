@@ -14,89 +14,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Match Cable Street road material to Wigan
+        env:
+          ROAD_BLOCK: ICBmdW5jdGlvbiBkcmF3Um9hZChjdHgscixTLGFydCl7CiAgICBpZighY3R4fHwhcnx8IUFycmF5LmlzQXJyYXkoci5wb2ludHMpfHxyLnBvaW50cy5sZW5ndGg8MilyZXR1cm47CiAgICBjb25zdCBzY2FsZT10eXBlb2YgUz09PSdmdW5jdGlvbic/Uzoobj0+bik7CiAgICBjb25zdCBwYXRoPSgpPT57Y3R4LmJlZ2luUGF0aCgpO2N0eC5tb3ZlVG8oci5wb2ludHNbMF1bMF0sci5wb2ludHNbMF1bMV0pO2ZvcihsZXQgaT0xO2k8ci5wb2ludHMubGVuZ3RoO2krKyljdHgubGluZVRvKHIucG9pbnRzW2ldWzBdLHIucG9pbnRzW2ldWzFdKX07CiAgICBjdHguc2F2ZSgpO2N0eC5saW5lQ2FwPSdyb3VuZCc7Y3R4LmxpbmVKb2luPSdyb3VuZCc7CiAgICBpZihyLmtpbmQ9PT0ncmFpbHdheScpewogICAgICBwYXRoKCk7Y3R4LnN0cm9rZVN0eWxlPScjMzAzNDM2JztjdHgubGluZVdpZHRoPXNjYWxlKDcpO2N0eC5zdHJva2UoKTsKICAgICAgcGF0aCgpO2N0eC5zdHJva2VTdHlsZT0nIzY4NjY1Zic7Y3R4LmxpbmVXaWR0aD1zY2FsZSg0KTtjdHguc3Ryb2tlKCk7CiAgICAgIGN0eC5zZXRMaW5lRGFzaChbc2NhbGUoMS41KSxzY2FsZSgzLjUpXSk7cGF0aCgpO2N0eC5zdHJva2VTdHlsZT0nI2MxYjU5YSc7Y3R4LmxpbmVXaWR0aD1zY2FsZSguODUpO2N0eC5zdHJva2UoKTtjdHguc2V0TGluZURhc2goW10pOwogICAgfWVsc2V7CiAgICAgIGNvbnN0IHBhdmluZz1hcnQmJnR5cGVvZiBhcnQudGV4dHVyZT09PSdmdW5jdGlvbic/YXJ0LnRleHR1cmUoY3R4LCd1cmJhbi1wYXZpbmcnKTonIzc3Nzk2OSc7CiAgICAgIGNvbnN0IGFzcGhhbHQ9YXJ0JiZ0eXBlb2YgYXJ0LnRleHR1cmU9PT0nZnVuY3Rpb24nP2FydC50ZXh0dXJlKGN0eCwndXJiYW4tYXNwaGFsdCcpOicjNjk2YjYxJzsKICAgICAgcGF0aCgpO2N0eC5zdHJva2VTdHlsZT0nIzc3Nzk2OSc7Y3R4LmxpbmVXaWR0aD1zY2FsZSg1KTtjdHguc3Ryb2tlKCk7CiAgICAgIHBhdGgoKTtjdHguc3Ryb2tlU3R5bGU9cGF2aW5nO2N0eC5saW5lV2lkdGg9c2NhbGUoMy4yKTtjdHguc3Ryb2tlKCk7CiAgICAgIHBhdGgoKTtjdHguc3Ryb2tlU3R5bGU9YXNwaGFsdDtjdHgubGluZVdpZHRoPXNjYWxlKDEuOCk7Y3R4LnN0cm9rZSgpOwogICAgfQogICAgY3R4LnJlc3RvcmUoKTsKICB9
+          SURFACE_BLOCK: ICBmdW5jdGlvbiBkcmF3U3RyZWV0U3VyZmFjZShjdHgsbWFwLFMsYXJ0LGJvdW5kcz1udWxsKXsKICAgIGlmKCFjdHh8fCFtYXApcmV0dXJuOwogICAgZm9yKGNvbnN0IHJhdyBvZiBzdHJlZXRTdXJmYWNlcyhtYXApKXsKICAgICAgY29uc3QgcHRzPXJhdy5tYXAocD0+W1MocFswXSksUyhwWzFdKV0pLHhzPXB0cy5tYXAocD0+cFswXSkseXM9cHRzLm1hcChwPT5wWzFdKSx4PU1hdGgubWluKC4uLnhzKSx5PU1hdGgubWluKC4uLnlzKSx3PU1hdGgubWF4KC4uLnhzKS14LGg9TWF0aC5tYXgoLi4ueXMpLXk7CiAgICAgIGlmKGJvdW5kcyYmKHgrdzxib3VuZHMueHx8eD5ib3VuZHMueCtib3VuZHMud3x8eStoPGJvdW5kcy55fHx5PmJvdW5kcy55K2JvdW5kcy5oKSljb250aW51ZTsKICAgICAgY29uc3QgYXNwaGFsdD1hcnQmJnR5cGVvZiBhcnQudGV4dHVyZT09PSdmdW5jdGlvbic/YXJ0LnRleHR1cmUoY3R4LCd1cmJhbi1hc3BoYWx0Jyk6JyM2OTZiNjEnOwogICAgICBjb25zdCBwYXZpbmc9YXJ0JiZ0eXBlb2YgYXJ0LnRleHR1cmU9PT0nZnVuY3Rpb24nP2FydC50ZXh0dXJlKGN0eCwndXJiYW4tcGF2aW5nJyk6JyM4Yjg3NzknOwogICAgICAvLyBNYXRjaCBXaWdhbidzIHJvYWQgbWF0ZXJpYWwgc3RhY2s6IGRhcmsga2VyYiBlZGdlLCBwYXZpbmcgc3RyaXAsIHRoZW4gdGhlIHNoYXJlZCBhc3BoYWx0IHRleHR1cmUuCiAgICAgIGN0eC5zYXZlKCk7CiAgICAgIHBvbHlnb24oY3R4LHB0cyxhc3BoYWx0LCcjNzc3OTY5JyxTKDIuNSkpOwogICAgICBwb2x5Z29uKGN0eCxwdHMsbnVsbCxwYXZpbmcsUygxLjUpKTsKICAgICAgY3R4LnJlc3RvcmUoKTsKICAgIH0KICB9
         run: |
           python - <<'PY'
           from pathlib import Path
-          p = Path('cable-street-art.js')
-          s = p.read_text()
-
-          old_road = """  function drawRoad(ctx,r,S){
-    if(!ctx||!r||!Array.isArray(r.points)||r.points.length<2)return;
-    const scale=typeof S==='function'?S:(n=>n);
-    const path=()=>{ctx.beginPath();ctx.moveTo(r.points[0][0],r.points[0][1]);for(let i=1;i<r.points.length;i++)ctx.lineTo(r.points[i][0],r.points[i][1])};
-    ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
-    if(r.kind==='railway'){
-      path();ctx.strokeStyle='#303436';ctx.lineWidth=scale(7);ctx.stroke();
-      path();ctx.strokeStyle='#68665f';ctx.lineWidth=scale(4);ctx.stroke();
-      ctx.setLineDash([scale(1.5),scale(3.5)]);path();ctx.strokeStyle='#c1b59a';ctx.lineWidth=scale(.85);ctx.stroke();ctx.setLineDash([]);
-    }else{
-      path();ctx.strokeStyle='#343532';ctx.lineWidth=scale(5);ctx.stroke();
-      path();ctx.strokeStyle='#817d72';ctx.lineWidth=scale(3.2);ctx.stroke();
-      path();ctx.strokeStyle='rgba(206,195,168,.68)';ctx.lineWidth=scale(.72);ctx.stroke();
-      ctx.setLineDash([scale(.8),scale(5.6)]);path();ctx.strokeStyle='rgba(45,44,41,.5)';ctx.lineWidth=scale(.55);ctx.stroke();ctx.setLineDash([]);
-    }
-    ctx.restore();
-  }
-"""
-          new_road = """  function drawRoad(ctx,r,S,art){
-    if(!ctx||!r||!Array.isArray(r.points)||r.points.length<2)return;
-    const scale=typeof S==='function'?S:(n=>n);
-    const path=()=>{ctx.beginPath();ctx.moveTo(r.points[0][0],r.points[0][1]);for(let i=1;i<r.points.length;i++)ctx.lineTo(r.points[i][0],r.points[i][1])};
-    ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
-    if(r.kind==='railway'){
-      path();ctx.strokeStyle='#303436';ctx.lineWidth=scale(7);ctx.stroke();
-      path();ctx.strokeStyle='#68665f';ctx.lineWidth=scale(4);ctx.stroke();
-      ctx.setLineDash([scale(1.5),scale(3.5)]);path();ctx.strokeStyle='#c1b59a';ctx.lineWidth=scale(.85);ctx.stroke();ctx.setLineDash([]);
-    }else{
-      const paving=art&&typeof art.texture==='function'?art.texture(ctx,'urban-paving'):'#777969';
-      const asphalt=art&&typeof art.texture==='function'?art.texture(ctx,'urban-asphalt'):'#696b61';
-      path();ctx.strokeStyle='#777969';ctx.lineWidth=scale(5);ctx.stroke();
-      path();ctx.strokeStyle=paving;ctx.lineWidth=scale(3.2);ctx.stroke();
-      path();ctx.strokeStyle=asphalt;ctx.lineWidth=scale(1.8);ctx.stroke();
-    }
-    ctx.restore();
-  }
-"""
-
-          old_surface = """  function drawStreetSurface(ctx,map,S,art,bounds=null){
-    if(!ctx||!map)return;
-    for(const raw of streetSurfaces(map)){
-      const pts=raw.map(p=>[S(p[0]),S(p[1])]),xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),x=Math.min(...xs),y=Math.min(...ys),w=Math.max(...xs)-x,h=Math.max(...ys)-y;
-      if(bounds&&(x+w<bounds.x||x>bounds.x+bounds.w||y+h<bounds.y||y>bounds.y+bounds.h))continue;
-      ctx.save();polygon(ctx,pts,art&&art.texture?art.texture(ctx,'urban-asphalt'):'#686e6c');ctx.clip();
-      const light=ctx.createLinearGradient(x,y,x+w,y+h);light.addColorStop(0,'rgba(215,211,183,.17)');light.addColorStop(.55,'rgba(58,76,83,.12)');light.addColorStop(1,'rgba(36,46,51,.2)');ctx.fillStyle=light;ctx.fillRect(x,y,w,h);
-      // Small deterministic repairs and dirt patches break up the flat road texture.
-      const seed=hashText(raw[0].join('|'));
-      for(let i=0;i<45;i++){
-        const px=x+w*seededUnit(seed,i*3),py=y+h*seededUnit(seed,i*3+1);
-        ellipse(ctx,px,py,5+seededUnit(seed,i*3+2)*17,2+seededUnit(seed,i*3+3)*6,i%3?'rgba(34,42,43,.08)':'rgba(194,179,139,.09)',1,-.56);
-        if(i%5===0)line(ctx,px-5,py+3,px+12,py-7,'rgba(28,39,44,.17)',.7);
-      }
-      ctx.restore();
-    }
-  }
-"""
-          new_surface = """  function drawStreetSurface(ctx,map,S,art,bounds=null){
-    if(!ctx||!map)return;
-    for(const raw of streetSurfaces(map)){
-      const pts=raw.map(p=>[S(p[0]),S(p[1])]),xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),x=Math.min(...xs),y=Math.min(...ys),w=Math.max(...xs)-x,h=Math.max(...ys)-y;
-      if(bounds&&(x+w<bounds.x||x>bounds.x+bounds.w||y+h<bounds.y||y>bounds.y+bounds.h))continue;
-      const asphalt=art&&typeof art.texture==='function'?art.texture(ctx,'urban-asphalt'):'#696b61';
-      const paving=art&&typeof art.texture==='function'?art.texture(ctx,'urban-paving'):'#8b8779';
-      // Match Wigan's road material stack: dark kerb edge, paving strip, then the shared asphalt texture.
-      ctx.save();
-      polygon(ctx,pts,asphalt,'#777969',S(2.5));
-      polygon(ctx,pts,null,paving,S(1.5));
-      ctx.restore();
-    }
-  }
-"""
-
-          if old_road not in s:
-              raise SystemExit('drawRoad block not found')
-          if old_surface not in s:
-              raise SystemExit('drawStreetSurface block not found')
-          s = s.replace(old_road, new_road).replace(old_surface, new_surface)
+          import base64, os
+          p=Path('cable-street-art.js')
+          s=p.read_text()
+          road=base64.b64decode(os.environ['ROAD_BLOCK']).decode()
+          surface=base64.b64decode(os.environ['SURFACE_BLOCK']).decode()
+          a=s.index('  function drawRoad(ctx,r,S){')
+          b=s.index('\n\n  // Facade coordinates',a)
+          s=s[:a]+road+s[b:]
+          a=s.index('  function drawStreetSurface(ctx,map,S,art,bounds=null){')
+          b=s.index('\n  function drawStreetProps',a)
+          s=s[:a]+surface+s[b:]
           p.write_text(s)
           PY
       - name: Run Cable Street art tests
