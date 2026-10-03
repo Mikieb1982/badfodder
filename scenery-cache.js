@@ -17,6 +17,7 @@ window.BadFodderScenery = class {
 /* Visual-only upgrades: preserve the complete title artwork and enrich Cable Street. */
 (function(){
   'use strict';
+  if(typeof document==='undefined'||typeof window==='undefined'||typeof setTimeout!=='function')return;
   const style=document.createElement('style');style.id='rabbits-layout-polish';style.textContent=`
     .menu-backdrop{overflow:hidden!important;background:linear-gradient(#080c0958,#080c0958),url('assets/menu/if-i-can-shoot-rabbits-title.png?v=20261003-frame2') center/cover no-repeat!important;filter:none}
     .menu-backdrop::before{content:"";position:absolute;inset:0;background:url('assets/menu/if-i-can-shoot-rabbits-title.png?v=20261003-frame2') center top/contain no-repeat;pointer-events:none}
