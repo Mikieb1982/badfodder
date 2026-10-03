@@ -25,7 +25,7 @@
     if(!mission||mission.id!=='cable-street-1936')throw new Error('Cable Street director requires the Cable Street mission.');
     if(!Array.isArray(mission.phases)||mission.phases.length<4)throw new Error('Cable Street director requires four mission phases.');
 
-    const settings={...DEFAULTS,...options};
+    const settings={...DEFAULTS,...mission.pacing,...options};
     const finalPhase=mission.phases.find(p=>p.id==='they-shall-not-pass')||mission.phases[3];
     const finalHoldTarget=Number.isFinite(settings.finalHoldSeconds)&&settings.finalHoldSeconds>0
       ?settings.finalHoldSeconds
@@ -50,6 +50,9 @@
       completed:false,
       failed:false,
       breachSeconds:0,
+      buildMissed:false,
+      rescueBonus:0,
+      breachTimers:new Map(),
       waveCooldowns:new Map()
     };
 
@@ -60,6 +63,14 @@
         (Array.isArray(mission.defencePositions)&&mission.defencePositions.find(x=>x.role==='christian-street-defence')||{}).id;
       if(preferred&&controller.state.barricades.has(preferred))return controller.state.barricades.get(preferred);
       return controller.state.barricades.values().next().value||null;
+    }
+
+    function urgentBarricade(){
+      const bs=[...controller.state.barricades.values()].filter(b=>b.id===mainBarricade()?.id||state.phaseIndex>=2);
+      return bs.sort((a,b)=>{
+        const score=o=>(o.breached?1000+(state.breachTimers.get(o.id)||0)*20:0)+[...controller.state.formations.values()].reduce((n,f)=>n+(f.objective===o.id&&['approach','halt','dismantle'].includes(f.state)?(f.state==='dismantle'?100:30):0),0)+(1-o.integrity/o.maxIntegrity)*50;
+        return score(b)-score(a);
+      })[0]||mainBarricade();
     }
 
     function activeActors(){
@@ -93,6 +104,10 @@
         }else if(event.type==='civilian-exited'){
           state.rescues++;
           setConfidence(.04);
+          if(mission.fastAction){
+            const b=mainBarricade();if(b)controller.reinforceBarricadeById(b.id,8);
+            state.rescueBonus=Math.min(12,state.rescueBonus+4);
+          }
         }else if(event.type==='barricade-held'){
           state.holdSignals++;
           setConfidence(.01);
@@ -116,8 +131,15 @@
       if(!formation)return false;
       if(!Number.isFinite(formation.x)||!Number.isFinite(formation.y)||
          !Number.isFinite(formation.targetX)||!Number.isFinite(formation.targetY))return false;
+      if(mission.fastAction){
+        formation.wave=(formation.wave||0)+1;
+        formation.baseSpeed=formation.baseSpeed||formation.speed;formation.baseDamage=formation.baseDamage||formation.damageRate;
+        const escalation=Math.min(4,formation.wave-1);
+        formation.speed=formation.baseSpeed*(1+escalation*.12);formation.damageRate=formation.baseDamage*(1+escalation*.12);
+        formation.advanceDelay=formation.activationPhase>1?3+(formation.wave%3)*.6:0;
+      }
       formation.state='approach';
-      formation.stateTime=0;
+      formation.stateTime=0;formation.charging=false;formation.breakthrough=false;formation.breakthroughProgress=0;
       formation.resistance=0;
       formation.staggerTime=0;
       return true;
@@ -125,7 +147,7 @@
 
     function startPressureWave(){
       let started=0;
-      controller.state.formations.forEach(f=>{if(resetFormationForPressure(f))started++});
+      controller.state.formations.forEach(f=>{if((f.activationPhase||1)<=state.phaseIndex&&resetFormationForPressure(f))started++});
       if(started){
         controller.state.pressureStarted=true;
         controller.state.events.push({type:'pressure-wave-start',phaseId:phase()&&phase().id,count:started});
@@ -174,7 +196,15 @@
         state.holdSignalsWhenReady=state.holdSignals;
         controller.state.events.push({type:'gathering-ready'});
       }
-      if(state.gatheringReady&&state.holdSignals>state.holdSignalsWhenReady)enterPhase(1);
+      if(mission.fastAction){
+        if(ready){enterPhase(1);return}
+        if(state.phaseElapsed>=settings.buildDeadlineSeconds){
+          state.buildMissed=!ready;
+          setConfidence(-.1);
+          enterPhase(1);
+          controller.state.events.push({type:'build-deadline-missed'});
+        }
+      }else if(state.gatheringReady&&state.holdSignals>state.holdSignalsWhenReady)enterPhase(1);
     }
 
     function updateHoldApproach(){
@@ -185,7 +215,7 @@
     function updateRegroup(dt){
       const b=mainBarricade();
       if(!b)return;
-      const integrityRatio=b.maxIntegrity>0?b.integrity/b.maxIntegrity:0;
+      const integrityRatio=mission.fastAction?Math.min(...[...controller.state.barricades.values()].map(b=>b.integrity/b.maxIntegrity)):(b.maxIntegrity>0?b.integrity/b.maxIntegrity:0);
       const atRegroup=!finitePoint(options.regroupPoint)||activeActors().some(a=>distance(a,options.regroupPoint)<(options.regroupRadius||40));
       const stable=atRegroup&&!b.breached&&integrityRatio>=settings.minimumRegroupIntegrityRatio&&allPressureWithdrawing();
       if(stable)state.regroupStableSeconds+=dt;
@@ -203,7 +233,7 @@
           Math.hypot(f.x-f.withdrawX,f.y-f.withdrawY)<=Math.max(4,Number(f.stopDistance)||0);
         if(!atWithdraw){state.waveCooldowns.delete(f.id);return}
         const next=(state.waveCooldowns.get(f.id)||0)+dt;
-        if(next>=settings.repeatPressureDelay){
+        if(next>=settings.repeatPressureDelay+(mission.fastAction?((f.wave||0)+(f.activationPhase||1))%4*.55:0)){
           state.waveCooldowns.set(f.id,0);
           resetFormationForPressure(f);
           controller.state.events.push({type:'pressure-wave-repeat',formationId:f.id});
@@ -215,7 +245,9 @@
       updateRepeatedPressure(dt);
       const b=mainBarricade();
       if(!b)return;
-      if(!b.breached)state.finalHoldSeconds=Math.min(finalHoldTarget,state.finalHoldSeconds+dt);
+      const routeBlocked=[...controller.state.barricades.values()].every(b=>!b.breached);
+      if(routeBlocked&&state.rescueBonus>0){state.finalHoldSeconds=Math.min(finalHoldTarget,state.finalHoldSeconds+state.rescueBonus);state.rescueBonus=0}
+      if(routeBlocked)state.finalHoldSeconds=Math.min(finalHoldTarget,state.finalHoldSeconds+dt);
       if(state.finalHoldSeconds>=finalHoldTarget){
         state.completed=true;
         controller.state.events.push({type:'mission-complete',missionId:mission.id});
@@ -227,13 +259,15 @@
       state.phaseElapsed+=dt;
       consumeEvents();
       if(state.eventCursor>256){controller.state.events.splice(0,state.eventCursor);state.eventCursor=0}
-      const b=mainBarricade();
-      if(state.phaseIndex>0&&b&&b.breached){
-        state.breachSeconds+=dt;
-        if(state.breachSeconds>=(mission.breachRecoverySeconds||30)){
-          state.failed=true;controller.state.events.push({type:'mission-failed',reason:'route-open'});return false;
+      state.breachSeconds=0;
+      for(const b of controller.state.barricades.values()){
+        const live=state.phaseIndex>0&&(b.id===mainBarricade()?.id||state.phaseIndex===3);
+        const seconds=live&&b.breached?(state.breachTimers.get(b.id)||0)+dt:0;
+        state.breachTimers.set(b.id,seconds);state.breachSeconds=Math.max(state.breachSeconds,seconds);
+        if(seconds>=(mission.breachRecoverySeconds||30)){
+          state.failed=true;state.failureLocation=b.label||b.id;controller.state.events.push({type:'mission-failed',reason:'route-open',barricadeId:b.id});return false;
         }
-      }else state.breachSeconds=0;
+      }
       if(state.phaseIndex===0)updateGathering();
       else if(state.phaseIndex===1)updateHoldApproach();
       else if(state.phaseIndex===2)updateRegroup(dt);
@@ -247,6 +281,9 @@
       const b=mainBarricade();
       const barricadeIntact=!!b&&!b.breached;
       if(!p)return[];
+      if(p.id==='gathering'&&mission.fastAction)return[
+        {id:'deliver-material-load',label:'Deliver two loads before the police charge',done:state.materialDeliveries>=settings.gatheringMaterialDeliveries}
+      ];
       if(p.id==='gathering')return[
         {id:'reach-main-defence',label:'Go to the barricade',done:defenceVisited()},
         {id:'deliver-material-load',label:'Bring material to the barricade',done:state.materialDeliveries>=settings.gatheringMaterialDeliveries},
@@ -258,7 +295,7 @@
         {id:'first-pressure',label:'Repel the first police push',done:state.pressureCycles>state.pressureCyclesAtPhaseStart}
       ];
       if(p.id==='regroup')return[
-        {id:'restore-defence',label:'Repair the barricade if damaged',done:barricadeIntact},
+        {id:'restore-defence',label:'Repair both defences to at least 25%',done:mission.fastAction?[...controller.state.barricades.values()].every(b=>!b.breached&&b.integrity/b.maxIntegrity>=settings.minimumRegroupIntegrityRatio):barricadeIntact&&b.integrity/b.maxIntegrity>=settings.minimumRegroupIntegrityRatio},
         {id:'regroup-pressure',label:'Move into the blue REGROUP circle',done:regroupOccupied()},
         {id:'stabilise',label:'Hold the regroup position',done:state.regroupStableSeconds>=settings.regroupStableSeconds}
       ];
@@ -288,8 +325,7 @@
       return null;
     }
 
-    function barricadePoint(){
-      const b=mainBarricade();
+    function barricadePoint(b=mainBarricade()){
       if(!b)return null;
       if(finitePoint(b))return{x:b.x,y:b.y};
       if(Array.isArray(b.points)&&b.points.length){
@@ -299,7 +335,7 @@
     }
 
     function instructionText(){
-      if(state.failed)return'RETRY: the route was opened.';
+      if(state.failed)return'ROUTE OPENED AT '+String(state.failureLocation||'THE DEFENCE').toUpperCase()+'. RETRY.';
       const b=mainBarricade();
       if(state.breachSeconds>0){
         return'BARRICADE DOWN: grab furniture or timber, bring it back and press E / ACTION to REINFORCE. '+Math.ceil((mission.breachRecoverySeconds||30)-state.breachSeconds)+'s left.';
@@ -307,6 +343,7 @@
       const p=phase();
       if(!p)return'Cable Street';
       if(p.id==='gathering'){
+        if(mission.fastAction)return'BUILD NOW: '+Math.ceil(Math.max(0,settings.buildDeadlineSeconds-state.phaseElapsed))+'s. Deliver two loads. F: SHOVE · G: THROW. Rescues give repairs.';
         if(!defenceVisited())return'You control four volunteers. Keep Cable Street blocked. Go to DEFENCE. Police approach from the marked arrow.';
         if(state.materialDeliveries<settings.gatheringMaterialDeliveries){
           return carryingMaterial()
@@ -317,11 +354,12 @@
         return'4. TAKE POSITION at the barricade and press E / ACTION. The police push will begin.';
       }
       if(p.id==='hold-approach'){
+        if(mission.fastAction)return'POLICE CHARGE: F / SHOVE, G / THROW. Rotate tired volunteers and repair damage. Rescue residents for repair bonuses.';
         const resistance=Math.round(resistanceRatio()*100);
         return'FIGHT BACK: E / ACTION at the barricade. Police resistance '+resistance+'%. A route left open for 30s loses the defence.';
       }
       if(p.id==='regroup'){
-        if(b&&b.breached)return'REPAIR THE BARRICADE first: bring material and press E / ACTION to REINFORCE.';
+        if((mission.fastAction?[...controller.state.barricades.values()].some(b=>b.breached||b.integrity/b.maxIntegrity<settings.minimumRegroupIntegrityRatio):b&&(b.breached||b.integrity/b.maxIntegrity<settings.minimumRegroupIntegrityRatio)))return'REPAIR THE BARRICADE first: bring material and press E / ACTION to REINFORCE.';
         if(!regroupOccupied())return'MOVE one volunteer into the BLUE REGROUP circle.';
         if(!allPressureWithdrawing())return'POLICE ARE FALLING BACK. Hold the blue regroup point and repair the defence.';
         const left=Math.max(0,Math.ceil(settings.regroupStableSeconds-state.regroupStableSeconds));
@@ -335,10 +373,14 @@
     }
 
     function guidanceTarget(){
-      const p=phase(),b=mainBarricade(),bp=barricadePoint();
+      const p=phase(),b=mission.fastAction&&state.phaseIndex>=2?urgentBarricade():mainBarricade(),bp=barricadePoint(b);
       if(!p)return null;
       if(state.breachSeconds>0&&bp)return{kind:'barricade',id:b&&b.id||null,x:bp.x,y:bp.y,label:'REBUILD HERE'};
       if(p.id==='gathering'){
+        if(mission.fastAction){
+          if(carryingMaterial()&&bp)return{kind:'barricade',id:b.id,x:bp.x,y:bp.y,label:'BUILD HERE'};
+          const m=firstAvailableMaterial();if(m)return{kind:'material',id:m.id,x:m.x,y:m.y,label:'GRAB THIS LOAD'};
+        }
         if(!defenceVisited()&&bp)return{kind:'barricade',id:b&&b.id||null,x:bp.x,y:bp.y,label:'GO TO DEFENCE'};
         if(state.materialDeliveries<settings.gatheringMaterialDeliveries){
           if(carryingMaterial()&&bp)return{kind:'barricade',id:b&&b.id||null,x:bp.x,y:bp.y,label:'BRING MATERIAL HERE'};
@@ -351,16 +393,16 @@
       }
       if(p.id==='hold-approach'&&bp)return{kind:'barricade',id:b&&b.id||null,x:bp.x,y:bp.y,label:'FIGHT BACK HERE'};
       if(p.id==='regroup'){
-        if(b&&b.breached&&bp)return{kind:'barricade',id:b.id,x:bp.x,y:bp.y,label:'REPAIR FIRST'};
+        if(b&&(b.breached||b.integrity/b.maxIntegrity<settings.minimumRegroupIntegrityRatio)&&bp)return{kind:'barricade',id:b.id,x:bp.x,y:bp.y,label:'REPAIR FIRST'};
         if(finitePoint(options.regroupPoint))return{kind:'regroup',id:'regroup',x:options.regroupPoint.x,y:options.regroupPoint.y,label:'REGROUP HERE'};
         if(bp)return{kind:'barricade',id:b&&b.id||null,x:bp.x,y:bp.y,label:'HOLD POSITION'};
       }
-      if(bp)return{kind:'barricade',id:b&&b.id||null,x:bp.x,y:bp.y,label:activePressure().length?'FIGHT BACK':'REPAIR AND HOLD'};
+      if(bp)return{kind:'barricade',id:b&&b.id||null,x:bp.x,y:bp.y,label:(b.id==='S'?'SIDE STREET: ':'MAIN DEFENCE: ')+(b.breached?'REBUILD':b.integrity<35?'REINFORCE':activePressure().length?'FIGHT BACK':'REPAIR')};
       return null;
     }
 
     function statusText(){
-      if(state.failed)return'Local defence lost. Retry to keep the route blocked.';
+      if(state.failed)return'ROUTE OPENED AT '+String(state.failureLocation||'THE DEFENCE').toUpperCase()+'.';
       if(state.breachSeconds>0)return'BREACH: rebuild within '+Math.ceil((mission.breachRecoverySeconds||30)-state.breachSeconds)+'s.';
       const p=phase();
       if(!p)return'Cable Street';
@@ -379,6 +421,12 @@
       const barricadeIntegrity=b&&Number.isFinite(b.integrity)?b.integrity:0;
       const barricadeMaxIntegrity=b&&Number.isFinite(b.maxIntegrity)&&b.maxIntegrity>0?b.maxIntegrity:0;
       return{
+        buildSecondsLeft:Math.ceil(Math.max(0,(settings.buildDeadlineSeconds||0)-state.phaseElapsed)),
+        buildDeadlineSeconds:settings.buildDeadlineSeconds||0,
+        buildMissed:state.buildMissed,
+        threat:urgentBarricade()?{id:urgentBarricade().id,label:urgentBarricade().label,integrity:urgentBarricade().integrity,breached:urgentBarricade().breached}:null,
+        barricades:[...controller.state.barricades.values()].map(b=>({id:b.id,label:b.label,ratio:b.integrity/b.maxIntegrity,breached:b.breached,breachSeconds:state.breachTimers.get(b.id)||0})),
+        buildsRequired:settings.gatheringMaterialDeliveries,
         phaseIndex:state.phaseIndex,
         phaseId:phase()&&phase().id||null,
         phaseTitle:phase()&&phase().title||'',
@@ -407,7 +455,7 @@
     }
 
     controller.state.phaseIndex=0;
-    return{settings,state,fixedUpdate,snapshot,statusText,startPressureWave,enterPhase};
+    return{settings,state,fixedUpdate,snapshot,guidanceTarget,statusText,startPressureWave,enterPhase};
   }
 
   return{create,DEFAULTS};

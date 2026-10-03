@@ -61,8 +61,8 @@ function fadeTo(target,duration){
   cancelAnimationFrame(raf);
   const initial=audio.volume,from=performance.now();
   const tick=now=>{
-    const progress=Math.min(1,(now-from)/duration);
-    audio.volume=initial+(target-initial)*progress;
+    const progress=Math.max(0,Math.min(1,(now-from)/duration));
+    audio.volume=Math.max(0,Math.min(1,initial+(target-initial)*progress));
     if(progress<1)raf=requestAnimationFrame(tick);
     else if(!enabled)audio.muted=true;
   };

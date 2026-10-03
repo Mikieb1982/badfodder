@@ -5,7 +5,8 @@ const Historical=require('../historical-missions.js');
 const Cable=require('../cable-street-runtime.js');
 const Director=require('../cable-street-director.js');
 
-const mission=Historical.get('cable-street-1936');
+// Keep the unpaced director contract covered alongside the new action-mode suite.
+const mission={...Historical.get('cable-street-1936'),fastAction:false,pacing:{}};
 const controller=Cable.createController({mission});
 const barricade=Cable.createBarricade({
   id:'B',maxIntegrity:30,integrity:20,constructionTier:1,workPositions:2

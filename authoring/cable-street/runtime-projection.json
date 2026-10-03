@@ -13,6 +13,23 @@
   "notes": [
     "Configure this only after the approved trace extent is known.",
     "Use a north-west origin that bounds the approved trace so projected runtime coordinates remain non-negative.",
-    "This runtime projection is separate from the source-image calibration stored in calibration.json."
-  ]
+    "This runtime projection is separate from the source-image calibration stored in calibration.json.",
+    "Gameplay adaptation: widen Cable Street and Christian Street, retain intact building footprints and rotate world geometry 32 degrees. Source research coordinates remain unchanged."
+  ],
+  "gameplayLayout": {
+    "angleDegrees": -32,
+    "streetY": 244,
+    "streetHalfWidth": 22,
+    "streetExtraWidth": 50,
+    "junctionX": 274,
+    "sideHalfWidth": 23,
+    "sideExtraWidth": 22,
+    "sideStreets": [
+      {
+        "x": 554,
+        "halfWidth": 17,
+        "extraWidth": 22
+      }
+    ]
+  }
 }

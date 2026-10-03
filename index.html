@@ -382,7 +382,7 @@
       .hud-counters{right:10px}
     }
   </style>
-  <link rel="stylesheet" href="game-ui.css?v=20261003-upgrade-1">
+  <link rel="stylesheet" href="game-ui.css?v=20261003-tactical-1">
   <link rel="stylesheet" href="menu-ui.css">
 </head>
 <body>
@@ -469,7 +469,7 @@
         </div>
         <div class="menu-panel menu-card" data-view="controls" hidden>
           <h2>CONTROLS</h2>
-          <dl><dt>MOVE</dt><dd>Left-click terrain, or use the joystick.</dd><dt>FIRE</dt><dd>Hold right-click. MacBook: hold Shift + click, or hold F while aiming with the cursor. Mobile: hold FIRE.</dd><dt>GRENADE</dt><dd>Left + right mouse buttons. MacBook: Option/Alt + click, or press G at the cursor. Mobile: GRENADE.</dd><dt>ZOOM</dt><dd>On touch devices, pinch two fingers on the game to zoom in and out.</dd><dt>SQUAD</dt><dd>1–8 / A, or select a squad portrait.</dd><dt>MAP / PAUSE</dt><dd>M / Enter or Esc, or the HUD buttons.</dd></dl>
+          <dl><dt>MOVE</dt><dd>Left-click terrain, or use the joystick.</dd><dt>FIRE</dt><dd>Hold right-click. MacBook: hold Shift + click, or hold F while aiming with the cursor. Mobile: hold FIRE.</dd><dt>GRENADE</dt><dd>Left + right mouse buttons. MacBook: Option/Alt + click, or press G at the cursor. Mobile: GRENADE.</dd><dt>ZOOM</dt><dd>On touch devices, pinch two fingers on the game to zoom in and out.</dd><dt>CABLE STREET</dt><dd>E: pick up, build or hold. F: shove. G: throw debris. X: drop/cancel. Rotate tired volunteers.</dd><dt>SQUAD</dt><dd>1–8 / A, or select a squad portrait.</dd><dt>MAP / PAUSE</dt><dd>M / Enter or Esc, or the HUD buttons.</dd></dl>
           <button class="menu-button" data-back type="button">BACK</button>
         </div>
         <div class="menu-panel menu-card" data-view="options" hidden>
@@ -513,6 +513,8 @@
       <div class="touch-actions touch-gameplay">
         <button id="touchFire" class="touch-action" type="button" aria-label="Fire machine gun">FIRE</button>
         <button id="touchGrenade" class="touch-action" type="button" aria-label="Throw grenade">GRENADE</button>
+        <button id="touchShove" class="touch-action" type="button" aria-label="Shove police" hidden>SHOVE</button>
+        <button id="touchDebris" class="touch-action" type="button" aria-label="Throw improvised debris" hidden>THROW</button>
         <button id="touchAction" class="touch-action" type="button" aria-label="Context action" hidden>ACTION</button>
         <button id="touchDrop" class="touch-action" type="button" aria-label="Drop carried material or cancel action" hidden>DROP / CANCEL</button>
       </div>
@@ -538,7 +540,7 @@
 <script src="town-map.js"></script>
 <script src="bad-belzig-data.js"></script>
 <script src="wigan-map.js"></script>
-<script src="cable-street-map.js?v=20261002-playable-1"></script>
+<script src="cable-street-map.js?v=20261003-tactical-1"></script>
 <script src="pixel-art.js"></script>
 <script src="painted-art.js"></script>
 <script src="building-art.js"></script>
@@ -546,8 +548,8 @@
 <script src="wigan-scenery.js?v=20261003-upgrade-1"></script>
 <script src="scenery-cache.js"></script>
 <script src="menu-ui.js?v=20261003-upgrade-1"></script>
-<script src="music.js?v=20261002-cable-track-1"></script>
-<script src="sfx.js"></script>
+<script src="music.js?v=20261003-tactical-1"></script>
+<script src="sfx.js?v=20261003-tactical-1"></script>
 <script src="combat-geometry.js"></script>
 <script src="navigation.js?v=20261003-upgrade-1"></script>
 <script src="mission-rules.js"></script>
@@ -555,12 +557,12 @@
 <script src="campaign.js"></script>
 <script src="mission-bootstrap.js?v=20261002-cable-foundation-2"></script>
 <script src="mission-launch.js?v=20261002-cable-foundation-2"></script>
-<script src="historical-missions.js?v=20261002-playable-1"></script>
+<script src="historical-missions.js?v=20261003-tactical-1"></script>
 <script src="cable-street-runtime.js?v=20261002-playable-1"></script>
-<script src="cable-street-interactions.js?v=20261002-playable-1"></script>
-<script src="cable-street-director.js?v=20261003-upgrade-1"></script>
-<script src="cable-street-crowd.js?v=20261002-visual-polish-1"></script>
-<script src="cable-street-art.js?v=20261003-upgrade-1"></script>
+<script src="cable-street-interactions.js?v=20261003-tactical-1"></script>
+<script src="cable-street-director.js?v=20261003-tactical-1"></script>
+<script src="cable-street-crowd.js?v=20261003-tactical-1"></script>
+<script src="cable-street-art.js?v=20261003-tactical-1"></script>
 <script>
 (() => {
   'use strict';
@@ -625,6 +627,8 @@
   const touchStick=document.getElementById('touchStick');
   const touchFire=document.getElementById('touchFire');
   const touchGrenade=document.getElementById('touchGrenade');
+  const touchShove=document.getElementById('touchShove');
+  const touchDebris=document.getElementById('touchDebris');
   const touchAction=document.getElementById('touchAction');
   const touchDrop=document.getElementById('touchDrop');
   const touchMap=document.getElementById('touchMap');
@@ -884,6 +888,21 @@
     touchDrop.textContent=selected&&missionController?.state.actors.get(selected.id)?.carrying?'DROP':'CANCEL';
   }
 
+  function performStreetAttack(kind){
+    if(!missionInteractionLayer||!started||menuOpen||paused||finished||mapOpen)return false;
+    const candidates=selectedUnits().map(unit=>({unit,id:'player-'+squad.indexOf(unit)}))
+      .sort((a,b)=>(missionController.state.actors.get(b.id)?.stamina??100)-(missionController.state.actors.get(a.id)?.stamina??100));
+    for(const selected of candidates){
+      if(missionInteractionLayer.streetAttack(selected.id,{kind,x:cursorWorld?.x,y:cursorWorld?.y})){
+        const formation=[...missionController.state.formations.values()].find(f=>['halt','dismantle','approach'].includes(f.state));
+        if(formation)updateFacing(selected.unit,formation.x-selected.unit.x,formation.y-selected.unit.y);
+        if(kind==='throw')selected.unit.throwTimer=.3;else selected.unit.fireTimer=.16;
+        updateHud(true);return true;
+      }
+    }
+    setStatus('Move closer or switch to a rested volunteer.');return false;
+  }
+
   function performHistoricalContextActionAt(x,y){
     if(!missionInteractionLayer)return false;
     const selected=selectedHistoricalActor();
@@ -1008,6 +1027,9 @@
     touchFire.disabled=!actionAllowed('firearms');
     touchGrenade.hidden=!actionAllowed('grenades');
     touchGrenade.disabled=!actionAllowed('grenades');
+    touchShove.hidden=!missionInteractionLayer;touchDebris.hidden=!missionInteractionLayer;
+    touchShove.disabled=menuOpen||paused||finished||mapOpen;touchDebris.disabled=touchShove.disabled;
+    gameViewport.classList.toggle('street-action',!!missionInteractionLayer);
     updateHistoricalActionButton();
     syncFullscreenButton();
   }
@@ -1123,7 +1145,7 @@
 
   function updateRoster(force=false){
     const signature=squad.map((s,i)=>[
-      i,s.alive?1:0,s.hp,s.maxHp,s.selected?1:0
+      i,s.alive?1:0,s.hp,s.maxHp,s.selected?1:0,missionController?Math.round((missionController.state.actors.get('player-'+i)?.stamina??100)/10):0
     ].join(':')).join('|');
     if(!force&&signature===lastRosterSignature)return;
     lastRosterSignature=signature;
@@ -1143,11 +1165,13 @@
         chip.addEventListener('click',()=>setSelection(i));hudChips.set(i,chip);hudSquadBar.appendChild(chip);
       }
       chip.className='hud-unit'+(s.selected?' selected':'')+(s.alive?'':' down');
-      chip.setAttribute('aria-label',(s.alive?'Select ':'Down: ')+s.name+', health '+s.hp+' of '+s.maxHp);
+      const energy=missionController?Math.round((missionController.state.actors.get('player-'+i)?.stamina??100)/10)*10:null;
+      chip.setAttribute('aria-label',(s.alive?'Select ':'Down: ')+s.name+(energy===null?', health '+s.hp+' of '+s.maxHp:', energy '+energy+' percent'));
+      const cachedPortrait=chip.querySelector('canvas');
       chip.setAttribute('aria-pressed',String(s.selected));chip.disabled=!s.alive;
-      const hp=Array.from({length:s.maxHp},(_,h)=>'<i class="'+(h<s.hp?(s.hp<=2?'on low':'on'):'')+'"></i>').join('');
-      chip.innerHTML='<span class="hud-unit-info"><span class="hud-name"><em>'+(i+1)+'</em>'+s.name+'</span><span class="hud-health">'+hp+'</span><span class="hud-state">'+(s.alive?'HP '+s.hp+'/'+s.maxHp:'DOWN')+'</span></span>';
-      const portrait=document.createElement('canvas');portrait.width=96;portrait.height=96;portrait.className='hud-portrait';
+      const hp=Array.from({length:energy===null?s.maxHp:10},(_,h)=>'<i class="'+(h<(energy===null?s.hp:energy/10)?((energy===null?s.hp<=2:energy<30)?'on low':'on'):'')+'"></i>').join('');
+      chip.innerHTML='<span class="hud-unit-info"><span class="hud-name"><em>'+(i+1)+'</em>'+s.name+'</span><span class="hud-health">'+hp+'</span><span class="hud-state">'+(s.alive?(energy===null?'HP '+s.hp+'/'+s.maxHp:'ENERGY '+energy+'%'):'DOWN')+'</span></span>';
+      const portrait=cachedPortrait||document.createElement('canvas');portrait.width=96;portrait.height=96;portrait.className='hud-portrait';
       const pg=portrait.getContext('2d');pg.imageSmoothingEnabled=true;pg.drawImage(art.soldier(missionController?'civilian':'squad',2,s.alive?0:2,s.alive?'idle':'dead',i),0,0);
       chip.insertBefore(portrait,chip.firstChild);
 
@@ -1288,7 +1312,7 @@
         controller:missionController,
         worldWidth:WORLD_W,
         worldHeight:WORLD_H,
-        blocked:(x,y,r)=>obstacleAt(x,y,r)
+        blocked:(x,y,r)=>obstacleAt(x,y,r),navigation
       });
     }
 
@@ -1466,15 +1490,23 @@
       });
       hudStage.textContent='PHASE '+Math.min(phaseCount,missionStage+1)+'/'+phaseCount;
       hudEnemyLabel.textContent='DEFENCE';
-      hudGrenadeLabel.textContent='CONFIDENCE';
+      hudGrenadeLabel.textContent='ENERGY';
       hudEnemies.textContent=Math.round(historicalProgress.barricadeRatio*100)+'%';
-      hudGrenades.textContent=Math.round(historicalProgress.confidence*100)+'%';
+      hudEnemyLabel.textContent=historicalProgress.threat?.id==='S'?'SIDE DEFENCE':'MAIN DEFENCE';
+      if(historicalProgress.threat)hudEnemies.textContent=Math.round(historicalProgress.threat.integrity)+'%';
+      const selected=selectedHistoricalActor();
+      hudGrenades.textContent=Math.round(selected?(missionController.state.actors.get(selected.id)?.stamina??100):0)+'%';
       const nextHistoricalObjective=historicalProgress.objectives.find(o=>!o.done);
-      const historicalBrief='Keep Cable Street blocked. Four volunteers.';
+      const threat=historicalProgress.threat;
+      const historicalBrief=missionStage===0?'BUILD: '+historicalProgress.materialDeliveries+'/'+historicalProgress.buildsRequired+' loads · CHARGE IN '+historicalProgress.buildSecondsLeft+'s'
+        :missionStage===3?'HOLD THE ROUTE: '+Math.ceil(historicalProgress.finalHoldTarget-historicalProgress.finalHoldSeconds)+'s'
+        :missionStage===2?'REGROUP: repair both defences':(threat?.id==='S'?'SIDE STREET UNDER ATTACK':'MAIN BARRICADE UNDER ATTACK');
       const instructionEl=document.getElementById('hudInstruction');
       instructionEl.hidden=false;
-      const cue=historicalProgress.breachSeconds>0?'REBUILD: '+Math.ceil((mission.breachRecoverySeconds||30)-historicalProgress.breachSeconds)+'s left':nextHistoricalObjective?.label||historicalProgress.phaseTitle;
-      const hint=cue+' · E / ACTION · Open route for 30s = defeat';
+      const hint=historicalProgress.breachSeconds>0?'REBUILD '+(historicalProgress.barricades.find(b=>b.breachSeconds>0)?.id==='S'?'SIDE STREET':'MAIN DEFENCE')+': '+Math.ceil((activeMission().breachRecoverySeconds||30)-historicalProgress.breachSeconds)+'s · E / ACTION with material'
+        :missionStage===2?(nextHistoricalObjective?.label||'Regroup and repair')+' · E / ACTION'
+        :missionStage===0?'E / ACTION: pick up, then deliver. Rescues earn repairs.'
+        :(threat?.id==='S'?'SIDE STREET: ':'MAIN DEFENCE: ')+'F / SHOVE · G / THROW · E: build · Breach '+(activeMission().breachRecoverySeconds||30)+'s = defeat';
       if(instructionEl.textContent!==hint)instructionEl.textContent=hint;
       if(hudMission.textContent!==historicalBrief)hudMission.textContent=historicalBrief;
       const instruction=historicalProgress.instruction||historicalProgress.status;
@@ -1907,13 +1939,15 @@
       s.fireHeat=Math.max(0,(s.fireHeat||0)-dt*.7);
 
       s.throwTimer=Math.max(0,(s.throwTimer||0)-dt);
+      const historicalActor=s.streetActor;
+      if(historicalActor?.stunned>0){s.hitTimer=Math.max(s.hitTimer,.15);s.state='stumble';return}
       const firingNow=s.fireTimer>0;
       let moving=false;
 
       if(squadFormation.active&&squadFormation.members.includes(s)&&!s.isFormationLeader){
         moving=followFormationMember(s,dt);
       }else{
-        moving=followPath(s,firingNow?128:185,dt);
+        moving=followPath(s,historicalActor?(historicalActor.carrying?205:240):(firingNow?128:185),dt);
       }
 
       if(s.throwTimer>0)s.state='throw';
@@ -2292,7 +2326,8 @@
     // True analogue movement: slight tilt = cautious walk, full tilt = run.
     const intensity=Math.max(0,Math.min(1,(mag-deadZone)/(1-deadZone)));
     const smoothIntensity=intensity*intensity*(3-2*intensity);
-    const speed=205*smoothIntensity;
+    const speed=(missionController?245:205)*smoothIntensity;
+    if(missionController?.state.actors.get('player-'+squad.indexOf(leader))?.stunned>0)return;
     const nx=touchState.moveX/(mag||1);
     const ny=touchState.moveY/(mag||1);
     const dx=nx*speed*dt;
@@ -2349,8 +2384,10 @@
   function updateCamera(dt){
     const f=selectedUnits()[0]||squad.find(s=>s.alive);if(!f)return;
     const visibleW=VIEW_W/zoom,visibleH=VIEW_H/zoom;
-    const tx=Math.max(0,Math.min(WORLD_W-visibleW,f.x-visibleW*.48));
-    const ty=Math.max(0,Math.min(WORLD_H-visibleH,f.y-visibleH*.55));
+    const threat=missionDirector?.guidanceTarget();
+    const lookX=threat?Math.max(-85,Math.min(85,(threat.x-f.x)*.2)):0,lookY=threat?Math.max(-65,Math.min(65,(threat.y-f.y)*.2)):0;
+    const tx=Math.max(0,Math.min(WORLD_W-visibleW,f.x+lookX-visibleW*.48));
+    const ty=Math.max(0,Math.min(WORLD_H-visibleH,f.y+lookY-visibleH*.55));
     const k=1-Math.exp(-dt*4.3);
     const deadZone=12/zoom;
     if(Math.abs(tx-camera.x)>deadZone)camera.x+=(tx-camera.x)*k;
@@ -2638,7 +2675,7 @@
 
     [...buildingSet].sort((a,b)=>a.maxY-b.maxY).forEach(b=>{
       const fading=squad.some(s=>s.alive&&s.selected&&buildingOccludesActor(b,s));
-      ctx.save();ctx.globalAlpha=fading?.68:.98;drawBuilding(b);ctx.restore();
+      ctx.save();ctx.globalAlpha=fading?(missionController ? .4 : .68):.98;drawBuilding(b);ctx.restore();
     });
     [...treeSet].sort((a,b)=>treeDots[a].y-treeDots[b].y).forEach(i=>{
       const t=treeDots[i],fading=squad.some(s=>s.alive&&s.selected&&treeOccludesActor(t,s));
@@ -2864,16 +2901,19 @@
     ctx.setTransform(frameScaleX,0,0,frameScaleY,0,0);ctx.clearRect(0,0,VIEW_W,VIEW_H);
     ctx.fillStyle='#c7c9a8';ctx.fillRect(0,0,VIEW_W,VIEW_H);
 
-    ctx.save();ctx.scale(zoom,zoom);ctx.translate(-camera.x,-camera.y);
+    const historicalRenderState=missionInteractionLayer?missionInteractionLayer.renderState():null;
+    const impact=historicalRenderState?.conflict.impacts.find(i=>i.kind==='mounted'&&i.life>.25);
+    const shake=impact?Math.sin(historicalClock*65)*1.8:0;
+    ctx.save();ctx.scale(zoom,zoom);ctx.translate(-camera.x+shake,-camera.y+shake*.5);
     sceneryTiles.draw(ctx,camera.x,camera.y,VIEW_W/zoom,VIEW_H/zoom);
     if(MAP_DATA.key==='wigan')BadFodderWigan.labels(ctx,MAP_DATA,zoom,canvasScale,camera,VIEW_W,VIEW_H);
     drawObjectiveZones();
     drawOptionalEncounters();
-    const historicalRenderState=missionInteractionLayer?missionInteractionLayer.renderState():null;
     const historicalCrowdState=missionCrowd?missionCrowd.renderState():null;
     const historicalProgress=missionDirector?missionDirector.snapshot():null;
-    if(historicalCrowdState)cableStreetArt.drawCrowd(ctx,historicalCrowdState,historicalClock,art);
-    if(historicalRenderState){cableStreetArt.drawGround(ctx,historicalRenderState,historicalClock,art);
+    const historicalView={x:camera.x,y:camera.y,w:VIEW_W/zoom,h:VIEW_H/zoom};
+    if(historicalCrowdState)cableStreetArt.drawCrowd(ctx,historicalCrowdState,historicalClock,art,historicalView);
+    if(historicalRenderState){cableStreetArt.drawGround(ctx,historicalRenderState,historicalClock,art,historicalView);
       if(MAP_DATA.regroupPoint&&missionStage===2)cableStreetArt.drawRegroup(ctx,{x:S(MAP_DATA.regroupPoint.x),y:S(MAP_DATA.regroupPoint.y)},historicalClock);
       if(historicalProgress&&historicalProgress.guidance)cableStreetArt.drawGuidance(ctx,historicalProgress.guidance,historicalClock);
     }
@@ -2986,6 +3026,7 @@
     if(MAP_DATA.key==='cable-street'&&historicalRenderState){
       const pressure=(historicalRenderState.formations||[]).some(f=>f.state==='dismantle')?1:0;
       cableStreetArt.drawAtmosphere(ctx,{viewWidth:VIEW_W,viewHeight:VIEW_H,clock:historicalClock,pressure});
+      if(!mapOpen&&!menuOpen&&!paused&&!finished)cableStreetArt.drawEdgeCue(ctx,historicalProgress?.guidance,camera,zoom,VIEW_W,VIEW_H);
     }
 
     if(MAP_DATA.key==='wigan'&&!mapOpen&&!finished&&!menuOpen){
@@ -2998,6 +3039,7 @@
       ctx.fillStyle='rgba(25,31,28,.6)';ctx.fillRect(0,0,VIEW_W,VIEW_H);
       ctx.fillStyle='#f0ecd9';ctx.textAlign='center';ctx.font='bold 34px system-ui';
       ctx.fillText(finished?(win?'MISSION COMPLETE':'MISSION FAILED'):'PAUSED',VIEW_W/2,VIEW_H/2-10);
+      if(finished&&missionController){ctx.font='bold 14px system-ui';ctx.fillStyle=win?'#e6d58f':'#ffd4a2';ctx.fillText(win?activeMission().successHeadline:missionDirector.statusText(),VIEW_W/2,VIEW_H/2+60);ctx.fillStyle='#f0ecd9'}
       ctx.font='16px system-ui';if(finished)ctx.fillText(win&&hasPlayableNextMission()?'Click or press Enter for the next mission.':'Click or press Enter to retry.',VIEW_W/2,VIEW_H/2+25);
     }
     display.setTransform(1,0,0,1,0,0);
@@ -3318,6 +3360,9 @@
   touchAction.addEventListener('pointerup',endTouchAction);
   touchAction.addEventListener('pointercancel',()=>touchAction.classList.remove('active'));
 
+  touchShove.addEventListener('pointerdown',evt=>{evt.preventDefault();evt.stopPropagation();performStreetAttack('shove')});
+  touchDebris.addEventListener('pointerdown',evt=>{evt.preventDefault();evt.stopPropagation();performStreetAttack('throw')});
+
   touchDrop.addEventListener('click',evt=>{evt.preventDefault();evt.stopPropagation();if(!touchDrop.disabled)cancelHistoricalAction(true)});
 
   touchFull.addEventListener('click',evt=>{evt.preventDefault();evt.stopPropagation();toggleMobileFullscreen();});
@@ -3363,6 +3408,7 @@
     // MacBook/one-button mouse alternatives.
     if(key==='f'){
       e.preventDefault();
+      if(missionInteractionLayer){if(!e.repeat)performStreetAttack('shove');return}
       if(!actionAllowed('firearms'))return;
       refreshCursorWorld();
       keyboardFireHeld=true;
@@ -3371,6 +3417,7 @@
     }
     if(key==='g'){
       e.preventDefault();
+      if(missionInteractionLayer){if(!e.repeat)performStreetAttack('throw');return}
       if(!actionAllowed('grenades'))return;
       if(!e.repeat)throwGrenadeAtCursor();
       return;
@@ -3429,7 +3476,7 @@
     if(keyboardFireHeld&&actionAllowed('firearms'))refreshCursorWorld();
     if(actionAllowed('firearms')&&(rightHeld||macFireHeld||keyboardFireHeld)&&cursorWorld&&!bothLatched)squadFireAt(cursorWorld.x,cursorWorld.y);
     if(actionAllowed('firearms')&&touchState.fireHeld)fireMobile();
-    squad.forEach(s=>{s.aiming=actionAllowed('firearms')&&(rightHeld||macFireHeld||keyboardFireHeld||touchState.fireHeld)});
+    squad.forEach((s,i)=>{s.aiming=actionAllowed('firearms')&&(rightHeld||macFireHeld||keyboardFireHeld||touchState.fireHeld);s.streetActor=missionController?.state.actors.get('player-'+i)});
     updateSquad(dt);
 
     if(missionController){

@@ -32,7 +32,7 @@
     };
   }
 
-  function create({mission,controller,worldWidth,worldHeight,blocked=null,seed='1936-10-04',options={}}={}){
+  function create({mission,controller,worldWidth,worldHeight,blocked=null,navigation=null,seed='1936-10-04',options={}}={}){
     if(!mission||mission.id!=='cable-street-1936')throw new Error('Cable Street crowd requires the historical mission.');
     if(!controller||!controller.state)throw new Error('Cable Street crowd requires a mission controller.');
     if(!Number.isFinite(worldWidth)||worldWidth<=0||!Number.isFinite(worldHeight)||worldHeight<=0){
@@ -51,7 +51,7 @@
     };
     const random=rng(hashSeed(seed));
     const people=[];
-    let elapsed=0;
+    let elapsed=0,routeBudget=0;
 
     function mainBarricade(){
       const preferred=(mission.defencePositions||[]).find(x=>x.role==='christian-street-defence');
@@ -74,7 +74,8 @@
     }
 
     function spawnPoint(index,isHelper){
-      const b=mainBarricade(),base=anchor();
+      const bs=[...controller.state.barricades.values()];
+      const b=mission.fastAction?bs[index%bs.length]:mainBarricade(),base=finitePoint(b)?b:anchor();
       const work=isHelper&&b&&b.workPoints?.length?b.workPoints[index%b.workPoints.length]:null;
       const a=work||base;
       const inner=isHelper?settings.innerRadius*.65:settings.innerRadius;
@@ -90,6 +91,7 @@
     }
 
     function initialize(){
+      people.forEach(releaseCarrier);
       people.length=0;
       const total=reactive+helpers;
       for(let i=0;i<total;i++){
@@ -104,7 +106,7 @@
           animState:'idle',
           gestureTimer:.8+random()*3.2,
           speedVisual:0,
-          speed:(helper?22:18)+random()*10,
+          speed:((helper?22:18)+random()*10)*(mission.fastAction?1.55:1),
           variant:i%8,
           dir:random()*Math.PI*2
         });
@@ -242,12 +244,99 @@
       }
     }
 
+    function releaseCarrier(p){
+      const m=controller.state.materials.get(p.carrying||p.supplyId);
+      if(m&&(m.carriedBy===p.id||m.reservedBy===p.id)){if(m.carriedBy===p.id){m.x=p.x;m.y=p.y}m.carriedBy=null;m.reservedBy=null}
+      p.carrying=null;p.supplyId=null;p.path=null;p.navDestination=null;
+    }
+    function moveFast(p,target,dt,speed){
+      const oldX=p.x,oldY=p.y;
+      if(navigation){
+        p.routeClock=(p.routeClock||0)-dt;
+        if(p.path&&p.path.length===0)navigation.cancelPath(p);
+        if((p.stuckTime||0)+dt>.44){navigation.cancelPath(p);p.routeClock=0}
+        const stale=!!p.path&&p.pathVersion!==navigation.navigationVersion;
+        const changed=p.routeKey!==target.id;
+        const retry=!p.path&&Math.hypot(p.x-target.x,p.y-target.y)>8&&p.routeClock<=0;
+        if(routeBudget>0&&(stale||changed||retry)){
+          routeBudget--;navigation.assignPath(p,target.x,target.y);p.routeKey=target.id;p.routeClock=1.6+(p.variant%3)*.3;
+        }
+        // Defer stale routes as well: followPath would otherwise replan the entire crowd.
+        if(!p.path||p.pathVersion===navigation.navigationVersion)navigation.followPath(p,speed,dt);
+      }else{
+        const dx=target.x-p.x,dy=target.y-p.y,d=Math.hypot(dx,dy)||1,step=Math.min(d,speed*dt);
+        const nx=p.x+dx/d*step,ny=p.y+dy/d*step;
+        if(!blocked||!blocked(nx,p.y,4))p.x=nx;
+        if(!blocked||!blocked(p.x,ny,4))p.y=ny;
+      }
+      const moved=Math.hypot(p.x-oldX,p.y-oldY);p.speedVisual=moved/dt;
+      if(moved>.03){p.dir=Math.atan2(p.y-oldY,p.x-oldX);p.animState=speed>90?'panic':'walk';p.stall=0}else p.stall=(p.stall||0)+dt;
+      p.animPhase+=moved*.08;
+      return Math.hypot(p.x-target.x,p.y-target.y);
+    }
+    function updateFastPerson(p,index,dt){
+      const bs=[...controller.state.barricades.values()];
+      const ranked=bs.slice().sort((a,b)=>a.integrity/a.maxIntegrity-b.integrity/b.maxIntegrity);
+      let b=ranked[index%ranked.length];
+      const police=closestFormation(p);
+      // Four helpers make a bounded number of real deliveries from the shared supply.
+      if(p.role==='helper'&&index%2===0&&(p.deliveries||0)<2){
+        if(!p.supplyId&&!p.carrying&&b.integrity<b.maxIntegrity*.85){
+          const m=[...controller.state.materials.values()].filter(m=>!m.consumed&&!m.carriedBy&&!m.reservedBy&&((controller.state.phaseIndex||0)>0||m.id.startsWith('supply-')))
+            .sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
+          if(m){p.supplyId=m.id;m.reservedBy=p.id;p.defenceId=b.id}
+        }
+        const m=controller.state.materials.get(p.supplyId||p.carrying);
+        if(m){
+          if(p.carrying){
+            b=controller.state.barricades.get(p.defenceId)||b;
+            const wp=b.workPoints[index%b.workPoints.length]||b,target={...wp,id:'delivery-'+b.id};
+            m.x=p.x;m.y=p.y;
+            if(moveFast(p,target,dt,110+p.variant*3)<12){
+              const amount=controller.reinforceBarricadeById(b.id,Math.min(m.remainingValue,b.maxIntegrity-b.integrity));
+              if(amount>0){m.remainingValue-=amount;m.consumed=m.remainingValue<=0;b.buildFlash=.65;p.deliveries=(p.deliveries||0)+1;controller.state.events.push({type:'crowd-reinforced',barricadeId:b.id,amount});if(typeof window!=='undefined')window.BadFodderSfx?.barricade('build')}
+              releaseCarrier(p);
+            }
+          }else if(moveFast(p,{...m,id:'supply-'+m.id},dt,130+p.variant*3)<10){m.carriedBy=p.id;p.carrying=m.id;p.supplyId=null}
+          if(p.stall>2){releaseCarrier(p);p.deliveries=(p.deliveries||0)+1}
+          return;
+        }
+      }
+      const f=police.formation,panic=f&&police.distance<80;
+      p.decisionClock=(p.decisionClock||0)-dt;
+      if(p.decisionClock<=0||!p.activityTarget){
+        p.decisionClock=1.2+((index+Math.floor(elapsed))%5)*.35;
+        const point=b.workPoints[index%b.workPoints.length]||b;
+        const angle=p.phase+elapsed*.23,range=p.role==='helper'?15:55+index%4*15;
+        let tx=point.x+Math.cos(angle)*range,ty=point.y+Math.sin(angle)*range;
+        if(panic){const dx=p.x-f.x,dy=p.y-f.y,d=Math.hypot(dx,dy)||1;tx=p.x+dx/d*90;ty=p.y+dy/d*90}
+        const target=openPoint(tx,ty,4);if(target)p.activityTarget={...target,id:'rally-'+index+'-'+Math.floor(elapsed)};
+      }
+      if(p.activityTarget){
+        const d=moveFast(p,p.activityTarget,dt,panic?155:p.role==='helper'?95:65+index%4*12);
+        if(d<5){p.animState=p.role==='helper'?'brace':((Math.floor(elapsed+p.phase)%3)?'gesture':'idle');p.speedVisual=0}
+      }
+      if(p.role==='helper'&&!p.carrying){
+        const slots=b.occupiedWorkPositions||[];
+        if(!b.breached&&Math.hypot(p.x-b.x,p.y-b.y)<b.interactionRadius){
+          if(!slots.includes(p.id)&&slots.filter(Boolean).length<slots.length-1){const slot=slots.indexOf(null);if(slot>=0)slots[slot]=p.id}
+        }
+      }
+    }
+
     function fixedUpdate(dt){
       if(!Number.isFinite(dt)||dt<=0)return false;
-      elapsed+=dt;
+      elapsed+=dt;routeBudget=2;
       const confidence=clamp(Number(controller.state.confidence)||0,0,1);
-      syncHelperSupport(confidence);
-      for(const person of people)updatePerson(person,dt,confidence);
+      if(mission.fastAction&&controller.state.barricades.size>1){
+        controller.state.barricades.forEach(b=>b.occupiedWorkPositions.forEach((owner,i)=>{if(typeof owner==='string'&&owner.startsWith('ambient-helper-'))b.occupiedWorkPositions[i]=null}));
+        for(let i=0;i<people.length;i++){
+          const p=people[i];let near=false;
+          controller.state.actors.forEach(a=>{if(a.active&&Math.hypot(a.x-p.x,a.y-p.y)<600)near=true});
+          p.updateClock=(p.updateClock||0)+dt;
+          if(near||p.updateClock>=.2){updateFastPerson(p,i,p.updateClock);p.updateClock=0}
+        }
+      }else{syncHelperSupport(confidence);for(const person of people)updatePerson(person,dt,confidence)}
       return true;
     }
 
@@ -256,7 +345,8 @@
     }
 
     function dispose(){
-      releaseHelperSupport();
+      controller.state.barricades.forEach(b=>b.occupiedWorkPositions.forEach((owner,i)=>{if(typeof owner==='string'&&owner.startsWith('ambient-helper-'))b.occupiedWorkPositions[i]=null}));
+      people.forEach(releaseCarrier);
       people.length=0;
       return true;
     }

@@ -9,6 +9,7 @@ function setup(saved,savedVolume,session={}){
   let time=0,next=0,blocked=false,plays=0,appended=0,loads=0;
   const frames=new Map(),button={setAttribute(key,value){this[key]=value},addEventListener(key,fn){buttonListeners[key]=fn}};
   const audio={volume:1,paused:true,muted:false,src:'',setAttribute(){},addEventListener(key,fn){audioListeners[key]=fn},pause(){this.paused=true},load(){loads++},async play(){plays++;if(blocked)throw Error('Autoplay blocked');this.paused=false}};
+  let mediaVolume=audio.volume;Object.defineProperty(audio,'volume',{get:()=>mediaVolume,set:value=>{assert(value>=0&&value<=1,'HTMLMediaElement volume out of range');mediaVolume=value}});
   const document={hidden:false,createElement(){return audio},getElementById(id){return id==='menuMusic'?button:null},body:{appendChild(){appended++}},addEventListener(key,fn){listeners[key]=fn}};
   const window={};
   const sessionStorage={getItem:key=>sessionData.get(key)??null,setItem:(key,value)=>sessionData.set(key,value),removeItem:key=>sessionData.delete(key)};
@@ -17,6 +18,7 @@ function setup(saved,savedVolume,session={}){
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
 (async()=>{
+  const skew=setup();skew.event('pointerdown');await settle();skew.step(-.01);assert.equal(skew.audio.volume,0,'Older frame timestamp creates negative volume');skew.step(1200.01);assert.equal(skew.audio.volume,.22);
   const t=setup();assert.equal(t.appended,1);assert(t.audio.loop);assert.equal(t.audio.volume,0);assert.equal(t.plays,0);
   assert.equal(t.api.source,'assets/audio/bad_fodder.mp3','Normal homepage load keeps the title music');
   assert.equal(t.api.volume,.22,'No saved slider setting uses the intended default');

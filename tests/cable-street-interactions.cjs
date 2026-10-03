@@ -144,15 +144,19 @@ assert.equal(police.x,gatedX,'Police pressure advanced before the historical dir
 assert.equal(police.state,'approach');
 controller.state.pressureStarted=true;
 let guard=0;
-while(police.state!=='withdraw'&&guard<120){
+while(!barricade.breached&&guard<120){
   interactions.fixedUpdate(.1);
   guard++;
 }
-assert(guard<120,'Police formation never reached withdrawal after dismantling the barricade');
+assert(guard<120,'Police never threatened a breakthrough');
+interactions.fixedUpdate(.1);assert(police.breakthrough,'Police do not push into the opened route');
 assert.equal(barricade.breached,true);
 assert(!nav.obstacleAt(180,90,2),'Breached barricade still blocks the synthetic street');
 assert(controller.state.events.some(e=>e.type==='police-state'&&e.state==='halt'));
 assert(controller.state.events.some(e=>e.type==='police-state'&&e.state==='dismantle'));
+controller.reinforceBarricadeById('B',12);interactions.fixedUpdate(.1);
+assert(!police.breakthrough,'Rebuild did not repel the breakthrough');
+interactions.fixedUpdate(.2);
 assert(controller.state.events.some(e=>e.type==='police-state'&&e.state==='regroup'));
 assert(controller.state.events.some(e=>e.type==='police-state'&&e.state==='withdraw'));
 

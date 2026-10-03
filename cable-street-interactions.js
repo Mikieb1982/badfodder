@@ -62,7 +62,7 @@
     if(!runtime)throw new Error('Cable Street interactions require the Cable Street runtime.');
     if(!mission||mission.id!=='cable-street-1936')throw new Error('Cable Street interactions require the Cable Street mission.');
 
-    const settings={...DEFAULTS,...options};
+    const settings={...DEFAULTS,...mission.streetCombat,...options};
     const worldScale=Number.isFinite(options.scale)&&options.scale>0?options.scale:1;
     const navigation=options.navigation||null;
     for(const key of ['materialRadius','civilianRadius','barricadeRadius'])settings[key]*=worldScale;
@@ -153,9 +153,10 @@
           haltSeconds:Number.isFinite(def.haltSeconds)?def.haltSeconds:.7,
           regroupSeconds:Number.isFinite(def.regroupSeconds)?def.regroupSeconds:.8,
           dismantleSeconds:Number.isFinite(def.dismantleSeconds)&&def.dismantleSeconds>0?def.dismantleSeconds:settings.dismantleSeconds,
-          damageRate:Number.isFinite(def.damageRate)?def.damageRate:5,stateTime:0,
+          activationPhase:def.activationPhase||1,damageRate:Number.isFinite(def.damageRate)?def.damageRate:5,stateTime:0,
           resistance:0,resistanceMax:settings.repelResistance,staggerTime:0,label:def.label||'Police formation'
         });
+        if(mission.fastAction){p.speed*=1.65;p.haltSeconds=.35;p.regroupSeconds=.45;p.dismantleSeconds=settings.dismantleSeconds}
         return p;
       });
       return{actors,barricades,materials,civilians,formations};
@@ -315,6 +316,7 @@
     }
     function repelFormation(f,reason='crowd-fightback'){
       if(!f||!['approach','halt','dismantle'].includes(f.state))return false;
+      f.breakthrough=false;f.breakthroughProgress=0;f.charging=false;
       f.resistance=0;f.staggerTime=.35;runtime.setPoliceState(f,'regroup');f.stateTime=0;
       controller.state.events.push({type:'police-state',formationId:f.id,state:'regroup',reason});
       controller.state.events.push({type:'crowd-fightback',formationId:f.id});
@@ -332,6 +334,7 @@
     }
     function fightPulse(job,a,b){
       const f=activeFormationForBarricade(b.id);if(!f||!['halt','dismantle'].includes(f.state))return;
+      if(mission.fastAction){if((a.stamina??100)<5)return;a.stamina=(a.stamina??100)-5}
       const type=['shove','brick','stick'][(conflict.fightSequence++)%3];
       if(type==='shove'){
         const dx=f.x-a.x,dy=f.y-a.y,d=Math.hypot(dx,dy)||1;
@@ -341,6 +344,33 @@
       playCableSfx('scuffle',type);
       applyResistance(f,settings.fightResistancePerPulse,job.actorId);
       conflict.dramaText='FIGHT FOR THE BARRICADE';conflict.dramaTime=Math.max(conflict.dramaTime,.35);
+    }
+
+    function streetAttack(actorId,{kind='shove',x=null,y=null}={}){
+      const a=actor(actorId);
+      if(!mission.fastAction||!a||!a.active||(a.attackCooldown||0)>0||(a.stunned||0)>0)return false;
+      const cost=kind==='throw'?14:10;
+      if((a.stamina??100)<cost)return false;
+      const candidates=[...controller.state.formations.values()].filter(f=>['approach','halt','dismantle'].includes(f.state)&&finitePoint(f));
+      const range=(kind==='throw'?175:58)*worldScale;
+      const f=candidates.filter(f=>distance(a,f)<=range+(f.width||0)/2)
+        .sort((u,v)=>Number.isFinite(x)&&Number.isFinite(y)?distance(u,{x,y})-distance(v,{x,y}):distance(a,u)-distance(a,v))[0];
+      if(!f)return false;
+      a.stamina=(a.stamina??100)-cost;a.attackCooldown=kind==='throw'?.85:.55;
+      a.attackKind=kind;a.attackFlash=.22;
+      if(kind==='throw'){
+        addProjectile(a,f,'brick',actorId);
+        const projectile=conflict.projectiles[conflict.projectiles.length-1];
+        projectile.formationId=f.id;projectile.resistance=24;
+      }else{
+        const dx=f.x-a.x,dy=f.y-a.y,d=Math.hypot(dx,dy)||1;
+        const nx=f.x+dx/d*8*worldScale,ny=f.y+dy/d*8*worldScale;
+        if(!navigation||navigation.routeClear(f.x,f.y,nx,ny,Math.max(3,f.width/2))){f.x=nx;f.y=ny}
+        addImpact(f.x,f.y,'shove');applyResistance(f,20,actorId);
+      }
+      playCableSfx('scuffle',kind==='throw'?'brick':'shove');
+      controller.state.events.push({type:'player-street-attack',actorId,kind});
+      return true;
     }
 
     function updateJob(job,dt){
@@ -373,7 +403,7 @@
       if(job.progress<job.duration)return;
       if(job.action==='reinforce'){
         const added=controller.deliverForActor(job.actorId,job.targetId);
-        if(added>0){controller.state.events.push({type:'barricade-reinforced',barricadeId:job.targetId,actorId:job.actorId,amount:added});finishJob(job,true)}else finishJob(job,false);
+        if(added>0){target.buildFlash=.6;playCableSfx('barricade','build');addImpact(target.x,target.y,'build');controller.state.events.push({type:'barricade-reinforced',barricadeId:job.targetId,actorId:job.actorId,amount:added});finishJob(job,true)}else finishJob(job,false);
         return;
       }
       if(job.action==='hold'){
@@ -401,10 +431,14 @@
     function updateFormation(p,dt){
       if(!p||!finitePoint(p))return;
       if(settings.pressureControlled&&!controller.state.pressureStarted)return;
+      if((p.activationPhase||1)>1&&p.activationPhase>(controller.state.phaseIndex||0))return;
+      if(p.advanceDelay>0){p.advanceDelay=Math.max(0,p.advanceDelay-dt);return}
       p.stateTime=(p.stateTime||0)+dt;p.staggerTime=Math.max(0,(p.staggerTime||0)-dt);
       if(p.state!=='dismantle')p.resistance=Math.max(0,(p.resistance||0)-settings.resistanceDecayPerSecond*dt);
       if(p.state==='approach'){
-        const left=moveToward(p,p.targetX,p.targetY,p.speed*(p.staggerTime>0?.45:1),dt);
+        const charge=mission.fastAction&&Math.hypot(p.x-p.targetX,p.y-p.targetY)<85*worldScale;
+        if(charge&&!p.charging){p.charging=true;playCableSfx('crowdSurge');conflict.dramaText='POLICE CHARGE: '+String(p.objective==='S'?'SIDE STREET':'MAIN DEFENCE');conflict.dramaTime=1.2}
+        const left=moveToward(p,p.targetX,p.targetY,p.speed*(charge?2.3:1)*(p.staggerTime>0?.45:1),dt);
         if(left<=p.stopDistance){runtime.setPoliceState(p,'halt');p.stateTime=0;controller.state.events.push({type:'police-state',formationId:p.id,state:'halt'});conflict.dramaText='POLICE LINE ADVANCING';conflict.dramaTime=1.2}
         return;
       }
@@ -414,20 +448,37 @@
       }
       if(p.state==='dismantle'){
         const b=p.objective?barricade(p.objective):null;
-        if(!b||b.breached){runtime.setPoliceState(p,'regroup');p.stateTime=0;controller.state.events.push({type:'police-state',formationId:p.id,state:'regroup'});return}
+        if(!b){runtime.setPoliceState(p,'regroup');p.stateTime=0;return}
+        if(b.breached&&mission.fastAction){
+          p.breakthrough=true;p.breakthroughProgress=Math.min(1,(p.breakthroughProgress||0)+dt/(mission.breachRecoverySeconds||15));
+          moveToward(p,b.x,b.y,p.speed*.9,dt);
+          conflict.dramaText=p.objective==='S'?'SIDE STREET BREACH: REBUILD!':'MAIN BARRICADE DOWN: REBUILD!';conflict.dramaTime=.5;
+          if((p.resistance||0)>=settings.repelResistance)repelFormation(p,'counter-push');
+          return;
+        }
+        if(p.breakthrough){
+          // Reinforcing the choke point drives an intruding line back to its approach.
+          p.x=p.targetX;p.y=p.targetY;p.breakthrough=false;p.breakthroughProgress=0;
+          addImpact(b.x,b.y,'shove');repelFormation(p,'repaired');return;
+        }
+        if(b.breached&&!mission.fastAction){runtime.setPoliceState(p,'regroup');p.stateTime=0;controller.state.events.push({type:'police-state',formationId:p.id,state:'regroup'});return}
+        if(mission.fastAction){
+          p.batonClock=(p.batonClock||0)+dt;
+          if(p.batonClock>.45){p.batonClock=0;addImpact(p.targetX,p.targetY,'shove');playCableSfx('scuffle','shove')}
+        }
         const holdMultiplier=pressureDamageMultiplier(b,settings);
         const resistanceMultiplier=1-Math.min(.48,((p.resistance||0)/settings.repelResistance)*.48);
         controller.damageBarricadeById(p.objective,p.damageRate*dt*holdMultiplier*resistanceMultiplier);
-        if(b.breached){runtime.setPoliceState(p,'regroup');p.stateTime=0;controller.state.events.push({type:'police-state',formationId:p.id,state:'regroup',reason:'breach'});conflict.dramaText='THE BARRICADE IS DOWN';conflict.dramaTime=2.2}
-        else if((p.resistance||0)>=settings.repelResistance)repelFormation(p);
-        else if(Number.isFinite(p.dismantleSeconds)&&p.dismantleSeconds>0&&p.stateTime>=p.dismantleSeconds){runtime.setPoliceState(p,'regroup');p.stateTime=0;controller.state.events.push({type:'police-state',formationId:p.id,state:'regroup',reason:'repelled'})}
+        if(b.breached&&!mission.fastAction){runtime.setPoliceState(p,'regroup');p.stateTime=0;controller.state.events.push({type:'police-state',formationId:p.id,state:'regroup',reason:'breach'});conflict.dramaText='THE BARRICADE IS DOWN';conflict.dramaTime=2.2}
+        else if(!b.breached&&(p.resistance||0)>=settings.repelResistance)repelFormation(p);
+        else if(!b.breached&&Number.isFinite(p.dismantleSeconds)&&p.dismantleSeconds>0&&p.stateTime>=p.dismantleSeconds){runtime.setPoliceState(p,'regroup');p.stateTime=0;controller.state.events.push({type:'police-state',formationId:p.id,state:'regroup',reason:'repelled'})}
         return;
       }
       if(p.state==='regroup'){
         if(p.stateTime>=p.regroupSeconds){runtime.setPoliceState(p,'withdraw');p.stateTime=0;controller.state.events.push({type:'police-state',formationId:p.id,state:'withdraw'})}
         return;
       }
-      if(p.state==='withdraw')moveToward(p,p.withdrawX,p.withdrawY,p.speed,dt);
+      if(p.state==='withdraw'){p.charging=false;moveToward(p,p.withdrawX,p.withdrawY,p.speed*(mission.fastAction?1.8:1),dt);}
     }
 
     function mainBarricade(){
@@ -445,24 +496,32 @@
       if(!f||!b||!bp){conflict.mountedTimer=3;return}
       const dx=f.x-bp.x,dy=f.y-bp.y,d=Math.hypot(dx,dy)||1;
       const start={x:f.x+dx/d*36*worldScale,y:f.y+dy/d*36*worldScale};
-      conflict.charges.push({id:'mounted-'+(++conflict.chargeSequence),startX:start.x,startY:start.y,targetX:bp.x,targetY:bp.y,x:start.x,y:start.y,t:0,duration:settings.mountedChargeDuration,hit:false,done:false});
+      conflict.charges.push({barricadeId:b.id,id:'mounted-'+(++conflict.chargeSequence),startX:start.x,startY:start.y,targetX:bp.x,targetY:bp.y,x:start.x,y:start.y,t:0,warning:mission.fastAction ? .9 : 0,warningRadius:48*worldScale,duration:settings.mountedChargeDuration,hit:false,done:false});
       conflict.mountedTimer=settings.mountedChargeRepeat+(conflict.chargeSequence%3)*3;
       conflict.dramaText='MOUNTED POLICE CHARGE';conflict.dramaTime=2;
       playCableSfx('mountedCharge');
       controller.state.events.push({type:'mounted-charge-start',formationId:f.id,barricadeId:b.id});
     }
     function updateConflictEffects(dt){
+      if(controller.state.phaseIndex>0&&conflict.dramaText==='BUILD THE BARRICADE'){conflict.dramaText='POLICE ADVANCING';conflict.dramaTime=1.2}
       conflict.elapsed+=dt;conflict.dramaTime=Math.max(0,conflict.dramaTime-dt);
       conflict.projectiles.forEach(p=>{
         p.t=Math.min(1,p.t+dt/p.duration);p.x=p.startX+(p.targetX-p.startX)*p.t;p.y=p.startY+(p.targetY-p.startY)*p.t-Math.sin(Math.PI*p.t)*p.arc;
-        if(p.t>=1&&!p.done){p.done=true;addImpact(p.targetX,p.targetY,p.kind)}
+        if(p.t>=1&&!p.done){
+          p.done=true;addImpact(p.targetX,p.targetY,p.kind);
+          if(p.formationId){const f=controller.state.formations.get(p.formationId);if(f&&distance(f,{x:p.targetX,y:p.targetY})<=40*worldScale)applyResistance(f,p.resistance,p.source)}
+        }
       });
       conflict.projectiles=conflict.projectiles.filter(p=>!p.done);
       conflict.impacts.forEach(i=>i.life-=dt);conflict.impacts=conflict.impacts.filter(i=>i.life>0);
       conflict.charges.forEach(c=>{
+        if(c.warning>0){c.warning=Math.max(0,c.warning-dt);return}
         c.t=Math.min(1,c.t+dt/c.duration);c.x=c.startX+(c.targetX-c.startX)*c.t;c.y=c.startY+(c.targetY-c.startY)*c.t;
         if(c.t>=.72&&!c.hit){
-          c.hit=true;const b=mainBarricade();if(b&&!b.breached)controller.damageBarricadeById(b.id,settings.mountedChargeDamage);
+          c.hit=true;const b=barricade(c.barricadeId)||mainBarricade();if(b&&!b.breached)controller.damageBarricadeById(b.id,settings.mountedChargeDamage);
+          if(mission.fastAction)controller.state.actors.forEach(a=>{
+            if(a.active&&distance(a,{x:c.targetX,y:c.targetY})<48*worldScale){a.stunned=.65;a.stamina=Math.max(0,(a.stamina??100)-18);cancelJob(a.id);controller.state.events.push({type:'volunteer-stagger',actorId:a.id,x:c.startX,y:c.startY})}
+          });
           addImpact(c.targetX,c.targetY,'mounted');playCableSfx('scuffle','shove');controller.state.events.push({type:'mounted-charge-impact',barricadeId:b&&b.id||null,damage:settings.mountedChargeDamage});
         }
         if(c.t>=1)c.done=true;
@@ -508,9 +567,21 @@
 
     function fixedUpdate(dt){
       if(!initialized||!Number.isFinite(dt)||dt<=0)return false;
+      controller.state.actors.forEach(a=>{
+        a.attackCooldown=Math.max(0,(a.attackCooldown||0)-dt);a.attackFlash=Math.max(0,(a.attackFlash||0)-dt);a.stunned=Math.max(0,(a.stunned||0)-dt);
+        const j=controller.state.jobs.get(a.id),fighting=j&&j.action==='hold'&&policePressureAt(j.targetId);
+        a.stamina=clamp((a.stamina??100)+(fighting?0:20)*dt,0,100);
+      });
       updateCarriedMaterials();
       [...controller.state.jobs.values()].forEach(job=>updateJob(job,dt));
       controller.state.formations.forEach(p=>updateFormation(p,dt));
+      controller.state.barricades.forEach(b=>{
+        b.buildFlash=Math.max(0,(b.buildFlash||0)-dt);
+        b.attacked=[...controller.state.formations.values()].some(f=>f.objective===b.id&&f.state==='dismantle');
+        if(b.attacked){b.dustClock=(b.dustClock||0)+dt;if(b.dustClock>.4){b.dustClock=0;addImpact(b.x,b.y,'debris')}}
+        if(b.breached&&!b.visualBreached){addImpact(b.x,b.y,'mounted');playCableSfx('barricade','collapse')}
+        b.visualBreached=b.breached;
+      });
       updateConflictEffects(dt);
       updateRescues(dt);updateCarriedMaterials();controller.fixedUpdate(dt);
       return true;
@@ -518,6 +589,8 @@
 
     function hint(actorId){
       const job=controller.state.jobs.get(actorId);
+      const player=actor(actorId);
+      if(mission.fastAction&&player&&(player.stamina??100)<14)return'TIRED: ROTATE VOLUNTEER';
       if(job&&job.status==='working'){
         if(job.action==='hold')return policePressureAt(job.targetId)?'FIGHTING BACK':'HOLDING';
         return job.action.toUpperCase()+' '+Math.round(job.progress/job.duration*100)+'%';
@@ -554,7 +627,7 @@
     }
 
     return{
-      settings,initialize,syncActors,fixedUpdate,
+      settings,initialize,syncActors,fixedUpdate,streetAttack,
       contextAt,contextNearActor,assignJob,assignAt,assignNearest,cancelJob,
       hint,renderState,
       get initialized(){return initialized}

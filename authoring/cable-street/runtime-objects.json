@@ -65,12 +65,59 @@
             180907.792
           ]
         ],
-        "interactionRadiusMetres": 10,
+        "interactionRadiusMetres": 16,
         "historicalStatus": "interpretation inside supported vicinity",
         "sourceIds": [
           "S03"
         ],
         "interpretationNote": "Fictional footprint in supported vicinity."
+      },
+      {
+        "id": "S",
+        "label": "Berner Street side defence",
+        "polygon": [
+          [
+            534549.758,
+            180888.554
+          ],
+          [
+            534561.092,
+            180888.554
+          ],
+          [
+            534561.092,
+            180886.554
+          ],
+          [
+            534549.758,
+            180886.554
+          ]
+        ],
+        "position": [
+          534555.425,
+          180887.554
+        ],
+        "maxIntegrity": 100,
+        "integrity": 38,
+        "constructionTier": 1,
+        "workPositions": 3,
+        "workPoints": [
+          [
+            534552.092,
+            180894.221
+          ],
+          [
+            534558.425,
+            180894.221
+          ],
+          [
+            534555.425,
+            180893.221
+          ]
+        ],
+        "interactionRadiusMetres": 12,
+        "historicalStatus": "fictional gameplay",
+        "interpretationNote": "Secondary defence added for tactical movement. Not a claim of an exact 1936 barricade location."
       }
     ],
     "materials": [
@@ -238,6 +285,72 @@
         ],
         "interactionRadiusMetres": 4,
         "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "supply-0",
+        "type": "timber",
+        "label": "Timber",
+        "position": [
+          534553.425,
+          180900.221
+        ],
+        "interactionRadiusMetres": 6,
+        "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "supply-1",
+        "type": "crates",
+        "label": "Crates",
+        "position": [
+          534565.425,
+          180906.554
+        ],
+        "interactionRadiusMetres": 6,
+        "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "supply-2",
+        "type": "furniture",
+        "label": "Furniture",
+        "position": [
+          534492.425,
+          180909.221
+        ],
+        "interactionRadiusMetres": 6,
+        "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "supply-3",
+        "type": "timber",
+        "label": "Timber",
+        "position": [
+          534507.425,
+          180903.888
+        ],
+        "interactionRadiusMetres": 6,
+        "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "supply-4",
+        "type": "crates",
+        "label": "Crates",
+        "position": [
+          534555.425,
+          180897.221
+        ],
+        "interactionRadiusMetres": 6,
+        "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "supply-5",
+        "type": "furniture",
+        "label": "Furniture",
+        "position": [
+          534480.758,
+          180907.554
+        ],
+        "interactionRadiusMetres": 6,
+        "historicalStatus": "fictional gameplay"
       }
     ],
     "civilians": [
@@ -252,8 +365,42 @@
           534650.54,
           180907.792
         ],
-        "speedMetresPerSecond": 1.6,
-        "optional": false,
+        "speedMetresPerSecond": 12,
+        "optional": true,
+        "interactionRadiusMetres": 4,
+        "exitSeconds": 1,
+        "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "resident-2",
+        "label": "Resident",
+        "position": [
+          534505.758,
+          180906.554
+        ],
+        "exit": [
+          534587.425,
+          180907.554
+        ],
+        "speedMetresPerSecond": 12,
+        "optional": true,
+        "interactionRadiusMetres": 4,
+        "exitSeconds": 1,
+        "historicalStatus": "fictional gameplay"
+      },
+      {
+        "id": "resident-3",
+        "label": "Resident",
+        "position": [
+          534555.425,
+          180895.554
+        ],
+        "exit": [
+          534587.425,
+          180907.554
+        ],
+        "speedMetresPerSecond": 12,
+        "optional": true,
         "interactionRadiusMetres": 4,
         "exitSeconds": 1,
         "historicalStatus": "fictional gameplay"
@@ -275,16 +422,43 @@
           534414.255,
           180909.091
         ],
-        "widthMetres": 3.6,
+        "widthMetres": 7,
         "objective": "B",
         "state": "approach",
-        "speedMetresPerSecond": 2.2,
+        "speedMetresPerSecond": 5.5,
         "stopDistanceMetres": 1,
         "haltSeconds": 2,
         "regroupSeconds": 2,
         "dismantleSeconds": 8,
         "damageRate": 4.5,
         "historicalStatus": "fictional placement; western pressure supported at route level"
+      },
+      {
+        "id": "police-side",
+        "label": "Side street police",
+        "position": [
+          534555.425,
+          180868.221
+        ],
+        "target": [
+          534555.425,
+          180881.554
+        ],
+        "withdraw": [
+          534555.425,
+          180851.554
+        ],
+        "widthMetres": 7,
+        "objective": "S",
+        "state": "withdraw",
+        "speedMetresPerSecond": 5,
+        "stopDistanceMetres": 1,
+        "haltSeconds": 2,
+        "regroupSeconds": 2,
+        "dismantleSeconds": 8,
+        "damageRate": 4.5,
+        "historicalStatus": "fictional gameplay",
+        "activationPhase": 3
       }
     ]
   },
@@ -376,10 +550,24 @@
       "expect": "blocked",
       "phase": "hold-approach",
       "side": "separation"
+    },
+    {
+      "id": "side-support",
+      "from": [
+        534519.654,
+        180907.359
+      ],
+      "to": [
+        534555.425,
+        180895.888
+      ],
+      "expect": "reachable",
+      "phase": "they-shall-not-pass",
+      "side": "defender"
     }
   ],
   "regroupPoint": [
-    534569.33,
-    180905.628
+    534492.758,
+    180907.221
   ]
 }

@@ -150,3 +150,11 @@ h1{font:800 27px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppe
 }
 
 .hud-instruction{font:600 11px/1.35 system-ui,sans-serif;color:#d4d9cc;margin-top:4px}
+
+/* Historical actions have their own compact two-row touch panel. */
+.street-action .touch-actions{display:grid;grid-template-columns:76px 96px;gap:6px}
+#touchShove,#touchDebris{width:100%;height:52px;font-size:10px}
+.street-action #touchAction,.street-action #touchDrop{min-width:0;width:100%;height:52px;min-height:52px;padding:0 4px;font-size:9px}
+@media(pointer:coarse) and (orientation:landscape){
+  .street-action .hud-roster{width:min(420px,calc(100% - 370px))}
+}

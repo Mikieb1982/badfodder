@@ -18,6 +18,7 @@ let lastEnemyShot=0;
 let lastScuffle=0;
 let lastCrowd=0;
 let lastMounted=0;
+let lastBarricade=0;
 
 const button=document.getElementById('menuSfx');
 
@@ -163,6 +164,14 @@ function scuffle(kind='shove'){
   }
 }
 
+function barricade(kind='build'){
+  if(!ready())return;
+  const now=performance.now();if(now-lastBarricade<180)return;lastBarricade=now;
+  const collapse=kind==='collapse';
+  noiseBurst({volume:collapse?.14:.075,duration:collapse?.32:.09,filter:'lowpass',frequency:collapse?650:1500,q:.5});
+  tone({type:'triangle',from:collapse?155:370,to:collapse?48:120,volume:.04,duration:collapse?.22:.08});
+}
+
 function crowdSurge(){
   if(!ready())return;
   const now=performance.now();
@@ -208,7 +217,7 @@ if(button)button.addEventListener('click',toggle);
 
 window.BadFodderSfx={
   unlock,shoot,grenadeThrow,explosion,death,
-  scuffle,crowdSurge,mountedCharge,
+  scuffle,barricade,crowdSurge,mountedCharge,
   toggle,setEnabled,
   get enabled(){return enabled}
 };

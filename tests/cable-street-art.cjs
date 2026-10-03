@@ -50,3 +50,5 @@ assert.doesNotThrow(()=>Art.drawCrowd(runtimeCtx,[{
 assert(require('node:fs').readFileSync(require('node:path').join(__dirname,'..','cable-street-art.js'),'utf8').includes("art.drawActor(ctx,ent,team)"),'Cable Street NPCs do not reuse the main character renderer');
 
 console.log('PASS: Cable Street art exposes deterministic East End brick styling and dedicated carriageway-edge / railway drawing.');
+
+assert.doesNotThrow(()=>Art.drawCrowd(runtimeCtx,[{id:'offscreen',x:9000,y:9000}],0,{drawActor(){throw new Error('Off-screen crowd was rendered')},animate(){}},{x:0,y:0,w:300,h:200}));

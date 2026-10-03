@@ -81,7 +81,9 @@ function verifyMap(map,{requiredRouteIds=REQUIRED_ROUTE_IDS}={}){
   if(formations.length<1)problems.push('At least one police formation is required.');
 
   for(const b of barricades){
-    if(!supportedBarricadeZone(map,b)){
+    if(Array.isArray(b.workPoints)&&b.workPoints.some(p=>Math.hypot(p.x-b.x,p.y-b.y)>b.interactionRadius))problems.push('Barricade '+b.id+' work positions are outside interaction range.');
+    const tactical=map.projection?.gameplayLayout&&b.historicalStatus==='fictional gameplay'&&b.interpretationNote;
+    if(!tactical&&!supportedBarricadeZone(map,b)){
       problems.push('Barricade '+(b&&b.id||'unknown')+' is not wholly inside a supported barricade-vicinity event area.');
     }
   }

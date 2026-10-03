@@ -42,3 +42,5 @@ npm test
 After changing geometry or placements, rebuild `cable-street-map.js` and retain the source confidence, reconciliation decision and uncertainty record. The builder runs release verification before writing the runtime map. Pending/empty authoring fixtures continue to verify that incomplete packages cannot pass these gates.
 
 The production playthrough test covers every phase, the full four-minute final hold, navigation, actual evacuation, collision recovery after a breach, failure, restart and cleanup. Physical phone/browser checks remain in `PLAYTEST.md`.
+
+The runtime projection now explicitly adapts the researched street for gameplay: wider Cable Street and side streets, intact translated building footprints, and a 32-degree diagonal world layout. The secondary Berner Street barricade and its police line are marked as fictional tactical placements; source trace coordinates and historical evidence remain unchanged.

@@ -239,7 +239,7 @@ function projectRuntimeObjects(record,projector){
     return{
       id,label:item.label||'Police formation',
       width:scaled(item.widthMetres,id+' widthMetres'),
-      objective:item.objective,state:item.state||'approach',
+      objective:item.objective,state:item.state||'approach',activationPhase:item.activationPhase||1,
       x:p.x,y:p.y,targetX:target.x,targetY:target.y,
       withdrawX:withdraw.x,withdrawY:withdraw.y,
       speed:scaled(item.speedMetresPerSecond,id+' speedMetresPerSecond'),
@@ -382,7 +382,7 @@ function compileAuthoring({trace,schema,projection,eventOverlay=null,runtimeObje
     const rings=[[[0,0],[width,0],[width,8],[0,8]],[[0,height-8],[width,height-8],[width,height],[0,height]],[[0,0],[8,0],[8,height],[0,height]],[[width-8,0],[width,0],[width,height],[width-8,height]]];
     rings.forEach((points,i)=>buildings.push({id:'slice-boundary-'+i,points,...bounds(points),solid:true,hidden:true,name:''}));
   }
-  return{
+  return require('./gameplay-layout.cjs').apply({
     key:mapKey,
     title:'Cable Street',
     width,height,
@@ -410,7 +410,7 @@ function compileAuthoring({trace,schema,projection,eventOverlay=null,runtimeObje
       productionReady:gates?Object.values(gates).every(Boolean):trace.properties&&trace.properties.productionReady===true,
       runtimeObjectsReady:runtime.ready
     }
-  };
+  },projection.gameplayLayout);
 }
 
 function compileDirectory(baseDir){

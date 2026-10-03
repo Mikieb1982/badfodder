@@ -20,7 +20,13 @@
       roster:['Jack','Rose','Sam','Ada'],
       squadSize:4,
       continuousHold:true,
-      breachRecoverySeconds:30,
+      breachRecoverySeconds:15,
+      fastAction:true,
+      pacing:{buildDeadlineSeconds:18,gatheringMaterialDeliveries:2,gatheringRescues:0,
+        regroupStableSeconds:3,repeatPressureDelay:2.5},
+      streetCombat:{reinforceSeconds:.35,fightPulseSeconds:.3,fightResistancePerPulse:7,crowdResistancePerPulse:1.5,
+        mountedChargeFirstDelay:6,mountedChargeRepeat:11,mountedChargeDuration:1.6,
+        mountedChargeDamage:8,dismantleSeconds:9},
       combatStyle:'improvised-street-defence',
       mapResearch:{
         boundaryId:'cable-street-christian-street-slice-v1',
@@ -50,7 +56,7 @@
           id:'gathering',
           title:'Build the Barricade',
           tasks:['reach-main-defence','deliver-material-load','assist-resident','take-defence-position'],
-          transition:'explicit-start'
+          transition:'build-deadline-or-ready'
         },
         {
           id:'hold-approach',
@@ -69,7 +75,7 @@
           id:'they-shall-not-pass',
           title:'They Shall Not Pass',
           tasks:['fight-repeated-pressure-waves','repair-between-charges','keep-final-route-blocked'],
-          proposedHoldSeconds:240,
+          proposedHoldSeconds:90,
           transition:'hold-complete'
         }
       ],
@@ -80,10 +86,10 @@
       ],
       firstImplementationSlice:{
         documentedStreetSegments:1,
-        mainBarricades:1,
+        mainBarricades:2,
         materialTypes:3,
         rescueInteractions:1,
-        policeFormations:1,
+        policeFormations:2,
         improvisedFightback:true,
         mountedPressure:true,
         backgroundMarchThreat:true
