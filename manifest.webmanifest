@@ -1,11 +1,11 @@
 {
-  "name": "Bad Fodder",
-  "short_name": "Bad Fodder",
+  "name": "If I Can Shoot Rabbits",
+  "short_name": "Shoot Rabbits",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
-  "orientation": "any",
+  "orientation": "landscape",
   "background_color": "#0b100d",
   "theme_color": "#1e281b"
 }

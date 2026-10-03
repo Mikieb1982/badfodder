@@ -52,8 +52,9 @@ assert(menu.includes('let promptShown=wasPromptedThisSession()'),'Startup prompt
 assert(!menu.includes("window.addEventListener('pointerdown',retry"),'Fullscreen must not hijack the first unrelated touch');
 assert(!menu.includes('Fill the mobile viewport immediately'),'Mobile presentation must not auto-enter fullscreen before consent');
 assert(menuCss.includes('.presentation-prompt'),'Fullscreen choice prompt is not styled');
+assert(menuCss.includes("portrait-lock.css"),'Portrait blocker stylesheet is not attached');
 assert(menu.includes("link.href='manifest.webmanifest'"),'Web app manifest is not attached');
-assert.equal(manifest.display,'standalone','Installed web app must wait for the in-game fullscreen choice');
-assert.equal(manifest.orientation,'any','Installed web app must not force landscape before the player agrees');
+assert.equal(manifest.display,'standalone','Installed web app display mode changed unexpectedly');
+assert.equal(manifest.orientation,'landscape','Installed web app must be landscape-only');
 
-console.log('PASS: mobile/browser contract asks once per session before fullscreen landscape, preserves the chosen mode until changed, and covers pinch zoom, input recovery and fixed-step simulation.');
+console.log('PASS: mobile/browser contract enforces landscape-only play, preserves fullscreen controls, and covers pinch zoom, input recovery and fixed-step simulation.');
