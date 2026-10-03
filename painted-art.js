@@ -7,6 +7,8 @@
   const images={},materials=new Map(),landmarks=new Map(),portraits=new Map();
   const costumes=[];
   const missionSheets={cable:[],wigan:[],belzig:[]};
+  const enemySheets={wigan:[],belzig:[]};
+  const civilianSheets={wigan:[],belzig:[]};
 
   function activeMissionKey(){
     try{
@@ -45,6 +47,11 @@
     cable.forEach(color=>missionSheets.cable.push(tintedRow(2,color,.5)));
     wigan.forEach(color=>missionSheets.wigan.push(tintedRow(0,color,.46)));
     belzig.forEach((color,i)=>missionSheets.belzig.push(tintedRow(i%2===0?2:0,color,.5)));
+
+    ['#56605a','#62665d','#4c5652','#697067'].forEach(color=>enemySheets.wigan.push(tintedRow(1,color,.5)));
+    ['#474e49','#55574f','#5a5148','#444b47'].forEach(color=>enemySheets.belzig.push(tintedRow(1,color,.54)));
+    ['#6f665b','#596570','#75624f','#616357'].forEach(color=>civilianSheets.wigan.push(tintedRow(2,color,.42)));
+    ['#665d52','#5b6260','#746655','#595954'].forEach(color=>civilianSheets.belzig.push(tintedRow(2,color,.44)));
   }
 
   const keys=['materials','troops','trees','landmarks','portraits'];
@@ -142,9 +149,18 @@
   }
 
   function missionSheet(team,variant){
-    if(team!=='squad')return null;
-    const set=missionSheets[activeMissionKey()];
+    const mission=activeMissionKey();
+    let set=null;
+    if(team==='squad')set=missionSheets[mission];
+    else if(team==='enemy')set=enemySheets[mission];
+    else if(team==='civilian')set=civilianSheets[mission];
     return set&&set.length?set[Math.abs(variant||0)%set.length]:null;
+  }
+
+  function drawSteelHelmet(ctx,variant=0){
+    ctx.save();ctx.fillStyle=variant%2?'#545b54':'#5b6259';
+    ctx.beginPath();ctx.ellipse(16,-11,7.1,4.2,0,Math.PI,Math.PI*2);ctx.fill();
+    ctx.fillRect(8.8,-11.2,14.4,2.2);ctx.restore();
   }
 
   art.drawActor=(ctx,ent,team='squad')=>{
@@ -170,6 +186,11 @@
         ctx.fillStyle='#686a50';ctx.beginPath();ctx.ellipse(16,-10.8,7.2,3.2,0,Math.PI,Math.PI*2);ctx.fill();ctx.fillRect(9.4,-11.3,13.2,2.1);
       }else if(team==='squad'&&mission==='belzig'&&!missionCivilian&&variant%3!==0){
         ctx.fillStyle='#55584d';ctx.beginPath();ctx.ellipse(16,-10.5,6.4,2.5,0,0,Math.PI*2);ctx.fill();
+      }else if(team==='enemy'&&(mission==='wigan'||mission==='belzig')){
+        if(mission==='wigan'||variant%3!==0)drawSteelHelmet(ctx,variant);
+        else{ctx.fillStyle='#4a4c46';ctx.fillRect(10,-12,12,3);ctx.fillRect(13,-15,7,4)}
+      }else if(team==='civilian'&&(mission==='wigan'||mission==='belzig')){
+        if(variant%3===0){ctx.fillStyle='#4b4b45';ctx.beginPath();ctx.ellipse(16,-10,6.5,1.8,0,0,Math.PI*2);ctx.fill();ctx.fillRect(12,-14,8,4)}
       }
     }
     ctx.restore();
