@@ -226,6 +226,7 @@
       if(state.completed||state.failed||!Number.isFinite(dt)||dt<=0)return state.completed;
       state.phaseElapsed+=dt;
       consumeEvents();
+      if(state.eventCursor>256){controller.state.events.splice(0,state.eventCursor);state.eventCursor=0}
       const b=mainBarricade();
       if(state.phaseIndex>0&&b&&b.breached){
         state.breachSeconds+=dt;
@@ -258,7 +259,7 @@
       ];
       if(p.id==='regroup')return[
         {id:'restore-defence',label:'Repair the barricade if damaged',done:barricadeIntact},
-        {id:'regroup-pressure',label:'Move into the blue REGROUP circle',done:state.regroupStableSeconds>0||allPressureWithdrawing()},
+        {id:'regroup-pressure',label:'Move into the blue REGROUP circle',done:regroupOccupied()},
         {id:'stabilise',label:'Hold the regroup position',done:state.regroupStableSeconds>=settings.regroupStableSeconds}
       ];
       return[
@@ -306,7 +307,7 @@
       const p=phase();
       if(!p)return'Cable Street';
       if(p.id==='gathering'){
-        if(!defenceVisited())return'1. GO TO the barricade marked DEFENCE.';
+        if(!defenceVisited())return'You control four volunteers. Keep Cable Street blocked. Go to DEFENCE. Police approach from the marked arrow.';
         if(state.materialDeliveries<settings.gatheringMaterialDeliveries){
           return carryingMaterial()
             ?'2. CARRY the material to the barricade, then press E / ACTION to REINFORCE.'
@@ -317,7 +318,7 @@
       }
       if(p.id==='hold-approach'){
         const resistance=Math.round(resistanceRatio()*100);
-        return'POLICE PUSH: stay at the barricade and press E / ACTION for FIGHT BACK. Shove them back and throw improvised debris. Resistance '+resistance+'%.';
+        return'FIGHT BACK: E / ACTION at the barricade. Police resistance '+resistance+'%. A route left open for 30s loses the defence.';
       }
       if(p.id==='regroup'){
         if(b&&b.breached)return'REPAIR THE BARRICADE first: bring material and press E / ACTION to REINFORCE.';

@@ -499,7 +499,16 @@
       if(!moveEntity||!updateFacing)throw new Error('followPath requires moveEntity and updateFacing callbacks.');
       if(ent&&ent.navDestination&&ent.pathVersion!==navigationVersion)refreshStalePath(ent);
       if(!ent.path||ent.pathIndex>=ent.path.length){
-        if(ent.navDestination&&Array.isArray(ent.path)&&ent.path.length===0)return false;
+        if(ent.navDestination&&Array.isArray(ent.path)&&ent.path.length===0){
+          ent.retryDelay=Math.max(0,(ent.retryDelay||0)-dt);
+          if(ent.retryDelay<=0){
+            const destination=ent.navDestination;
+            const path=findPath(ent.x,ent.y,destination.x,destination.y);
+            applyPath(ent,path,destination.x,destination.y,{preserveDestinationOnFailure:true});
+            ent.retryDelay=.9;
+          }
+          return false;
+        }
         cancelPath(ent);
         return false;
       }

@@ -138,3 +138,15 @@ h1{font:800 27px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppe
   .hud-mission{flex:0 1 330px}.touch-joystick{width:100px;height:100px}#touchFire{width:66px;height:66px}#touchGrenade{width:54px;height:54px}#touchAction{min-width:74px;height:54px}
 }
 @media(prefers-reduced-motion:reduce){.touch-gameplay,.touch-joystick,.hud-unit,.hud-notice{transition:none}.touch-action.active{transform:none}}
+
+/* Keep mobile actions reachable without covering the mission objective. */
+@media(pointer:coarse){
+  .hud-tools button{min-width:48px;min-height:44px}
+  .touch-fire,.touch-grenade,.touch-action,.touch-drop{min-width:56px;min-height:56px}
+  .hud-mission{font-size:12px;line-height:1.3}
+}
+@media(prefers-reduced-motion:reduce){
+  .menu-button{animation:none;transition:none}
+}
+
+.hud-instruction{font:600 11px/1.35 system-ui,sans-serif;color:#d4d9cc;margin-top:4px}

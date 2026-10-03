@@ -382,7 +382,7 @@
       .hud-counters{right:10px}
     }
   </style>
-  <link rel="stylesheet" href="game-ui.css?v=20261002-playable-1">
+  <link rel="stylesheet" href="game-ui.css?v=20261003-upgrade-1">
   <link rel="stylesheet" href="menu-ui.css">
 </head>
 <body>
@@ -441,6 +441,8 @@
           <h2>MISSION SELECT</h2>
           <p class="menu-copy">Choose a standalone mission. This does not change campaign progress.</p>
           <div class="menu-mission-list">
+            <button id="menuMissionCampaign" class="menu-button primary" type="button">CAMPAIGN</button>
+            <button id="menuMissionHistorical" class="menu-button" type="button">HISTORICAL MISSIONS / CABLE STREET</button>
             <button id="menuMissionBad" class="menu-button" type="button"><span>MISSION 01</span>BAD BELZIG</button>
             <button id="menuMissionWigan" class="menu-button" type="button"><span>MISSION 02</span>WIGAN TOWN CENTRE</button>
           </div>
@@ -448,7 +450,7 @@
         </div>
         <div class="menu-panel menu-card" data-view="historical" hidden>
           <h2>HISTORICAL MISSIONS</h2>
-          <p class="menu-copy">Separate historical scenarios. These do not alter campaign progress.</p>
+
           <div class="menu-mission-list">
             <button id="menuHistoricalCable" class="menu-button" type="button">
               <span>SPECIAL MISSION · PLAYABLE</span>
@@ -488,6 +490,7 @@
         <div class="hud-mission">
           <div class="hud-kicker"><span id="hudCampaign">MISSION 01/24 · BAD BELZIG</span> <strong id="hudStage">OBJECTIVE 1/3</strong></div>
           <span id="hudMission">Preparing operation…</span>
+          <div id="hudInstruction" class="hud-instruction" hidden></div>
           <div id="hudProgress" class="hud-progress" aria-label="Mission progress"><i></i><i></i><i></i></div>
         </div>
         <div class="hud-right">
@@ -540,13 +543,13 @@
 <script src="painted-art.js"></script>
 <script src="building-art.js"></script>
 <script src="wigan-details.js"></script>
-<script src="wigan-scenery.js?v=20261002-stability-3"></script>
+<script src="wigan-scenery.js?v=20261003-upgrade-1"></script>
 <script src="scenery-cache.js"></script>
-<script src="menu-ui.js?v=20261002-playable-1"></script>
+<script src="menu-ui.js?v=20261003-upgrade-1"></script>
 <script src="music.js?v=20261002-cable-track-1"></script>
 <script src="sfx.js"></script>
 <script src="combat-geometry.js"></script>
-<script src="navigation.js?v=20261002-cable-nav-3"></script>
+<script src="navigation.js?v=20261003-upgrade-1"></script>
 <script src="mission-rules.js"></script>
 <script src="mission-route-validation.js?v=20261002-cable-nav-3"></script>
 <script src="campaign.js"></script>
@@ -555,9 +558,9 @@
 <script src="historical-missions.js?v=20261002-playable-1"></script>
 <script src="cable-street-runtime.js?v=20261002-playable-1"></script>
 <script src="cable-street-interactions.js?v=20261002-playable-1"></script>
-<script src="cable-street-director.js?v=20261002-guidance-1"></script>
+<script src="cable-street-director.js?v=20261003-upgrade-1"></script>
 <script src="cable-street-crowd.js?v=20261002-visual-polish-1"></script>
-<script src="cable-street-art.js?v=20261002-npc-polish-2"></script>
+<script src="cable-street-art.js?v=20261003-upgrade-1"></script>
 <script>
 (() => {
   'use strict';
@@ -878,7 +881,7 @@
     touchAction.disabled=!enabled;
     touchAction.textContent=missionInteractionLayer&&selected?missionInteractionLayer.hint(selected.id):'ACTION';
     touchDrop.hidden=!missionInteractionLayer;touchDrop.disabled=!enabled;
-    touchDrop.textContent=selected&&missionController.state.actors.get(selected.id)?.carrying?'DROP':'CANCEL';
+    touchDrop.textContent=selected&&missionController?.state.actors.get(selected.id)?.carrying?'DROP':'CANCEL';
   }
 
   function performHistoricalContextActionAt(x,y){
@@ -1031,13 +1034,15 @@
     syncTouchControlState();
   }
 
+  function canResumeMission(){
+    return started&&!finished&&!runtimeSafeStop&&squad.some(s=>s.alive)&&(!missionController||!missionController.disposed);
+  }
+
   function resumeMission(){
     window.BadFodderSfx?.unlock();
-    if(!started||finished)return;
-    if(runtimeSafeStop){
-      beginMission();
-      return;
-    }
+    if(!canResumeMission())return;
+    simulationAccumulator=0;last=performance.now();
+    releaseInterruptedInput();
     paused=false;menuOpen=false;
     pauseBtn.textContent='Pause (Enter)';
     menu.close();syncTouchControlState();root.focus({preventScroll:true});
@@ -1046,13 +1051,14 @@
   function beginMission(){
     window.BadFodderSfx?.unlock();
     if(!started)return;
-    resetGame();menuOpen=false;paused=false;
+    try{resetGame()}catch(err){runtimeFaultCount=2;handleRuntimeFault(err);return}
+    menuOpen=false;paused=false;
     menu.close();syncTouchControlState();root.focus({preventScroll:true});
     refreshCursorWorld();
   }
 
   function startCampaignFromMenu(){
-    if(missionLaunch.isCampaign()&&activeMissionIndex===campaign.state.current){
+    if(started&&missionLaunch.isCampaign()&&activeMissionIndex===campaign.state.current){
       beginMission();
       return;
     }
@@ -1086,7 +1092,8 @@
   function showTitle(){
     menuOpen=true;paused=true;
     releaseAllFireInputs();
-    releaseTouchMove();menu.show('title');syncTouchControlState();
+    releaseInterruptedInput();mapOpen=false;simulationAccumulator=0;
+    menu.show('title');syncTouchControlState();
   }
 
 
@@ -1204,6 +1211,8 @@
 
   function resetGame(){
     const mission=activeMission();
+    releaseInterruptedInput();
+    cableStreetArt.reset?.();
     missionInteractionLayer=null;
     missionDirector=null;
     if(missionCrowd&&typeof missionCrowd.dispose==='function')missionCrowd.dispose();
@@ -1294,7 +1303,7 @@
     simulationAccumulator=0;
     runtimeFaultCount=0;runtimeFaultAt=0;runtimeSafeStop=false;
     last=performance.now();
-    lastHudStats='';lastRosterSignature='';
+    nextHudUpdate=0;lastHudStats='';lastRosterSignature='';
     squadFormation={active:false,leader:null,members:[],trail:[],destination:null,manualMoving:false};
     wiganRouteCache={key:null,path:[]};
     touchState.movePointer=null;touchState.moveX=0;touchState.moveY=0;touchState.moveMag=0;
@@ -1409,7 +1418,11 @@
     if(progression.complete)advanceMissionPhase();
   }
 
+  let nextHudUpdate=0;
   function updateHud(force=false){
+    const hudNow=performance.now();
+    if(!force&&hudNow<nextHudUpdate)return;
+    nextHudUpdate=hudNow+100;
     const mission=activeMission();
     const phases=mission.phases||[];
     const phaseCount=Math.max(1,phases.length);
@@ -1457,14 +1470,18 @@
       hudEnemies.textContent=Math.round(historicalProgress.barricadeRatio*100)+'%';
       hudGrenades.textContent=Math.round(historicalProgress.confidence*100)+'%';
       const nextHistoricalObjective=historicalProgress.objectives.find(o=>!o.done);
-      const historicalBrief=nextHistoricalObjective
-        ?'NEXT: '+nextHistoricalObjective.label
-        :historicalProgress.phaseTitle;
+      const historicalBrief='Keep Cable Street blocked. Four volunteers.';
+      const instructionEl=document.getElementById('hudInstruction');
+      instructionEl.hidden=false;
+      const cue=historicalProgress.breachSeconds>0?'REBUILD: '+Math.ceil((mission.breachRecoverySeconds||30)-historicalProgress.breachSeconds)+'s left':nextHistoricalObjective?.label||historicalProgress.phaseTitle;
+      const hint=cue+' · E / ACTION · Open route for 30s = defeat';
+      if(instructionEl.textContent!==hint)instructionEl.textContent=hint;
       if(hudMission.textContent!==historicalBrief)hudMission.textContent=historicalBrief;
       const instruction=historicalProgress.instruction||historicalProgress.status;
       if(statusEl.textContent!==instruction)statusEl.textContent=instruction;
       return;
     }
+    document.getElementById('hudInstruction').hidden=true;
     hudEnemyLabel.textContent='TARGETS';
     hudGrenadeLabel.textContent='GRENADES';
 
@@ -1530,7 +1547,8 @@
 
     target.hp-=amount;
     target.flash=.14;
-    target.hitTimer=.16;
+    target.hitTimer=.22;
+    effects.push({type:'hit',x:target.x,y:target.y-8,life:.16});
     if(isSquad)target.damageGrace=.32;
 
     const dx=target.x-hitX,dy=target.y-hitY,d=Math.hypot(dx,dy)||1;
@@ -1561,7 +1579,7 @@
     window.BadFodderSfx?.shoot(owner);
     bullets.push({owner,x:sx,y:sy,vx:Math.cos(a)*760,vy:Math.sin(a)*760,life:1.7});
     noise.push({x:sx,y:sy,r:S(190),life:.4});
-    effects.push({type:'muzzle',x:sx,y:sy,life:.08});
+    effects.push({type:'muzzle',x:sx+Math.cos(a)*11,y:sy-8+Math.sin(a)*11,angle:a,life:.08});
     return true;
   }
 
@@ -1599,6 +1617,7 @@
     if(Math.hypot(x-s.x,y-s.y)>S(190)){setStatus('Grenade target is out of range.');return}
 
     squadGrenades--;
+    updateFacing(s,x-s.x,y-s.y);s.throwTimer=.32;
     window.BadFodderSfx?.grenadeThrow();
     thrown.push({
       x:s.x,y:s.y,startX:s.x,startY:s.y,tx:x,ty:y,
@@ -1770,9 +1789,9 @@
       return true;
     }
 
-    if(s.followRepath<=0||!s.path){
+    if(s.followRepath<=0){
       assignPath(s,desired.x,desired.y);
-      s.followRepath=.32+.08*(s.formSlot||1);
+      s.followRepath=.55+.12*(s.formSlot||1);
     }
     return followPath(s,185*catchUp,dt);
   }
@@ -1832,7 +1851,8 @@
         const cover=nearbyCoverScore(x,y,target.x,target.y);
         const street=streetAffinity(x,y);
         const travel=Math.hypot(x-e.x,y-e.y);
-        const score=cover*18+street*22-travel*.018-Math.abs(radius-desiredRadius)*.02;
+        const crowdPenalty=enemies.reduce((sum,other)=>sum+(other!==e&&other.alive?Math.max(0,S(30)-Math.hypot(x-other.x,y-other.y))*1.8:0),0);
+        const score=cover*18+street*22-travel*.018-Math.abs(radius-desiredRadius)*.02-crowdPenalty;
         if(score>bestScore){bestScore=score;best={x,y}}
       }
     }
@@ -1886,6 +1906,7 @@
       s.damageGrace=Math.max(0,(s.damageGrace||0)-dt);
       s.fireHeat=Math.max(0,(s.fireHeat||0)-dt*.7);
 
+      s.throwTimer=Math.max(0,(s.throwTimer||0)-dt);
       const firingNow=s.fireTimer>0;
       let moving=false;
 
@@ -1895,7 +1916,8 @@
         moving=followPath(s,firingNow?128:185,dt);
       }
 
-      if(s.fireTimer>0)s.state='fire';
+      if(s.throwTimer>0)s.state='throw';
+      else if(s.fireTimer>0)s.state='fire';
       else if(moving)s.state='walk';
       else s.state='idle';
     });
@@ -1973,6 +1995,8 @@
 
       const near=nearestLivingSquad(e);
       if(!near.unit)return;
+      // Unalerted distant patrols need no tactical work until the squad approaches.
+      if(!e.alert&&near.d>S(360)){e.state='idle';return;}
 
       const sees=near.d<S(160)&&!lineBlocked(e.x,e.y,near.unit.x,near.unit.y);
       const hears=noise.some(n=>Math.hypot(e.x-n.x,e.y-n.y)<n.r);
@@ -2327,7 +2351,10 @@
     const visibleW=VIEW_W/zoom,visibleH=VIEW_H/zoom;
     const tx=Math.max(0,Math.min(WORLD_W-visibleW,f.x-visibleW*.48));
     const ty=Math.max(0,Math.min(WORLD_H-visibleH,f.y-visibleH*.55));
-    const k=Math.min(1,dt*4.3);camera.x+=(tx-camera.x)*k;camera.y+=(ty-camera.y)*k;
+    const k=1-Math.exp(-dt*4.3);
+    const deadZone=12/zoom;
+    if(Math.abs(tx-camera.x)>deadZone)camera.x+=(tx-camera.x)*k;
+    if(Math.abs(ty-camera.y)>deadZone)camera.y+=(ty-camera.y)*k;
     clampCamera();
   }
 
@@ -2456,6 +2483,13 @@
       ctx.fillStyle='#9c927c';ctx.beginPath();ctx.roundRect(x-4,y-h*.68-1,8,h*.68+1,[2,2,0,0]);ctx.fill();
       ctx.fillStyle=b.door;ctx.beginPath();ctx.roundRect(x-2.7,y-h*.63,5.4,h*.63,[1.5,1.5,0,0]);ctx.fill();
       ctx.fillStyle='#e2ca87';ctx.beginPath();ctx.arc(x+1.1,y-h*.25,.7,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='#c7b99b';ctx.lineWidth=1.4;ctx.beginPath();
+      ctx.moveTo(x-4,y+.7);ctx.lineTo(x+4,y+.7);ctx.stroke();
+      if(b.family==='plaster'||b.family==='timber'){
+        ctx.fillStyle='#76614b';ctx.fillRect(x+6,y-h*.45,7,2.2);
+        ctx.fillStyle='#709568';ctx.beginPath();ctx.ellipse(x+9.5,y-h*.45,4,2,0,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#ead29b';ctx.fillRect(x+8,y-h*.45-2,1.4,1.4);
+      }
     }
     // Project each actual roof slope, including its texture, into the town view.
     for(const plane of [...mesh.planes].sort((a,b)=>a.points.reduce((n,p)=>n+p[1],0)/a.points.length-b.points.reduce((n,p)=>n+p[1],0)/b.points.length)){
@@ -2824,7 +2858,7 @@
 
   function drawWorld(){
     updateHudNotice(performance.now());
-    const historicalClock=performance.now()/1000;
+    const historicalClock=missionController?missionController.state.elapsed:performance.now()/1000;
     clampCamera();
     const frameScaleX=frame.width/VIEW_W,frameScaleY=frame.height/VIEW_H;
     ctx.setTransform(frameScaleX,0,0,frameScaleY,0,0);ctx.clearRect(0,0,VIEW_W,VIEW_H);
@@ -2857,6 +2891,7 @@
     const actors=[...civilians.map(ent=>({ent,team:'civilian'})),...enemies.map(ent=>({ent,team:'enemy'})),...squad.map(ent=>({ent,team:'squad'}))];
     actors.sort((a,b)=>a.ent.y-b.ent.y);
     actors.forEach(({ent,team})=>{
+      if(ent.x<camera.x-60||ent.y<camera.y-60||ent.x>camera.x+VIEW_W/zoom+60||ent.y>camera.y+VIEW_H/zoom+60)return;
       drawIdentityMarker(ent,team);
       if(team==='squad'&&ent.selected&&ent.alive){
         ctx.strokeStyle='#eadb82';ctx.lineWidth=2;
@@ -2919,6 +2954,11 @@
     drawOccludedSquadOutlines(occludedSquad);
 
     effects.forEach(f=>{
+      if(f.type==='muzzle'){
+        ctx.save();ctx.translate(f.x,f.y);ctx.rotate(f.angle||0);ctx.globalAlpha=Math.min(1,f.life/.04);
+        polygon([[0,0],[5,-3],[12,0],[5,3]],'#ffe8a1');
+        ctx.fillStyle='#fff9de';ctx.beginPath();ctx.arc(3,0,2,0,Math.PI*2);ctx.fill();ctx.restore();return;
+      }
       if(f.type==='wall'){
         const age=1-Math.min(1,f.life/.22);
         ctx.save();ctx.globalAlpha=1-age;
@@ -3389,6 +3429,7 @@
     if(keyboardFireHeld&&actionAllowed('firearms'))refreshCursorWorld();
     if(actionAllowed('firearms')&&(rightHeld||macFireHeld||keyboardFireHeld)&&cursorWorld&&!bothLatched)squadFireAt(cursorWorld.x,cursorWorld.y);
     if(actionAllowed('firearms')&&touchState.fireHeld)fireMobile();
+    squad.forEach(s=>{s.aiming=actionAllowed('firearms')&&(rightHeld||macFireHeld||keyboardFireHeld||touchState.fireHeld)});
     updateSquad(dt);
 
     if(missionController){
@@ -3409,7 +3450,8 @@
       }
       if(missionCrowd)missionCrowd.fixedUpdate(dt);
       updateCivilians(dt);
-      [...squad,...civilians].forEach(ent=>art.animate(ent,dt));
+      squad.forEach(ent=>art.animate(ent,dt));
+      civilians.forEach(ent=>art.animate(ent,dt));
       updateCamera(dt);
       checkFailure();
       updateHud();
@@ -3420,7 +3462,9 @@
     updateEnemies(dt);
     updateCivilians(dt);
     updateProjectiles(dt);
-    [...squad,...enemies,...civilians].forEach(ent=>art.animate(ent,dt));
+    squad.forEach(ent=>art.animate(ent,dt));
+    enemies.forEach(ent=>art.animate(ent,dt));
+    civilians.forEach(ent=>art.animate(ent,dt));
     updateCamera(dt);
     checkFailure();
     updateMissionProgress(dt);
@@ -3468,7 +3512,7 @@
         simulationAccumulator=0;
       }
 
-      if(started)drawWorld();
+      if(started&&!menuOpen)drawWorld();
       if(runtimeFaultCount&&now-runtimeFaultAt>3000)runtimeFaultCount=0;
     }catch(err){
       handleRuntimeFault(err);
@@ -3514,6 +3558,8 @@
     }catch(err){
       console.error('Bad Fodder failed to start',err);
       started=false;
+      releaseInterruptedInput();
+      loadingEl.classList.add('hidden');
       menu.fail();
       const loadingText=loadingEl.querySelector('span');
       if(loadingText)loadingText.textContent='Unable to start game. Reload the page to try again.';
@@ -3522,7 +3568,7 @@
   }
 
   menu=new BadFodderMenu({
-    root,screen:document.getElementById('menuScreen'),start:startCampaignFromMenu,selectMission:startStandaloneMission,selectHistorical:startHistoricalMission,resume:resumeMission,restart:beginMission,main:showTitle,
+    root,screen:document.getElementById('menuScreen'),canResume:canResumeMission,start:startCampaignFromMenu,selectMission:startStandaloneMission,selectHistorical:startHistoricalMission,resume:resumeMission,restart:beginMission,main:showTitle,
     fullscreen:toggleMobileFullscreen,isFullscreen:isFullscreenActive,
     zoom:value=>{preferredZoom=zoom=Number(value);clampCamera();},dust:value=>{showDust=value;},dustEnabled:showDust
   });

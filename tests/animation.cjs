@@ -43,3 +43,11 @@ const firstPhase=art.pose(continuous).phase;continuous.x+=.5;art.animate(continu
 assert(art.pose(continuous).phase>firstPhase);assert.equal(art.pose(continuous).frame,0,'Continuous gait advances between atlas frames');
 assert.equal(art.pose(slow).phase,art.pose(fast).phase,'Continuous gait stays distance-based');
 console.log('PASS: continuous gait, smooth turns and shortest-path angle wrapping.');
+
+const injured=actor();art.animate(injured,0);injured.hitTimer=.2;art.animate(injured,1/60);
+assert.equal(art.pose(injured).state,'hurt');injured.x+=2;art.animate(injured,1/60);assert.equal(art.pose(injured).state,'stumble');
+injured.hitTimer=0;injured.throwTimer=.3;art.animate(injured,1/60);assert.equal(art.pose(injured).state,'throw');assert(art.pose(injured).throwProgress>0);
+injured.throwTimer=0;injured.aiming=true;art.animate(injured,1/60);assert.equal(art.pose(injured).state,'aim');
+const firingWalker=actor();art.animate(firingWalker,0);firingWalker.x+=2;firingWalker.fireTimer=.1;art.animate(firingWalker,1/60);assert.equal(art.pose(firingWalker).state,'fire');assert(art.pose(firingWalker).moving,'Firing must not freeze a moving actor’s gait');
+const steadyRunner=actor();art.animate(steadyRunner,0);steadyRunner.x+=4;art.animate(steadyRunner,1/60);steadyRunner.x+=3.1;art.animate(steadyRunner,1/60);assert.equal(art.pose(steadyRunner).state,'run','Run state uses hysteresis near the speed threshold');
+console.log('PASS: hurt/stumble, throw progress, aiming, firing gait and run hysteresis.');

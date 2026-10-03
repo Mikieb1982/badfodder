@@ -120,6 +120,8 @@ window.BadFodderMenu=class{
     this.mobilePresentation=window.BadFodderMobilePresentation?.install(this.root,actions)||null;
     this.get=id=>this.screen.querySelector('#'+id);
     for(const [id,action] of [['menuStart','start'],['menuResume','resume'],['menuRestart','restart'],['menuMain','main']])this.get(id).addEventListener('click',()=>actions[action]());
+    this.get('menuMissionCampaign').addEventListener('click',()=>actions.start());
+    this.get('menuMissionHistorical').addEventListener('click',()=>this.showPanel('historical'));
     this.get('menuMissionSelect').addEventListener('click',()=>this.showPanel('missions'));
     this.get('menuHistorical').addEventListener('click',()=>this.showPanel('historical'));
     this.get('menuHistoricalCable').addEventListener('click',()=>this.showPanel('historical-cable'));
@@ -148,8 +150,10 @@ window.BadFodderMenu=class{
     this.mode=mode;this.screen.hidden=false;this.screen.dataset.mode=mode;this.root.classList.add('menu-open');
     this.screen.setAttribute('aria-label',mode==='pause'?'Mission paused':'Bad Fodder main menu');
     const badge=this.get('menuBadge');badge.hidden=mode!=='pause';badge.textContent=mode==='pause'?'MISSION PAUSED':'';
-    for(const id of ['menuResume','menuRestart','menuMain'])this.get(id).hidden=mode!=='pause';
-    for(const id of ['menuStart','menuMissionSelect','menuHistorical'])this.get(id).hidden=mode!=='title';
+    this.get('menuResume').hidden=!this.actions.canResume();
+    this.get('menuRestart').hidden=!this.loaded;
+    this.get('menuMain').hidden=mode!=='pause';
+    for(const id of ['menuStart','menuMissionSelect','menuHistorical'])this.get(id).hidden=false;
     this.showPanel('main');
   }
   close(){this.screen.hidden=true;this.root.classList.remove('menu-open');}
@@ -160,7 +164,7 @@ window.BadFodderMenu=class{
     this.get('menuResume').hidden=true;
     this.get('menuRestart').hidden=false;this.get('menuRestart').textContent='RESTART MISSION';
     this.get('menuMain').hidden=false;
-    this.get('menuStart').hidden=true;this.get('menuMissionSelect').hidden=true;this.get('menuHistorical').hidden=true;
+    this.get('menuStart').hidden=true;this.get('menuMissionSelect').hidden=false;this.get('menuHistorical').hidden=false;
     this.showPanel('main');
     this.get('menuHelp').textContent=message;
     this.get('menuRestart').focus({preventScroll:true});
@@ -192,6 +196,9 @@ window.BadFodderMenu=class{
     if(!this.screen.hidden&&this.mode==='title'&&this.panel==='main')this.get('menuStart').focus({preventScroll:true});
   }
   fail(){
+    this.loaded=false;
+    this.get('menuResume').hidden=true;
+    this.get('menuRestart').hidden=true;
     this.get('menuStart').disabled=true;
     this.get('menuStart').textContent='CAMPAIGN UNAVAILABLE';
     this.get('menuMissionSelect').disabled=false;

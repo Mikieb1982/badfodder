@@ -15,9 +15,11 @@
     "cable:calibrate": "node tools/cable-street/calibrate-grid.cjs authoring/cable-street/calibration.json",
     "cable:compile-map": "node tools/cable-street/compile-trace.cjs authoring/cable-street",
     "cable:build-runtime-map": "node tools/cable-street/build-runtime-map.cjs authoring/cable-street cable-street-map.js",
-    "cable:verify-release": "node tools/cable-street/verify-release.cjs authoring/cable-street"
+    "cable:verify-release": "node tools/cable-street/verify-release.cjs authoring/cable-street",
+    "test:browser": "node tests/browser-lifecycle.cjs"
   },
   "devDependencies": {
-    "firebase-tools": "^14.0.0"
+    "firebase-tools": "^14.0.0",
+    "playwright": "^1.51.1"
   }
 }

@@ -16,3 +16,18 @@ jobs:
           node-version: '24'
       - name: Run regression suite
         run: npm test
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install browser test runner
+        run: npm install --ignore-scripts
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Exercise mission lifecycle and touch controls
+        run: npm run test:browser
