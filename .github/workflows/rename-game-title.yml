@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Replace old display name everywhere
+      - name: Replace old display name everywhere except workflow files
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -27,7 +27,7 @@ jobs:
 
           changed = []
           for path in Path('.').rglob('*'):
-              if not path.is_file() or '.git' in path.parts:
+              if not path.is_file() or '.git' in path.parts or path.parts[:2] == ('.github', 'workflows'):
                   continue
               try:
                   text = path.read_text(encoding='utf-8')
@@ -44,8 +44,6 @@ jobs:
           for path in changed:
               print(path)
           PY
-      - name: Remove temporary workflow
-        run: rm -f .github/workflows/rename-game-title.yml
       - name: Commit replacement
         run: |
           if git diff --quiet; then
