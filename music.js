@@ -1,7 +1,7 @@
 /* Ambient music follows Sagenhaft's looping, volume and fade behaviour. */
 (function(){
 'use strict';
-const DEFAULT_SOURCE='assets/audio/bad_fodder.mp3';
+const DEFAULT_SOURCE='assets/audio/mission.mp3';
 const CABLE_STREET_SOURCE='assets/audio/cable_street.mp3';
 const LAUNCH_KEY='badfodder.launch.v1';
 function sourceForLaunch(){
