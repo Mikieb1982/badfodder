@@ -169,7 +169,7 @@ window.BadFodderMenu=class{
   }
   show(mode){
     this.mode=mode;this.screen.hidden=false;this.screen.dataset.mode=mode;this.root.classList.add('menu-open');
-    this.screen.setAttribute('aria-label',mode==='pause'?'Mission paused':'Bad Fodder main menu');
+    this.screen.setAttribute('aria-label',mode==='pause'?'Mission paused':'If I Can Shoot Rabbits main menu');
     const badge=this.get('menuBadge');badge.hidden=mode!=='pause';badge.textContent=mode==='pause'?'MISSION PAUSED':'';
     this.get('menuResume').hidden=!this.actions.canResume();
     this.get('menuRestart').hidden=!this.loaded;

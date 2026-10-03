@@ -1,4 +1,4 @@
-# Bad Fodder playtest checklist
+# If I Can Shoot Rabbits playtest checklist
 
 Run this checklist after `npm test` passes and the latest build is deployed.
 

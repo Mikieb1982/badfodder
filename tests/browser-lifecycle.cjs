@@ -28,7 +28,7 @@ const server=http.createServer((req,res)=>{
  const browser=await engine.launch({headless:true,...(process.env.BADFODDER_CHROMIUM?{executablePath:process.env.BADFODDER_CHROMIUM,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']}: {})});
  try{
  const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[];let expectedRuntimeLogs=0,expectedStartupLogs=0;
- page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()!=='error')return;const t=m.text();if(expectedRuntimeLogs&&t.startsWith('Bad Fodder runtime fault')){expectedRuntimeLogs--;return;}if(expectedStartupLogs&&t.startsWith('Bad Fodder failed to start')){expectedStartupLogs--;return;}errors.push(t)});
+ page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()!=='error')return;const t=m.text();if(expectedRuntimeLogs&&t.startsWith('If I Can Shoot Rabbits runtime fault')){expectedRuntimeLogs--;return;}if(expectedStartupLogs&&t.startsWith('If I Can Shoot Rabbits failed to start')){expectedStartupLogs--;return;}errors.push(t)});
  await page.goto(url);await page.locator('#menuMissionSelect').click();await page.waitForFunction(()=>!!window.__testGame);assert.equal((await page.evaluate(()=>window.__testGame.state())).started,false,'Boot must wait for Begin Mission');
  assert.equal(await page.locator('#menuMissionBad').isVisible(),true);assert.equal(await page.locator('#menuMissionWigan').isVisible(),true);assert.equal(await page.locator('#menuHistoricalCable').isVisible(),true);assert.equal(await page.locator('#menuHistorical').count(),0);
  const campaignBefore=await page.evaluate(()=>localStorage.getItem('badfodder.campaign.v1'));

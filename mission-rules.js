@@ -1,4 +1,4 @@
-/* Shared mission objective rules for Bad Fodder.
+/* Shared mission objective rules for If I Can Shoot Rabbits.
    Browser: window.BadFodderMissionRules
    Node: require('./mission-rules.js') */
 (function(root,factory){

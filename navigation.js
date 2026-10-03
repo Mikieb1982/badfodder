@@ -1,4 +1,4 @@
-/* Shared navigation/pathfinding for Bad Fodder.
+/* Shared navigation/pathfinding for If I Can Shoot Rabbits.
    Browser: window.BadFodderNavigation
    Node: require('./navigation.js') */
 (function(root,factory){

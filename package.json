@@ -2,7 +2,7 @@
   "name": "badfodder",
   "version": "0.1.0",
   "private": true,
-  "description": "Bad Fodder - Bad Belzig tactical browser game",
+  "description": "If I Can Shoot Rabbits - Bad Belzig tactical browser game",
   "scripts": {
     "firebase:login": "firebase login",
     "firebase:use": "firebase use --add",

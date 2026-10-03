@@ -1,4 +1,4 @@
-/* Historical missions live outside the standard Bad Fodder campaign.
+/* Historical missions live outside the standard If I Can Shoot Rabbits campaign.
    They may use different action profiles and do not alter campaign progress. */
 (function(root,factory){
   const api=factory();

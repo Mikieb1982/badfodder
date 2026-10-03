@@ -1,4 +1,4 @@
-/* Bad Fodder campaign definition and persistent campaign progress. */
+/* If I Can Shoot Rabbits campaign definition and persistent campaign progress. */
 (function(){
 'use strict';
 

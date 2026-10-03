@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>Bad Fodder</title>
+  <title>If I Can Shoot Rabbits</title>
   <style>
     :root{
       color-scheme:dark;
@@ -389,7 +389,7 @@
 <main class="app" id="gameRoot">
   <div class="topbar">
     <div>
-      <h1>Bad Fodder</h1>
+      <h1>If I Can Shoot Rabbits</h1>
       <div class="subtitle">Belzig, 1945</div>
       <div id="status">Loading Belzig…</div>
     </div>
@@ -417,9 +417,9 @@
   <section id="roster" class="roster"></section>
 
   <div class="viewport">
-    <div id="loading" class="loading"><div><strong>BAD FODDER</strong><small id="loadingEra"></small><span>Preparing game…</span></div></div>
+    <div id="loading" class="loading"><div><strong>IF I CAN SHOOT RABBITS</strong><small id="loadingEra"></small><span>Preparing game…</span></div></div>
     <canvas id="game" width="1040" height="650" aria-label="Top-down tactical game using the established Belzig map"></canvas>
-    <section id="menuScreen" class="menu-screen" role="dialog" aria-modal="true" aria-label="Bad Fodder main menu" data-mode="title" data-panel="main">
+    <section id="menuScreen" class="menu-screen" role="dialog" aria-modal="true" aria-label="If I Can Shoot Rabbits main menu" data-mode="title" data-panel="main">
       <div class="menu-backdrop" aria-hidden="true"></div>
       <div class="menu-layout">
         <p id="menuBadge" class="menu-badge" hidden></p>
@@ -661,7 +661,7 @@
   const LOW_POWER=TOUCH_DEVICE;
   const SCALE=2;
   const wiganDetails=MAP_DATA.key==='wigan'?BadFodderWiganDetails.prepare(MAP_DATA):null;
-  document.querySelector('.subtitle').textContent=initialMission.subtitle||initialMission.title||MAP_DATA.title||'Bad Fodder';
+  document.querySelector('.subtitle').textContent=initialMission.subtitle||initialMission.title||MAP_DATA.title||'If I Can Shoot Rabbits';
   canvas.setAttribute('aria-label','Top-down tactical game in '+(MAP_DATA.title||initialMission.title||MAP_DATA.key));
   const WORLD_W=MAP_DATA.width*SCALE;
   const WORLD_H=MAP_DATA.height*SCALE;
@@ -3544,7 +3544,7 @@
     const now=performance.now();
     if(now-runtimeFaultAt>3000)runtimeFaultCount=0;
     runtimeFaultAt=now;runtimeFaultCount++;
-    console.error('Bad Fodder runtime fault',err);
+    console.error('If I Can Shoot Rabbits runtime fault',err);
     releaseInterruptedInput();
     simulationAccumulator=0;
 
@@ -3627,7 +3627,7 @@
       updateHud(true);
       if(launchAfterLoad){launchAfterLoad=false;beginMission();}
     }catch(err){
-      console.error('Bad Fodder failed to start',err);
+      console.error('If I Can Shoot Rabbits failed to start',err);
       started=false;
       releaseInterruptedInput();
       loadingEl.classList.add('hidden');
