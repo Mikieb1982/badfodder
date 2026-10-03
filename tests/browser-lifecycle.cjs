@@ -26,7 +26,7 @@ const server=http.createServer((req,res)=>{
  const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[];
  page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&!m.text().includes('Injected unrecoverable')&&!m.text().includes('Injected startup failure'))errors.push(m.text())});
  await page.goto(url);await page.locator('#menuMissionSelect').click();await page.waitForFunction(()=>window.__testGame?.state().started);
- assert.equal(await page.locator('#menuMissionCampaign').isVisible(),true);assert.equal(await page.locator('#menuMissionHistorical').isVisible(),true);
+ assert.equal(await page.locator('#menuMissionBad').isVisible(),true);assert.equal(await page.locator('#menuMissionWigan').isVisible(),true);assert.equal(await page.locator('#menuHistoricalCable').isVisible(),true);assert.equal(await page.locator('#menuHistorical').count(),0);
  const campaignBefore=await page.evaluate(()=>localStorage.getItem('badfodder.campaign.v1'));
  async function select(button){console.log('Checking',button);await page.locator('#menuMissionSelect').click();await page.locator(button).click();await page.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen,{},{timeout:90000})}
  async function active(){const state=await page.evaluate(()=>window.__testGame.state());assert(state.started&&!state.menuOpen&&!state.paused&&!state.runtimeSafeStop);assert.equal(state.faults,0);return state}
@@ -45,7 +45,7 @@ const server=http.createServer((req,res)=>{
   await page.evaluate(()=>window.__testGame.main());
  }
  assert.equal(await page.evaluate(()=>localStorage.getItem('badfodder.campaign.v1')),campaignBefore,'Direct selection changed campaign');
- await page.locator('#menuMissionSelect').click();await page.locator('#menuMissionHistorical').click();await page.locator('#menuHistoricalCable').click();await page.locator('#menuHistoricalCablePlay').click();
+ await page.locator('#menuMissionSelect').click();await page.locator('#menuHistoricalCable').click();await page.locator('#menuHistoricalCablePlay').click();
  await page.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen,{},{timeout:90000});assert.equal((await active()).map,'cable-street');
  await page.waitForTimeout(500);await page.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp','cable-street-upgrade.png')});
  assert(await page.locator('#touchFire').isHidden());assert(await page.locator('#touchGrenade').isHidden());
@@ -55,7 +55,7 @@ const server=http.createServer((req,res)=>{
  await page.keyboard.press('g');assert((await active()).streetActors.some(a=>a.attackKind==='throw'),'Keyboard debris did not attack');
  await page.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp','cable-street-fight.png')});
  await pauseMenuResume();await page.evaluate(()=>window.__testGame.pause());await page.locator('#menuRestart').click();await active();
- await page.evaluate(()=>window.__testGame.main());await page.locator('#menuHistorical').click();await page.locator('#menuHistoricalCable').click();await page.locator('#menuHistoricalCablePlay').click();await page.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen,{},{timeout:90000});await active();
+ await page.evaluate(()=>window.__testGame.main());await page.locator('#menuMissionSelect').click();await page.locator('#menuHistoricalCable').click();await page.locator('#menuHistoricalCablePlay').click();await page.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen,{},{timeout:90000});await active();
  await page.evaluate(()=>window.__testGame.fault());assert(await page.locator('#menuResume').isHidden());assert(await page.locator('#menuMissionSelect').isVisible());await page.locator('#menuRestart').click();await active();
  await page.goto(url+'?failStartup=1');await page.waitForFunction(()=>document.getElementById('menuStart').textContent==='CAMPAIGN UNAVAILABLE');assert(await page.locator('#menuResume').isHidden());assert(await page.locator('#loading').isHidden());await page.evaluate(()=>history.replaceState(null,'',location.pathname));await select('#menuMissionBad');await active();
  await page.evaluate(()=>window.__testGame.main());await page.locator('#menuStart').click();await page.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen,{},{timeout:90000});assert.equal((await active()).mode,'campaign');
@@ -64,7 +64,7 @@ const server=http.createServer((req,res)=>{
  const touch=await mobile.context().newCDPSession(mobile);
  await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:joy.x+joy.width*.8,y:joy.y+joy.height*.5}]});await mobile.waitForTimeout(500);await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
  const after=await mobile.evaluate(()=>window.__testGame.state().units[0]);assert(Math.hypot(before.x-after.x,before.y-after.y)>1,'Joystick did not move squad');await mobile.locator('#touchPause').click();await mobile.locator('#menuResume').click();await mobile.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp','mobile-upgrade.png')});
- await mobile.evaluate(()=>window.__testGame.main());await mobile.locator('#menuHistorical').click();await mobile.locator('#menuHistoricalCable').click();await mobile.locator('#menuHistoricalCablePlay').click();await mobile.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen,{},{timeout:90000});
+ await mobile.evaluate(()=>window.__testGame.main());await mobile.locator('#menuMissionSelect').click();await mobile.locator('#menuHistoricalCable').click();await mobile.locator('#menuHistoricalCablePlay').click();await mobile.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen,{},{timeout:90000});
  assert(await mobile.locator('#touchShove').isVisible());assert(await mobile.locator('#touchDebris').isVisible());assert(await mobile.locator('#touchFire').isHidden());
  await mobile.evaluate(()=>window.__testGame.battle());await mobile.locator('#touchShove').tap();assert((await mobile.evaluate(()=>window.__testGame.state())).streetActors.some(a=>a.attackKind==='shove'),'Touch shove did not attack');await mobile.locator('#touchDebris').tap();assert((await mobile.evaluate(()=>window.__testGame.state())).streetActors.some(a=>a.attackKind==='throw'),'Touch debris did not attack');await mobile.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp','cable-street-mobile.png')});
  assert.deepEqual(errors,[]);console.log('PASS: desktop startup, Campaign/direct selection, all three missions, movement/combat, repeated Wigan menu/Resume, restart/re-entry, recovery restart, load failure escape keyboard/touch street attacks and mobile joystick/pause.');

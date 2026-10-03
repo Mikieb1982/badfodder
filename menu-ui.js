@@ -120,10 +120,7 @@ window.BadFodderMenu=class{
     this.mobilePresentation=window.BadFodderMobilePresentation?.install(this.root,actions)||null;
     this.get=id=>this.screen.querySelector('#'+id);
     for(const [id,action] of [['menuStart','start'],['menuResume','resume'],['menuRestart','restart'],['menuMain','main']])this.get(id).addEventListener('click',()=>actions[action]());
-    this.get('menuMissionCampaign').addEventListener('click',()=>actions.start());
-    this.get('menuMissionHistorical').addEventListener('click',()=>this.showPanel('historical'));
     this.get('menuMissionSelect').addEventListener('click',()=>this.showPanel('missions'));
-    this.get('menuHistorical').addEventListener('click',()=>this.showPanel('historical'));
     this.get('menuHistoricalCable').addEventListener('click',()=>this.showPanel('historical-cable'));
     const historicalCablePlay=this.get('menuHistoricalCablePlay');
     if(historicalCablePlay)historicalCablePlay.addEventListener('click',()=>actions.selectHistorical?.('cable-street-1936'));
@@ -153,7 +150,7 @@ window.BadFodderMenu=class{
     this.get('menuResume').hidden=!this.actions.canResume();
     this.get('menuRestart').hidden=!this.loaded;
     this.get('menuMain').hidden=mode!=='pause';
-    for(const id of ['menuStart','menuMissionSelect','menuHistorical'])this.get(id).hidden=false;
+    for(const id of ['menuStart','menuMissionSelect'])this.get(id).hidden=false;
     this.showPanel('main');
   }
   close(){this.screen.hidden=true;this.root.classList.remove('menu-open');}
@@ -164,7 +161,7 @@ window.BadFodderMenu=class{
     this.get('menuResume').hidden=true;
     this.get('menuRestart').hidden=false;this.get('menuRestart').textContent='RESTART MISSION';
     this.get('menuMain').hidden=false;
-    this.get('menuStart').hidden=true;this.get('menuMissionSelect').hidden=false;this.get('menuHistorical').hidden=false;
+    this.get('menuStart').hidden=true;this.get('menuMissionSelect').hidden=false;
     this.showPanel('main');
     this.get('menuHelp').textContent=message;
     this.get('menuRestart').focus({preventScroll:true});
@@ -212,7 +209,7 @@ window.BadFodderMenu=class{
     if(e.repeat&&e.key==='Enter'){e.preventDefault();return;}
     if(e.key==='Escape'){
       e.preventDefault();e.stopPropagation();
-      if(this.panel==='historical-cable')this.showPanel('historical');
+      if(this.panel==='historical-cable')this.showPanel('missions');
       else if(this.panel!=='main')this.showPanel('main');
       else if(this.mode==='pause')this.actions.resume();
       return;

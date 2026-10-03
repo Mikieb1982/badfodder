@@ -138,21 +138,21 @@ assert.throws(()=>missionController.fixedUpdate(1/60),/disposed/);
 
 const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const menu=fs.readFileSync(path.join(root,'menu-ui.js'),'utf8');
-assert(index.includes('id="menuHistorical"'),'Historical Missions main-menu option missing');
-assert(index.includes('data-view="historical"'),'Historical Missions panel missing');
+assert(!index.includes('id="menuHistorical"'),'Historical category must not appear in the main menu');
+assert(!index.includes('data-view="historical"'),'Redundant historical category panel must be removed');
 assert(index.includes('data-view="historical-cable"'),'Cable Street groundwork detail panel missing');
 assert(index.includes('Prevent the route through Cable Street from being opened.'),'Cable Street detail panel must retain the concise mission objective');
-assert(menu.includes("this.get('menuHistorical').addEventListener"),'Historical Missions button is not wired');
+assert(index.includes('id="menuHistoricalCable"'),'Select Mission must include Cable Street');
 assert(menu.includes("this.get('menuHistoricalCable').addEventListener"),'Cable Street detail button is not wired');
 assert(index.includes('id="menuHistoricalCablePlay"'),'Cable Street detail screen has no guarded Play control');
-assert(index.includes("menu-ui.js?v=20261003-upgrade-1"),'Cable Street menu controller cache version is stale');
+assert(index.includes("menu-ui.js?v=20261003-menu-cleanup-1"),'Cable Street menu controller cache version is stale');
 assert(index.includes('selectHistorical:startHistoricalMission'),'Cable Street Play action is not supplied to the menu controller');
 assert(index.includes("cableMission&&cableMission.playable&&cableMission.mapReady&&mapRegistry.get('cable-street')"),'Cable Street readiness does not require mission and compiled-map gates');
 assert(menu.includes("actions.selectHistorical?.('cable-street-1936')"),'Cable Street Play button does not call the historical launch path');
 assert(menu.includes('setHistoricalCableReady(ready)'),'Cable Street menu lacks readiness control');
 assert(menu.includes("play.textContent=ready?'PLAY CABLE STREET':'MAP NOT READY'"),'Cable Street Play state text is not guarded');
 
-assert(index.includes('data-back-to="historical"'),'Cable Street detail screen does not return to Historical Missions');
+assert(index.includes('data-back-to="missions"'),'Cable Street detail screen does not return to Select Mission');
 assert(menu.includes("b.dataset.backTo||'main'"),'Nested historical menu back navigation is not wired');
 
 console.log('PASS: Cable Street is a separate playable historical mission with gated reconstructed map and four phases.');

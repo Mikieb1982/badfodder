@@ -427,8 +427,7 @@
         <div class="menu-panel" data-view="main">
           <nav class="menu-actions" aria-label="Game menu">
             <button id="menuStart" class="menu-button primary" type="button" disabled>PREPARING CAMPAIGN…</button>
-            <button id="menuMissionSelect" class="menu-button" type="button">MISSION SELECT</button>
-            <button id="menuHistorical" class="menu-button" type="button">HISTORICAL MISSIONS</button>
+            <button id="menuMissionSelect" class="menu-button" type="button">SELECT MISSION</button>
             <button id="menuResume" class="menu-button primary" type="button" hidden>RESUME</button>
             <button id="menuRestart" class="menu-button" type="button" hidden>RESTART MISSION</button>
             <button id="menuControls" class="menu-button" type="button">CONTROLS</button>
@@ -438,24 +437,12 @@
           <p class="menu-hint">CAMPAIGN PLAYS MISSIONS IN ORDER · MOUSE · TOUCH · KEYBOARD</p>
         </div>
         <div class="menu-panel menu-card" data-view="missions" hidden>
-          <h2>MISSION SELECT</h2>
+          <h2>SELECT MISSION</h2>
           <p class="menu-copy">Choose a standalone mission. This does not change campaign progress.</p>
           <div class="menu-mission-list">
-            <button id="menuMissionCampaign" class="menu-button primary" type="button">CAMPAIGN</button>
-            <button id="menuMissionHistorical" class="menu-button" type="button">HISTORICAL MISSIONS / CABLE STREET</button>
             <button id="menuMissionBad" class="menu-button" type="button"><span>MISSION 01</span>BAD BELZIG</button>
             <button id="menuMissionWigan" class="menu-button" type="button"><span>MISSION 02</span>WIGAN TOWN CENTRE</button>
-          </div>
-          <button class="menu-button" data-back type="button">BACK</button>
-        </div>
-        <div class="menu-panel menu-card" data-view="historical" hidden>
-          <h2>HISTORICAL MISSIONS</h2>
-
-          <div class="menu-mission-list">
-            <button id="menuHistoricalCable" class="menu-button" type="button">
-              <span>SPECIAL MISSION · PLAYABLE</span>
-              CABLE STREET
-            </button>
+            <button id="menuHistoricalCable" class="menu-button" type="button"><span>LONDON · 1936</span>CABLE STREET</button>
           </div>
           <button class="menu-button" data-back type="button">BACK</button>
         </div>
@@ -465,7 +452,7 @@
           <p id="menuHistoricalCableStatus" class="menu-historical-status">READY · CHRISTIAN STREET DEFENCE</p>
           <p class="menu-copy">Prevent the route through Cable Street from being opened.</p>
           <button id="menuHistoricalCablePlay" class="menu-button primary" type="button">PLAY CABLE STREET</button>
-          <button class="menu-button" data-back data-back-to="historical" type="button">BACK</button>
+          <button class="menu-button" data-back data-back-to="missions" type="button">BACK</button>
         </div>
         <div class="menu-panel menu-card" data-view="controls" hidden>
           <h2>CONTROLS</h2>
@@ -547,7 +534,7 @@
 <script src="wigan-details.js"></script>
 <script src="wigan-scenery.js?v=20261003-upgrade-1"></script>
 <script src="scenery-cache.js"></script>
-<script src="menu-ui.js?v=20261003-upgrade-1"></script>
+<script src="menu-ui.js?v=20261003-menu-cleanup-1"></script>
 <script src="music.js?v=20261003-tactical-1"></script>
 <script src="sfx.js?v=20261003-tactical-1"></script>
 <script src="combat-geometry.js"></script>
