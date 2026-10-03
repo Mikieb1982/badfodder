@@ -105,7 +105,7 @@
   art.tree=(ctx,t)=>{
     if(!images.trees)return fallback.tree(ctx,t);
     const i=((Math.round(t.x+t.y)%4)+4)%4,w=36+t.r*1.6,h=w*1.25;
-    ctx.save();ctx.fillStyle='#254a3538';ctx.beginPath();ctx.ellipse(t.x+3,t.y+2,w*.32,w*.07,0,0,Math.PI*2);ctx.fill();
+    ctx.save();ctx.fillStyle='#254a353d';ctx.beginPath();ctx.ellipse(t.x+3,t.y+2,w*.32,w*.07,0,0,Math.PI*2);ctx.fill();
     ctx.drawImage(images.trees,i%2*128,Math.floor(i/2)*160,128,160,t.x-w/2,t.y-h+5,w,h);ctx.restore();
   };
   const row=team=>team==='enemy'?1:team==='civilian'?2:0;
@@ -116,7 +116,7 @@
     const lean=state==='stumble'?.13:state==='hurt'?.07:0;
     ctx.save();
     ctx.translate(-Math.cos(facing)*recoil,-Math.sin(facing)*recoil);
-    if(lean){ctx.translate(16,24);ctx.rotate(lean);ctx.translate(-16,-26)}
+    if(lean){ctx.translate(16,24);ctx.rotate(lean);ctx.translate(-16,-24)}
     if(state==='dead'){
       const t=Math.min(1,death/.24);ctx.translate(16-t*6,26);ctx.rotate(t*1.42);ctx.scale(1,1-t*.28);ctx.translate(-16,-26);
       ctx.drawImage(sheet,sx,sy,128,160,-2,-16,36,44);
