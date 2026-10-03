@@ -39,6 +39,12 @@
     ensureMobileManifest();
     let promptShown=wasPromptedThisSession();
     let promptEl=null;
+    let orientationTimer=0;
+
+    function isLandscape(){
+      if(window.matchMedia)return window.matchMedia('(orientation: landscape)').matches;
+      return window.innerWidth>window.innerHeight;
+    }
 
     async function lockLandscape(){
       const orientation=window.screen&&window.screen.orientation;
@@ -100,13 +106,26 @@
       return true;
     }
 
+    async function enterAfterLandscapeTurn(){
+      if(!isLandscape())return false;
+      closePrompt();
+      return enter();
+    }
+
+    function handleOrientationChange(){
+      clearTimeout(orientationTimer);
+      orientationTimer=setTimeout(()=>{
+        if(isLandscape())enterAfterLandscapeTurn();
+      },90);
+    }
+
     document.addEventListener('fullscreenchange',()=>{
       if(actions.isFullscreen())lockLandscape();
       else unlockLandscape();
     });
-    window.addEventListener('orientationchange',()=>{
-      if(actions.isFullscreen())lockLandscape();
-    });
+    window.addEventListener('orientationchange',handleOrientationChange);
+    const orientation=window.screen&&window.screen.orientation;
+    if(orientation&&typeof orientation.addEventListener==='function')orientation.addEventListener('change',handleOrientationChange);
 
     return{prompt,enter,exit,lockLandscape,unlockLandscape};
   }
