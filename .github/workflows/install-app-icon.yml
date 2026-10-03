@@ -1,0 +1,47 @@
+name: Install favicon and app icon
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  install-icon:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Link favicon and app icons
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+          marker = '<title>If I Can Shoot Rabbits</title>'
+          links = '''  <meta name="theme-color" content="#1e281b">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="assets/icons/favicon-64.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="assets/icons/icon-192.png">
+  <link rel="manifest" href="site.webmanifest">'''
+          if 'assets/icons/favicon-32.png' not in text:
+              if marker not in text:
+                  raise SystemExit('Page title marker not found')
+              text = text.replace(marker, marker + '\n' + links, 1)
+              path.write_text(text, encoding='utf-8')
+          PY
+      - name: Remove one-time workflow
+        run: rm -f .github/workflows/install-app-icon.yml
+      - name: Commit page wiring
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html .github/workflows/install-app-icon.yml
+          if git diff --cached --quiet; then
+            echo "No favicon wiring changes needed."
+            exit 0
+          fi
+          git commit -m "Wire If I Can Shoot Rabbits favicon and app icon"
+          git push origin HEAD:main
