@@ -6,6 +6,29 @@
   const fallback={texture:art.texture,landmark:art.landmark,tree:art.tree,soldier:art.soldier,drawActor:art.drawActor};
   const images={},materials=new Map(),landmarks=new Map(),portraits=new Map();
   const costumes=[];
+  const missionSheets={cable:[],wigan:[],belzig:[]};
+
+  function activeMissionKey(){
+    try{
+      const launch=JSON.parse(sessionStorage.getItem('badfodder.launch.v1')||'null');
+      if(launch?.mode==='historical')return'cable';
+      if(launch?.mode==='select')return launch.index===1?'wigan':'belzig';
+    }catch(_){}
+    try{
+      const campaign=JSON.parse(localStorage.getItem('badfodder.campaign.v1')||'null');
+      return Number(campaign?.current)===1?'wigan':'belzig';
+    }catch(_){return'belzig'}
+  }
+
+  function tintedRow(rowIndex,color,alpha=.52){
+    const c=document.createElement('canvas');c.width=1024;c.height=160;const g=c.getContext('2d');
+    g.drawImage(images.troops,0,rowIndex*160,1024,160,0,0,1024,160);
+    g.globalCompositeOperation='source-atop';g.globalAlpha=alpha;g.fillStyle=color;
+    for(let d=0;d<8;d++)g.fillRect(d*128+24,48,82,79);
+    g.globalAlpha=1;g.globalCompositeOperation='source-over';
+    return c;
+  }
+
   function prepareCostumes(){
     if(!images.troops)return;
     const colors=['#547d93','#ad8755','#816e9f','#9f7055','#61745d','#a59a7c','#4d596b','#996e79','#223a4e','#282b2e'];
@@ -16,7 +39,14 @@
       for(let d=0;d<8;d++)g.fillRect(d*128+25,55,78,55);
       g.globalAlpha=1;g.globalCompositeOperation='source-over';costumes.push(c);
     }
+    const cable=['#52627a','#72594b','#6b665d','#5f6e5d'];
+    const wigan=['#727651','#7f7458','#666f52','#897e62'];
+    const belzig=['#5b6258','#6b5b4d','#4e5551','#756b5d'];
+    cable.forEach(color=>missionSheets.cable.push(tintedRow(2,color,.5)));
+    wigan.forEach(color=>missionSheets.wigan.push(tintedRow(0,color,.46)));
+    belzig.forEach((color,i)=>missionSheets.belzig.push(tintedRow(i%2===0?2:0,color,.5)));
   }
+
   const keys=['materials','troops','trees','landmarks','portraits'];
   let loading=null;
   art.paintedReady=false;
@@ -86,13 +116,11 @@
     const lean=state==='stumble'?.13:state==='hurt'?.07:0;
     ctx.save();
     ctx.translate(-Math.cos(facing)*recoil,-Math.sin(facing)*recoil);
-    if(lean){ctx.translate(16,24);ctx.rotate(lean);ctx.translate(-16,-24)}
+    if(lean){ctx.translate(16,24);ctx.rotate(lean);ctx.translate(-16,-26)}
     if(state==='dead'){
       const t=Math.min(1,death/.24);ctx.translate(16-t*6,26);ctx.rotate(t*1.42);ctx.scale(1,1-t*.28);ctx.translate(-16,-26);
       ctx.drawImage(sheet,sx,sy,128,160,-2,-16,36,44);
     }else{
-      // Two independently articulated painted legs overlap beneath the jacket.
-      // These source rectangles are cached artwork, not newly allocated canvases.
       const leg=side=>{
         ctx.save();const swing=step*side;
         ctx.translate(Math.cos(facing)*swing*.65,swing*1.6);
@@ -101,7 +129,6 @@
       };
       leg(step>0?-1:1);leg(step>0?1:-1);
       ctx.save();ctx.translate(0,bob);ctx.translate(16,15);ctx.rotate(walking?step*(running?.026:.018):0);ctx.translate(-16,-15);
-      // Torso stays planted while arms swing, aim, or release a grenade.
       ctx.drawImage(sheet,sx,sy,128,58,-2,-16,36,15.95);
       ctx.drawImage(sheet,sx+36,sy+58,56,61,8.125,-.05,15.75,16.775);
       for(const side of [-1,1]){
@@ -113,31 +140,65 @@
     }
     ctx.restore();
   }
+
+  function missionSheet(team,variant){
+    if(team!=='squad')return null;
+    const set=missionSheets[activeMissionKey()];
+    return set&&set.length?set[Math.abs(variant||0)%set.length]:null;
+  }
+
   art.drawActor=(ctx,ent,team='squad')=>{
     if(!images.troops)return fallback.drawActor(ctx,ent,team);
     const v=art.pose(ent),flinch=ent.hitTimer>0?Math.sin(Math.min(1,ent.hitTimer/.22)*Math.PI)*1.5:0;
+    const mission=activeMissionKey();
     ctx.save();ctx.fillStyle='#243c343d';ctx.beginPath();ctx.ellipse(ent.x,ent.y+2,8,2.7,0,0,Math.PI*2);ctx.fill();
     ctx.translate(ent.x+flinch,ent.y);
     const variant=Math.abs(ent.variant||0)%8;
-    if(team==='civilian'||ent.periodRole){ctx.scale(.92+(variant%3)*.05,.94+(variant%4)*.025)}
+    const missionCivilian=team==='squad'&&(mission==='cable'||(mission==='belzig'&&variant%2===0));
+    if(team==='civilian'||ent.periodRole||missionCivilian)ctx.scale(.92+(variant%3)*.05,.94+(variant%4)*.025);
     ctx.translate(-16,-26);
-    const sheet=costumes.length&&(team==='civilian'||ent.periodRole)?costumes[ent.periodRole==='police'?8:ent.periodRole==='march'?9:variant]:images.troops;
+    const themed=missionSheet(team,variant);
+    const sheet=themed||(costumes.length&&(team==='civilian'||ent.periodRole)?costumes[ent.periodRole==='police'?8:ent.periodRole==='march'?9:variant]:images.troops);
     drawTroop(ctx,team,v.dir,v.phase||0,v.state,v.clock||0,v.death||0,v.facing??ent.dir??0,sheet,v.moving,v.throwProgress);
-    if((team==='civilian'||ent.periodRole)&&v.state!=='dead'){
-      ctx.fillStyle=ent.periodRole==='police'?'#203546':ent.periodRole==='march'?'#282b2e':['#4c4c45','#735949','#514d54'][variant%3];
-      if(ent.periodRole==='police'||variant%3===1){ctx.beginPath();ctx.ellipse(16,-10,5.8,2,0,0,Math.PI*2);ctx.fill();ctx.fillRect(12,-14,8,4)}
-      else if(variant%3===2){ctx.fillRect(10,-10,12,2);ctx.fillRect(13,-15,6,5)}
+    if(v.state!=='dead'){
+      if(team==='civilian'||ent.periodRole||missionCivilian){
+        ctx.fillStyle=ent.periodRole==='police'?'#203546':ent.periodRole==='march'?'#282b2e':mission==='cable'?'#4e5151':['#4c4c45','#735949','#514d54'][variant%3];
+        if(ent.periodRole==='police'||variant%3===1){ctx.beginPath();ctx.ellipse(16,-10,5.8,2,0,0,Math.PI*2);ctx.fill();ctx.fillRect(12,-14,8,4)}
+        else if(variant%3===2){ctx.fillRect(10,-10,12,2);ctx.fillRect(13,-15,6,5)}
+      }
+      if(team==='squad'&&mission==='wigan'){
+        ctx.fillStyle='#686a50';ctx.beginPath();ctx.ellipse(16,-10.8,7.2,3.2,0,Math.PI,Math.PI*2);ctx.fill();ctx.fillRect(9.4,-11.3,13.2,2.1);
+      }else if(team==='squad'&&mission==='belzig'&&!missionCivilian&&variant%3!==0){
+        ctx.fillStyle='#55584d';ctx.beginPath();ctx.ellipse(16,-10.5,6.4,2.5,0,0,Math.PI*2);ctx.fill();
+      }
     }
     ctx.restore();
   };
+
+  function decoratePortrait(g,mission,variant){
+    if(mission==='wigan'){
+      g.fillStyle='#6d6e50';g.beginPath();g.ellipse(48,23,27,11,0,Math.PI,Math.PI*2);g.fill();g.fillRect(22,22,52,7);
+      g.fillStyle='#777659';g.fillRect(12,70,72,26);
+    }else if(mission==='belzig'){
+      g.fillStyle=['#5e6258','#6d5d50','#4f5652','#776c5e'][variant%4];g.fillRect(10,69,76,27);
+      if(variant%2){g.fillStyle='#55584d';g.beginPath();g.ellipse(48,24,22,7,0,0,Math.PI*2);g.fill();}
+    }else if(mission==='cable'){
+      g.fillStyle=['#52627a','#72594b','#6b665d','#5f6e5d'][variant%4];g.fillRect(9,68,78,28);
+      if(variant!==1){g.fillStyle='#41474b';g.beginPath();g.ellipse(48,23,23,6,0,0,Math.PI*2);g.fill();g.fillRect(30,17,35,7);}
+    }
+  }
+
   art.soldier=(team,dir,frame,state,variant=0)=>{
     if(!images.troops)return fallback.soldier(team,dir,frame,state,variant);
-    const key=[team,dir,state,variant].join('/');
+    const mission=activeMissionKey();
+    const key=[mission,team,dir,state,variant].join('/');
     if(!portraits.has(key)){
       const c=canvas(96,96),g=c.getContext('2d'),sx=((dir%8)+8)%8*128,sy=row(team)*160;
       g.imageSmoothingQuality='high';
-      if(team==='squad'&&images.portraits)g.drawImage(images.portraits,((variant%4)+4)%4*128,0,128,128,0,0,96,96);
-      else g.drawImage(images.troops,sx+29,sy+25,70,92,0,0,96,96);
+      if(team==='squad'&&images.portraits){
+        g.drawImage(images.portraits,((variant%4)+4)%4*128,0,128,128,0,0,96,96);
+        decoratePortrait(g,mission,Math.abs(variant)%4);
+      }else g.drawImage(images.troops,sx+29,sy+25,70,92,0,0,96,96);
       if(state==='dead'){g.globalCompositeOperation='source-atop';g.fillStyle='#253a3470';g.fillRect(0,0,96,96);g.globalCompositeOperation='source-over';}
       portraits.set(key,c);
     }
