@@ -1,4 +1,4 @@
-/* Native two-peer session and lazy multiplayer UI. No simulation runs on the joiner. */
+/* Native two-peer session with co-op UX, prediction and host-authoritative tactics. */
 (function(root,factory){const api=factory(root);if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.BadFodderCoopSession=api;})(typeof window!=='undefined'?window:globalThis,function(root){
  'use strict';
  function peer({host=false,RTC=root.RTCPeerConnection,onControl=()=>{},onState=()=>{},onOpen=()=>{},onLost=()=>{},iceServers=[{urls:'stun:stun.l.google.com:19302'}]}={}){
@@ -7,7 +7,7 @@
   function bind(channel){if(!['control','state'].includes(channel.label)){channel.close();return;}channels[channel.label]=channel;channel.onmessage=e=>(channel.label==='control'?onControl:onState)(e.data);channel.onopen=()=>{if(!opened&&channels.control?.readyState==='open'&&channels.state?.readyState==='open'){opened=true;onOpen();}};channel.onclose=()=>lost();}
   function lost(){if(!closing){closing=true;onLost();}}
   pc.ondatachannel=e=>bind(e.channel);
-  pc.onconnectionstatechange=()=>{if(['failed','closed'].includes(pc.connectionState))lost();if(pc.connectionState==='disconnected'){const t=setTimeout(()=>{timers.delete(t);if(pc.connectionState==='disconnected')lost();},4000);timers.add(t);}};
+  pc.onconnectionstatechange=()=>{if(['failed','closed'].includes(pc.connectionState))lost();if(pc.connectionState==='disconnected'){const t=setTimeout(()=>{timers.delete(t);if(pc.connectionState==='disconnected')lost();},5000);timers.add(t);}};
   if(host){bind(pc.createDataChannel('control',{ordered:true}));bind(pc.createDataChannel('state',{ordered:false,maxRetransmits:0}));}
   async function description(type){await pc.setLocalDescription(await (type==='offer'?pc.createOffer():pc.createAnswer()));if(pc.iceGatheringState!=='complete')await new Promise(resolve=>{const t=setTimeout(done,8000);function done(){clearTimeout(t);pc.removeEventListener('icegatheringstatechange',change);resolve();}function change(){if(pc.iceGatheringState==='complete')done();}pc.addEventListener('icegatheringstatechange',change);});return {type:pc.localDescription.type,sdp:pc.localDescription.sdp};}
   function send(label,raw){const ch=channels[label];if(!ch||ch.readyState!=='open'||ch.bufferedAmount>131072)return false;try{ch.send(raw);return true;}catch{return false;}}
@@ -19,99 +19,114 @@
  };
  if(!root.document)return {peer,manual};
  const P=root.BadFodderCoopProtocol,C=root.BadFodderCommands,B=root.BadFodderCoopBridge,S=root.BadFodderCoopSignalling;
- let connection=null,signalling=null,mode='local',ready=false,seq=0,lastSeq=-1,nextSnapshot=0,lastSeen=0,connectTimer=0,pollTimer=0,heartbeat=0,lastPing=0,room='',started=false,generation=0,awaitingReady=false;
- let target=null,current=null,stick={units:[],x:0,y:0,at:0},localStick=null,lastStick=0,lastFire=0,remoteLimit=P.limiter(),panel=null,statusEl=null,retry=null;
- const now=()=>performance.now();
+ let connection=null,signalling=null,mode='local',ready=false,seq=0,lastSeq=-1,nextSnapshot=0,lastSeen=0,connectTimer=0,pollTimer=0,heartbeat=0,lastPing=0,room='',started=false,generation=0;
+ let current=null,previous=null,snapshotAt=0,snapshotSpan=75,stick={units:[],x:0,y:0,at:0},localStick=null,lastStick=0,lastFire=0,remoteLimit=P.limiter(),panel=null,statusEl=null,retry=null;
+ let localReady=false,remoteReady=false,lobbyConnected=false,pingSeq=0,latency=0,lastHudPaint=0,pendingPing=null,combatHotUntil=0,moveHotUntil=0,tacticClock=0,nextCrossfire=0,nextCover=0,nextSplit=0,nextRescue=0,nextCheckpointCall=0;
+ const predictedMoves=new Map(),PING_TYPES=new Set(['move','enemy','defend','help']);
+ const now=()=>performance.now(),clamp=(n,a,b)=>Math.max(a,Math.min(b,n)),localPlayer=()=>mode==='client'?2:1,remotePlayer=()=>mode==='client'?1:2;
  function status(text){if(statusEl)statusEl.textContent=text;if(panel&&by('coopRetry'))by('coopRetry').hidden=!/COULD NOT|UNAVAILABLE|NOT CONFIGURED|DISCONNECTED/.test(text);B.status(text);}
  function send(packet,reliable=true){try{return connection?.[reliable?'sendControl':'sendState'](P.encode(packet))||false;}catch{return false;}}
- function stopTransport(){generation++;clearTimeout(connectTimer);clearInterval(pollTimer);clearInterval(heartbeat);connection?.close();connection=null;void signalling?.cleanup();signalling=null;ready=false;started=false;awaitingReady=false;stick={units:[],x:0,y:0,at:0};localStick=null;target=current=null;}
+ function injectStyle(){if(root.document.getElementById('coopExperienceStyle'))return;const s=root.document.createElement('style');s.id='coopExperienceStyle';s.textContent=`
+  #coopLiveHud{position:absolute;inset:0;z-index:8;pointer-events:none;font:800 11px system-ui,sans-serif;color:#f4e7bd;text-shadow:0 1px 2px #000}
+  #coopQuality{position:absolute;left:10px;top:54px;padding:5px 7px;background:#152019d9;border:1px solid #78845a;border-radius:3px;letter-spacing:.08em}
+  #coopTeammate{position:absolute;right:10px;top:54px;display:flex;align-items:center;gap:6px;padding:5px 8px;background:#152019d9;border:1px solid #78845a;border-radius:3px}
+  #coopTeammateArrow{display:inline-block;font-size:17px;transform-origin:center}
+  #coopToast{position:absolute;left:50%;top:18%;transform:translateX(-50%);min-width:180px;max-width:70%;padding:8px 12px;text-align:center;background:#161d17ed;border:1px solid #96885d;opacity:0;transition:opacity .16s ease}
+  #coopToast.show{opacity:1}
+  #coopPingControl{position:absolute;left:12px;bottom:96px;pointer-events:auto}
+  #coopPingButton{min-width:58px;min-height:38px;padding:5px 8px;border-radius:4px;background:#293728e8;border:1px solid #9a8e62;color:#f5e7b5;font:900 10px "Courier New",monospace}
+  #coopPingMenu{position:absolute;left:0;bottom:44px;display:none;grid-template-columns:1fr 1fr;gap:5px;width:220px;padding:7px;background:#172119f2;border:1px solid #817b58}
+  #coopPingMenu.open{display:grid}#coopPingMenu button{min-height:36px;padding:5px;font:800 9px system-ui,sans-serif}
+  #coopMarker{position:absolute;left:50%;top:27%;transform:translate(-50%,-50%);padding:6px 9px;background:#2a2118e8;border:1px solid #d4b96d;opacity:0;transition:opacity .18s ease}
+  #coopMarker.show{opacity:1}
+  .hud-unit.coop-local{box-shadow:inset 0 0 0 1px rgba(235,209,113,.85)!important}.hud-unit.coop-remote{opacity:.9;border-style:dashed!important}.coop-owner{float:right;font:900 8px system-ui,sans-serif;color:#f0d064;margin-left:3px}
+  #coopLobby{width:min(560px,94vw);padding:10px;border:1px solid #6f7652;background:#20291fe8}#coopLobby[hidden]{display:none}.coop-lobby-roster{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:8px 0}.coop-lobby-unit{text-align:center;padding:6px;background:#182018;border:1px solid #596145;font-size:10px}.coop-lobby-unit canvas{display:block;width:52px;height:52px;margin:0 auto 4px;background:#111}.coop-lobby-ready{text-align:center;font-size:11px;margin:6px 0}
+  @media(max-width:720px){#coopQuality{top:48px;font-size:9px}#coopTeammate{top:48px;font-size:9px}#coopPingControl{left:9px;bottom:82px}#coopPingButton{min-width:52px;min-height:34px}#coopPingMenu{width:200px}.coop-lobby-roster{grid-template-columns:repeat(2,1fr)}}
+ `;root.document.head.appendChild(s);}
+ function liveHud(){injectStyle();let hud=root.document.getElementById('coopLiveHud');if(hud)return hud;hud=root.document.createElement('div');hud.id='coopLiveHud';hud.innerHTML='<div id="coopQuality">● CONNECTING</div><div id="coopTeammate"><span id="coopTeammateArrow">➤</span><span id="coopTeammateText">TEAMMATE</span></div><div id="coopToast"></div><div id="coopMarker"></div><div id="coopPingControl"><button id="coopPingButton" type="button">PING</button><div id="coopPingMenu"><button data-ping="move">MOVE HERE</button><button data-ping="enemy">ENEMY HERE</button><button data-ping="defend">DEFEND HERE</button><button data-ping="help">HELP!</button></div></div>';root.document.querySelector('.viewport')?.appendChild(hud);const btn=hud.querySelector('#coopPingButton'),menu=hud.querySelector('#coopPingMenu');btn.onclick=e=>{e.stopPropagation();menu.classList.toggle('open')};menu.querySelectorAll('[data-ping]').forEach(b=>b.onclick=e=>{e.stopPropagation();setPing(b.dataset.ping);menu.classList.remove('open')});return hud;}
+ let toastTimer=0,markerTimer=0;
+ function showToast(text){const el=liveHud().querySelector('#coopToast');el.textContent=text;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2200);}
+ function center(list){const live=list.filter(u=>u?.alive);if(!live.length)return null;return{x:live.reduce((n,u)=>n+u.x,0)/live.length,y:live.reduce((n,u)=>n+u.y,0)/live.length};}
+ function groups(){const squad=B.squad(),p1=squad.slice(0,2),p2=squad.slice(2,4);return{p1,p2,own:mode==='client'?p2:p1,other:mode==='client'?p1:p2};}
+ function showMarker(kind,x,y,from=remotePlayer()){
+  const own=center(groups().own),d=own?Math.hypot(x-own.x,y-own.y):0,a=own?Math.atan2(y-own.y,x-own.x):0,labels={move:'MOVE HERE',enemy:'ENEMY HERE',defend:'DEFEND HERE',help:'HELP!'};const el=liveHud().querySelector('#coopMarker');el.textContent='P'+from+' · '+labels[kind]+' · '+Math.round(d)+'m '+(d>40?'➤':'');el.style.transform='translate(-50%,-50%) rotate(0deg)';el.classList.add('show');clearTimeout(markerTimer);markerTimer=setTimeout(()=>el.classList.remove('show'),3200);if(from!==localPlayer())showToast('P'+from+' · '+labels[kind]);return a;
+ }
+ function sendMarker(kind,x,y){if(!PING_TYPES.has(kind)||!Number.isFinite(x)||!Number.isFinite(y))return false;const size=B.size();if(x<0||y<0||x>size.w||y>size.h)return false;showMarker(kind,x,y,localPlayer());return send({v:1,t:'mark',kind,x,y,from:localPlayer()});}
+ function setPing(kind){if(!PING_TYPES.has(kind))return;if(kind==='help'){const c=center(groups().own);if(c)sendMarker('help',c.x,c.y);return;}pendingPing=kind;status('PING '+kind.toUpperCase()+': tap/click a battlefield location.');}
+ function updateQuality(){const el=liveHud().querySelector('#coopQuality');const q=!latency?'CONNECTING':latency<90?'GOOD':latency<180?'FAIR':'POOR';el.textContent='● '+q+(latency?' · '+Math.round(latency)+'ms':'');}
+ function decorateHud(){root.document.querySelectorAll('.hud-unit').forEach((el,i)=>{el.classList.toggle('coop-local',C.owns(i));el.classList.toggle('coop-remote',!C.owns(i));let tag=el.querySelector('.coop-owner');if(!tag){tag=root.document.createElement('span');tag.className='coop-owner';el.prepend(tag)}tag.textContent='P'+(i<2?1:2)});}
+ function updateTeammate(){const own=center(groups().own),other=center(groups().other),el=liveHud().querySelector('#coopTeammate'),arrow=el.querySelector('#coopTeammateArrow'),txt=el.querySelector('#coopTeammateText');if(!other){txt.textContent='P'+remotePlayer()+' · KIA';arrow.textContent='✕';arrow.style.transform='none';return}const d=own?Math.hypot(other.x-own.x,other.y-own.y):0,a=own?Math.atan2(other.y-own.y,other.x-own.x):0,otherUnits=groups().other;const state=otherUnits.some(u=>(u.fireTimer||0)>0)?'FIRING':otherUnits.some(u=>u.manualGarrison||u.checkpointCover)?'HOLDING':otherUnits.some(u=>['walk','run'].includes(u.state))?'MOVING':'';arrow.textContent='➤';arrow.style.transform='rotate('+a+'rad)';txt.textContent='P'+remotePlayer()+(state?' · '+state:'')+' · '+Math.round(d)+'m';}
+ function experienceFrame(){if(mode==='local'||!started)return;const t=now();if(t-lastHudPaint<120)return;lastHudPaint=t;decorateHud();updateQuality();updateTeammate();}
+ function lobby(){injectStyle();if(!panel)return null;let box=by('coopLobby');if(box)return box;box=root.document.createElement('section');box.id='coopLobby';box.hidden=true;box.innerHTML='<div class="coop-lobby-ready" id="coopLobbyState">CONNECTED</div><div class="coop-lobby-roster" id="coopLobbyRoster"></div><button id="coopReady" class="menu-button">READY</button>';by('coopStatus').insertAdjacentElement('afterend',box);by('coopReady').onclick=readyUp;return box;}
+ async function renderLobby(){const box=lobby();if(!box)return;box.hidden=!lobbyConnected;if(!lobbyConnected)return;const roster=by('coopLobbyRoster');if(!roster.children.length){const squad=B.squad();for(let i=0;i<4;i++){const card=root.document.createElement('div');card.className='coop-lobby-unit';const cv=root.document.createElement('canvas');cv.width=72;cv.height=72;const name=root.document.createElement('div');name.textContent='P'+(i<2?1:2)+' · '+(squad[i]?.name||('SOLDIER '+(i+1)));card.append(cv,name);roster.appendChild(card);try{await root.BadFodderArt?.preloadMissionArt?.(B.map());const image=root.BadFodderArt?.missionPortrait?.(B.map(),i,'idle');if(image)cv.getContext('2d').drawImage(image,0,0,72,72)}catch{}}}by('coopLobbyState').textContent='P1 '+(mode==='host'&&localReady||mode==='client'&&remoteReady?'READY':'WAITING')+'  ·  P2 '+(mode==='client'&&localReady||mode==='host'&&remoteReady?'READY':'WAITING');by('coopReady').disabled=localReady;by('coopReady').textContent=localReady?'READY ✓':'READY';}
+ function maybeStartLobby(){if(mode==='host'&&lobbyConnected&&localReady&&remoteReady&&!started){send({v:1,t:'go'});void run();}}
+ function readyUp(){if(!lobbyConnected||localReady)return;localReady=true;send({v:1,t:'lobby-ready',player:localPlayer()});void renderLobby();maybeStartLobby();}
+ function resetExperience(){localReady=false;remoteReady=false;lobbyConnected=false;pendingPing=null;predictedMoves.clear();previous=current=null;snapshotAt=0;const h=root.document.getElementById('coopLiveHud');if(h)h.remove();lastHudPaint=0;}
+ function stopTransport(){generation++;clearTimeout(connectTimer);clearInterval(pollTimer);clearInterval(heartbeat);connection?.close();connection=null;void signalling?.cleanup();signalling=null;ready=false;started=false;stick={units:[],x:0,y:0,at:0};localStick=null;resetExperience();}
  function leave(){stopTransport();mode='local';C.configure();panel?.remove();panel=null;}
- function lost(){const previous=mode;stopTransport();status(previous==='host'?'PLAYER 2 DISCONNECTED':'HOST DISCONNECTED');if(previous==='host'){ready=true;started=true;B.disconnect(1);}else{mode='local';B.disconnect(0);status('HOST DISCONNECTED');}}
+ function lost(){const previousMode=mode;stopTransport();status(previousMode==='host'?'PLAYER 2 DISCONNECTED':'HOST DISCONNECTED');if(previousMode==='host'){ready=true;started=true;B.disconnect(1);}else{mode='local';B.disconnect(0);status('HOST DISCONNECTED');}}
  function connectingTimeout(){clearTimeout(connectTimer);const gen=generation;connectTimer=setTimeout(()=>{if(gen!==generation||connection?.connected)return;stopTransport();mode='local';C.configure();status('DIRECT CONNECTION COULD NOT BE ESTABLISHED. TRY AGAIN or RETURN TO MENU.');},25000);}
- function makePeer(host){stopTransport();const gen=generation;mode=host?'host':'client';remoteLimit=P.limiter();seq=0;lastSeq=-1;nextSnapshot=0;
-  connection=peer({host,onControl:raw=>{if(gen===generation)control(raw);},onState:raw=>{if(gen===generation)receive(raw);},onOpen:()=>{if(gen!==generation)return;clearTimeout(connectTimer);clearInterval(pollTimer);lastSeen=now();status('PLAYER 2 CONNECTED');
-   heartbeat=setInterval(()=>{if(started&&now()-lastSeen>12000){lost();return;}if(now()-lastPing>1000){lastPing=now();send({t:'ping',v:1});}if(mode==='host'&&ready)flush();},100);
-   if(host)send({t:'hello',v:1,mission:B.map()});
+ function makePeer(host){stopTransport();const gen=generation;mode=host?'host':'client';remoteLimit=P.limiter();seq=0;lastSeq=-1;nextSnapshot=0;localReady=false;remoteReady=false;
+  connection=peer({host,onControl:raw=>{if(gen===generation)control(raw);},onState:raw=>{if(gen===generation)receive(raw);},onOpen:()=>{if(gen!==generation)return;clearTimeout(connectTimer);clearInterval(pollTimer);lastSeen=now();lobbyConnected=true;status('PLAYER 2 CONNECTED · BOTH PLAYERS PRESS READY');void renderLobby();
+   heartbeat=setInterval(()=>{if(started&&now()-lastSeen>14000){lost();return;}if(now()-lastPing>1000){lastPing=now();send({v:1,t:'ping',id:++pingSeq,at:now()});}},100);
+   if(host)send({v:1,t:'hello',mission:B.map()});
   },onLost:()=>{if(gen===generation)lost();}});
   connectTimer=setTimeout(()=>{if(gen!==generation)return;stopTransport();mode='local';C.configure();status('DIRECT CONNECTION COULD NOT BE ESTABLISHED. TRY AGAIN or RETURN TO MENU.');},900000);
   return connection;
  }
- async function run(){const gen=generation;status('STARTING MISSION');C.configure(mode,command);try{await B.start(mode);if(gen!==generation)return;started=true;ready=true;lastSeen=now();panel.hidden=true;panel.style.display='none';if(mode==='client')send({t:'ready',v:1});else{send({t:'start',v:1});flush(true);}void signalling?.cleanup();}catch(e){lost();status(e.message);}}
+ async function run(){const gen=generation;status('STARTING MISSION');C.configure(mode,command);try{await B.start(mode);if(gen!==generation)return;started=true;ready=true;lastSeen=now();if(panel){panel.hidden=true;panel.style.display='none'}liveHud();decorateHud();void signalling?.cleanup();if(mode==='host')flush(true);}catch(e){lost();status(e.message);}}
+ function validMark(p){const size=B.size();return p&&PING_TYPES.has(p.kind)&&[p.x,p.y].every(Number.isFinite)&&p.x>=0&&p.y>=0&&p.x<=size.w&&p.y<=size.h&&(p.from===1||p.from===2);}
  async function control(raw){const p=P.parse(raw);if(!p||p.v!==1)return;lastSeen=now();
-  if(p.t==='ping')return;
-  if(p.t==='hello'&&mode==='client'&&p.mission===B.map()&&!started&&!awaitingReady){awaitingReady=true;await run();return;}
-  if(p.t==='ready'&&mode==='host'&&!started&&!awaitingReady){awaitingReady=true;await run();return;}
-  if(p.t==='start'&&mode==='client'){ready=true;return;}
-  if(p.t==='restart'&&mode==='client'&&started){ready=false;target=current=null;lastSeq=-1;await run();return;}
+  if(p.t==='ping'){send({v:1,t:'pong',id:p.id,at:p.at});return}
+  if(p.t==='pong'){if(Number.isFinite(p.at))latency=latency?latency*.7+(now()-p.at)*.3:now()-p.at;updateQuality();return}
+  if(p.t==='hello'&&mode==='client'&&p.mission===B.map()){lobbyConnected=true;status('PLAYER 1 CONNECTED · BOTH PLAYERS PRESS READY');void renderLobby();return}
+  if(p.t==='lobby-ready'){remoteReady=true;void renderLobby();maybeStartLobby();return}
+  if(p.t==='go'&&mode==='client'&&!started){void run();return}
+  if(p.t==='restart'&&mode==='client'&&started){ready=false;previous=current=null;lastSeq=-1;await run();return}
+  if(p.t==='mark'&&validMark(p)){showMarker(p.kind,p.x,p.y,p.from);return}
+  if(p.t==='order'){showOrder(p.player,p.order);return}
+  if(p.t==='announce'&&typeof p.text==='string'&&p.text.length<80){showToast(p.text);return}
   if(p.t==='command'&&mode==='host'&&ready&&remoteLimit(now()))acceptCommand(p.c,1);
   if(p.t==='state'&&mode==='client')receive(raw);
  }
+ function orderSummary(c){if(c.type==='move')return'MOVING';if(c.type==='garrison')return'GARRISONED';if(c.type==='release')return'RELEASED';if(c.type==='grenade')return'GRENADE';if(c.type==='fire')return'FIRING';return'';}
+ function showOrder(player,c){if(!c)return;const label=orderSummary(c);if(!label)return;if(player!==localPlayer())showToast('P'+player+' · '+label);if(Number.isFinite(c.x)&&Number.isFinite(c.y)&&['move','grenade'].includes(c.type))showMarker(c.type==='move'?'move':'enemy',c.x,c.y,player);}
+ function publishOrder(player,c){if(mode==='host'&&player===0)send({v:1,t:'order',player:1,order:{type:c.type,x:c.x,y:c.y,units:c.units}});if(mode==='host'&&player===1)showOrder(2,c);}
  function acceptCommand(c,player){if(!P.validCommand(c,{player,squad:B.squad(),active:B.active(),...B.size()}))return false;
-  if(c.type==='stick'){if(player===1)stick={...c,at:now()};return true;}
+  if(c.type==='stick'){if(player===1)stick={...c,at:now()};moveHotUntil=now()+500;return true;}
   if(['move','garrison','release','grenade'].includes(c.type)){if(player===1)stick={units:[],x:0,y:0,at:0};else localStick=null;}
-  B.execute(c);flush(['grenade','garrison','release'].includes(c.type));return true;
+  const result=B.execute(c);if(result===false)return false;publishOrder(player,c);if(['fire','grenade'].includes(c.type))combatHotUntil=now()+1600;if(c.type==='move')moveHotUntil=now()+1200;flush(['fire','grenade','garrison','release'].includes(c.type));return true;
  }
- function command(c,local=false){if(!ready)return false;if(local)return acceptCommand(c,0);
-  const t=now();if(c.type==='fire'){if(t-lastFire<80)return false;lastFire=t;}
-  return send({v:1,t:'command',c});
+ function command(c,local=false){if(!ready)return false;if(pendingPing&&Number.isFinite(c?.x)&&Number.isFinite(c?.y)){const kind=pendingPing;pendingPing=null;sendMarker(kind,c.x,c.y);status('PING SENT');return true}if(local)return acceptCommand(c,0);
+  const t=now();if(c.type==='fire'){if(t-lastFire<60)return false;lastFire=t;combatHotUntil=t+1200}if(c.type==='move'){for(const id of c.units||[])predictedMoves.set(id,{x:c.x,y:c.y,at:t,until:t+900});moveHotUntil=t+1000}if(['garrison','release','grenade'].includes(c.type))combatHotUntil=t+900;return send({v:1,t:'command',c});
  }
  function joystick(touch){const units=C.units(B.squad(),'all').filter(s=>s.selected).map(s=>B.squad().indexOf(s)),x=touch.moveX||0,y=touch.moveY||0;
-  if(mode==='host'){localStick={units,x,y};return;}
-  if(now()-lastStick<80)return;lastStick=now();command({type:'stick',units,x,y});
+  if(mode==='host'){localStick={units,x,y};moveHotUntil=now()+500;return;}
+  localStick={units,x,y,at:now()};if(now()-lastStick<50)return;lastStick=now();command({type:'stick',units,x,y});
  }
  function releaseStick(){localStick=null;if(mode==='client'&&ready){const units=C.units(B.squad(),'all').map(s=>B.squad().indexOf(s));if(units.length)command({type:'stick',units,x:0,y:0});}}
- function remoteStep(dt){if(mode!=='host'||!ready||!B.active())return;if(localStick)B.stick(localStick.units,localStick.x,localStick.y,dt);if(now()-stick.at<300)B.stick(stick.units,stick.x,stick.y,dt);}
+ function coopTactics(dt){if(mode!=='host'||!ready||!B.active())return;tacticClock+=dt;if(tacticClock<.22)return;tacticClock=0;const s=B.capture(),p1=s.squad.slice(0,2).filter(u=>u.alive),p2=s.squad.slice(2,4).filter(u=>u.alive),c1=center(p1),c2=center(p2),en=s.enemies.filter(e=>e.alive);if(!c1||!c2)return;const t=now(),f1=p1.some(u=>(u.fireTimer||0)>0),f2=p2.some(u=>(u.fireTimer||0)>0),m1=p1.some(u=>['walk','run'].includes(u.state)),m2=p2.some(u=>['walk','run'].includes(u.state));
+  if(f1&&f2&&t>nextCrossfire){const target=en.find(e=>Math.hypot(e.x-c1.x,e.y-c1.y)<340&&Math.hypot(e.x-c2.x,e.y-c2.y)<340);if(target){const a1=Math.atan2(c1.y-target.y,c1.x-target.x),a2=Math.atan2(c2.y-target.y,c2.x-target.x),angle=Math.abs(Math.atan2(Math.sin(a1-a2),Math.cos(a1-a2)));if(angle>.75){for(const e of en)if(Math.hypot(e.x-target.x,e.y-target.y)<150){e.cooldown=Math.max(e.cooldown||0,.25);e.tacticTimer=Math.max(e.tacticTimer||0,.35)}announce('CROSSFIRE · ENEMY SUPPRESSED');nextCrossfire=t+7000;}}}
+  if(t>nextCover&&((f1&&m2)||(f2&&m1))){const advancing=f1&&m2?p2:p1;for(const u of advancing)u.damageGrace=Math.max(u.damageGrace||0,.14);announce('COVERING FIRE · ADVANCE');nextCover=t+8000;}
+  const separation=Math.hypot(c1.x-c2.x,c1.y-c2.y);if(separation>420&&t>nextSplit&&en.length>5){const target=Math.random()<.5?c1:c2;for(const e of en.sort((a,b)=>Math.hypot(a.x-target.x,a.y-target.y)-Math.hypot(b.x-target.x,b.y-target.y)).slice(0,Math.min(3,en.length))){e.alert=true;e.lastSeen={x:target.x,y:target.y};e.repath=0;e.tacticalPoint=null}announce('ENEMY FORCE SPLITTING · WATCH BOTH FRONTS');nextSplit=t+14000;}
+  const hp=g=>g.reduce((n,u)=>n+Math.max(0,u.hp||0),0)/Math.max(1,g.reduce((n,u)=>n+(u.maxHp||8),0)),weak=hp(p1)<.35||hp(p2)<.35||p1.length===1||p2.length===1;if(weak&&t>nextRescue){const struggling=hp(p1)<hp(p2)?p1:p2,strong=struggling===p1?p2:p1,strongCenter=center(strong);for(const u of struggling)u.damageGrace=Math.max(u.damageGrace||0,.24);if(strongCenter)for(const e of en.sort((a,b)=>Math.hypot(a.x-strongCenter.x,a.y-strongCenter.y)-Math.hypot(b.x-strongCenter.x,b.y-strongCenter.y)).slice(0,2)){e.lastSeen={x:strongCenter.x,y:strongCenter.y};e.repath=0}announce('TEAMMATE UNDER PRESSURE · COVER THEM');nextRescue=t+12000;}
+  if(s.checkpoint?.started&&!s.checkpoint.cleared&&t>nextCheckpointCall){const near1=en.filter(e=>Math.hypot(e.x-c1.x,e.y-c1.y)<230).length,near2=en.filter(e=>Math.hypot(e.x-c2.x,e.y-c2.y)<230).length;announce('FLANK THREAT · P'+(near1>near2?1:2)+' SIDE');nextCheckpointCall=t+10000;}
+ }
+ function remoteStep(dt){if(mode!=='host'||!ready||!B.active())return;if(localStick)B.stick(localStick.units,localStick.x,localStick.y,dt);if(now()-stick.at<300)B.stick(stick.units,stick.x,stick.y,dt);coopTactics(dt);flush();}
  function garrison(){const units=B.squad().map((s,i)=>s.alive&&s.selected&&C.owns(i)?i:-1).filter(i=>i>=0);if(units.length!==1){status('Select one soldier to garrison.');return false;}command({type:B.squad()[units[0]].manualGarrison?'release':'garrison',units},mode==='host');return true;}
- function flush(force=false){if(mode!=='host'||!ready||!connection?.connected)return;const t=now();if(!force&&t<nextSnapshot)return;nextSnapshot=t+100;const packet=P.snapshot(B.capture(),seq++);send(packet,force||packet.done);}
- function receive(raw){if(mode!=='client'||!started)return;const p=P.parse(raw);if(!p||p.seq<=lastSeq)return;const state=P.readSnapshot(p);if(!state)return;lastSeen=now();lastSeq=p.seq;target=state;
-  if(!current){current=state;}else{for(const key of ['squad','enemies','civilians'])for(let i=0;i<state[key].length;i++){const old=current[key][i];if(old&&state[key][i].alive){state[key][i]._fromX=(old._fromX??old.x);state[key][i]._fromY=(old._fromY??old.y);}}current=state;}
-  B.receive(current);
- }
- function clientFrame(dt){if(mode!=='client'||!started)return;
-  if(target){const k=1-Math.exp(-dt*24);for(const key of ['squad','enemies','civilians'])for(const e of current[key])if(e.alive&&Number.isFinite(e._fromX)){e._fromX+=(e.x-e._fromX)*k;e._fromY+=(e.y-e._fromY)*k;}}
-  // Renderer receives interpolated positions; authoritative target positions remain separate.
-  if(current){const state={...current};for(const key of ['squad','enemies','civilians'])state[key]=current[key].map(e=>({...e,x:e._fromX??e.x,y:e._fromY??e.y}));B.receive(state,false);}
-  B.frame(dt);
- }
- function restart(){if(mode!=='host'){status('PLAYER 1 STARTS THE NEXT ATTEMPT');return;}ready=false;send({t:'restart',v:1});started=false;awaitingReady=false;void run();}
- function by(id){return panel.querySelector('#'+id);}
- async function host(manualMode=false){
-  retry=()=>host(manualMode);
-  const mission=by('coopMission').value;if(!B.choose(mission,{action:'host',manual:manualMode}))return;
-  let pc,gen;try{pc=makePeer(true);gen=generation;status('CREATING ROOM...');
-   const offer=await pc.offer();if(gen!==generation)return;
-   const value={v:1,mission,expires:Date.now()+S.TTL,sdp:offer};
-   by('coopOutgoing').value=manual.encode(value);by('coopManualFields').hidden=!manualMode;
-   if(manualMode){status('SEND CONNECTION CODE TO PLAYER 2. Paste their reply below.');return;}
-   const signal=S.create();signalling=signal;const created=await signal.createRoom(mission,offer);if(gen!==generation){await signal.cleanup();return;}room=created;
-   status('ROOM: '+room+' · WAITING FOR PLAYER 2');by('coopRoom').value=room;
-   pollTimer=setInterval(async()=>{try{const data=await signal.read(created);if(gen!==generation)return;if(data.answer){clearInterval(pollTimer);await pc.accept(data.answer);connectingTimeout();status('CONNECTING...');}}catch(e){if(gen===generation){clearInterval(pollTimer);status(e.message);}}},1200);
-  }catch(e){if(gen===undefined||gen===generation){by('coopManualFields').hidden=false;status(e.message);}}
- }
- async function join(code){
-  retry=()=>join(code);
-  status('FINDING ROOM...');const requestGen=generation,signal=S.create();try{
-   await signal.initialise();const data=await signal.read(code.toUpperCase().trim());if(requestGen!==generation)return;
-   if(!B.choose(data.mission,{action:'join',room:code})){void signal.cleanup();return;}
-   await signal.joinRoom(code.toUpperCase().trim());if(requestGen!==generation)return;const pc=makePeer(false),gen=generation;signalling=signal;status('CONNECTING...');const answer=await pc.answer(data.offer);if(gen!==generation)return;await signal.answer(answer);connectingTimeout();
-  }catch(e){if(requestGen===generation&&panel){status(e.message);by('coopManualFields').hidden=false;}}
- }
- async function applyManual(){try{const value=manual.decode(by('coopIncoming').value);
-  if(value.sdp.type==='offer'){
-   if(!B.choose(value.mission,{action:'manual',code:by('coopIncoming').value}))return;
-   const pc=makePeer(false),gen=generation,answer=await pc.answer(value.sdp);if(gen!==generation)return;by('coopOutgoing').value=manual.encode({...value,sdp:answer});status('SEND REPLY CODE TO PLAYER 1');
-  }else{if(mode!=='host'||!connection||value.mission!==B.map())throw new Error('HOST A GAME FIRST');await connection.accept(value.sdp);connectingTimeout();status('CONNECTING...');}
- }catch(e){status(e.message);}}
- function open(){
-  if(started){B.menu();}
-  if(panel){panel.hidden=false;panel.style.display='flex';return;}
-  panel=root.document.createElement('section');panel.id='coopPanel';panel.setAttribute('role','dialog');panel.setAttribute('aria-label','Multiplayer');panel.style.cssText='position:absolute;inset:0;z-index:30;background:#19201ef5;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;overflow:auto;color:#ece5cf;gap:10px;font:14px system-ui';
-  panel.innerHTML=`<h2 style="margin:0">MULTIPLAYER</h2><div>2 PLAYERS · 2 SOLDIERS EACH</div><label>MISSION <select id="coopMission"><option value="bad-belzig">Bad Belzig</option><option value="wigan">Wigan</option></select></label><div><button id="coopHost" class="menu-button">HOST GAME</button><button id="coopJoin" class="menu-button">JOIN GAME</button></div><label>ROOM CODE <input id="coopRoom" autocomplete="off" maxlength="32" placeholder="RABBIT-..." style="width:220px"></label><p id="coopStatus" role="status" style="max-width:520px;text-align:center;margin:0;min-height:38px"></p><button id="coopRetry" class="menu-button" hidden>TRY AGAIN</button><button id="coopManual" class="menu-button">MANUAL CONNECTION</button><div id="coopManualFields" hidden style="max-width:520px;width:100%"><small>Host sends a connection code. Joiner pastes it and sends the reply back.</small><button id="coopManualHost" class="menu-button">CREATE CONNECTION CODE</button><label style="display:block">SEND THIS CODE<textarea id="coopOutgoing" readonly style="width:100%;height:48px"></textarea></label><label style="display:block">PASTE RECEIVED CODE<textarea id="coopIncoming" style="width:100%;height:48px"></textarea></label><button id="coopApply" class="menu-button">CONNECT WITH CODE</button></div><button id="coopReturn" class="menu-button">RETURN TO MENU</button>`;
-  root.document.querySelector('.viewport').appendChild(panel);statusEl=by('coopStatus');by('coopMission').value=['bad-belzig','wigan'].includes(B.map())?B.map():'bad-belzig';
-  by('coopRetry').onclick=()=>retry?.();by('coopHost').onclick=()=>host();by('coopJoin').onclick=()=>join(by('coopRoom').value);by('coopManual').onclick=()=>{by('coopManualFields').hidden=false;status('Use a manual connection when room codes are unavailable.');};by('coopManualHost').onclick=()=>host(true);by('coopApply').onclick=applyManual;by('coopReturn').onclick=()=>B.menu();
-  let resume=null;try{resume=JSON.parse(root.sessionStorage.getItem('badfodder.coop.resume')||'null');}catch{}root.sessionStorage.removeItem('badfodder.coop.resume');if(resume?.action==='host')void host(!!resume.manual);if(resume?.action==='join'){by('coopRoom').value=resume.room;void join(resume.room);}if(resume?.action==='manual'){by('coopManualFields').hidden=false;by('coopIncoming').value=resume.code;void applyManual();}
- }
- root.BadFodderCoop={open,leave,command,joystick,releaseStick,remoteStep,clientFrame,garrison,flush,restart,peer,manual,get mode(){return mode}};
+ function snapshotInterval(state){const t=now(),hot=t<combatHotUntil||(state.bullets?.length||0)>2||(state.thrown?.length||0)>0,moving=t<moveHotUntil||state.squad?.some(u=>['walk','run'].includes(u.state))||state.enemies?.some(u=>['walk','run'].includes(u.state));return hot?50:moving?67:110;}
+ function flush(force=false){if(mode!=='host'||!ready||!connection?.connected)return;const t=now(),state=B.capture(),interval=snapshotInterval(state);if(!force&&t<nextSnapshot)return;nextSnapshot=t+interval;const packet=P.snapshot(state,seq++);send(packet,force||packet.done);}
+ function receive(raw){if(mode!=='client'||!started)return;const p=P.parse(raw);if(!p||p.seq<=lastSeq)return;const state=P.readSnapshot(p);if(!state)return;const t=now();lastSeen=t;lastSeq=p.seq;if(current){previous=current;snapshotSpan=clamp(snapshotSpan*.65+(t-snapshotAt)*.35,45,140)}else previous=state;current=state;snapshotAt=t;B.receive(state,false);}
+ function blendActors(prevRows,rows,alpha,key){return rows.map((b,i)=>{const a=prevRows?.[i];if(!a||!a.alive||!b.alive)return{...b};let x=a.x+(b.x-a.x)*alpha,y=a.y+(b.y-a.y)*alpha;if(mode==='client'&&key==='squad'&&i>=2){const pred=predictedMoves.get(i);if(pred&&pred.until>now()){const dx=pred.x-x,dy=pred.y-y,d=Math.hypot(dx,dy);if(d<16)predictedMoves.delete(i);else{const lead=Math.min(24,d),ramp=Math.min(1,(now()-pred.at)/120);x+=dx/d*lead*ramp;y+=dy/d*lead*ramp}}if(localStick?.units?.includes(i)&&now()-(localStick.at||0)<250){const mag=Math.hypot(localStick.x,localStick.y);if(mag>.1){x+=localStick.x/mag*14;y+=localStick.y/mag*14}}}return{...b,x,y}})}
+ function clientFrame(dt){if(mode!=='client'||!started)return;if(current){const a=clamp((now()-snapshotAt)/Math.max(45,snapshotSpan),0,1),smooth=a*a*(3-2*a),state={...current};for(const key of ['squad','enemies','civilians'])state[key]=blendActors(previous?.[key],current[key],smooth,key);B.receive(state,false)}B.frame(dt);experienceFrame();}
+ function restart(){if(mode!=='host'){status('PLAYER 1 STARTS THE NEXT ATTEMPT');return;}ready=false;send({v:1,t:'restart'});started=false;previous=current=null;void run();}
+ function announce(text){if(typeof text!=='string'||!text||text.length>78)return false;showToast(text);if(mode==='host')send({v:1,t:'announce',text});return true;}
+ function by(id){return panel?.querySelector('#'+id);}
+ async function host(manualMode=false){retry=()=>host(manualMode);const mission=by('coopMission').value;if(!B.choose(mission,{action:'host',manual:manualMode}))return;let pc,gen;try{pc=makePeer(true);gen=generation;status('CREATING ROOM...');const offer=await pc.offer();if(gen!==generation)return;const value={v:1,mission,expires:Date.now()+S.TTL,sdp:offer};by('coopOutgoing').value=manual.encode(value);by('coopManualFields').hidden=!manualMode;if(manualMode){status('SEND CONNECTION CODE TO PLAYER 2. Paste their reply below.');return;}const signal=S.create();signalling=signal;const created=await signal.createRoom(mission,offer);if(gen!==generation){await signal.cleanup();return;}room=created;status('ROOM: '+room+' · WAITING FOR PLAYER 2');by('coopRoom').value=room;pollTimer=setInterval(async()=>{try{const data=await signal.read(created);if(gen!==generation)return;if(data.answer){clearInterval(pollTimer);await pc.accept(data.answer);connectingTimeout();status('CONNECTING...');}}catch(e){if(gen===generation){clearInterval(pollTimer);status(e.message);}}},900);}catch(e){if(gen===undefined||gen===generation){by('coopManualFields').hidden=false;status(e.message);}}}
+ async function join(code){retry=()=>join(code);status('FINDING ROOM...');const requestGen=generation,signal=S.create();try{await signal.initialise();const data=await signal.read(code.toUpperCase().trim());if(requestGen!==generation)return;if(!B.choose(data.mission,{action:'join',room:code})){void signal.cleanup();return;}await signal.joinRoom(code.toUpperCase().trim());if(requestGen!==generation)return;const pc=makePeer(false),gen=generation;signalling=signal;status('CONNECTING...');const answer=await pc.answer(data.offer);if(gen!==generation)return;await signal.answer(answer);connectingTimeout();}catch(e){if(requestGen===generation&&panel){status(e.message);by('coopManualFields').hidden=false;}}}
+ async function applyManual(){try{const value=manual.decode(by('coopIncoming').value);if(value.sdp.type==='offer'){if(!B.choose(value.mission,{action:'manual',code:by('coopIncoming').value}))return;const pc=makePeer(false),gen=generation,answer=await pc.answer(value.sdp);if(gen!==generation)return;by('coopOutgoing').value=manual.encode({...value,sdp:answer});status('SEND REPLY CODE TO PLAYER 1');}else{if(mode!=='host'||!connection||value.mission!==B.map())throw new Error('HOST A GAME FIRST');await connection.accept(value.sdp);connectingTimeout();status('CONNECTING...');}}catch(e){status(e.message)}}
+ function open(){if(started)B.menu();if(panel){panel.hidden=false;panel.style.display='flex';return;}injectStyle();panel=root.document.createElement('section');panel.id='coopPanel';panel.setAttribute('role','dialog');panel.setAttribute('aria-label','Multiplayer');panel.style.cssText='position:absolute;inset:0;z-index:30;background:#19201ef5;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;overflow:auto;color:#ece5cf;gap:10px;font:14px system-ui';panel.innerHTML=`<h2 style="margin:0">MULTIPLAYER</h2><div>2 PLAYERS · 2 SOLDIERS EACH</div><label>MISSION <select id="coopMission"><option value="bad-belzig">Bad Belzig</option><option value="wigan">Wigan</option></select></label><div><button id="coopHost" class="menu-button">HOST GAME</button><button id="coopJoin" class="menu-button">JOIN GAME</button></div><label>ROOM CODE <input id="coopRoom" autocomplete="off" maxlength="32" placeholder="RABBIT-..." style="width:220px"></label><p id="coopStatus" role="status" style="max-width:520px;text-align:center;margin:0;min-height:38px"></p><button id="coopRetry" class="menu-button" hidden>TRY AGAIN</button><button id="coopManual" class="menu-button">MANUAL CONNECTION</button><div id="coopManualFields" hidden style="max-width:520px;width:100%"><small>Host sends a connection code. Joiner pastes it and sends the reply back.</small><button id="coopManualHost" class="menu-button">CREATE CONNECTION CODE</button><label style="display:block">SEND THIS CODE<textarea id="coopOutgoing" readonly style="width:100%;height:48px"></textarea></label><label style="display:block">PASTE RECEIVED CODE<textarea id="coopIncoming" style="width:100%;height:48px"></textarea></label><button id="coopApply" class="menu-button">CONNECT WITH CODE</button></div><button id="coopReturn" class="menu-button">RETURN TO MENU</button>`;root.document.querySelector('.viewport').appendChild(panel);statusEl=by('coopStatus');lobby();by('coopMission').value=['bad-belzig','wigan'].includes(B.map())?B.map():'bad-belzig';by('coopRetry').onclick=()=>retry?.();by('coopHost').onclick=()=>host();by('coopJoin').onclick=()=>join(by('coopRoom').value);by('coopManual').onclick=()=>{by('coopManualFields').hidden=false;status('Use a manual connection when room codes are unavailable.');};by('coopManualHost').onclick=()=>host(true);by('coopApply').onclick=applyManual;by('coopReturn').onclick=()=>B.menu();let resume=null;try{resume=JSON.parse(root.sessionStorage.getItem('badfodder.coop.resume')||'null')}catch{}root.sessionStorage.removeItem('badfodder.coop.resume');if(resume?.action==='host')void host(!!resume.manual);if(resume?.action==='join'){by('coopRoom').value=resume.room;void join(resume.room)}if(resume?.action==='manual'){by('coopManualFields').hidden=false;by('coopIncoming').value=resume.code;void applyManual()}}
+ root.BadFodderCoop={open,leave,command,joystick,releaseStick,remoteStep,clientFrame,garrison,flush,restart,announce,sendMarker,setPing,peer,manual,get mode(){return mode},get latency(){return latency},get ready(){return ready}};
  root.addEventListener('pagehide',()=>{stopTransport();});
  return {peer,manual};
 });
