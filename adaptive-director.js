@@ -134,7 +134,7 @@
 
   function createCommander({getEnemies,getSquad,getPhase,getZones,roads,scale=1,navigation,queuePath,blocked}={}){
     let clock=0,failedUntil=0;
-    const groups=new Map(),routePoints=[],counts=new Map();
+    const groups=new Map(),routePoints=[],counts=new Map(),checkpointStates=new Map();
     for(const e of getEnemies()){
       if(!groups.has(e.groupId))groups.set(e.groupId,[]);
       groups.get(e.groupId).push(e);
@@ -177,8 +177,123 @@
         e.alertCue=['REGROUP','RETREAT'].includes(type)?'↙':type.startsWith('FLANK')?'↗':'!';e.cueTimer=1.5;
       });
     }
-    function release(){getEnemies().forEach(e=>{if(e.commandOrder){e.commandOrder=null;e.path=null;e.pendingPath=null;e.tacticalPoint=null}})}
-    function maintain(time){clock=time;for(const e of getEnemies())if(e.commandOrder&&clock>=e.commandOrder.until){e.commandOrder=null;e.path=null;e.pendingPath=null;e.tacticalPoint=null}}
+    function checkpointState(phase=getPhase()){
+      if(!phase?.checkpoint||!phase.zone||!phase.defenderGroup)return null;
+      let state=checkpointStates.get(phase.index);
+      if(!state){state={phase:phase.index,style:phase.checkpoint.style||'rush',started:false,cleared:false,startedAt:0,groups:[]};checkpointStates.set(phase.index,state)}
+      return state;
+    }
+    function checkpointSpawnPoint(zone,angle,distance=scale*235){
+      const desired={x:zone.x+Math.cos(angle)*distance,y:zone.y+Math.sin(angle)*distance};
+      let best=null,score=Infinity;
+      for(const p of routePoints){
+        const d=dist(p,zone);if(d<scale*145||d>scale*360||blocked(p.x,p.y,12))continue;
+        const cost=dist(p,desired)+Math.abs(d-distance)*.2;
+        if(cost<score){score=cost;best=p}
+      }
+      if(best)return best;
+      for(let ring=distance;ring>=scale*150;ring-=scale*25){
+        for(let i=0;i<12;i++){
+          const a=angle+i*Math.PI/6,p={x:zone.x+Math.cos(a)*ring,y:zone.y+Math.sin(a)*ring};
+          if(!blocked(p.x,p.y,12))return p;
+        }
+      }
+      return null;
+    }
+    function garrisonSquad(zone,phaseIndex){
+      const living=getSquad().filter(s=>s.alive&&dist(s,zone)<=zone.r*1.15);
+      if(!living.length)return;
+      const radius=Math.min(zone.r*.34,scale*22);
+      living.forEach((s,i)=>{
+        s.checkpointGarrison=phaseIndex;s.checkpointCover=true;
+        const base=-Math.PI/2+i*Math.PI*2/Math.max(1,living.length);
+        let point=null;
+        for(let ring=radius;ring<=Math.min(zone.r*.62,scale*38)&&!point;ring+=scale*7){
+          for(let k=0;k<8;k++){
+            const a=base+k*Math.PI/4,p={x:zone.x+Math.cos(a)*ring,y:zone.y+Math.sin(a)*ring};
+            if(!blocked(p.x,p.y,8)){point=p;break}
+          }
+        }
+        if(point){s.x=point.x;s.y=point.y;s.path=null;s.pendingPath=null;s.pathIndex=0;s.target=null}
+      });
+    }
+    function spawnCheckpointEnemy(template,point,phase,groupId,index,target){
+      const maxHp=Number(template?.maxHp)||3;
+      const e={...template,
+        x:point.x,y:point.y,homeX:point.x,homeY:point.y,
+        variant:(Number(template?.variant)||0)+index%4,hp:maxHp,maxHp,alive:true,phase:clock*.67+index*.31,cooldown:.35+index*.05,
+        alert:true,lastSeen:{x:target.x,y:target.y},observedAt:clock,aiState:'alert',flash:0,
+        dir:Math.atan2(target.y-point.y,target.x-point.x),anim:clock+index*.41,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0,path:null,pathIndex:0,repath:0,
+        hitTimer:0,groupId,objectiveGroup:phase.defenderGroup,role:['anchor','left','right'][index%3],
+        tacticTimer:.12+(index%3)*.14,tacticalPoint:null,burstCount:0,burstLimit:2+(index%2),burstPause:0,searchTimer:0,
+        reactionTimer:.2+index*.04,cueTimer:1.5,alertCue:'!',pathQueued:false,pendingPath:null,commandOrder:null,
+        checkpointWave:true,checkpointPhase:phase.index
+      };
+      getEnemies().push(e);return e;
+    }
+    function spawnCheckpointGroup(phase,zone,state,template,spec,index){
+      const groupId='checkpoint:'+phase.index+':'+index;
+      const spawn=checkpointSpawnPoint(zone,spec.angle,spec.distance||scale*235);if(!spawn)return[];
+      const group=[];
+      for(let i=0;i<spec.count;i++){
+        const side=(i-(spec.count-1)/2)*scale*8,perp=spec.angle+Math.PI/2;
+        let point={x:spawn.x+Math.cos(perp)*side,y:spawn.y+Math.sin(perp)*side};
+        if(blocked(point.x,point.y,10))point=spawn;
+        group.push(spawnCheckpointEnemy(template,point,phase,groupId,i,zone));
+      }
+      groups.set(groupId,group);counts.set(groupId,group.length);state.groups.push(groupId);
+      const target={x:zone.x+Math.cos(spec.targetAngle||0)*(spec.targetOffset||0),y:zone.y+Math.sin(spec.targetAngle||0)*(spec.targetOffset||0)};
+      issue(group,spec.type||'PRESSURE',target,spec.duration||22,spec.delay||0);
+      return group;
+    }
+    function startCheckpointWave(phase,zone,state){
+      const living=getSquad().filter(s=>s.alive);if(!living.length)return false;
+      const template=getEnemies().find(e=>!e.checkpointWave)||getEnemies()[0];if(!template)return false;
+      const origin=center(living),approach=Math.atan2(origin.y-zone.y,origin.x-zone.x),front=approach+Math.PI;
+      const total=Math.max(2,Math.min(8,Number(phase.checkpoint.count)||3));
+      let specs=[];
+      if(state.style==='pincer'){
+        const left=Math.ceil(total/2),right=total-left;
+        specs=[
+          {angle:front-Math.PI*.55,count:left,type:'FLANK_LEFT',targetAngle:front-Math.PI/2,targetOffset:scale*18,delay:.5},
+          {angle:front+Math.PI*.55,count:right,type:'FLANK_RIGHT',targetAngle:front+Math.PI/2,targetOffset:scale*18,delay:2}
+        ];
+      }else if(state.style==='siege'){
+        const pin=Math.max(1,Math.floor(total*.35)),remain=total-pin,left=Math.ceil(remain/2),right=remain-left;
+        specs=[
+          {angle:front,count:pin,type:'PRESSURE',targetOffset:0,delay:0,duration:24},
+          {angle:front-Math.PI*.62,count:left,type:'FLANK_LEFT',targetAngle:front-Math.PI/2,targetOffset:scale*24,delay:2,duration:26},
+          {angle:front+Math.PI*.62,count:right,type:'FLANK_RIGHT',targetAngle:front+Math.PI/2,targetOffset:scale*24,delay:4,duration:26}
+        ];
+      }else{
+        specs=[{angle:front,count:total,type:'PRESSURE',targetOffset:0,delay:0,duration:18}];
+      }
+      const spawned=specs.flatMap((spec,i)=>spawnCheckpointGroup(phase,zone,state,template,spec,i));
+      if(!spawned.length)return false;
+      state.started=true;state.startedAt=clock;state.cleared=false;
+      garrisonSquad(zone,phase.index);
+      return true;
+    }
+    function maintainCheckpoint(){
+      const phase=getPhase(),state=checkpointState(phase);if(!state)return;
+      const zone=getZones()[phase.zone];if(!zone)return;
+      const living=getSquad().filter(s=>s.alive),inside=living.some(s=>dist(s,zone)<=zone.r);
+      const original=getEnemies().filter(e=>e.alive&&!e.checkpointWave&&e.objectiveGroup===phase.defenderGroup);
+      if(!state.started&&inside&&original.length===0)startCheckpointWave(phase,zone,state);
+      if(!state.started)return;
+      const wave=getEnemies().filter(e=>e.alive&&e.checkpointWave&&e.checkpointPhase===phase.index);
+      if(wave.length){garrisonSquad(zone,phase.index);return}
+      if(!state.cleared){state.cleared=true;for(const s of living)if(s.checkpointGarrison===phase.index){s.checkpointCover=false;s.checkpointHeld=phase.index}}
+    }
+    function release(){
+      getEnemies().forEach(e=>{if(e.commandOrder){e.commandOrder=null;e.path=null;e.pendingPath=null;e.tacticalPoint=null}});
+      getSquad().forEach(s=>{s.checkpointCover=false;s.checkpointGarrison=null});
+    }
+    function maintain(time){
+      clock=time;
+      for(const e of getEnemies())if(e.commandOrder&&clock>=e.commandOrder.until){e.commandOrder=null;e.path=null;e.pendingPath=null;e.tacticalPoint=null}
+      maintainCheckpoint();
+    }
     function valid(action){
       if(action==='DO_NOTHING')return true;
       const gs=liveGroups(),known=knowledge();
@@ -257,7 +372,7 @@
       const moving=!stationary&&!reached&&!!e.path&&followPath(e,withdrawing?78:70,dt);
       return{moving,canFire:!withdrawing&&clock>=order.engageAt};
     }
-    return{sample,valid,execute,maintain,release,control,groups,knowledge,get clock(){return clock}};
+    return{sample,valid,execute,maintain,release,control,groups,knowledge,checkpointState,get clock(){return clock}};
   }
 
   function createCableAdapter({controller,director,interactions,crowd,scale=1}={}){
