@@ -1,6 +1,10 @@
 'use strict';
 const assert=require('node:assert/strict');
 const Adaptive=require('../adaptive-director.js');
+const Fortification=require('../checkpoint-fortification.js');
+Fortification.patchAdaptive(Adaptive);
+
+function angleDiff(a,b){return Math.abs(Math.atan2(Math.sin(a-b),Math.cos(a-b)))}
 
 function scenario(style,count,index=0){
   const zone={x:500,y:500,r:90};
@@ -25,7 +29,16 @@ function scenario(style,count,index=0){
   assert(wave.every(e=>e.objectiveGroup===phase.defenderGroup&&e.checkpointPhase===index),style+' attackers must block the active checkpoint');
   assert.equal(commander.checkpointState().started,true,style+' checkpoint did not start');
   assert.equal(commander.checkpointState().cleared,false,style+' checkpoint cleared before attackers were defeated');
-  assert(squad.some(s=>s.checkpointGarrison===index&&s.checkpointCover),style+' squad was not placed into checkpoint garrison state');
+  assert(squad.every(s=>s.checkpointGarrison===index&&s.checkpointCover&&s.checkpointFortified),style+' squad was not placed into checkpoint fortification');
+  assert.equal(squad.filter(s=>s.checkpointFortificationLead).length,1,style+' sandbag ring needs one render leader');
+  const cx=squad[0].checkpointCenterX,cy=squad[0].checkpointCenterY,sandbagRadius=squad[0].checkpointSandbagRadius;
+  const radii=squad.map(s=>Math.hypot(s.x-cx,s.y-cy));
+  assert(radii.every(r=>r<=11.01),style+' squad is not crowded into the tight back-to-back circle');
+  assert(sandbagRadius>Math.max(...radii)+10,style+' sandbags do not surround the squad');
+  for(const s of squad){
+    const outward=Math.atan2(s.y-cy,s.x-cx);
+    assert(angleDiff(s.dir,outward)<.001,style+' defender is not facing outward');
+  }
   assert(queued.length>=count,style+' attackers did not receive paths');
   const groupIds=new Set(wave.map(e=>e.groupId));
   if(style==='rush')assert.equal(groupIds.size,1,'Rush should be one concentrated group');
@@ -41,6 +54,7 @@ function scenario(style,count,index=0){
   wave.forEach(e=>e.alive=false);
   commander.maintain(2);
   assert.equal(commander.checkpointState().cleared,true,style+' checkpoint did not clear after wave defeat');
+  assert(squad.every(s=>s.checkpointHeld===index&&s.checkpointFortified),style+' fortification should remain through the checkpoint hold');
   const total=enemies.length;
   commander.maintain(3);
   assert.equal(enemies.length,total,style+' checkpoint wave respawned');
@@ -49,4 +63,4 @@ function scenario(style,count,index=0){
 scenario('rush',3,0);
 scenario('pincer',4,1);
 scenario('siege',5,2);
-console.log('PASS: checkpoint garrisons spawn bounded rush, pincer and siege waves and only clear after the attackers are defeated.');
+console.log('PASS: checkpoint garrisons form a tight outward-facing sandbag circle, spawn varied assault waves and only clear after attackers are defeated.');
