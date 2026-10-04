@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Join If I Can Shoot Rabbits</title>
+  <meta name="theme-color" content="#1e281b">
+  <style>
+    html,body{margin:0;min-height:100%;background:#1e281b;color:#efe2b0;font-family:"Courier New",monospace}
+    body{display:grid;place-items:center;padding:20px;box-sizing:border-box}
+    main{width:min(520px,92vw);padding:24px;text-align:center;background:#273423;border:1px solid #7f8956;box-shadow:inset 2px 2px #627148,inset -2px -2px #1d291b}
+    h1{margin:0 0 12px;font-size:24px}p{margin:8px 0 18px;line-height:1.5;color:#d2c9af}
+    a{display:inline-block;min-height:44px;padding:12px 16px;box-sizing:border-box;color:#efe2b0;background:#35422a;border:1px solid #7f8956;text-decoration:none;font:700 14px system-ui,sans-serif}
+  </style>
+</head>
+<body>
+  <main>
+    <h1 id="title">JOINING CO-OP GAME</h1>
+    <p id="message">Opening your Bad Fodder invite…</p>
+    <a id="return" href="/" hidden>RETURN TO GAME</a>
+  </main>
+  <script>
+    (()=>{
+      const code=(new URLSearchParams(location.search).get('room')||'').toUpperCase().trim();
+      const valid=/^RABBIT-[A-HJ-NP-Z2-9]{10}$/.test(code);
+      if(!valid){
+        document.getElementById('title').textContent='INVALID GAME INVITE';
+        document.getElementById('message').textContent='This multiplayer invite link is not valid.';
+        document.getElementById('return').hidden=false;
+        return;
+      }
+      try{
+        sessionStorage.setItem('badfodder.coop.resume',JSON.stringify({action:'join',room:code,invite:true}));
+        location.replace('/');
+      }catch(_){
+        document.getElementById('title').textContent='COULD NOT OPEN INVITE';
+        document.getElementById('message').textContent='Open Bad Fodder and join with room code '+code+'.';
+        document.getElementById('return').hidden=false;
+      }
+    })();
+  </script>
+</body>
+</html>
