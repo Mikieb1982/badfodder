@@ -55,14 +55,16 @@
     return true;
   }
   function releaseForMovement(){
+    if(root.BadFodderCommands?.mode==='client')return false;
     let changed=false;
     for(const unit of selectedForMovement())if(unit?.manualGarrison){release(unit);changed=true}
     if(changed){syncButtons();setNotice('Garrison released: movement order received.')}
     return changed;
   }
-  function toggleGarrison(){
+  function toggleGarrison(chosen=null){
+    if(!chosen&&root.BadFodderCommands?.mode!=='local'&&root.BadFodderCoop?.garrison)return root.BadFodderCoop.garrison();
     if(!firearmsAllowed())return false;
-    const unit=selectedOne();
+    const unit=chosen||selectedOne();
     if(!unit){setNotice('Select one soldier to garrison.');return false}
     if(unit.manualGarrison){release(unit);setNotice('Garrison released.');syncButtons();return false}
     unit.manualGarrison=true;unit.garrisonAnchorX=unit.x;unit.garrisonAnchorY=unit.y;unit.garrisonTarget=null;unit.garrisonNextFire=0;
@@ -116,6 +118,7 @@
   }
 
   function lockCheckpointGarrisons(){
+    if(root.BadFodderCommands?.mode==='client')return;
     for(const unit of liveSquad()){
       if(!unit?.alive)continue;
       const holding=!!unit.checkpointCover&&Number.isFinite(unit.checkpointGarrison);
