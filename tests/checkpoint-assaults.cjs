@@ -51,7 +51,6 @@ function baseScenario(style,count,index=0){
 
 baseScenario('rush',3,0);baseScenario('pincer',4,1);baseScenario('siege',5,2);
 
-// Second checkpoint: a large base attack followed by one larger siege wave.
 {
   const f=fixture({style:'pincer',count:8,intermission:.8,waves:[{style:'siege',count:10}]},1);
   f.commander.maintain(1);assert.equal(f.enemies.filter(e=>e.alive&&e.checkpointWave).length,8);
@@ -65,7 +64,6 @@ baseScenario('rush',3,0);baseScenario('pincer',4,1);baseScenario('siege',5,2);
   assert.equal(f.enemies.filter(e=>e.alive&&e.checkpointExtra).length,0,'Second checkpoint spawned an unwanted third wave');
 }
 
-// Final checkpoint: three sequential large waves, ending in a four-direction last stand.
 {
   const f=fixture({style:'siege',count:8,intermission:.8,waves:[{style:'pincer',count:10},{style:'last-stand',count:12}]},2);
   f.commander.maintain(1);let live=f.enemies.filter(e=>e.alive&&e.checkpointWave);assert.equal(live.length,8);
@@ -75,7 +73,6 @@ baseScenario('rush',3,0);baseScenario('pincer',4,1);baseScenario('siege',5,2);
   live=f.enemies.filter(e=>e.alive&&e.checkpointExtra);assert.equal(live.length,12,'Final stand wave three size');assert.equal(new Set(live.map(e=>e.groupId)).size,4,'Last stand must close from four directions');
 }
 
-// Runtime profile applies 1, 2 and 3 total waves to both playable military missions.
 {
   const fake={missions:['bad-belzig','wigan'].map(map=>({map,playable:true,phases:[{},{},{}]}))};WaveConfig.apply(fake);
   for(const mission of fake.missions){
@@ -86,10 +83,9 @@ baseScenario('rush',3,0);baseScenario('pincer',4,1);baseScenario('siege',5,2);
   }
 }
 
-// The upgraded two-row bags should render substantially more geometry than the old single oval ring.
 {
   const ent={checkpointFortified:true,checkpointCenterX:100,checkpointCenterY:100,checkpointSandbagRadius:30};let fills=0;
-  const grad={addColorStop(){}};const ctx={save(){},restore(){},translate(){},rotate(){},beginPath(){},moveTo(){},quadraticCurveTo(){},closePath(){},fill(){fills++},stroke(){},ellipse(){},fillRect(){},arc(){},setLineDash(){},createLinearGradient(){return grad},set fillStyle(v){},set strokeStyle(v){},set lineWidth(v){}};
+  const grad={addColorStop(){}};const ctx={save(){},restore(){},translate(){},rotate(){},beginPath(){},moveTo(){},lineTo(){},quadraticCurveTo(){},closePath(){},fill(){fills++},stroke(){},ellipse(){},fillRect(){},arc(){},setLineDash(){},createLinearGradient(){return grad},set fillStyle(v){},set strokeStyle(v){},set lineWidth(v){}};
   assert(Fortification.drawSandbagRing(ctx,ent,'all'));assert(fills>60,'Sandbag fortification is not drawing the layered detailed bag geometry');
 }
 
