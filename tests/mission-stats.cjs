@@ -36,8 +36,8 @@ const wonMenu=new Menu();wonMenu.showResult(identity,true,true);assert.equal(rep
 assert(source.includes('MAN DOWN')&&source.includes('KILLED IN ACTION'),'Casualty acknowledgement missing');
 assert(source.includes('SQUAD REPORT')&&source.includes('ASSISTS')&&source.includes("status.textContent=r.alive?'SURVIVED':'KIA'"),'End-of-mission kill/assist report missing');
 assert(source.includes("' · P'+(rec.index<2?1:2)"),'Multiplayer casualty ownership is not acknowledged');
-assert(characterArt.includes("portraits:'assets/characters/portraits-1936-1945.png'"),'Real character portrait atlas path missing');
+assert(characterArt.includes("portraits:'assets/characters/portraits-1936-1945.webp'"),'Real character portrait atlas path missing');
 assert(source.includes('paintRealPortrait')&&source.includes('preloadMissionArt')&&source.includes('missionPortrait'),'Squad report does not wait for the real mission portrait atlas');
-assert(source.includes("canvas.dataset.portraitSource='assets/characters/portraits-1936-1945.png'"),'Squad report does not identify the real portrait source');
+assert(source.includes("canvas.dataset.portraitSource='assets/characters/portraits-1936-1945.webp'"),'Squad report does not identify the real portrait source');
 assert(!source.includes("||root.BadFodderArt?.soldier?.('squad'"),'Squad report still falls back to generated character art');
 console.log('PASS: casualty acknowledgement, assists and real-portrait squad report work on victory and mission failure.');

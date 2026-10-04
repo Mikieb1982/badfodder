@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png?v=character-transparent-1">
   <link rel="icon" type="image/png" sizes="64x64" href="assets/icons/favicon-64.png?v=character-transparent-1">
   <link rel="apple-touch-icon" sizes="192x192" href="assets/icons/icon-192.png?v=character-transparent-1">
-  <link rel="manifest" href="site.webmanifest?v=character-transparent-1">
+  <link rel="manifest" href="manifest.webmanifest">
   <style>
     :root{
       color-scheme:dark;
@@ -480,6 +480,7 @@
           <label class="menu-setting menu-volume" for="menuMusicVolume"><span>MUSIC VOLUME</span><span class="menu-range-control"><input id="menuMusicVolume" type="range" min="0" max="100" step="1" value="22"><output id="menuMusicVolumeValue" for="menuMusicVolume">22%</output></span></label>
           <button id="menuSfx" class="menu-button" type="button" aria-pressed="true">SFX: ON</button>
           <label class="menu-setting" for="menuZoom"><span>CAMERA ZOOM</span><select id="menuZoom"><option value="0.85">Wide</option><option value="1.3" selected>Normal</option><option value="1.6">Close</option></select></label>
+          <label class="menu-setting" for="menuUiScale"><span>HUD TEXT SIZE</span><select id="menuUiScale"><option value="1">Normal</option><option value="1.15">115%</option><option value="1.25">125%</option></select></label>
           <label class="menu-setting" for="menuDust"><span>FOOTSTEP DUST</span><input id="menuDust" type="checkbox" checked></label>
           <button id="menuFull" class="menu-button" type="button">FULL SCREEN</button>
           <button class="menu-button" data-back type="button">BACK</button>
@@ -539,6 +540,10 @@
   <div class="note">Mission maps use real-world street and landmark geography, with gameplay simplification where required. Map data <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors, ODbL 1.0</a>.</div>
 </main>
 
+<script src="game-storage.js"></script>
+<script src="game-rng.js"></script>
+<script src="game-lifecycle.js"></script>
+<script src="runtime-services.js"></script>
 <script src="town-map.js"></script>
 <script src="bad-belzig-data.js"></script>
 <script src="wigan-map.js"></script>
@@ -557,6 +562,10 @@
 <script src="sfx.js?v=20261003-tactical-1"></script>
 <script src="combat-geometry.js"></script>
 <script src="navigation.js?v=20261003-upgrade-1"></script>
+<script src="checkpoint-fortification.js"></script>
+<script src="checkpoint-wave-config.js"></script>
+<script src="garrison-control.js"></script>
+<script src="mission-stats.js"></script>
 <script src="mission-rules.js"></script>
 <script src="mission-route-validation.js?v=20261002-cable-nav-3"></script>
 <script src="campaign.js"></script>
@@ -596,7 +605,7 @@
   const cableStreetArt=BadFodderCableArt;
   const missionBootstrap=BadFodderMissionBootstrap;
   const missionLaunch=BadFodderMissionLaunch.create({
-    storage:sessionStorage,
+    storage:BadFodderStorage.session,
     missions:campaign.missions,
     campaign,
     historicalMissions:historicalMissions.missions
@@ -605,6 +614,10 @@
   const initialMission=missionLaunch.current();
   const missionIdentity=BadFodderIdentities.get(initialMission);
   art.setMissionIdentity?.(missionIdentity.key);
+  let savedOptions={};try{savedOptions=JSON.parse(BadFodderStorage.local.getItem('badfodder.options.v1')||'{}')||{};if(typeof savedOptions!=='object'||Array.isArray(savedOptions))savedOptions={};}catch{}
+  const saveOptions=()=>BadFodderStorage.local.setItem('badfodder.options.v1',JSON.stringify(savedOptions));
+  function applyUiScale(value){const scale=[1,1.15,1.25].includes(Number(value))?Number(value):1;document.documentElement.style.setProperty('--ui-scale',scale);savedOptions.uiScale=scale;}
+  applyUiScale(savedOptions.uiScale);
   let launchAfterLoad=missionLaunch.consumeAutoStart(),loadingMission=false;
   const mapRegistry=missionBootstrap.createMapRegistry({
     'bad-belzig':TOWN_MAP,
@@ -612,6 +625,7 @@
     ...(window.CABLE_STREET_MAP?{'cable-street':window.CABLE_STREET_MAP}:{})
   });
   const MAP_DATA=missionBootstrap.resolveMap(initialMission,mapRegistry);
+  missionBootstrap.validateConfiguration(initialMission,MAP_DATA);
   const ACTION_PROFILE=missionBootstrap.actionProfile(initialMission);
   const actionAllowed=action=>missionBootstrap.allows(ACTION_PROFILE,action);
   const statusEl=document.getElementById('status');
@@ -693,12 +707,19 @@
   let camera={x:S(620),y:S(1260)},last=performance.now(),squadGrenades=5;
   let bullets=[],thrown=[],effects=[],noise=[],squad=[],enemies=[],civilians=[],pickups=[],enemyPathQueue=[];
   let started=false,menuOpen=true,preferredZoom=1.3,showDust=!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches);
+  if([.85,1.3,1.6].includes(savedOptions.zoom))preferredZoom=zoom=savedOptions.zoom;
+  if(typeof savedOptions.dust==='boolean')showDust=showDust&&savedOptions.dust;
   let menu=null,coopCheckpoint=null;
   let cursorWorld=null,lastCanvasPointer=null,rightHeld=false,bothLatched=false;
   let macFireHeld=false,keyboardFireHeld=false;
   let lastHudStats='',lastRosterSignature='',hudNoticeUntil=0;
-  let runtimeFaultCount=0,runtimeFaultAt=0,runtimeSafeStop=false;
+  let runtimeFaultCount=0,runtimeFaultAt=0,runtimeSafeStop=false,runtimeFaultTotal=0;
   let missionController=null,missionInteractionLayer=null,missionDirector=null,missionCrowd=null;
+  const gameplayRng=BadFodderRng.create(new URLSearchParams(location.search).get('seed'));
+  const lifecycle=BadFodderLifecycle.create({read:()=>({started,finished,runtimeSafeStop}),apply:flags=>{paused=flags.paused;menuOpen=flags.menuOpen;if(flags.runtimeSafeStop!==undefined)runtimeSafeStop=flags.runtimeSafeStop;}});
+  const diagnostics=BadFodderRuntime.diagnostics({enabled:new URLSearchParams(location.search).get('debug')==='1',read:()=>({lifecycle:lifecycle.state,actors:squad.length+civilians.length,enemies:enemies.length,bullets:bullets.length,effects:effects.length,pathQueue:enemyPathQueue.length,navigation:navigation.metrics(),scenery:sceneryTiles?.metrics?.(),runtimeFaults:runtimeFaultCount,runtimeFaultTotal,coop:window.BadFodderCoop?.diagnostics?.()})});
+  if(diagnostics.enabled)window.BadFodderDiagnostics=diagnostics;
+
   let adaptiveDirector=null,enemyCommander=null,adaptiveMemory=null;
   // Optional Director faults are contained here, outside normal runtime recovery.
   function runAdaptive(fn,fallback=null){
@@ -713,14 +734,14 @@
     adaptiveDirector=null;enemyCommander=null;
     try{
       const adaptive=window.BadFodderAdaptive;if(!adaptive)return;
-      let storage=null;try{storage=window.localStorage}catch{}
+      let storage=null;try{storage=BadFodderStorage.local}catch{}
       if(!adaptiveMemory)adaptiveMemory=adaptive.loadProfile(storage);
       const adapter=missionController?adaptive.createCableAdapter({controller:missionController,director:missionDirector,interactions:missionInteractionLayer,crowd:missionCrowd,scale:SCALE}):
         (enemyCommander=adaptive.createCommander({getEnemies:()=>enemies,getSquad:()=>squad,
           getPhase:()=>({...activeMission().phases[missionStage],index:missionStage}),getZones:()=>zones,
           roads,scale:SCALE,navigation,queuePath:queueEnemyPath,blocked:obstacleAt}));
       adaptiveDirector=adaptive.create({mission:MAP_DATA.key,adapter,memory:adaptiveMemory,storage,
-        debug:new URLSearchParams(location.search).get('directorDebug')==='1'});
+        random:gameplayRng.random,debug:new URLSearchParams(location.search).get('directorDebug')==='1'});
       if(new URLSearchParams(location.search).get('directorDebug')==='1')window.BadFodderDirectorLog=adaptiveDirector.state.log;
     }catch{adaptiveDirector=null;enemyCommander=null}
   }
@@ -1092,7 +1113,7 @@
     if(commands?.mode==='host'){setStatus('Co-op continues while the menu is open.');}
     if(finished||!started)return;
     if(menuOpen){if(menu&&menu.mode==='pause')resumeMission();return;}
-    paused=true;menuOpen=true;
+    lifecycle.transition('PAUSED');
     releaseAllFireInputs();
     releaseTouchMove();
     pauseBtn.textContent='Resume (Enter)';
@@ -1110,7 +1131,7 @@
     window.BadFodderMusic?.playMission(activeMission());
     simulationAccumulator=0;last=performance.now();
     releaseInterruptedInput();
-    paused=false;menuOpen=false;
+    lifecycle.transition('PLAYING');
     pauseBtn.textContent='Pause (Enter)';
     menu.close();syncTouchControlState();root.focus({preventScroll:true});
   }
@@ -1121,13 +1142,13 @@
     if(!started)return;
     window.BadFodderMusic?.playMission(activeMission());
     try{resetGame()}catch(err){runtimeFaultCount=2;handleRuntimeFault(err);return}
-    menuOpen=false;paused=false;
+    lifecycle.transition('PLAYING');
     menu.close();syncTouchControlState();root.focus({preventScroll:true});
     refreshCursorWorld();
   }
 
   function requestMissionBriefing(mission,begin,back='missions'){
-    releaseInterruptedInput();menuOpen=true;paused=true;mapOpen=false;simulationAccumulator=0;
+    releaseInterruptedInput();lifecycle.transition('BRIEFING');mapOpen=false;simulationAccumulator=0;
     menu.showBriefing(BadFodderIdentities.get(mission),begin,back);syncTouchControlState();
   }
   function startCampaignFromMenu(){if(commands&&commands.mode!=='local')showTitle();requestMissionBriefing(campaign.missions[campaign.state.current]||campaign.missions[0],launchCampaign,'main');}
@@ -1136,7 +1157,7 @@
   function viewMissionBriefing(){requestMissionBriefing(activeMission(),finished?beginMission:resumeMission,finished?'result':'main');}
   function showMissionResult(){
     window.BadFodderCoop?.flush();
-    releaseInterruptedInput();menuOpen=true;paused=true;mapOpen=false;
+    releaseInterruptedInput();lifecycle.transition('RESULT');mapOpen=false;
     menu.showResult(missionIdentity,win,win&&hasPlayableNextMission());syncTouchControlState();
   }
 
@@ -1176,7 +1197,7 @@
     const wasCoop=commands&&commands.mode!=='local';
     window.BadFodderCoop?.leave();
     if(wasCoop&&started)resetGame();
-    menuOpen=true;paused=true;
+    lifecycle.transition('TITLE');
     releaseAllFireInputs();
     releaseInterruptedInput();mapOpen=false;simulationAccumulator=0;
     window.BadFodderMusic?.playHome();
@@ -1236,7 +1257,7 @@
       const cachedPortrait=chip.querySelector('canvas');
       chip.setAttribute('aria-pressed',String(s.selected));chip.disabled=!s.alive||!!(commands&&!commands.owns(i));
       const hp=Array.from({length:energy===null?s.maxHp:10},(_,h)=>'<i class="'+(h<(energy===null?s.hp:energy/10)?((energy===null?s.hp<=2:energy<30)?'on low':'on'):'')+'"></i>').join('');
-      chip.innerHTML='<span class="hud-unit-info"><span class="hud-name"><em>'+(i+1)+'</em>'+s.name+(commands&&commands.mode!=='local'?' P'+(i<2?1:2):'')+'</span><span class="hud-health">'+hp+'</span><span class="hud-state">'+(s.alive?(energy===null?'HP '+s.hp+'/'+s.maxHp:'ENERGY '+energy+'%'):'DOWN')+'</span></span>';
+      chip.innerHTML='<span class="hud-unit-info"><span class="hud-name"><em>'+(i+1)+'</em>'+s.name+(commands&&commands.mode!=='local'?' P'+(i<2?1:2):'')+'</span><span class="hud-health">'+hp+'</span><span class="hud-state">'+(s.alive?(s.manualGarrison?'HOLD ◇ ':s.selected?'SELECTED ▸ ':'')+(energy===null?'HP '+s.hp+'/'+s.maxHp:'ENERGY '+energy+'%'):'DOWN ×')+'</span></span>';
       const portrait=cachedPortrait||document.createElement('canvas');portrait.width=96;portrait.height=96;portrait.className='hud-portrait';
       const pg=portrait.getContext('2d');pg.imageSmoothingEnabled=true;pg.drawImage(art.missionPortrait?art.missionPortrait(missionIdentity.key,i,s.alive?'idle':'dead'):art.soldier(missionController?'civilian':'squad',2,s.alive?0:2,s.alive?'idle':'dead',i),0,0,96,96);
       chip.insertBefore(portrait,chip.firstChild);
@@ -1702,8 +1723,8 @@
 
       const heat=Math.min(1,s.fireHeat||0);
       const spread=5+heat*22;
-      const tx=x+(Math.random()-.5)*spread;
-      const ty=y+(Math.random()-.5)*spread;
+      const tx=x+(gameplayRng.random()-.5)*spread;
+      const ty=y+(gameplayRng.random()-.5)*spread;
 
       fireBullet('squad',s.x,s.y,tx,ty,squad.indexOf(s));
       s.fireHeat=Math.min(1,heat+.15);
@@ -2182,8 +2203,8 @@
             const spread=24+Math.min(40,near.d*.09)+(moving?14:0);
             fireBullet(
               'enemy',e.x,e.y,
-              near.unit.x+(Math.random()-.5)*spread,
-              near.unit.y+(Math.random()-.5)*spread
+              near.unit.x+(gameplayRng.random()-.5)*spread,
+              near.unit.y+(gameplayRng.random()-.5)*spread
             );
 
             e.burstCount++;
@@ -3546,11 +3567,7 @@
   });
 
   function releaseInterruptedInput(){
-    releaseAllFireInputs();
-    releaseTouchMove();
-    pinchPointers.clear();
-    pinchGesture=null;
-    historicalTap=null;
+    BadFodderRuntime.interrupt({releaseFire:releaseAllFireInputs,releaseMove:releaseTouchMove,pointers:pinchPointers,resetGesture:()=>{pinchGesture=null;historicalTap=null;}});
   }
 
   window.addEventListener('blur',releaseInterruptedInput);
@@ -3612,15 +3629,15 @@
 
   function handleRuntimeFault(err){
     const now=performance.now();
-    if(now-runtimeFaultAt>3000)runtimeFaultCount=0;
-    runtimeFaultAt=now;runtimeFaultCount++;
+    runtimeFaultTotal++;
+    const fault=BadFodderRuntime.fault({time:now,last:runtimeFaultAt,count:runtimeFaultCount});
+    runtimeFaultAt=fault.at;runtimeFaultCount=fault.count;
     console.error('If I Can Shoot Rabbits runtime fault',err);
     releaseInterruptedInput();
     simulationAccumulator=0;
 
     if(runtimeFaultCount>=3){
-      runtimeSafeStop=true;
-      paused=true;menuOpen=true;
+      lifecycle.transition('RECOVERY');
       setStatus('Runtime recovery paused the mission after repeated errors.');
       if(menu){
         const detail=err&&err.message?String(err.message).slice(0,140):'Unknown runtime error';
@@ -3636,26 +3653,20 @@
     if(runtimeSafeStop)return;
 
     try{
-      const frameDt=Math.min(.1,Math.max(0,(now-last)/1000||0));
+      const elapsedMs=Math.max(0,now-last);
+      const frameDt=Math.min(.1,elapsedMs/1000||0);
       last=now;
 
-      if(commands?.mode!=='client'&&started&&!finished&&((commands?.mode==='host')||(!menuOpen&&!paused&&!mapOpen))){
-        simulationAccumulator=Math.min(FIXED_DT*MAX_CATCHUP_STEPS,simulationAccumulator+frameDt);
-        let steps=0;
-        while(simulationAccumulator>=FIXED_DT&&steps<MAX_CATCHUP_STEPS){
-          simulateStep(FIXED_DT);
-          simulationAccumulator-=FIXED_DT;
-          steps++;
-        }
-      }else{
-        simulationAccumulator=0;
-      }
+      const measuredAt=diagnostics.enabled?performance.now():0;
+      simulationAccumulator=BadFodderRuntime.fixedFrame({dt:frameDt,accumulator:simulationAccumulator,fixedDt:FIXED_DT,maxSteps:MAX_CATCHUP_STEPS,simulate:simulateStep,active:commands?.mode!=='client'&&started&&!finished&&((commands?.mode==='host')||(!menuOpen&&!paused&&!mapOpen))});
+      const simulatedAt=diagnostics.enabled?performance.now():0;
 
       if(commands?.mode==='client'){
         if(started&&!menuOpen&&!paused&&!finished&&!mapOpen){applyTouchMovement(frameDt);if((rightHeld||macFireHeld||keyboardFireHeld)&&cursorWorld&&!bothLatched)squadFireAt(cursorWorld.x,cursorWorld.y);if(touchState.fireHeld)fireMobile();}
         window.BadFodderCoop?.clientFrame(frameDt);
       }
-      if(started&&!menuOpen)drawWorld();
+      BadFodderRuntime.renderFrame({started,menuOpen,draw:drawWorld});
+      if(diagnostics.enabled)diagnostics.record(elapsedMs,simulatedAt-measuredAt,performance.now()-simulatedAt);
       if(runtimeFaultCount&&now-runtimeFaultAt>3000)runtimeFaultCount=0;
     }catch(err){
       handleRuntimeFault(err);
@@ -3664,7 +3675,7 @@
 
   async function startGame(){
     if(loadingMission)return;loadingMission=true;
-    menu.close();menuOpen=true;paused=true;syncTouchControlState();
+    menu.close();lifecycle.transition('LOADING');syncTouchControlState();
     try{
       loadingEl.classList.remove('hidden');
       const loadingText=loadingEl.querySelector('span');
@@ -3702,10 +3713,10 @@
       if(launchAfterLoad){launchAfterLoad=false;beginMission();}
     }catch(err){
       console.error('If I Can Shoot Rabbits failed to start',err);
-      started=false;
+      started=false;lifecycle.transition('RECOVERY');
       releaseInterruptedInput();
       loadingEl.classList.add('hidden');
-      menu.show('title');menu.fail();
+      menu.show('title');menu.fail();lifecycle.transition('RECOVERY');
       const loadingText=loadingEl.querySelector('span');
       if(loadingText)loadingText.textContent='Unable to start game. Reload the page to try again.';
       setStatus('Game startup failed.');
@@ -3713,9 +3724,9 @@
   }
 
   menu=new BadFodderMenu({
-    root,screen:document.getElementById('menuScreen'),canResume:canResumeMission,start:startCampaignFromMenu,selectMission:startStandaloneMission,selectHistorical:startHistoricalMission,resume:resumeMission,restart:beginMission,main:showTitle,viewBriefing:viewMissionBriefing,next:advanceCampaign,
+    state:next=>lifecycle.transition(next),root,screen:document.getElementById('menuScreen'),canResume:canResumeMission,start:startCampaignFromMenu,selectMission:startStandaloneMission,selectHistorical:startHistoricalMission,resume:resumeMission,restart:beginMission,main:showTitle,viewBriefing:viewMissionBriefing,next:advanceCampaign,
     fullscreen:toggleMobileFullscreen,isFullscreen:isFullscreenActive,
-    zoom:value=>{preferredZoom=zoom=Number(value);clampCamera();},dust:value=>{showDust=value;},dustEnabled:showDust
+    zoom:value=>{preferredZoom=zoom=Number(value);savedOptions.zoom=zoom;saveOptions();clampCamera();},dust:value=>{showDust=value;savedOptions.dust=value;saveOptions();},uiScale:value=>{applyUiScale(value);saveOptions();},zoomValue:preferredZoom,uiScaleValue:savedOptions.uiScale,dustEnabled:showDust
   });
   menu.show('title');syncTouchControlState();
   window.addEventListener('resize',resizeGame);
@@ -3732,7 +3743,7 @@
       if(MAP_DATA.key===map)return true;
       const index=campaign.missions.findIndex(m=>m.map===map);
       if(index<0)return false;
-      sessionStorage.setItem('badfodder.coop.resume',JSON.stringify(resume));
+      BadFodderStorage.session.setItem('badfodder.coop.resume',JSON.stringify(resume));
       missionLaunch.select(index);location.reload();return false;
     },
     async start(mode){
@@ -3807,7 +3818,7 @@
   // BOOT_MISSION: defer assets and simulation until the briefing is accepted.
   if(launchAfterLoad)startGame();
   else{loadingEl.classList.add('hidden');menu.ready(false);menu.show('title');}
-  if(sessionStorage.getItem('badfodder.coop.resume'))document.getElementById('menuMultiplayer').click();
+  if(BadFodderStorage.session.getItem('badfodder.coop.resume'))document.getElementById('menuMultiplayer').click();
 })();
 </script>
 </body>

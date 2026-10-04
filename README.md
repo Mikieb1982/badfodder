@@ -6,11 +6,11 @@ A browser-based top-down tactical game inspired by classic squad-control games a
 
 ![If I Can Shoot Rabbits title screen](docs/title-screen.jpg)
 
-The game opens on a title screen based on the supplied If I Can Shoot Rabbits artwork. Start Mission becomes available when the town and sprites are ready. The mission does not advance behind the title screen. Controls and Options are available before starting.
+The game opens on a title screen based on the supplied If I Can Shoot Rabbits artwork. Campaign and Mission Select are available immediately; accepting a briefing loads the selected mission. The mission does not advance behind the title screen. Controls and Options are available before starting.
 
 Enter or the pause button opens the matching pause screen, with Resume, Restart Mission, Controls, Options and Main Menu. Escape returns from a submenu or resumes a paused mission. Arrow keys move through the menu and Tab stays within it. Mouse and touch controls work throughout.
 
-Options change camera zoom, footstep dust, fullscreen mode and music. The supplied `assets/audio/bad_fodder.mp3` loops continuously across the title screen, mission and pause menu, using the same 22% volume and gentle fades as Sagenhaft. Playback starts after a click, tap or keypress. Music on/off is remembered locally; hiding the tab pauses playback and returning resumes it when enabled. A failed audio load exposes a retry button in Options. Artwork lives in `assets/menu/logo.webp` and `assets/menu/town-background.webp`; both use lossless encoding. The built-in image-generation tool prepared the artwork from the supplied image: remove the baked logo/menu and reconstruct the town background, then extract the red-and-gold If I Can Shoot Rabbits logo on transparency. Menu labels and buttons are live HTML rather than part of the picture.
+Options persist camera zoom, footstep dust, HUD text scale, music volume/mute and SFX. Title music is `bad_fodder.mp3`; Belzig and Wigan switch to `mission.mp3`; Cable Street uses `cable_street.mp3`. Pausing retains mission music; Main Menu restores title music. Playback starts after a gesture and pauses in hidden tabs. Character WebP atlases are lossless and load for the selected mission; missing art retains the painted procedural fallback.
 
 ## Current prototype
 
@@ -105,3 +105,13 @@ Road and landmark positions are derived from OpenStreetMap data.
 ## Optional two-player co-op
 
 Belzig and Wigan support two soldiers per player through browser WebRTC. Single player stays available without networking. See [connection and free Firebase setup](docs/MULTIPLAYER.md). Until the project has a signalling database, use Multiplayer > Manual Connection.
+
+## Runtime and deployment
+
+`npm ci` installs locked dependencies. `npm run build` creates curated `dist/`; Firebase Hosting publishes only that directory. `npm run firebase:deploy` builds then uses the installed Firebase CLI. CI tests and deploys the same SHA. Manual deployments also run regression and browser tests.
+
+`manifest.webmanifest` is authoritative. HTML and stable fallback paths revalidate; build-versioned `/static/` URLs cache immutably. Mission launch goes through TITLE / MISSION_SELECT / BRIEFING / LOADING / PLAYING, with PAUSED, RESULT and RECOVERY transitions. Existing flags remain compatibility adapters. Fixed simulation stays at 60 Hz with five catch-up steps maximum.
+
+`npm test`, `npm run test:browser`, `npm run test:coop`, `npm run test:coop:rules`, `npm run test:coop:browser`, and `npm run test:visual` cover local rules, actual database rules, browser lifecycle and six representative screenshots. Build before browser/visual checks. Set `BADFODDER_TEST_DIST=1` for browser lifecycle against production output; `BADFODDER_BROWSER=firefox` or `webkit` selects additional engines. Install engines with `npx --no-install playwright install --with-deps chromium firefox webkit`. Cross-browser checks run separately weekly and on relevant PRs. Update reviewed visual baselines with `npm run test:visual:update`.
+
+`?debug=1` enables `BadFodderDiagnostics.snapshot()` for frame/simulation/render timings, actors, paths, scenery cache, faults and co-op metrics. `?seed=example` seeds migrated gameplay spread and Director decisions. Storage reads legacy values and uses versioned envelopes on writes; unsupported versions safely fall back to defaults. No external analytics or AI service is used.

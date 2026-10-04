@@ -37,7 +37,7 @@
     if(!canvas)return Promise.resolve(false);
     const art=root.BadFodderArt;if(!art?.preloadMissionArt||!art?.missionPortrait)return Promise.resolve(false);
     return Promise.resolve(art.preloadMissionArt(key)).then(()=>{
-      try{const image=art.missionPortrait(key,index,state);if(!image)return false;const g=canvas.getContext('2d');g.clearRect(0,0,canvas.width,canvas.height);g.drawImage(image,0,0,canvas.width,canvas.height);canvas.dataset.portraitSource='assets/characters/portraits-1936-1945.png';return true;}catch(_){return false}
+      try{const image=art.missionPortrait(key,index,state);if(!image)return false;const g=canvas.getContext('2d');g.clearRect(0,0,canvas.width,canvas.height);g.drawImage(image,0,0,canvas.width,canvas.height);canvas.dataset.portraitSource='assets/characters/portraits-1936-1945.webp';return true;}catch(_){return false}
     }).catch(()=>false);
   }
 

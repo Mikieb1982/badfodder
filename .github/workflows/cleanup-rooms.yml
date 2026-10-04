@@ -1,0 +1,28 @@
+name: Clean expired co-op rooms
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: coop-expiry-cleanup
+  cancel-in-progress: false
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - id: auth
+        uses: google-github-actions/auth@b7593ed2efd1c1617e1b0254da33b86225adb2a5 # v2.1.12
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BAD_FODDER }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/firebase.database,https://www.googleapis.com/auth/userinfo.email
+      - run: node tools/runtime/cleanup-rooms.cjs
+        env:
+          FIREBASE_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}

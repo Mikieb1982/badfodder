@@ -10,10 +10,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: '24'
+          node-version: '22'
+      - run: npm ci --ignore-scripts
+      - run: npm run test:build
+      - name: Verify room rules in emulator
+        run: npm run test:coop:rules
       - name: Run regression suite
         run: npm test
 
@@ -21,17 +25,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: '24'
+          node-version: '22'
       - name: Install browser test runner
-        run: npm install --ignore-scripts
+        run: npm ci --ignore-scripts
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: npx --no-install playwright install --with-deps chromium
+      - run: npm run test:build
       - name: Exercise mission lifecycle and touch controls
         run: npm run test:browser
+        env:
+          BADFODDER_TEST_DIST: '1'
       - name: Exercise two-browser co-op experience
         env:
           BADFODDER_COOP_MOCK_RTC: '1'
+          BADFODDER_TEST_DIST: '1'
         run: npm run test:coop:browser
+      - name: Protect representative visuals
+        run: npm run test:visual

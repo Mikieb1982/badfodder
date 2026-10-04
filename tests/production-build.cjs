@@ -1,0 +1,10 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'../dist'),config=require('../firebase.json');
+assert.equal(config.hosting.public,'dist');for(const n of ['tests','tools','authoring','docs','data','.git','package.json','README.md','multiplayer-database.rules.json'])assert(!fs.existsSync(path.join(root,n)),'Development content published: '+n);
+const html=fs.readFileSync(path.join(root,'index.html'),'utf8');assert(html.includes('href="manifest.webmanifest"'));assert(!html.includes('site.webmanifest'));assert(!fs.existsSync(path.join(root,'site.webmanifest')));
+const manifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.webmanifest')));assert(manifest.icons.length===2&&manifest.orientation==='landscape');
+function check(dir){for(const e of fs.readdirSync(dir,{withFileTypes:true})){const f=path.join(dir,e.name);if(e.isDirectory()){check(f);continue}if(/\.(html|js|css|webmanifest|json)$/.test(f)){for(const m of fs.readFileSync(f,'utf8').matchAll(/\/static\/[a-f0-9]{16}\/[a-zA-Z0-9_.\/-]+/g))assert(fs.existsSync(path.join(root,m[0])),'Broken versioned asset: '+m[0]);}}}
+check(root);assert(config.hosting.headers.some(h=>h.source==='/static/**'&&h.headers[0].value.includes('immutable')));
+assert(!fs.existsSync(path.join(root,'assets/characters/belzig.png')));assert(html.includes('/assets/characters/belzig.webp'));assert(!fs.existsSync(path.join(root,'assets/characters/belzig.webp')));
+console.log('PASS: curated production output, authoritative manifest, versioned asset closure and cache policy.');

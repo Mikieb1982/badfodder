@@ -3,25 +3,17 @@
     "rules": "multiplayer-database.rules.json"
   },
   "hosting": {
-    "public": ".",
+    "public": "dist",
     "ignore": [
       "firebase.json",
-      ".firebaserc",
-      ".gitignore",
-      "README.md",
-      "package.json",
-      "package-lock.json",
-      "node_modules/**",
-      ".git/**",
-      ".github/**",
-      "tests/**",
-      "docs/**"
+      "**/.*",
+      "**/node_modules/**"
     ],
     "cleanUrls": true,
     "trailingSlash": false,
     "headers": [
       {
-        "source": "**/*.html",
+        "source": "**",
         "headers": [
           {
             "key": "Cache-Control",
@@ -30,23 +22,22 @@
         ]
       },
       {
-        "source": "**/*.js",
+        "source": "/static/**",
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "no-cache, max-age=0, must-revalidate"
-          }
-        ]
-      },
-      {
-        "source": "**/*.css",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "no-cache, max-age=0, must-revalidate"
+            "value": "public, max-age=31536000, immutable"
           }
         ]
       }
     ]
+  },
+  "emulators": {
+    "database": {
+      "port": 9000
+    },
+    "ui": {
+      "enabled": false
+    }
   }
 }

@@ -158,3 +158,12 @@ h1{font:800 27px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppe
 @media(pointer:coarse) and (orientation:landscape){
   .street-action .hud-roster{width:min(420px,calc(100% - 370px))}
 }
+
+/* Tactical state also uses text, symbols and outlines, independent of colour. */
+.hud-unit.selected{outline:1px solid #f3dc99;outline-offset:-3px}
+.hud-health i.low{background-image:repeating-linear-gradient(135deg,transparent 0 2px,#2229 2px 3px)}
+.hud-name{font-size:calc(10px * var(--ui-scale,1))}
+.hud-state{display:block;grid-column:2;grid-row:3;font-size:calc(8px * var(--ui-scale,1));white-space:nowrap}
+@media(max-width:720px),(pointer:coarse){.hud-name{font-size:calc(9px * var(--ui-scale,1))}.hud-state{font-size:calc(8px * var(--ui-scale,1))}.hud-kicker{font-size:calc(8px * var(--ui-scale,1))}}
+
+@media(pointer:coarse) and (orientation:landscape){.hud-name,.hud-state{grid-column:1}}

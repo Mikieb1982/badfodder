@@ -12,12 +12,12 @@
 
   function activeMissionKey(){
     try{
-      const launch=JSON.parse(sessionStorage.getItem('badfodder.launch.v1')||'null');
+      const launch=JSON.parse((typeof BadFodderStorage!=='undefined'?BadFodderStorage.session:sessionStorage).getItem('badfodder.launch.v1')||'null');
       if(launch?.mode==='historical')return'cable';
       if(launch?.mode==='select')return launch.index===1?'wigan':'belzig';
     }catch(_){}
     try{
-      const campaign=JSON.parse(localStorage.getItem('badfodder.campaign.v1')||'null');
+      const campaign=JSON.parse((typeof BadFodderStorage!=='undefined'?BadFodderStorage.local:localStorage).getItem('badfodder.campaign.v1')||'null');
       return Number(campaign?.current)===1?'wigan':'belzig';
     }catch(_){return'belzig'}
   }
@@ -65,7 +65,7 @@
     const timer=setTimeout(()=>finish(false),8000);
     image.onload=()=>finish(true);
     image.onerror=()=>finish(false);
-    image.src=key==='urban'?'assets/wigan/materials.webp':'assets/painted/'+key+'.webp';
+    const src=key==='urban'?'assets/wigan/materials.webp':'assets/painted/'+key+'.webp';image.src=window.BadFodderAssetUrl?.(src)||src;
   }))).then(results=>{
     const requested=(theme==='wigan'||theme==='cable-street')?[...keys,'urban']:keys;
     requested.forEach((key,i)=>{art.paintedAssets[key]=!!results[i]});

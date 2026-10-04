@@ -193,12 +193,12 @@ const defaults={current:0,unlocked:0,completed:[]};
 
 function load(){
   try{
-    const raw=JSON.parse(localStorage.getItem(KEY)||'null');
+    const raw=JSON.parse((typeof BadFodderStorage!=='undefined'?BadFodderStorage.local:localStorage).getItem(KEY)||'null');
     if(!raw||typeof raw!=='object')return{...defaults,completed:[]};
     return{
-      current:Math.max(0,Math.min(missions.length-1,Number(raw.current)||0)),
-      unlocked:Math.max(0,Math.min(missions.length-1,Number(raw.unlocked)||0)),
-      completed:Array.isArray(raw.completed)?raw.completed.filter(Number.isInteger):[]
+      current:Math.max(0,Math.min(missions.length-1,Number.isInteger(raw.current)?raw.current:0)),
+      unlocked:Math.max(0,Math.min(missions.length-1,Number.isInteger(raw.unlocked)?raw.unlocked:0)),
+      completed:Array.isArray(raw.completed)?raw.completed.filter(i=>Number.isInteger(i)&&i>=0&&i<missions.length):[]
     };
   }catch(_){
     return{...defaults,completed:[]};
@@ -208,7 +208,7 @@ function load(){
 let state=load();
 
 function save(){
-  try{localStorage.setItem(KEY,JSON.stringify(state))}catch(_){}
+  try{(typeof BadFodderStorage!=='undefined'?BadFodderStorage.local:localStorage).setItem(KEY,JSON.stringify(state))}catch(_){}
 }
 
 function mission(index=state.current){

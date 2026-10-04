@@ -5,18 +5,6 @@
   const api=factory();
   if(typeof module==='object'&&module.exports)module.exports=api;
   if(root)root.BadFodderMissionRules=api;
-  if(root&&root.document){
-    const sources=[];
-    if(!root.BadFodderCheckpointFortification)sources.push('checkpoint-fortification.js?v=20261004-siege-3');
-    if(!root.BadFodderCheckpointWaveConfig)sources.push('checkpoint-wave-config.js?v=20261004-siege-1');
-    if(!root.BadFodderGarrison)sources.push('garrison-control.js?v=20261004-garrison-1');
-    if(!root.BadFodderMissionStats)sources.push('mission-stats.js?v=20261004-casualty-1');
-    if(root.document.readyState==='loading'){
-      for(const src of sources)root.document.write('<script src="'+src+'"><\/script>');
-    }else{
-      for(const src of sources){const script=root.document.createElement('script');script.src=src;script.async=false;root.document.head.appendChild(script)}
-    }
-  }
 })(typeof window!=='undefined'?window:globalThis,function(){
   'use strict';
 

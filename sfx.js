@@ -5,7 +5,7 @@
 const KEY='badfodder.sfx.v1';
 let enabled=true;
 try{
-  const saved=localStorage.getItem(KEY);
+  const saved=(typeof BadFodderStorage!=='undefined'?BadFodderStorage.local:localStorage).getItem(KEY);
   if(saved!==null)enabled=saved!=='0';
 }catch(_){}
 
@@ -202,7 +202,7 @@ function render(){
 
 function setEnabled(on){
   enabled=!!on;
-  try{localStorage.setItem(KEY,enabled?'1':'0')}catch(_){}
+  try{(typeof BadFodderStorage!=='undefined'?BadFodderStorage.local:localStorage).setItem(KEY,enabled?'1':'0')}catch(_){}
   if(enabled)unlock();
   render();
 }

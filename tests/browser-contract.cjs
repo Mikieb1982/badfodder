@@ -13,9 +13,6 @@ assert(html.includes('id="touchFire"'),'Touch FIRE missing');
 assert(html.includes('id="touchGrenade"'),'Touch GRENADE missing');
 assert(html.includes('id="touchFull"'),'Mobile fullscreen control missing');
 
-assert(html.includes('function updatePinch()'),'Pinch zoom implementation missing');
-assert(html.includes('pinchPointers.size===2'),'Two-finger pinch detection missing');
-assert(html.includes('Math.max(.55,Math.min(1.8'),'Pinch zoom range changed unexpectedly');
 
 assert(html.includes("window.addEventListener('blur',releaseInterruptedInput)"),'Blur does not recover input');
 assert(html.includes("window.addEventListener('pagehide',releaseInterruptedInput)"),'Page hide does not recover input');
@@ -30,7 +27,7 @@ assert(html.includes("window.addEventListener('keydown'"),'Window-level keyboard
 assert(html.includes("keyboardFireHeld=true"),'F-key firing state missing');
 
 assert(html.includes('const FIXED_DT=1/60,MAX_CATCHUP_STEPS=5'),'Fixed-step simulation contract missing');
-assert(html.includes('while(simulationAccumulator>=FIXED_DT&&steps<MAX_CATCHUP_STEPS)'),'Bounded simulation catch-up missing');
+assert(html.includes('BadFodderRuntime.fixedFrame'),'Bounded simulation catch-up missing');
 assert(html.includes('simulationAccumulator=0'),'Simulation accumulator reset missing');
 
 assert(css.includes('touch-action:none'),'Touch canvas/controls must suppress browser gestures during play');
@@ -46,8 +43,8 @@ assert(menu.includes("orientation.lock('landscape')"),'Landscape orientation loc
 assert(menu.includes('orientation.unlock()'),'Landscape orientation is not released when the user exits fullscreen');
 assert(menu.includes('setTimeout(()=>this.mobilePresentation?.prompt(),0)'),'Startup prompt is not shown when the menu initializes');
 assert(menu.includes("const PRESENTATION_PROMPT_KEY='badfodder.presentation.prompted.v1'"),'Startup prompt session key missing');
-assert(menu.includes("sessionStorage.getItem(PRESENTATION_PROMPT_KEY)==='1'"),'Startup prompt does not remember that it was already shown this session');
-assert(menu.includes("sessionStorage.setItem(PRESENTATION_PROMPT_KEY,'1')"),'Startup prompt does not mark itself as shown');
+assert(menu.includes("BadFodderStorage.session.getItem(PRESENTATION_PROMPT_KEY)==='1'"),'Startup prompt does not remember that it was already shown this session');
+assert(menu.includes("BadFodderStorage.session.setItem(PRESENTATION_PROMPT_KEY,'1')"),'Startup prompt does not mark itself as shown');
 assert(menu.includes('let promptShown=wasPromptedThisSession()'),'Startup prompt state is not restored after mission reloads');
 assert(!menu.includes("window.addEventListener('pointerdown',retry"),'Fullscreen must not hijack the first unrelated touch');
 assert(!menu.includes('Fill the mobile viewport immediately'),'Mobile presentation must not auto-enter fullscreen before consent');

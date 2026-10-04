@@ -1,21 +1,60 @@
 {
- "rules": {
-  ".read": false,
-  ".write": false,
-  "coopRooms": {
-   "$room": {
-    ".read": "data.exists() && data.child('expires').val() > now",
-    ".write": "(!data.exists() && newData.exists()) || (data.exists() && !newData.exists() && data.child('expires').val() > now)",
-    ".validate": "$room.matches(/^RABBIT-[A-HJ-NP-Z2-9]{10}$/) && newData.hasChildren(['host','mission','created','expires','offer'])",
-    "host": {".validate": "newData.isString() && newData.val().length >= 8 && newData.val().length <= 64 && (!data.exists() || newData.val() == data.val())"},
-    "mission": {".validate": "(newData.val() == 'bad-belzig' || newData.val() == 'wigan') && (!data.exists() || newData.val() == data.val())"},
-    "created": {".validate": "newData.isNumber() && ((!data.exists() && newData.val() <= now + 10000 && newData.val() > now - 60000) || newData.val() == data.val())"},
-    "expires": {".validate": "newData.isNumber() && newData.val() <= newData.parent().child('created').val() + 900000 && newData.val() > now && (!data.exists() || newData.val() == data.val())"},
-    "offer": {".validate": "newData.hasChildren(['type','sdp'])", "type": {".validate": "newData.val() == 'offer'"}, "sdp": {".validate": "newData.isString() && newData.val().length < 50000"}, "$other": {".validate": false}},
-    "joiner": {".write": "!data.exists() && data.parent().child('expires').val() > now", ".validate": "newData.isString() && newData.val().length >= 8 && newData.val().length <= 64"},
-    "answer": {".write": "data.parent().child('joiner').exists() && data.parent().child('expires').val() > now && !data.exists()", ".validate": "newData.hasChildren(['type','sdp'])", "type": {".validate": "newData.val() == 'answer'"}, "sdp": {".validate": "newData.isString() && newData.val().length < 50000"}, "$other": {".validate": false}},
-    "$other": {".validate": false}
-   }
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "coopRooms": {
+      "$room": {
+        ".read": "data.exists() && data.child('expires').val() > now",
+        ".write": "(!data.exists() && newData.exists()) || (data.exists() && !newData.exists())",
+        ".validate": "$room.matches(/^RABBIT-[A-HJ-NP-Z2-9]{10}$/) && newData.hasChildren(['host','mission','created','expires','offer']) && (data.exists() || (!newData.child('joiner').exists() && !newData.child('answer').exists()))",
+        "host": {
+          ".validate": "newData.isString() && newData.val().length >= 8 && newData.val().length <= 64 && (!data.exists() || newData.val() == data.val())"
+        },
+        "mission": {
+          ".validate": "(newData.val() == 'bad-belzig' || newData.val() == 'wigan') && (!data.exists() || newData.val() == data.val())"
+        },
+        "created": {
+          ".validate": "newData.isNumber() && ((!data.exists() && newData.val() <= now + 10000 && newData.val() > now - 60000) || newData.val() == data.val())"
+        },
+        "expires": {
+          ".validate": "newData.isNumber() && newData.val() <= newData.parent().child('created').val() + 900000 && newData.val() > now && (!data.exists() || newData.val() == data.val())"
+        },
+        "offer": {
+          ".validate": "newData.hasChildren(['type','sdp'])",
+          "type": {
+            ".validate": "newData.val() == 'offer'"
+          },
+          "sdp": {
+            ".validate": "newData.isString() && newData.val().length < 50000 && newData.val().length > 0"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "joiner": {
+          ".write": "!data.exists() && data.parent().child('expires').val() > now",
+          ".validate": "newData.isString() && newData.val().length >= 8 && newData.val().length <= 64"
+        },
+        "answer": {
+          ".write": "data.parent().child('joiner').exists() && data.parent().child('expires').val() > now && !data.exists()",
+          ".validate": "newData.hasChildren(['type','sdp'])",
+          "type": {
+            ".validate": "newData.val() == 'answer'"
+          },
+          "sdp": {
+            ".validate": "newData.isString() && newData.val().length < 50000 && newData.val().length > 0"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      },
+      ".indexOn": [
+        "expires"
+      ]
+    }
   }
- }
 }

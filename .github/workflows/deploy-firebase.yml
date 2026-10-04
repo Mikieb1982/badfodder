@@ -19,27 +19,42 @@ jobs:
   deploy:
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Check out tested commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Authenticate Firebase service account
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@b7593ed2efd1c1617e1b0254da33b86225adb2a5 # v2.1.12
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BAD_FODDER }}
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 20
+          node-version: '22'
+
+      - run: npm ci --ignore-scripts
+      - name: Verify manual deployment commit
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          npm test
+          npx --no-install playwright install --with-deps chromium
+          npm run build
+          BADFODDER_TEST_DIST=1 npm run test:browser
+          npm run test:coop:rules
+          BADFODDER_TEST_DIST=1 BADFODDER_COOP_MOCK_RTC=1 npm run test:coop:browser
+          npm run test:visual
+      - run: npm run build
 
       - name: Deploy free Realtime Database signalling rules
-        run: npx --yes firebase-tools deploy --only database --project bad-fodder --non-interactive
+        run: ./node_modules/.bin/firebase deploy --only database --project bad-fodder --non-interactive
 
       - name: Smoke test live multiplayer room service
         shell: bash
@@ -63,9 +78,4 @@ jobs:
           curl -fsS "$URL" | grep -q 'smoke-answer'
 
       - name: Deploy live site to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BAD_FODDER }}
-          projectId: bad-fodder
-          channelId: live
+        run: ./node_modules/.bin/firebase deploy --only hosting --project bad-fodder --non-interactive

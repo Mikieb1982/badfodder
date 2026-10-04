@@ -2,7 +2,7 @@
 // Two real browsers + native DataChannels; Firebase REST is mocked locally, never billed.
 const assert=require('node:assert/strict'),fs=require('node:fs'),http=require('node:http'),path=require('node:path');
 const {chromium}=require(process.env.BADFODDER_PLAYWRIGHT||'playwright');
-const root=path.resolve(__dirname,'..');
+const root=path.resolve(__dirname,'..',process.env.BADFODDER_TEST_DIST==='1'?'dist':'.');
 const injection=`const commandResults={};const coopExecute=BadFodderCoopBridge.execute;BadFodderCoopBridge.execute=c=>{const result=coopExecute(c);if(result)commandResults[c.type]=(commandResults[c.type]||0)+1;return result;};window.__coopTest={
  state:()=>({started,paused,menuOpen,finished,win,faults:runtimeFaultCount,stage:missionStage,hp:squad.map(s=>s.hp),units:squad.map(s=>({x:s.x,y:s.y,alive:s.alive,garrison:!!s.manualGarrison})),grenades:squadGrenades,bullets:bullets.length,director:!!adaptiveDirector,checkpoint:coopCheckpoint,commandResults,stats:BadFodderMissionStats.snapshot()}),
  target:(id)=>{const s=squad[id];for(const [dx,dy] of [[60,0],[-60,0],[0,60],[0,-60]])if(routeClear(s.x,s.y,s.x+dx,s.y+dy,NAV_RADIUS))return{x:s.x+dx,y:s.y+dy};throw Error('No open target')},

@@ -1,11 +1,11 @@
 'use strict';
 // Optional real-browser suite: npm install, npx playwright install chromium, npm run test:browser.
 const assert=require('node:assert/strict'),fs=require('node:fs'),http=require('node:http'),path=require('node:path');
-const {chromium,firefox}=require(process.env.BADFODDER_PLAYWRIGHT||'playwright');
-const root=path.resolve(__dirname,'..');
-const engine=process.env.BADFODDER_BROWSER==='firefox'?firefox:chromium;
+const {chromium,firefox,webkit}=require(process.env.BADFODDER_PLAYWRIGHT||'playwright');
+const root=path.resolve(__dirname,'..',process.env.BADFODDER_TEST_DIST==='1'?'dist':'.');
+const engine=({chromium,firefox,webkit})[process.env.BADFODDER_BROWSER||'chromium'];
 const injection=`
-window.__testGame={state:()=>({started,paused,menuOpen,finished,runtimeSafeStop,map:MAP_DATA.key,mode:missionLaunch.mode(),faults:runtimeFaultCount,units:squad.map(s=>({x:s.x,y:s.y,hp:s.hp})),progress:missionDirector?.snapshot(),controllerDisposed:missionController?.disposed,streetActors:missionController?[...missionController.state.actors.values()].map(a=>({stamina:a.stamina,attackKind:a.attackKind})):[]}),
+window.__testGame={state:()=>({started,paused,menuOpen,finished,runtimeSafeStop,lifecycle:lifecycle.state,zoom,map:MAP_DATA.key,mode:missionLaunch.mode(),faults:runtimeFaultCount,units:squad.map(s=>({x:s.x,y:s.y,hp:s.hp})),progress:missionDirector?.snapshot(),controllerDisposed:missionController?.disposed,streetActors:missionController?[...missionController.state.actors.values()].map(a=>({stamina:a.stamina,attackKind:a.attackKind})):[]}),
 step:n=>{for(let i=0;i<n;i++)simulateStep(1/60)}, moveTarget:()=>{const s=squad[0],r=canvas.getBoundingClientRect();for(const [dx,dy] of [[70,0],[-70,0],[0,70],[0,-70]]){const x=s.x+dx,y=s.y+dy;if(routeClear(s.x,s.y,x,y,NAV_RADIUS))return{x:(x-camera.x)*zoom/VIEW_W*r.width,y:(y-camera.y)*zoom/VIEW_H*r.height}}throw new Error('No open movement test target')},
 fault:()=>{for(let i=0;i<3;i++)handleRuntimeFault(new Error('Injected unrecoverable test fault'))},
 restart:beginMission, pause:togglePause, main:showTitle, resume:resumeMission,
@@ -35,14 +35,14 @@ const server=http.createServer((req,res)=>{
  assert.equal(await page.locator('#menuMissionBad').isVisible(),true);assert.equal(await page.locator('#menuMissionWigan').isVisible(),true);assert.equal(await page.locator('#menuHistoricalCable').isVisible(),true);assert.equal(await page.locator('#menuHistorical').count(),0);
  const campaignBefore=await page.evaluate(()=>localStorage.getItem('badfodder.campaign.v1'));
  async function select(button){console.log('Checking',button);await page.locator('#menuMissionSelect').click();await page.locator(button).click();assert(await page.locator('#briefingBegin').isVisible());await page.locator('#briefingBegin').click();await page.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen,{},{timeout:90000})}
- async function active(){const state=await page.evaluate(()=>window.__testGame.state());assert(state.started&&!state.menuOpen&&!state.paused&&!state.runtimeSafeStop);assert.equal(state.faults,0);return state}
+ async function active(){const state=await page.evaluate(()=>window.__testGame.state());assert(state.started&&!state.menuOpen&&!state.paused&&!state.runtimeSafeStop);assert.equal(state.faults,0);assert.equal(state.lifecycle,'PLAYING');return state}
  async function resultCycle(p,map){await p.evaluate(()=>window.__testGame.fail());assert(await p.locator('#resultRetry').isVisible());const id=await p.evaluate(()=>window.__testGame.identity());assert.equal(await p.locator('#resultTitle').textContent(),id.failure);await p.locator('#resultBriefing').click();assert(await p.locator('#briefingBegin').isVisible());await p.locator('#briefingBack').click();await p.locator('#resultRetry').click();await p.waitForFunction(()=>!window.__testGame.state().menuOpen&&!window.__testGame.state().finished);assert(await p.locator('#briefingBegin').isHidden());await p.evaluate(()=>window.__testGame.complete());assert.equal(await p.locator('#resultTitle').textContent(),id.victory[0]);await p.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp',map+'-result.png')});await p.locator('#resultRetry').click();}
  async function pauseMenuResume(){await page.evaluate(()=>window.__testGame.pause());await page.locator('#menuMain').click();assert(await page.locator('#menuResume').isVisible());await page.locator('#menuResume').click();await active()}
  await page.locator('[data-view="missions"] [data-back]').click();
  for(const [button,map] of [['#menuMissionBad','bad-belzig'],['#menuMissionWigan','wigan']]){
   await page.locator('#menuMissionSelect').click();await page.locator(button).click();assert.equal((await page.evaluate(()=>window.__testGame.state())).menuOpen,true);assert(await page.locator('#briefingStory').isVisible());assert.equal(await page.locator('#briefingCharacters canvas').count(),4);await page.evaluate(()=>BadFodderArt.preloadMissionArt(document.getElementById('briefingTitle').textContent.toLowerCase()));await page.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp',map+'-briefing.png')});await page.locator('#briefingBack').click();assert(await page.locator(button).isVisible());await page.locator('[data-view="missions"] [data-back]').click();
   await select(button);assert.equal((await active()).map,map);
-  const identity=await page.evaluate(()=>window.__testGame.identity());assert.equal(identity.year,map==='wigan'?1941:1945);assert.equal(await page.locator('#loadingEra').textContent(),identity.loading);assert((await page.locator('#hudSquadBar').textContent()).includes(identity.characters[0].name));assert.equal(await page.evaluate(()=>BadFodderMusic.source),'assets/audio/mission.mp3');
+  const identity=await page.evaluate(()=>window.__testGame.identity());assert.equal(identity.year,map==='wigan'?1941:1945);assert.equal(await page.locator('#loadingEra').textContent(),identity.loading);assert((await page.locator('#hudSquadBar').textContent()).includes(identity.characters[0].name));assert((await page.evaluate(()=>BadFodderMusic.source)).endsWith('assets/audio/mission.mp3'));
   const before=await page.evaluate(()=>window.__testGame.state().units[0]);
   await page.locator('#game').click({position:await page.evaluate(()=>window.__testGame.moveTarget())});await page.waitForTimeout(700);
   const after=await page.evaluate(()=>window.__testGame.state().units[0]);assert(Math.hypot(before.x-after.x,before.y-after.y)>1,'Click movement did not move leader');
@@ -57,7 +57,7 @@ const server=http.createServer((req,res)=>{
   await page.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp',map+'-upgrade.png')});
   await resultCycle(page,map);
   await page.evaluate(()=>window.__testGame.main());
-  assert.equal(await page.evaluate(()=>BadFodderMusic.source),'assets/audio/bad_fodder.mp3');
+  assert((await page.evaluate(()=>BadFodderMusic.source)).endsWith('assets/audio/bad_fodder.mp3'));
  }
  assert.equal(await page.evaluate(()=>localStorage.getItem('badfodder.campaign.v1')),campaignBefore,'Direct selection changed campaign');
  await page.locator('#menuMissionSelect').click();await page.locator('#menuHistoricalCable').click();await page.locator('#briefingBegin').click();
@@ -72,13 +72,18 @@ const server=http.createServer((req,res)=>{
  assert((await page.evaluate(()=>window.__testGame.adaptive())).enabled);assert.equal((await page.evaluate(()=>window.__testGame.adaptive())).militaryEnemies,0);assert(!(await page.evaluate(()=>window.__testGame.adaptive())).commander);
  await page.evaluate(()=>window.__testGame.directorFault());await active();
  await resultCycle(page,'cable-street');
- assert.equal(await page.evaluate(()=>BadFodderMusic.source),'assets/audio/cable_street.mp3');
+ assert((await page.evaluate(()=>BadFodderMusic.source)).endsWith('assets/audio/cable_street.mp3'));
  await pauseMenuResume();await page.evaluate(()=>window.__testGame.pause());await page.locator('#menuRestart').click();await active();
  await page.evaluate(()=>window.__testGame.main());await page.locator('#menuMissionSelect').click();await page.locator('#menuHistoricalCable').click();await page.locator('#briefingBegin').click();await page.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen,{},{timeout:90000});await active();
  expectedRuntimeLogs=3;await page.evaluate(()=>window.__testGame.fault());assert(await page.locator('#menuResume').isHidden());assert(await page.locator('#menuMissionSelect').isVisible());await page.locator('#menuRestart').click();await active();
  expectedStartupLogs=1;await page.goto(url+'?failStartup=1');await page.locator('#menuStart').click();await page.locator('#briefingBegin').click();await page.waitForFunction(()=>document.getElementById('menuStart').textContent==='CAMPAIGN UNAVAILABLE');assert(await page.locator('#menuResume').isHidden());assert(await page.locator('#loading').isHidden());await page.evaluate(()=>history.replaceState(null,'',location.pathname));await select('#menuMissionBad');await active();
  await page.evaluate(()=>window.__testGame.main());await page.locator('#menuStart').click();await page.locator('#briefingBegin').click();await page.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen,{},{timeout:90000});assert.equal((await active()).mode,'campaign');
- const mobile=await browser.newPage({viewport:{width:915,height:412},...(engine===chromium?{isMobile:true}:{}),hasTouch:true});mobile.on('pageerror',e=>errors.push(e.message));await mobile.goto(url);await mobile.locator('[data-presentation-skip]').click();await mobile.waitForFunction(()=>!!window.__testGame);await mobile.locator('#menuStart').click();await mobile.locator('#briefingBegin').click();await mobile.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen);
+ const mobile=await browser.newPage({viewport:{width:915,height:412},...(engine!==firefox?{isMobile:true}:{}),hasTouch:true});mobile.on('pageerror',e=>errors.push(e.message));await mobile.goto(url);await mobile.locator('[data-presentation-skip]').click();await mobile.waitForFunction(()=>!!window.__testGame);await mobile.locator('#menuStart').click();await mobile.locator('#briefingBegin').click();await mobile.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen);
+ // Exercise pinch through real pointer listeners in every browser engine.
+ const originalZoom=await mobile.evaluate(()=>window.__testGame.state().zoom);
+ await mobile.evaluate(()=>{const c=document.getElementById('game'),r=c.getBoundingClientRect(),capture=c.setPointerCapture;c.setPointerCapture=()=>{};const fire=(type,id,x)=>c.dispatchEvent(new PointerEvent(type,{pointerId:id,pointerType:'touch',clientX:r.left+x,clientY:r.top+100,bubbles:true,buttons:type==='pointerup'?0:1}));fire('pointerdown',901,200);fire('pointerdown',902,300);fire('pointermove',902,360);fire('pointerup',901,200);fire('pointerup',902,360);c.setPointerCapture=capture;});
+ assert((await mobile.evaluate(()=>window.__testGame.state().zoom))>originalZoom,'Pinch did not change zoom');
+ await mobile.evaluate(()=>{document.querySelector('.viewport').requestFullscreen=async()=>{throw new Error('Test denial')};});await mobile.locator('#touchFull').click();assert(await mobile.evaluate(()=>document.body.classList.contains('mobile-fullscreen-fallback')),'Fullscreen denial did not use fallback');await mobile.locator('#touchFull').click();
  const joy=await mobile.locator('#touchJoystick').boundingBox(),before=await mobile.evaluate(()=>window.__testGame.state().units[0]);
  if(engine===chromium){const touch=await mobile.context().newCDPSession(mobile);await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:joy.x+joy.width*.5,y:joy.y+joy.height*.2}]});await mobile.waitForTimeout(500);await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});}else{await mobile.mouse.move(joy.x+joy.width*.5,joy.y+joy.height*.2);await mobile.mouse.down();await mobile.waitForTimeout(500);await mobile.mouse.up();}
  const after=await mobile.evaluate(()=>window.__testGame.state().units[0]);assert(Math.hypot(before.x-after.x,before.y-after.y)>1,'Joystick did not move squad');await mobile.locator('#touchPause').click();await mobile.locator('#menuResume').click();await mobile.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp','mobile-upgrade.png')});

@@ -32,6 +32,23 @@
     return map;
   }
 
+  function validateConfiguration(mission,map){
+    if(!Number.isFinite(map.width)||!Number.isFinite(map.height)||map.width<=0||map.height<=0)throw new Error('Invalid mission map dimensions');
+    if(!Number.isInteger(mission.squadSize)||mission.squadSize<1||mission.squadSize>8)throw new Error('Invalid mission squad size');
+    if(typeof mission.title!=='string'||!mission.title)throw new Error('Missing mission title');
+    if(!Array.isArray(mission.phases)||!mission.phases.length)throw new Error('Missing mission objectives');
+    const zones=map.zones||(map.key==='bad-belzig'?{post:map.pois?.postcolumn,castle:map.pois?.castle,market:map.pois?.market}:{});
+    for(const phase of mission.phases){
+      if((map.key==='cable-street'?typeof phase.id!=='string'||!Array.isArray(phase.tasks):typeof phase.type!=='string'||!phase.type)||typeof phase.title!=='string')throw new Error('Invalid mission objective');
+      if(phase.zone&&!zones[phase.zone])throw new Error('Unknown mission objective zone: '+phase.zone);
+      if(phase.checkpoint&&(!['rush','pincer','siege'].includes(phase.checkpoint.style)||!Number.isInteger(phase.checkpoint.count)||phase.checkpoint.count<1))throw new Error('Invalid checkpoint configuration');
+      if(phase.defenderGroup&&!Array.isArray(map.defenderGroups?.[phase.defenderGroup]))throw new Error('Unknown defender group');
+    }
+    for(const [kind,positions] of Object.entries(map.spawns||{})){
+      if(!Array.isArray(positions)||positions.some(p=>kind==='pickups'?(!p||!Number.isFinite(p.x)||!Number.isFinite(p.y)||!['med','grenade'].includes(p.type)):(!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite))))throw new Error('Invalid '+kind+' spawn configuration');
+    }
+    return true;
+  }
   function actionProfile(mission){
     const profile=mission&&mission.actionProfile||{};
     return{
@@ -46,5 +63,5 @@
     return !!(profile&&Array.isArray(profile.contextualActions)&&profile.contextualActions.includes(action));
   }
 
-  return{DEFAULT_ACTION_PROFILE,createMapRegistry,resolveMap,actionProfile,allows};
+  return{validateConfiguration,DEFAULT_ACTION_PROFILE,createMapRegistry,resolveMap,actionProfile,allows};
 });

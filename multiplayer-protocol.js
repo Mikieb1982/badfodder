@@ -1,14 +1,15 @@
 /* Small wire protocol. Intent only from P2; state only from the authoritative host. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.BadFodderCoopProtocol=api;})(typeof window!=='undefined'?window:globalThis,function(){
  'use strict';
- const VERSION=1,MAX_BYTES=65536,TYPES=new Set(['move','fire','grenade','garrison','release','select','stick']);
+ const VERSION=1,MAX_BYTES=65536,SNAPSHOT_BYTES=60*1024,TYPES=new Set(['move','fire','grenade','garrison','release','select','stick']);
  const actorKeys=['x','y','hp','maxHp','alive','dir','state','variant','anim','objectiveGroup','groupId','fireTimer','hitTimer','throwTimer','deadTimer','deathAngle','flash','aiming','manualGarrison','garrisonAnchorX','garrisonAnchorY','checkpointCover','checkpointGarrison','checkpointHeld','checkpointFortified','checkpointFacing','checkpointCenterX','checkpointCenterY','checkpointSandbagRadius','checkpointFortificationPhase','checkpointFortificationLead','checkpointFortificationRearLead','checkpointFortificationFrontLead'];
  const itemKeys=['x','y','vx','vy','life','owner','type','active','optional','amount','startX','startY','tx','ty','t','flight','fuse','z','landed','angle'];
  const primitive=v=>v===null||typeof v==='boolean'||typeof v==='string'&&v.length<=80||typeof v==='number'&&Number.isFinite(v)&&Math.abs(v)<1e8;
  const pack=(obj,keys)=>keys.map(k=>primitive(obj[k])?obj[k]:null);
  const unpack=(row,keys)=>Object.fromEntries(keys.map((k,i)=>[k,row[i]]));
- function parse(raw){try{if(typeof raw!=='string'||raw.length>MAX_BYTES)return null;const v=JSON.parse(raw);return v&&typeof v==='object'&&!Array.isArray(v)?v:null;}catch{return null;}}
- function encode(packet){const text=JSON.stringify(packet);if(text.length>MAX_BYTES)throw new Error('Network packet too large');return text;}
+ const bytes=text=>new TextEncoder().encode(text).byteLength;
+ function parse(raw){try{if(typeof raw!=='string'||(raw.length>MAX_BYTES||bytes(raw)>MAX_BYTES))return null;const v=JSON.parse(raw);return v&&typeof v==='object'&&!Array.isArray(v)?v:null;}catch{return null;}}
+ function encode(packet){const text=JSON.stringify(packet);if(bytes(text)>MAX_BYTES)throw new Error('Network packet too large');return text;}
  function validCommand(c,{player=1,squad=[],active=false,w=0,h=0}={}){
   if(!active||!c||!TYPES.has(c.type)||!Array.isArray(c.units)||c.units.length<1||c.units.length>2||new Set(c.units).size!==c.units.length)return false;
   if(!c.units.every(i=>Number.isInteger(i)&&i>=player*2&&i<player*2+2&&squad[i]?.alive))return false;
@@ -24,6 +25,17 @@
    checkpoint:s.checkpoint?{phase:s.checkpoint.phase,started:!!s.checkpoint.started,cleared:!!s.checkpoint.cleared,style:s.checkpoint.style}:null,
    stats:s.stats.map(r=>[r.index,r.name,r.kills,Number.isSafeInteger(r.assists)?r.assists:0,r.alive])};
  }
+ function budgetSnapshot(packet,budget=SNAPSHOT_BYTES){
+  if(!Number.isInteger(budget)||budget<1||budget>MAX_BYTES)throw new Error('Invalid snapshot byte budget');
+  let result=packet;if(bytes(JSON.stringify(result))<=budget)return result;
+  result={...packet,f:[]}; // Effects are cosmetic. Projectiles, actors and objectives stay complete.
+  if(bytes(JSON.stringify(result))>budget){
+   const cosmetic=['anim','hitTimer','throwTimer','deathAngle','flash','aiming'].map(k=>actorKeys.indexOf(k));
+   for(const key of ['s','e','c'])result[key]=packet[key].map(row=>row.map((v,i)=>cosmetic.includes(i)?null:v));
+  }
+  if(bytes(JSON.stringify(result))>budget)throw new Error('Co-op snapshot exceeds byte budget; gameplay state was not dropped');
+  return result;
+ }
  function readSnapshot(p){
   if(!p||p.v!==VERSION||p.t!=='state'||!Number.isSafeInteger(p.seq)||p.seq<0||!Number.isInteger(p.stage)||p.stage<0||p.stage>20||!Number.isFinite(p.hold)||p.hold<0||!Number.isInteger(p.grenades)||p.grenades<0||p.grenades>100||typeof p.done!=='boolean'||typeof p.win!=='boolean')return null;
   const list=(rows,keys,max)=>Array.isArray(rows)&&rows.length<=max&&rows.every(row=>Array.isArray(row)&&row.length===keys.length&&row.every(primitive));
@@ -37,5 +49,5 @@
  const owner=i=>i<2?1:2;
  const totals=records=>[1,2].map(p=>records.filter(r=>owner(r.index)===p).reduce((n,r)=>n+r.kills,0));
  const assistTotals=records=>[1,2].map(p=>records.filter(r=>owner(r.index)===p).reduce((n,r)=>n+(r.assists||0),0));
- return {VERSION,MAX_BYTES,parse,encode,validCommand,limiter,snapshot,readSnapshot,owner,totals,assistTotals};
+ return {VERSION,MAX_BYTES,SNAPSHOT_BYTES,bytes,budgetSnapshot,parse,encode,validCommand,limiter,snapshot,readSnapshot,owner,totals,assistTotals};
 });

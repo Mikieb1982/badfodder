@@ -43,10 +43,19 @@ assert(S.validRoom(room,time));assert(!S.validRoom(room,time+S.TTL));assert(!S.v
   }else value=store.room;
   return {ok:status===200,status,json:async()=>value};
  };
+ let clock=time;
  const config={databaseURL:'https://test-default-rtdb.firebaseio.com'};
- const host=S.create({fetch,now:()=>time,crypto,config}),join=S.create({fetch,now:()=>time,crypto,config});
+ const host=S.create({fetch,now:()=>clock,crypto,config}),join=S.create({fetch,now:()=>clock,crypto,config});
  assert.equal(await host.createRoom('wigan',offer),code);assert.equal((await join.joinRoom(code)).mission,'wigan');await join.answer({type:'answer',sdp:'reply'});assert.equal((await host.read()).answer.sdp,'reply');
+ await assert.rejects(host.createRoom('cable-street',offer),/INVALID ROOM/);
+ await assert.rejects(join.answer({type:'offer',sdp:'bad'}),/INVALID ANSWER/);
+ clock=time+S.TTL;await assert.rejects(host.read(),/EXPIRED/);
  await host.cleanup();assert.equal(store.room,undefined);
+ // A crashed host can leave an expired entry; revisit drains persisted cleanup.
+ const memory=new Map(),storage={getItem:k=>memory.get(k)??null,setItem:(k,v)=>memory.set(k,v)};
+ storage.setItem('badfodder.coop.cleanup.v1',JSON.stringify([{code,expires:clock-1}]));store.room=room;
+ await S.create({fetch,now:()=>clock,crypto,config,storage}).initialise();assert.equal(store.room,undefined);assert.equal(JSON.parse(storage.getItem('badfodder.coop.cleanup.v1')).length,0);
+
  assert(calls.every(([url])=>!url.includes('identitytoolkit')&&!url.includes('firestore')&&!url.includes('functions')),'Signalling must not depend on Auth, Firestore or Functions');
  await assert.rejects(S.create({fetch,config:{databaseURL:''}}).initialise(),/NOT CONFIGURED/);
  const Session=require('../multiplayer-session');let closed=false,sent=[];

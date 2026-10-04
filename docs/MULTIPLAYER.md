@@ -6,7 +6,7 @@ Single player remains the default. Network modules load only when Multiplayer is
 
 ## Connections
 
-Open **Multiplayer**, choose a mission, then **Host Game**. The other player enters the room code and chooses **Join Game**. Gameplay uses native WebRTC DataChannels: reliable commands/results and unordered, unretransmitted state updates at 10 Hz. Firebase carries only the two connection descriptions, including gathered ICE candidates. No game state is stored there.
+Open **Multiplayer**, choose a mission, then **Host Game**. The other player enters the room code and chooses **Join Game**. Gameplay uses native WebRTC DataChannels: reliable commands/results and unordered, unretransmitted state updates at 10–20 Hz. Firebase carries only the two connection descriptions, including gathered ICE candidates. No game state is stored there.
 
 If room signalling is unavailable, **Manual Connection** works without Firebase:
 
@@ -19,22 +19,17 @@ Codes expire after 15 minutes. The browsers use public STUN and direct connectio
 
 ## Activate Firebase room codes
 
-The existing `bad-fodder` Hosting web-app configuration currently has an empty `databaseURL`. The repository cannot enable project services without Firebase administrator access. Manual connection remains usable while room codes are unconfigured.
+The repository uses `multiplayer-config.json` with the public Realtime Database URL. No Firebase Authentication or player account is required. Keep the existing Spark project and publish `multiplayer-database.rules.json` with the installed Firebase CLI. Never put administrator credentials in public configuration.
 
-In the existing project, keeping the **Spark** plan:
+Rules reject collection reads, restrict room IDs and mission choices, validate offer/answer shapes, forbid room replacement and expiry extension, and permit deletion of expired rooms. Join and answer are single-use. Rooms expire after 15 minutes. The host deletes signalling after connection or exit; pending cleanup survives reload. The hourly `Clean expired co-op rooms` GitHub workflow removes expired records using the existing deployment service-account secret. This administrative sweep uses an indexed expiry query; public rules remain locked. No paid server, Cloud Functions, TURN or TTL service is required. Scheduled runs may be delayed by GitHub; expiry still prevents joining.
 
-1. Enable **Authentication > Sign-in method > Anonymous**. This is internal connection authentication; there is no player login/account screen.
-2. Create a **Realtime Database** on Spark, initially locked. Do not enable billing, Cloud Functions or Firestore TTL.
-3. Publish `multiplayer-database.rules.json` as the database rules. These deny collection listing, require anonymous authentication, protect host identity and limit joining/answers to one peer. Expired rooms cannot be joined.
-4. Put the project's public web API key and actual database URL in `multiplayer-config.json`. Never put administrator keys, service-account credentials or tokens there.
-5. Deploy Hosting and the rules to that database. Verify host/join from two devices, then test returning to menu and room expiry.
-
-Rooms use conditional creation, short polling while waiting, bundled ICE and a 15-minute expiry. The host deletes the record after starting, ending/leaving or timing out, including best-effort cleanup on page close. A browser forcibly killed before cleanup can leave an expired record; no paid background deletion is used. Spark quotas can stop signalling instead of switching to a paid service. Unused expired records can be removed from the Firebase console.
+Snapshots have a 60 KiB UTF-8 budget below the protocol's 64 KiB limit. Oversized packets first omit effects and cosmetic actor fields. Gameplay actors/projectiles/objectives remain complete; if those exceed the budget, co-op reports the problem and disconnects instead of silently losing state.
 
 ## Validation
 
 - `npm run test:coop`: local-mode isolation, ownership, intent validation/rate limits, compact snapshots, deaths/garrison/checkpoints/results, report totals, room lifecycle and channel settings.
 - `npm run test:coop:browser`: two native browser sessions with desktop host/mobile joiner for both missions. Firebase REST responses are mocked; gameplay travels through real DataChannels. Requires the repository's Playwright setup and Chromium.
+- `npm run test:coop:rules`: actual Firebase database emulator rules for creation, joining, answers, expiry, cleanup and invalid writes.
 - `npm test`: full existing regression suite plus co-op checks.
 
 Browser tests deliberately use local ICE candidates. Public STUN/NAT traversal and production Firebase permissions require a two-device test after configuring the live project. No claim of universal direct connectivity is made.

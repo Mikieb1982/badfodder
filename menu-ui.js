@@ -23,11 +23,11 @@
   }
 
   function wasPromptedThisSession(){
-    try{return sessionStorage.getItem(PRESENTATION_PROMPT_KEY)==='1'}catch(_){return false}
+    try{return BadFodderStorage.session.getItem(PRESENTATION_PROMPT_KEY)==='1'}catch(_){return false}
   }
 
   function rememberPromptThisSession(){
-    try{sessionStorage.setItem(PRESENTATION_PROMPT_KEY,'1')}catch(_){}
+    try{BadFodderStorage.session.setItem(PRESENTATION_PROMPT_KEY,'1')}catch(_){}
   }
 
   function installMobilePresentation(root,actions){
@@ -153,6 +153,8 @@ window.BadFodderMenu=class{
     this.get('menuControls').addEventListener('click',()=>this.showPanel('controls'));
     this.get('menuOptions').addEventListener('click',()=>this.showPanel('options'));
     this.screen.querySelectorAll('[data-back]').forEach(b=>b.addEventListener('click',()=>this.showPanel(b.dataset.backTo||'main')));
+    this.get('menuZoom').value=String(actions.zoomValue||1.3);
+    const uiScale=this.get('menuUiScale');if(uiScale){uiScale.value=String(actions.uiScaleValue||1);uiScale.addEventListener('change',e=>actions.uiScale?.(e.target.value));}
     this.get('menuZoom').addEventListener('change',e=>actions.zoom(e.target.value));
     this.get('menuDust').checked=actions.dustEnabled;
     this.get('menuDust').addEventListener('change',e=>actions.dust(e.target.checked));
@@ -168,6 +170,7 @@ window.BadFodderMenu=class{
     setTimeout(()=>this.mobilePresentation?.prompt(),0);
   }
   show(mode){
+    this.actions.state?.(mode==='pause'?'PAUSED':'TITLE');
     this.mode=mode;this.screen.hidden=false;this.screen.dataset.mode=mode;this.root.classList.add('menu-open');
     this.screen.setAttribute('aria-label',mode==='pause'?'Mission paused':'If I Can Shoot Rabbits main menu');
     const badge=this.get('menuBadge');badge.hidden=mode!=='pause';badge.textContent=mode==='pause'?'MISSION PAUSED':'';
@@ -192,6 +195,7 @@ window.BadFodderMenu=class{
     this.get('menuRestart').focus({preventScroll:true});
   }
   showPanel(panel){
+    this.actions.state?.(panel==='missions'?'MISSION_SELECT':panel==='briefing'?'BRIEFING':panel==='result'?'RESULT':this.mode==='recovery'?'RECOVERY':this.mode==='pause'?'PAUSED':'TITLE');
     this.panel=panel;this.screen.dataset.panel=panel;this.screen.scrollTop=0;
     this.screen.querySelectorAll('[data-view]').forEach(p=>p.hidden=p.dataset.view!==panel);
     this.get('menuHelp').textContent=panel==='main'?(this.mode==='pause'?'ENTER / ESC TO RESUME':'SELECT AN OPTION TO BEGIN'):'ESC TO GO BACK';

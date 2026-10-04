@@ -8,10 +8,10 @@ const LAUNCH_KEY='badfodder.launch.v1';
 const AUTO_KEY='badfodder.launch.autostart.v1';
 
 function readLaunch(){
-  try{return JSON.parse(sessionStorage.getItem(LAUNCH_KEY)||'null')}catch(e){return null}
+  try{return JSON.parse((typeof BadFodderStorage!=='undefined'?BadFodderStorage.session:sessionStorage).getItem(LAUNCH_KEY)||'null')}catch(e){return null}
 }
 function autoStartPending(){
-  try{return sessionStorage.getItem(AUTO_KEY)==='1'}catch(e){return false}
+  try{return (typeof BadFodderStorage!=='undefined'?BadFodderStorage.session:sessionStorage).getItem(AUTO_KEY)==='1'}catch(e){return false}
 }
 function sourceForBoot(){
   if(!autoStartPending())return HOME_SOURCE;
@@ -31,9 +31,9 @@ const DEFAULT_VOLUME=.22;
 let enabled=true;
 let volume=DEFAULT_VOLUME;
 try{
-  const saved=localStorage.getItem(KEY);
+  const saved=(typeof BadFodderStorage!=='undefined'?BadFodderStorage.local:localStorage).getItem(KEY);
   if(saved!==null)enabled=saved!=='0';
-  const savedVolume=localStorage.getItem(VOLUME_KEY);
+  const savedVolume=(typeof BadFodderStorage!=='undefined'?BadFodderStorage.local:localStorage).getItem(VOLUME_KEY);
   if(savedVolume!==null&&Number.isFinite(Number(savedVolume)))volume=Math.max(0,Math.min(1,Number(savedVolume)));
 }catch(e){}
 const audio=document.createElement('audio');
@@ -108,7 +108,7 @@ function playHome(){switchSource(HOME_SOURCE)}
 function playMission(mission){switchSource(sourceForMission(mission))}
 function setEnabled(on){
   enabled=!!on;
-  try{localStorage.setItem(KEY,enabled?'1':'0')}catch(e){}
+  try{(typeof BadFodderStorage!=='undefined'?BadFodderStorage.local:localStorage).setItem(KEY,enabled?'1':'0')}catch(e){}
   if(enabled){
     if(started&&!audio.paused&&!loadError){audio.muted=false;fadeTo(volume,500)}
     else start();
@@ -119,7 +119,7 @@ function setVolume(value){
   const next=Math.max(0,Math.min(1,Number(value)));
   if(!Number.isFinite(next))return;
   volume=next;
-  try{localStorage.setItem(VOLUME_KEY,String(volume))}catch(e){}
+  try{(typeof BadFodderStorage!=='undefined'?BadFodderStorage.local:localStorage).setItem(VOLUME_KEY,String(volume))}catch(e){}
   if(enabled&&started&&!audio.paused&&!loadError){
     audio.muted=false;
     fadeTo(volume,120);
