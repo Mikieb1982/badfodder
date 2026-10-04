@@ -42,6 +42,7 @@
     const b=root.document.createElement('button');
     b.id=id;b.type='button';b.className=cls||'';b.textContent='GARRISON';
     b.dataset.garrisonCommand='1';b.setAttribute('aria-pressed','false');
+    if(id==='touchGarrison'){b.style.width='68px';b.style.height='56px';b.style.fontSize='9px';b.style.padding='0 4px'}
     b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();toggleGarrison()});
     return b;
   }
@@ -52,8 +53,11 @@
     if(tools&&!root.document.getElementById('hudGarrison'))tools.appendChild(makeButton('hudGarrison',''));
     const actions=root.document.querySelector('.touch-actions');
     if(actions&&!root.document.getElementById('touchGarrison'))actions.appendChild(makeButton('touchGarrison','touch-action touch-gameplay'));
-    root.document.addEventListener('click',()=>setTimeout(syncButtons,0),true);
-    setInterval(syncButtons,350);
+    if(!root.__garrisonButtonSync){
+      root.__garrisonButtonSync=true;
+      root.document.addEventListener('click',()=>setTimeout(syncButtons,0),true);
+      setInterval(syncButtons,350);
+    }
   }
 
   function drawPersonalSandbags(ctx,ent,half){
@@ -72,7 +76,10 @@
       ctx.save();ctx.translate(x,y);ctx.rotate(a+Math.PI/2);
       const grad=ctx.createLinearGradient(0,-3,0,4);grad.addColorStop(0,'#c4aa78');grad.addColorStop(.45,'#987a50');grad.addColorStop(1,'#665039');
       ctx.fillStyle=grad;ctx.strokeStyle='#493a28';ctx.lineWidth=.8;
-      ctx.beginPath();ctx.roundRect(-5.5,-3,11,6,2.5);ctx.fill();ctx.stroke();
+      ctx.beginPath();
+      if(typeof ctx.roundRect==='function')ctx.roundRect(-5.5,-3,11,6,2.5);
+      else{ctx.moveTo(-3,-3);ctx.lineTo(3,-3);ctx.quadraticCurveTo(5.5,-3,5.5,-.5);ctx.lineTo(5.5,.5);ctx.quadraticCurveTo(5.5,3,3,3);ctx.lineTo(-3,3);ctx.quadraticCurveTo(-5.5,3,-5.5,.5);ctx.lineTo(-5.5,-.5);ctx.quadraticCurveTo(-5.5,-3,-3,-3)}
+      ctx.fill();ctx.stroke();
       ctx.strokeStyle='rgba(232,211,169,.42)';ctx.beginPath();ctx.moveTo(-3.8,-1.8);ctx.lineTo(3.8,-1.8);ctx.stroke();
       ctx.restore();
     }
@@ -129,13 +136,15 @@
 
   function install(){
     installButtons();
-    if(!patchArt()){
-      const d=Object.getOwnPropertyDescriptor(root,'BadFodderArt');
-      if(!d||d.configurable){let v=d&&'value'in d?d.value:null;Object.defineProperty(root,'BadFodderArt',{configurable:true,enumerable:true,get(){return v},set(n){v=n;patchArt()}});if(v)patchArt()}
-    }
-    if(!patchAdaptive()){
-      const d=Object.getOwnPropertyDescriptor(root,'BadFodderAdaptive');
-      if(!d||d.configurable){let v=d&&'value'in d?d.value:null;Object.defineProperty(root,'BadFodderAdaptive',{configurable:true,enumerable:true,get(){return v},set(n){v=n;patchAdaptive()}});if(v)patchAdaptive()}
+    patchArt();patchAdaptive();
+    if(!root.__garrisonPatchTimer){
+      root.__garrisonPatchTimer=setInterval(()=>{
+        installButtons();
+        const artDone=patchArt(),adaptiveDone=patchAdaptive();
+        if((root.BadFodderArt?.__manualGarrisonPatched||artDone)&&(root.BadFodderAdaptive?.__manualGarrisonPatched||adaptiveDone)){
+          clearInterval(root.__garrisonPatchTimer);root.__garrisonPatchTimer=null;
+        }
+      },100);
     }
   }
 
