@@ -36,7 +36,7 @@ assert(S.validRoom(room,time));assert(!S.validRoom(room,time+S.TTL));assert(!S.v
    const body=JSON.parse(options.body);
    if(url.includes('/answer.json'))store.room.answer=body;
    else if(url.includes('/joiner.json'))store.room.joiner=body;
-   else {assert.equal(options.headers['if-match'],'null_etag');store.room=body;}
+   else {assert.equal(options.headers?.['if-match'],undefined);store.room=body;}
    value=body;
   }else value=store.room;
   return {ok:status===200,status,json:async()=>value};
@@ -55,5 +55,5 @@ assert(S.validRoom(room,time));assert(!S.validRoom(room,time+S.TTL));assert(!S.v
   close(){closed=true;}
  }
  const p=Session.peer({host:true,RTC});assert.deepEqual(await p.offer(),offer);await p.accept({type:'answer',sdp:'reply'});assert(p.sendControl('command'));assert(p.sendState('state'));assert.deepEqual(sent,['command','state']);p.close();assert(closed);
- console.log('PASS: free room create/join/answer/expiry/cleanup without Firebase Auth plus native reliable/unreliable peer channels.');
+ console.log('PASS: browser-safe free room create/join/answer/expiry/cleanup without Firebase Auth plus native reliable/unreliable peer channels.');
 })().catch(e=>{console.error(e);process.exitCode=1});
