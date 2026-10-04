@@ -14,12 +14,13 @@ assert(!P.validCommand({type:'eval',units:[2]},context));assert(!P.validCommand(
 squad[2].alive=false;assert(!P.validCommand({type:'select',units:[2]},context));squad[2].alive=true;
 let calls=0;C.configure('host',()=>calls++);C.apply([2],()=>{assert.deepEqual(C.units(squad,'all'),[squad[2]]);assert.equal(C.dispatch('move',[2]),false)});assert.equal(calls,0);
 const rate=P.limiter(10,2);assert(rate(0)&&rate(0)&&!rate(0));assert(rate(100));
-const state={squad,enemies:[{...squad[0],alive:false,state:'dead'}],civilians:[],pickups:[],bullets:[],thrown:[],effects:[],missionStage:1,phaseHoldTime:2,squadGrenades:4,finished:false,win:false,checkpoint:{phase:1,style:'pincer',started:true,cleared:false},stats:squad.map((s,i)=>({index:i,name:'Unit '+i,kills:i,alive:true}))};
-state.squad[2].manualGarrison=true;const wire=P.snapshot(state,1),result=P.readSnapshot(P.parse(P.encode(wire)));assert(result);assert.equal(result.squad[2].manualGarrison,true);assert.equal(result.enemies[0].alive,false);assert.equal(result.checkpoint.started,true);
+const state={squad,enemies:[{...squad[0],alive:false,state:'dead'}],civilians:[],pickups:[],bullets:[],thrown:[],effects:[],missionStage:1,phaseHoldTime:2,squadGrenades:4,finished:false,win:false,checkpoint:{phase:1,style:'pincer',started:true,cleared:false},stats:squad.map((s,i)=>({index:i,name:'Unit '+i,kills:i,assists:3-i,alive:true}))};
+state.squad[2].manualGarrison=true;const wire=P.snapshot(state,1),result=P.readSnapshot(P.parse(P.encode(wire)));assert(result);assert.equal(result.squad[2].manualGarrison,true);assert.equal(result.enemies[0].alive,false);assert.equal(result.checkpoint.started,true);assert.equal(result.stats[2].assists,1);
 for(const win of [false,true]){state.finished=true;state.win=win;const out=P.readSnapshot(P.snapshot(state,2));assert(out.finished);assert.equal(out.win,win);}
-assert(!P.readSnapshot({...wire,s:[]}));assert(!P.readSnapshot({...wire,stats:[[0,'x',-1,true]]}));assert.deepEqual(P.totals(state.stats),[1,5]);
+assert(!P.readSnapshot({...wire,s:[]}));assert(!P.readSnapshot({...wire,stats:[[0,'x',-1,0,true]]}));assert.deepEqual(P.totals(state.stats),[1,5]);assert.deepEqual(P.assistTotals(state.stats),[5,1]);
+const backwards={...wire,stats:wire.stats.map(r=>[r[0],r[1],r[2],r[4]])};assert.equal(P.readSnapshot(backwards).stats[0].assists,0,'Old 4-field reports should remain readable during rolling deploys');
 C.configure();assert.equal(C.units(squad,'all').length,4);
-console.log('PASS: local default, ownership, input intents, wire validation, rate limits, garrison/death/checkpoints/results and report totals.');
+console.log('PASS: local default, ownership, wire validation, adaptive limits, garrison/death/checkpoints/results plus kill/assist report totals.');
 
 const S=require('../multiplayer-signalling');
 const crypto={getRandomValues(a){a.fill(3);return a;}};
@@ -55,5 +56,5 @@ assert(S.validRoom(room,time));assert(!S.validRoom(room,time+S.TTL));assert(!S.v
   close(){closed=true;}
  }
  const p=Session.peer({host:true,RTC});assert.deepEqual(await p.offer(),offer);await p.accept({type:'answer',sdp:'reply'});assert(p.sendControl('command'));assert(p.sendState('state'));assert.deepEqual(sent,['command','state']);p.close();assert(closed);
- console.log('PASS: browser-safe free room create/join/answer/expiry/cleanup without Firebase Auth plus native reliable/unreliable peer channels.');
+ console.log('PASS: free room signalling and native reliable/unreliable peer channels remain intact.');
 })().catch(e=>{console.error(e);process.exitCode=1});
