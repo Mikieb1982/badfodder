@@ -25,6 +25,9 @@ assert(html.includes('releaseAllFireInputs();')&&html.includes('releaseTouchMove
 assert(html.includes("if(!selectedUnits().length&&squad.some(s=>s.alive))setSelection('all')"),'Mobile fire cannot recover from a dead selected soldier');
 assert(html.includes("window.addEventListener('keydown'"),'Window-level keyboard controls missing');
 assert(html.includes("keyboardFireHeld=true"),'F-key firing state missing');
+assert(html.includes('function toggleSelection(index)'),'Flexible squad subgroup selection missing');
+assert(html.includes("chip.addEventListener('click',()=>toggleSelection(i))"),'HUD portraits do not toggle subgroup membership');
+assert(html.includes("if(units.length<squad.filter(s=>s.alive).length){"),'Subgroup movement branch missing');
 
 assert(html.includes('const FIXED_DT=1/60,MAX_CATCHUP_STEPS=5'),'Fixed-step simulation contract missing');
 assert(html.includes('BadFodderRuntime.fixedFrame'),'Bounded simulation catch-up missing');

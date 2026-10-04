@@ -5,7 +5,7 @@ const {chromium,firefox,webkit}=require(process.env.BADFODDER_PLAYWRIGHT||'playw
 const root=path.resolve(__dirname,'..',process.env.BADFODDER_TEST_DIST==='1'?'dist':'.');
 const engine=({chromium,firefox,webkit})[process.env.BADFODDER_BROWSER||'chromium'];
 const injection=`
-window.__testGame={state:()=>({started,paused,menuOpen,finished,runtimeSafeStop,lifecycle:lifecycle.state,zoom,map:MAP_DATA.key,mode:missionLaunch.mode(),faults:runtimeFaultCount,touch:{...touchState},units:squad.map(s=>({x:s.x,y:s.y,hp:s.hp})),progress:missionDirector?.snapshot(),controllerDisposed:missionController?.disposed,streetActors:missionController?[...missionController.state.actors.values()].map(a=>({stamina:a.stamina,attackKind:a.attackKind})):[]}),
+window.__testGame={state:()=>({started,paused,menuOpen,finished,runtimeSafeStop,lifecycle:lifecycle.state,zoom,map:MAP_DATA.key,mode:missionLaunch.mode(),faults:runtimeFaultCount,touch:{...touchState},units:squad.map(s=>({x:s.x,y:s.y,hp:s.hp,selected:s.selected})),progress:missionDirector?.snapshot(),controllerDisposed:missionController?.disposed,streetActors:missionController?[...missionController.state.actors.values()].map(a=>({stamina:a.stamina,attackKind:a.attackKind})):[]}),
 step:n=>{for(let i=0;i<n;i++)simulateStep(1/60)}, moveTarget:()=>{const s=squad[0],r=canvas.getBoundingClientRect();for(const [dx,dy] of [[70,0],[-70,0],[0,70],[0,-70]]){const x=s.x+dx,y=s.y+dy;if(routeClear(s.x,s.y,x,y,NAV_RADIUS))return{x:(x-camera.x)*zoom/VIEW_W*r.width,y:(y-camera.y)*zoom/VIEW_H*r.height}}throw new Error('No open movement test target')},
 fault:()=>{for(let i=0;i<3;i++)handleRuntimeFault(new Error('Injected unrecoverable test fault'))},
 restart:beginMission, pause:togglePause, main:showTitle, resume:resumeMission,
@@ -46,6 +46,18 @@ async function runLifecycle(providedBrowser, testInfo){
   await page.locator('#menuMissionSelect').click();await page.locator(button).click();assert.equal((await page.evaluate(()=>window.__testGame.state())).menuOpen,true);assert(await page.locator('#briefingStory').isVisible());assert.equal(await page.locator('#briefingCharacters canvas').count(),4);await page.evaluate(()=>BadFodderArt.preloadMissionArt(document.getElementById('briefingTitle').textContent.toLowerCase()));if(process.env.BADFODDER_SCREENSHOTS)await page.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp',map+'-briefing.png')});await page.locator('#briefingBack').click();assert(await page.locator(button).isVisible());await page.locator('[data-view="missions"] [data-back]').click();
   await select(button);assert.equal((await active()).map,map);
   const identity=await page.evaluate(()=>window.__testGame.identity());assert.equal(identity.year,map==='wigan'?1941:1945);assert.equal(await page.locator('#loadingEra').textContent(),identity.loading);assert((await page.locator('#hudSquadBar').textContent()).includes(identity.characters[0].name));assert((await page.evaluate(()=>BadFodderMusic.source)).endsWith('assets/audio/mission.mp3'));
+  const chips=page.locator('#hudSquadBar .hud-unit');
+  await chips.nth(0).click();
+  assert.deepEqual(await page.evaluate(()=>window.__testGame.state().units.map(u=>u.selected)),[true,false,false,false],'Portrait tap must isolate one soldier');
+  await chips.nth(0).click();
+  assert.deepEqual(await page.evaluate(()=>window.__testGame.state().units.map(u=>u.selected)),[false,true,true,true],'Tapping the lone selected soldier must switch to the other three');
+  await page.locator('#hudAll').click();await chips.nth(0).click();await chips.nth(1).click();
+  assert.deepEqual(await page.evaluate(()=>window.__testGame.state().units.map(u=>u.selected)),[true,true,false,false],'Two-soldier subgroup selection failed');
+  const pairBefore=await page.evaluate(()=>window.__testGame.state().units.slice(0,2));
+  await page.locator('#game').click({position:await page.evaluate(()=>window.__testGame.moveTarget())});await page.waitForTimeout(500);
+  const pairAfter=await page.evaluate(()=>window.__testGame.state().units.slice(0,2));
+  assert(pairAfter.every((u,i)=>Math.hypot(u.x-pairBefore[i].x,u.y-pairBefore[i].y)>1),'Selected pair did not move as a subgroup');
+  await page.locator('#hudAll').click();
   const before=await page.evaluate(()=>window.__testGame.state().units[0]);
   await page.locator('#game').click({position:await page.evaluate(()=>window.__testGame.moveTarget())});await page.waitForTimeout(700);
   const after=await page.evaluate(()=>window.__testGame.state().units[0]);assert(Math.hypot(before.x-after.x,before.y-after.y)>1,'Click movement did not move leader');
