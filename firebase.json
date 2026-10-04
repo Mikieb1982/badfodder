@@ -1,4 +1,7 @@
 {
+  "database": {
+    "rules": "multiplayer-database.rules.json"
+  },
   "hosting": {
     "public": ".",
     "ignore": [
