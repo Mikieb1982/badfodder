@@ -16,6 +16,7 @@ const server=http.createServer((req,res)=>{try{const name=decodeURIComponent(new
 (async()=>{
  await new Promise(r=>server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+server.address().port;
  const browser=await chromium.launch({headless:true,executablePath:process.env.BADFODDER_CHROMIUM,args:['--no-sandbox','--disable-dev-shm-usage','--allow-loopback-in-peer-connection']});
+ const contexts=[],logs=[];
  try{
  for(const index of [0,1]){console.log('Checking native co-op mission',index);
   const errors=[],pages=[],rooms=new Map();
@@ -36,7 +37,7 @@ const server=http.createServer((req,res)=>{try{const name=decodeURIComponent(new
      window.RTCPeerConnection=class{constructor(){channels={};pending={};rtc=this;this.connectionState='new';this.iceGatheringState='complete';}createDataChannel(label){return channel(label)}async createOffer(){return {type:'offer',sdp:'test-offer'}}async createAnswer(){return {type:'answer',sdp:'test-answer'}}async setLocalDescription(sdp){this.localDescription=sdp;}async setRemoteDescription(sdp){this.remoteDescription=sdp;if(sdp.type==='answer')await window.__coopTestConnect();}close(){this.connectionState='closed';void window.__coopTestClose();}};
     });
    }
-   p.on('pageerror',e=>errors.push(e.message));
+   contexts.push(p.context());await p.context().tracing.start({screenshots:true,snapshots:true,sources:true});p.on('pageerror',e=>{errors.push(e.message);logs.push({type:'pageerror',text:e.message})});p.on('console',m=>{if(m.type()==='error')logs.push({type:'console',text:m.text()})});
    await p.route('**/multiplayer-config.json',r=>r.fulfill({contentType:'application/json',body:JSON.stringify({databaseURL:'https://coop-test.firebaseio.com'})}));
    await p.route('https://coop-test.firebaseio.com/**',async r=>{
     const req=r.request(),parts=new URL(req.url()).pathname.split('/'),code=parts[2],key=parts[3]?.replace('.json','');let data=null,status=200;
@@ -66,12 +67,12 @@ const server=http.createServer((req,res)=>{try{const name=decodeURIComponent(new
   await client.waitForFunction(({before})=>Math.hypot(__coopTest.state().units[2].x-before.x,__coopTest.state().units[2].y-before.y)>5,{before});
   await client.evaluate(()=>BadFodderCoop.garrison());await host.waitForFunction(()=>__coopTest.state().units[2].garrison);await client.waitForFunction(()=>__coopTest.state().units[2].garrison);
   const grenades=await host.evaluate(()=>__coopTest.state().grenades);await client.evaluate(()=>{const u=BadFodderCoopBridge.squad()[2];__coopTest.fire({x:u.x+30,y:u.y});__coopTest.grenade({x:u.x+20,y:u.y});});await host.waitForFunction(n=>__coopTest.state().grenades<n,grenades);await client.waitForFunction(n=>__coopTest.state().grenades<n,grenades);assert((await host.evaluate(()=>__coopTest.state().commandResults.fire))>=1,'Remote fire did not reach normal combat');assert((await host.evaluate(()=>__coopTest.state().commandResults.grenade))>=1);
-  await host.screenshot({path:'/tmp/coop-'+index+'-play-host.png'});await client.screenshot({path:'/tmp/coop-'+index+'-play-mobile.png'});
+
   await host.evaluate(()=>{__coopTest.kill();__coopTest.phase();__coopTest.death(2);});await client.waitForFunction(()=>!__coopTest.state().units[2].alive&&__coopTest.state().stage===1&&__coopTest.state().checkpoint?.started);assert((await client.evaluate(()=>__coopTest.state().stats))[2].kills>=1);
   await host.evaluate(()=>__coopTest.death(3));await client.waitForFunction(()=>!__coopTest.state().units[3].alive);assert.equal(await client.evaluate(()=>BadFodderCommands.units(BadFodderCoopBridge.squad(),'all').length),0,'Dead P2 gained control of P1');
   await host.evaluate(()=>__coopTest.complete());await client.waitForFunction(()=>__coopTest.state().finished&&__coopTest.state().win);
   assert.equal(await client.locator('.mission-stat-card').count(),4);const report=await client.locator('.mission-stat-report').textContent();assert(report.includes('P2')&&report.includes('ASSISTS'),'Multiplayer result report lacks ownership/assists');
-  await client.waitForTimeout(1900);await host.screenshot({path:'/tmp/coop-'+index+'-host.png'});await client.screenshot({path:'/tmp/coop-'+index+'-mobile.png'});
+  await client.waitForTimeout(1900);
   await host.locator('#resultRetry').click();await Promise.all(pages.map(p=>p.waitForFunction(()=>!__coopTest.state().finished&&!__coopTest.state().menuOpen)));
   await host.evaluate(()=>__coopTest.fail());await client.waitForFunction(()=>__coopTest.state().finished&&!__coopTest.state().win);assert.equal(await client.locator('.mission-stat-card.kia').count(),4);
   await host.locator('#resultRetry').click();await host.waitForFunction(()=>!__coopTest.state().finished);await client.evaluate(()=>BadFodderCoopBridge.menu());await host.waitForFunction(()=>document.getElementById('status').textContent.includes('DISCONNECTED'));
@@ -89,5 +90,6 @@ const server=http.createServer((req,res)=>{try{const name=decodeURIComponent(new
   }
   for(const p of pages)await p.context().close();console.log('PASS: '+(process.env.BADFODDER_COOP_MOCK_RTC==='1'?'test-transport':'native')+' two-browser co-op '+(index?'Wigan':'Belzig')+' with ready-room, teammate HUD, pings, commands, garrison, deaths, assists, results and disconnect.');
  }
+ }catch(error){const dir=path.resolve('test-results/coop');fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(path.join(dir,'failure.json'),JSON.stringify({browser:'chromium',error:error.stack,logs},null,2));for(const [i,c] of contexts.entries()){for(const [j,p] of c.pages().entries())await p.screenshot({path:path.join(dir,`failure-${i}-${j}.png`)}).catch(()=>{});await c.tracing.stop({path:path.join(dir,`trace-${i}.zip`)}).catch(()=>{});}throw error;
  }finally{await browser.close();server.close();}
 })().catch(e=>{console.error(e);server.close();process.exitCode=1});

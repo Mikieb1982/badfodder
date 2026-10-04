@@ -45,13 +45,16 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: |
           npm test
-          npx --no-install playwright install --with-deps chromium
-          npm run build
+          npx --no-install playwright install --with-deps chromium firefox webkit
+          sudo apt-get install -y --no-install-recommends pulseaudio
+          pulseaudio -n --daemonize=yes --exit-idle-time=-1 --load=module-native-protocol-unix --load=module-null-sink
+          npm run test:build
           BADFODDER_TEST_DIST=1 npm run test:browser
           npm run test:coop:rules
           BADFODDER_TEST_DIST=1 BADFODDER_COOP_MOCK_RTC=1 npm run test:coop:browser
           npm run test:visual
       - run: npm run build
+        if: github.event_name != 'workflow_dispatch'
 
       - name: Deploy free Realtime Database signalling rules
         run: ./node_modules/.bin/firebase deploy --only database --project bad-fodder --non-interactive

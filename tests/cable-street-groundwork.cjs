@@ -146,7 +146,7 @@ assert(menu.includes("this.get('menuHistoricalCable').addEventListener"),'Cable 
 assert(index.includes('id="briefingBegin"'),'Shared briefing has no Begin control');
 assert(index.includes("menu-ui.js?v=20261003-wartime-1"),'Menu controller cache version is stale');
 assert(index.includes('selectHistorical:startHistoricalMission'),'Cable Street briefing action is not supplied');
-assert(index.includes('m?.playable&&m.mapReady&&mapRegistry.get(m.map)'),'Cable Street briefing must require a registered ready map');
+assert(index.includes('m?.playable&&m.mapReady&&BadFodderMissionAssets.has(m.map)'),'Cable Street briefing must require a registered ready map');
 assert(menu.includes("actions.selectHistorical?.('cable-street-1936')"),'Cable Street selection does not request its mission');
 assert(menu.includes('leaveBriefing()'),'Shared briefing lacks Back navigation');
 assert(menu.includes("this.showPanel(this.briefingBack||'missions')"),'Briefing must return to its source panel');

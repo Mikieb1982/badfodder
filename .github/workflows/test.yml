@@ -15,6 +15,7 @@ jobs:
         with:
           node-version: '22'
       - run: npm ci --ignore-scripts
+      - run: npm run check:runtime
       - run: npm run test:build
       - name: Verify room rules in emulator
         run: npm run test:coop:rules
@@ -22,6 +23,10 @@ jobs:
         run: npm test
 
   browser:
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -31,17 +36,32 @@ jobs:
           node-version: '22'
       - name: Install browser test runner
         run: npm ci --ignore-scripts
-      - name: Install Chromium
-        run: npx --no-install playwright install --with-deps chromium
-      - run: npm run test:build
+      - name: Install ${{ matrix.browser }}
+        run: npx --no-install playwright install --with-deps ${{ matrix.browser }}
+      - name: Provide headless WebKit audio output
+        if: matrix.browser == 'webkit'
+        run: |
+          sudo apt-get install -y --no-install-recommends pulseaudio
+          pulseaudio -n --daemonize=yes --exit-idle-time=-1 --load=module-native-protocol-unix --load=module-null-sink
+      - run: npm run build
       - name: Exercise mission lifecycle and touch controls
-        run: npm run test:browser
+        run: npm run test:browser -- --project=${{ matrix.browser }}
         env:
           BADFODDER_TEST_DIST: '1'
       - name: Exercise two-browser co-op experience
+        if: matrix.browser == 'chromium'
         env:
           BADFODDER_COOP_MOCK_RTC: '1'
           BADFODDER_TEST_DIST: '1'
         run: npm run test:coop:browser
       - name: Protect representative visuals
+        if: matrix.browser == 'chromium'
         run: npm run test:visual
+      - name: Retain failed browser evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-failure-${{ matrix.browser }}
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7

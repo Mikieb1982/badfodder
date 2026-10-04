@@ -544,18 +544,13 @@
 <script src="game-rng.js"></script>
 <script src="game-lifecycle.js"></script>
 <script src="runtime-services.js"></script>
-<script src="town-map.js"></script>
-<script src="bad-belzig-data.js"></script>
-<script src="wigan-map.js"></script>
-<script src="cable-street-map.js?v=20261003-tactical-1"></script>
+<script src="game-input.js"></script>
 <script src="pixel-art.js"></script>
 <script src="mission-identities.js?v=20261003-wartime-1"></script>
 <script src="painted-art.js?v=20261003-visual-2"></script>
 <script src="mission-character-art.js?v=20261003-visual-2"></script>
 <script src="wartime-scenery.js?v=20261003-wartime-1"></script>
 <script src="building-art.js"></script>
-<script src="wigan-details.js"></script>
-<script src="wigan-scenery.js?v=20261003-upgrade-1"></script>
 <script src="scenery-cache.js"></script>
 <script src="menu-ui.js?v=20261003-wartime-1"></script>
 <script src="music.js?v=20261003-tactical-1"></script>
@@ -573,15 +568,12 @@
 <script src="player-commands.js"></script>
 <script src="mission-launch.js?v=20261002-cable-foundation-2"></script>
 <script src="historical-missions.js?v=20261003-tactical-1"></script>
-<script src="cable-street-runtime.js?v=20261002-playable-1"></script>
-<script src="cable-street-interactions.js?v=20261004-adaptive-1"></script>
-<script src="cable-street-director.js?v=20261004-adaptive-1"></script>
-<script src="cable-street-crowd.js?v=20261004-adaptive-1"></script>
-<script src="cable-street-art.js?v=20261003-visual-2"></script>
 <script src="adaptive-director.js?v=20261004-1"></script>
+<script src="mission-assets.js"></script>
 <script>
-(() => {
+(async () => {
   'use strict';
+  try{await BadFodderMissionAssets.ready}catch(error){BadFodderMissionAssets.recover(error);return;}
 
   const root=document.getElementById('gameRoot');
   const canvas=document.getElementById('game');
@@ -598,11 +590,11 @@
   const routeValidation=BadFodderRouteValidation;
   const campaign=BadFodderCampaign;
   const historicalMissions=BadFodderHistoricalMissions;
-  const cableStreetRuntime=BadFodderCableStreet;
-  const cableStreetInteractions=BadFodderCableInteractions;
-  const cableStreetDirector=BadFodderCableDirector;
-  const cableStreetCrowd=BadFodderCableCrowd;
-  const cableStreetArt=BadFodderCableArt;
+  const cableStreetRuntime=window.BadFodderCableStreet;
+  const cableStreetInteractions=window.BadFodderCableInteractions;
+  const cableStreetDirector=window.BadFodderCableDirector;
+  const cableStreetCrowd=window.BadFodderCableCrowd;
+  const cableStreetArt=window.BadFodderCableArt;
   const missionBootstrap=BadFodderMissionBootstrap;
   const missionLaunch=BadFodderMissionLaunch.create({
     storage:BadFodderStorage.session,
@@ -620,8 +612,8 @@
   applyUiScale(savedOptions.uiScale);
   let launchAfterLoad=missionLaunch.consumeAutoStart(),loadingMission=false;
   const mapRegistry=missionBootstrap.createMapRegistry({
-    'bad-belzig':TOWN_MAP,
-    'wigan':WIGAN_MAP,
+    ...(typeof TOWN_MAP!=='undefined'?{'bad-belzig':TOWN_MAP}:{}),
+    ...(typeof WIGAN_MAP!=='undefined'?{'wigan':WIGAN_MAP}:{}),
     ...(window.CABLE_STREET_MAP?{'cable-street':window.CABLE_STREET_MAP}:{})
   });
   const MAP_DATA=missionBootstrap.resolveMap(initialMission,mapRegistry);
@@ -717,8 +709,11 @@
   let missionController=null,missionInteractionLayer=null,missionDirector=null,missionCrowd=null;
   const gameplayRng=BadFodderRng.create(new URLSearchParams(location.search).get('seed'));
   const lifecycle=BadFodderLifecycle.create({read:()=>({started,finished,runtimeSafeStop}),apply:flags=>{paused=flags.paused;menuOpen=flags.menuOpen;if(flags.runtimeSafeStop!==undefined)runtimeSafeStop=flags.runtimeSafeStop;}});
-  const diagnostics=BadFodderRuntime.diagnostics({enabled:new URLSearchParams(location.search).get('debug')==='1',read:()=>({lifecycle:lifecycle.state,actors:squad.length+civilians.length,enemies:enemies.length,bullets:bullets.length,effects:effects.length,pathQueue:enemyPathQueue.length,navigation:navigation.metrics(),scenery:sceneryTiles?.metrics?.(),runtimeFaults:runtimeFaultCount,runtimeFaultTotal,coop:window.BadFodderCoop?.diagnostics?.()})});
-  if(diagnostics.enabled)window.BadFodderDiagnostics=diagnostics;
+  const diagnostics=BadFodderRuntime.diagnostics({enabled:new URLSearchParams(location.search).get('debug')==='1',read:()=>({lifecycle:lifecycle.state,actors:squad.length+civilians.length,enemies:enemies.length,bullets:bullets.length,effects:effects.length,pathQueue:enemyPathQueue.length,navigation:navigation.metrics(),scenery:sceneryTiles?.metrics?.(),runtimeFaults:runtimeFaultCount,runtimeFaultTotal,coop:window.BadFodderCoop?.diagnostics?.(),build:window.BadFodderBuild||'development',browser:navigator.userAgent,viewport:{width:innerWidth,height:innerHeight,dpr:devicePixelRatio},mission:MAP_DATA.key,seed:gameplayRng.seed??null,director:adaptiveDirector?{disabled:adaptiveDirector.state.disabled,situation:adaptiveDirector.state.situation,decisions:adaptiveDirector.state.decisions,recent:adaptiveDirector.state.log.slice(-8)}:null})});
+  window.BadFodderDiagnostics=diagnostics;
+  const debugButton=document.createElement('button');debugButton.type='button';debugButton.className='menu-button';debugButton.textContent='COPY DEBUG REPORT';
+  debugButton.addEventListener('click',async()=>{diagnostics.start();await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const report=JSON.stringify(diagnostics.snapshot(),null,2);try{await navigator.clipboard.writeText(report);debugButton.textContent='DEBUG REPORT COPIED';}catch{const field=document.createElement('textarea');field.value=report;debugButton.after(field);field.select();debugButton.textContent='SELECT AND COPY REPORT';}});
+  document.querySelector('[data-view="options"]').appendChild(debugButton);
 
   let adaptiveDirector=null,enemyCommander=null,adaptiveMemory=null;
   // Optional Director faults are contained here, outside normal runtime recovery.
@@ -1137,6 +1132,7 @@
   }
 
   function beginMission(){
+    diagnostics.start();
     if(commands&&commands.mode!=='local'&&!commands.applying){window.BadFodderCoop?.restart();return;}
     window.BadFodderSfx?.unlock();
     if(!started)return;
@@ -1150,10 +1146,11 @@
   function requestMissionBriefing(mission,begin,back='missions'){
     releaseInterruptedInput();lifecycle.transition('BRIEFING');mapOpen=false;simulationAccumulator=0;
     menu.showBriefing(BadFodderIdentities.get(mission),begin,back);syncTouchControlState();
+    void BadFodderMissionAssets.load(mission.map).catch(()=>setStatus('Mission preload failed. Begin Mission retries the load.'));
   }
   function startCampaignFromMenu(){if(commands&&commands.mode!=='local')showTitle();requestMissionBriefing(campaign.missions[campaign.state.current]||campaign.missions[0],launchCampaign,'main');}
   function startStandaloneMission(index){if(commands&&commands.mode!=='local')showTitle();if(campaign.missions[index]?.playable)requestMissionBriefing(campaign.missions[index],()=>launchStandalone(index));}
-  function startHistoricalMission(id){if(commands&&commands.mode!=='local')showTitle();const m=historicalMissions.get(id);if(m?.playable&&m.mapReady&&mapRegistry.get(m.map))requestMissionBriefing(m,()=>launchHistorical(id));}
+  function startHistoricalMission(id){if(commands&&commands.mode!=='local')showTitle();const m=historicalMissions.get(id);if(m?.playable&&m.mapReady&&BadFodderMissionAssets.has(m.map))requestMissionBriefing(m,()=>launchHistorical(id));}
   function viewMissionBriefing(){requestMissionBriefing(activeMission(),finished?beginMission:resumeMission,finished?'result':'main');}
   function showMissionResult(){
     window.BadFodderCoop?.flush();
@@ -1326,7 +1323,7 @@
     try{adaptiveDirector?.disable()}catch{}
     adaptiveDirector=null;enemyCommander=null;
     releaseInterruptedInput();
-    cableStreetArt.reset?.();
+    cableStreetArt?.reset?.();
     missionInteractionLayer=null;
     missionDirector=null;
     if(missionCrowd&&typeof missionCrowd.dispose==='function')missionCrowd.dispose();
@@ -3363,42 +3360,7 @@
   });
 
 
-  function updateJoystickFromPointer(evt){
-    const r=touchJoystick.getBoundingClientRect();
-    const cx=r.left+r.width/2,cy=r.top+r.height/2;
-    let dx=evt.clientX-cx,dy=evt.clientY-cy;
-    const max=r.width*.34;
-    const d=Math.hypot(dx,dy);
-    if(d>max){dx=dx/d*max;dy=dy/d*max}
-    touchState.moveX=dx/max;
-    touchState.moveY=dy/max;
-    touchState.moveMag=Math.min(1,Math.hypot(touchState.moveX,touchState.moveY));
-    touchStick.style.transform='translate('+dx+'px,'+dy+'px)';
-  }
-
-  touchJoystick.addEventListener('pointerdown',evt=>{
-    if(!started||menuOpen||paused||finished||mapOpen)return;
-    evt.preventDefault();evt.stopPropagation();
-    touchState.movePointer=evt.pointerId;
-    touchJoystick.setPointerCapture?.(evt.pointerId);
-    touchJoystick.classList.add('active');
-    updateJoystickFromPointer(evt);
-  });
-
-  touchJoystick.addEventListener('pointermove',evt=>{
-    if(evt.pointerId!==touchState.movePointer)return;
-    evt.preventDefault();evt.stopPropagation();
-    updateJoystickFromPointer(evt);
-  });
-
-  const endJoystick=evt=>{
-    if(touchState.movePointer!==null&&evt.pointerId!==touchState.movePointer)return;
-    evt.preventDefault();evt.stopPropagation();
-    releaseTouchMove();
-  };
-  touchJoystick.addEventListener('pointerup',endJoystick);
-  touchJoystick.addEventListener('pointercancel',endJoystick);
-  touchJoystick.addEventListener('lostpointercapture',()=>releaseTouchMove());
+  BadFodderInput.joystick({element:touchJoystick,stick:touchStick,state:touchState,canMove:()=>started&&!menuOpen&&!paused&&!finished&&!mapOpen,release:releaseTouchMove});
 
   touchFire.addEventListener('pointerdown',evt=>{
     if(!actionAllowed('firearms')||!started||menuOpen||paused||finished||mapOpen)return;
@@ -3632,6 +3594,7 @@
     runtimeFaultTotal++;
     const fault=BadFodderRuntime.fault({time:now,last:runtimeFaultAt,count:runtimeFaultCount});
     runtimeFaultAt=fault.at;runtimeFaultCount=fault.count;
+    diagnostics.rememberFault(err);
     console.error('If I Can Shoot Rabbits runtime fault',err);
     releaseInterruptedInput();
     simulationAccumulator=0;
@@ -3658,7 +3621,7 @@
       last=now;
 
       const measuredAt=diagnostics.enabled?performance.now():0;
-      simulationAccumulator=BadFodderRuntime.fixedFrame({dt:frameDt,accumulator:simulationAccumulator,fixedDt:FIXED_DT,maxSteps:MAX_CATCHUP_STEPS,simulate:simulateStep,active:commands?.mode!=='client'&&started&&!finished&&((commands?.mode==='host')||(!menuOpen&&!paused&&!mapOpen))});
+      simulationAccumulator=BadFodderRuntime.fixedFrame({dt:frameDt,accumulator:simulationAccumulator,fixedDt:FIXED_DT,maxSteps:MAX_CATCHUP_STEPS,simulate:simulateStep,onSteps:diagnostics.steps,active:commands?.mode!=='client'&&started&&!finished&&((commands?.mode==='host')||(!menuOpen&&!paused&&!mapOpen))});
       const simulatedAt=diagnostics.enabled?performance.now():0;
 
       if(commands?.mode==='client'){

@@ -25,3 +25,12 @@ const missions=[...scope.window.BadFodderCampaign.missions.filter(m=>m.playable)
 for(const m of missions){assert(B.validateConfiguration(m,maps[m.map]));assert.throws(()=>B.validateConfiguration({...m,squadSize:0},maps[m.map]),/squad/);}
 const first=missions[0];assert.throws(()=>B.validateConfiguration({...first,phases:[{...first.phases[0],zone:'missing'}]},maps[first.map]),/Unknown/);
 console.log('PASS: all three current mission configurations validate without map changes; malformed mission configuration fails early.');
+
+for(const value of [{storageSchema:1,value:7},{storageSchema:'1',value:'bad'},{storageSchema:2,value:'future'}]){raw.set('malformed',JSON.stringify(value));assert.equal(store.getItem('malformed'),null)}
+raw.set('old','{"music":false}');assert.equal(store.getItem('old'),' {"music":false}'.trim());raw.set('broken','{bad');assert.equal(store.getItem('broken'),'{bad');
+let accounting;R.fixedFrame({dt:1,accumulator:0,simulate(){},active:true,onSteps:v=>accounting=v});assert.equal(accounting.steps,5);assert(accounting.dropped>50&&accounting.capped);
+const debug=R.diagnostics({read:()=>({mission:'wigan'})});assert.equal(debug.snapshot().mission,'wigan');
+
+debug.start();debug.record(16,2,3);assert(debug.snapshot().fps>0&&debug.snapshot().simulationMs>0);
+
+for(let i=0;i<12;i++)debug.rememberFault(Error('fault '+i));assert.equal(debug.snapshot().recentFaults.length,8);assert.equal(debug.snapshot().recentFaults.at(-1),'fault 11');

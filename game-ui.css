@@ -167,3 +167,5 @@ h1{font:800 27px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppe
 @media(max-width:720px),(pointer:coarse){.hud-name{font-size:calc(9px * var(--ui-scale,1))}.hud-state{font-size:calc(8px * var(--ui-scale,1))}.hud-kicker{font-size:calc(8px * var(--ui-scale,1))}}
 
 @media(pointer:coarse) and (orientation:landscape){.hud-name,.hud-state{grid-column:1}}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
