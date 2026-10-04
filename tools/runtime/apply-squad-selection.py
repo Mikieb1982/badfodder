@@ -154,9 +154,9 @@ new = """    if(units.length===1){
       return;
     }
 
-    // Explicit subgroups keep independent paths so one group can continue moving
+    // Subgroups keep independent paths so one group can continue moving
     // while the player switches to and commands another group.
-    if(selection!=='all'){
+    if(units.length<squad.filter(s=>s.alive).length){
       clearSquadFormation();
       const heading=Math.atan2(ty-units[0].y,tx-units[0].x),rx=-Math.sin(heading),ry=Math.cos(heading);
       let routed=0;
@@ -230,7 +230,7 @@ s = p.read_text()
 anchor = "assert(html.includes(\"keyboardFireHeld=true\"),'F-key firing state missing');\n"
 extra = """assert(html.includes('function toggleSelection(index)'),'Flexible squad subgroup selection missing');
 assert(html.includes("chip.addEventListener('click',()=>toggleSelection(i))"),'HUD portraits do not toggle subgroup membership');
-assert(html.includes("if(selection!=='all'){"),'Subgroup movement branch missing');
+assert(html.includes("if(units.length<squad.filter(s=>s.alive).length){"),'Subgroup movement branch missing');
 """
 if anchor not in s:
     raise SystemExit('missing patch target: browser contract')
