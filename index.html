@@ -693,7 +693,7 @@
   let camera={x:S(620),y:S(1260)},last=performance.now(),squadGrenades=5;
   let bullets=[],thrown=[],effects=[],noise=[],squad=[],enemies=[],civilians=[],pickups=[],enemyPathQueue=[];
   let started=false,menuOpen=true,preferredZoom=1.3,showDust=!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches);
-  let menu=null;
+  let menu=null,coopCheckpoint=null;
   let cursorWorld=null,lastCanvasPointer=null,rightHeld=false,bothLatched=false;
   let macFireHeld=false,keyboardFireHeld=false;
   let lastHudStats='',lastRosterSignature='',hudNoticeUntil=0;
@@ -1089,6 +1089,7 @@
   }
 
   function togglePause(){
+    if(commands?.mode==='host'){setStatus('Co-op continues while the menu is open.');}
     if(finished||!started)return;
     if(menuOpen){if(menu&&menu.mode==='pause')resumeMission();return;}
     paused=true;menuOpen=true;
@@ -1129,9 +1130,9 @@
     releaseInterruptedInput();menuOpen=true;paused=true;mapOpen=false;simulationAccumulator=0;
     menu.showBriefing(BadFodderIdentities.get(mission),begin,back);syncTouchControlState();
   }
-  function startCampaignFromMenu(){requestMissionBriefing(campaign.missions[campaign.state.current]||campaign.missions[0],launchCampaign,'main');}
-  function startStandaloneMission(index){if(campaign.missions[index]?.playable)requestMissionBriefing(campaign.missions[index],()=>launchStandalone(index));}
-  function startHistoricalMission(id){const m=historicalMissions.get(id);if(m?.playable&&m.mapReady&&mapRegistry.get(m.map))requestMissionBriefing(m,()=>launchHistorical(id));}
+  function startCampaignFromMenu(){if(commands&&commands.mode!=='local')showTitle();requestMissionBriefing(campaign.missions[campaign.state.current]||campaign.missions[0],launchCampaign,'main');}
+  function startStandaloneMission(index){if(commands&&commands.mode!=='local')showTitle();if(campaign.missions[index]?.playable)requestMissionBriefing(campaign.missions[index],()=>launchStandalone(index));}
+  function startHistoricalMission(id){if(commands&&commands.mode!=='local')showTitle();const m=historicalMissions.get(id);if(m?.playable&&m.mapReady&&mapRegistry.get(m.map))requestMissionBriefing(m,()=>launchHistorical(id));}
   function viewMissionBriefing(){requestMissionBriefing(activeMission(),finished?beginMission:resumeMission,finished?'result':'main');}
   function showMissionResult(){
     window.BadFodderCoop?.flush();
@@ -1172,7 +1173,9 @@
   }
 
   function showTitle(){
+    const wasCoop=commands&&commands.mode!=='local';
     window.BadFodderCoop?.leave();
+    if(wasCoop&&started)resetGame();
     menuOpen=true;paused=true;
     releaseAllFireInputs();
     releaseInterruptedInput();mapOpen=false;simulationAccumulator=0;
@@ -1297,6 +1300,7 @@
   }
 
   function resetGame(){
+    if(commands&&commands.mode!=='local'&&!commands.applying&&started){window.BadFodderCoop?.restart();return;}
     const mission=activeMission();
     try{adaptiveDirector?.disable()}catch{}
     adaptiveDirector=null;enemyCommander=null;
@@ -1445,6 +1449,7 @@
   }
 
   function advanceCampaign(){
+    if(commands?.mode!=='local'&&commands)return false;
     if(!finished||!win||!hasPlayableNextMission())return false;
     requestMissionBriefing(campaign.missions[activeMissionIndex+1],()=>{
       campaign.setCurrent(activeMissionIndex+1);missionLaunch.useCampaign();missionLaunch.requestAutoStart();location.reload();
@@ -1523,7 +1528,7 @@
       ?missionIdentity.title+' · '+missionIdentity.year
       :'MISSION '+String(mission.id).padStart(2,'0')+'/24 · '+mission.title.toUpperCase();
     const historicalMode=missionLaunch.isHistorical();
-    hudAll.querySelector('span').textContent=living.length+(historicalMode?' VOLUNTEERS':' LOCALS');
+    hudAll.querySelector('span').textContent=commands&&commands.mode!=='local'?(living.filter(s=>commands.owns(squad.indexOf(s))).length?'MY PAIR':'SPECTATING'):living.length+(historicalMode?' VOLUNTEERS':' LOCALS');
     hudSquadLabel.textContent=historicalMode?'VOLUNTEERS':'SQUAD';
     hudStage.textContent=finished?(win?'MISSION COMPLETE':'MISSION FAILED'):'OBJECTIVE '+Math.min(phaseCount,missionStage+1)+'/'+phaseCount;
     rebuildHudProgress(phaseCount);
@@ -1635,12 +1640,13 @@
   }
 
 
-  function applyDamage(target,amount,hitX,hitY){
+  function applyDamage(target,amount,hitX,hitY,source=null){
     if(!target.alive)return;
 
     const isSquad=squad.includes(target);
     if(isSquad&&(target.damageGrace||0)>0)return;
 
+    if(commands?.mode==='host'&&Number.isInteger(source))target.lastHitBy=source;
     target.hp-=amount;
     runAdaptive(()=>adaptiveDirector.notify('combat'));
     target.flash=.14;
@@ -1670,12 +1676,12 @@
     }
   }
 
-  function fireBullet(owner,sx,sy,tx,ty){
+  function fireBullet(owner,sx,sy,tx,ty,source=null){
     if(!actionAllowed('firearms'))return false;
     runAdaptive(()=>adaptiveDirector.notify(owner==='squad'?'shot':'combat'));
     const a=Math.atan2(ty-sy,tx-sx);
     window.BadFodderSfx?.shoot(owner);
-    bullets.push({owner,x:sx,y:sy,vx:Math.cos(a)*760,vy:Math.sin(a)*760,life:1.7});
+    bullets.push({owner,source,x:sx,y:sy,vx:Math.cos(a)*760,vy:Math.sin(a)*760,life:1.7});
     noise.push({owner,x:sx,y:sy,r:S(190),life:.4});
     effects.push({type:'muzzle',x:sx+Math.cos(a)*11,y:sy-8+Math.sin(a)*11,angle:a,life:.08});
     return true;
@@ -1699,7 +1705,7 @@
       const tx=x+(Math.random()-.5)*spread;
       const ty=y+(Math.random()-.5)*spread;
 
-      fireBullet('squad',s.x,s.y,tx,ty);
+      fireBullet('squad',s.x,s.y,tx,ty,squad.indexOf(s));
       s.fireHeat=Math.min(1,heat+.15);
       s.cooldown=.085;
       fired=true;
@@ -1721,7 +1727,7 @@
     updateFacing(s,x-s.x,y-s.y);s.throwTimer=.32;
     window.BadFodderSfx?.grenadeThrow();
     thrown.push({
-      x:s.x,y:s.y,startX:s.x,startY:s.y,tx:x,ty:y,
+      source:squad.indexOf(s),x:s.x,y:s.y,startX:s.x,startY:s.y,tx:x,ty:y,
       t:0,flight:.55,fuse:.42,z:0,landed:false
     });
     updateHud(true);
@@ -1729,7 +1735,7 @@
   }
 
 
-  function explode(x,y){
+  function explode(x,y,source=null){
     window.BadFodderSfx?.explosion();
     effects.push({type:'blast',x,y,life:.55});
     noise.push({x,y,r:S(320),life:.7});
@@ -1740,7 +1746,7 @@
       if(d>=S(58))return;
       const shielded=lineBlocked(x,y,e.x,e.y);
       const damage=shielded?1:(d<S(27)?3:2);
-      applyDamage(e,damage,x,y);
+      applyDamage(e,damage,x,y,source);
       if(e.alive){
         const newlyAlerted=!e.alert;
         e.alert=true;e.aiState='combat';e.lastSeen={x,y};e.repath=0;
@@ -2267,7 +2273,7 @@
         b.x=ax+(bx-ax)*characterHit.t;
         b.y=ay+(by-ay)*characterHit.t;
         b.life=0;
-        applyDamage(t,1,ax,ay);
+        applyDamage(t,1,ax,ay,b.source);
         effects.push({type:'impact',x:t.x,y:t.y,life:.16});
         if(b.owner==='squad'&&t.alive){
           const newlyAlerted=!t.alert;
@@ -2294,7 +2300,7 @@
         }
       }else{
         g.fuse-=dt;
-        if(g.fuse<=0&&!g.done){g.done=true;explode(g.x,g.y)}
+        if(g.fuse<=0&&!g.done){g.done=true;explode(g.x,g.y,g.source)}
       }
     });
     thrown=thrown.filter(g=>!g.done);
@@ -2415,6 +2421,7 @@
   }
 
   function releaseTouchMove(){
+    window.BadFodderCoop?.releaseStick();
     touchState.movePointer=null;
     touchState.moveX=0;touchState.moveY=0;touchState.moveMag=0;
     touchStick.style.transform='translate(0px,0px)';
@@ -2445,7 +2452,7 @@
     const p=mobileAimPoint(S(145));
     if(!p)return;
     if(selection==='all')clearSquadFormation();
-    selectedUnits().forEach(s=>{s.target=null;s.path=null;s.pathIndex=0});
+    if(commands?.mode!=='client')selectedUnits().forEach(s=>{s.target=null;s.path=null;s.pathIndex=0});
     throwGrenade(p.x,p.y);
   }
 
@@ -3014,6 +3021,7 @@
     actors.forEach(({ent,team})=>{
       if(ent.x<camera.x-60||ent.y<camera.y-60||ent.x>camera.x+VIEW_W/zoom+60||ent.y>camera.y+VIEW_H/zoom+60)return;
       drawIdentityMarker(ent,team);
+      if(team==='squad'&&commands?.mode!=='local'&&commands){ctx.fillStyle='#f0e5c8';ctx.font='bold 8px system-ui';ctx.textAlign='center';ctx.fillText('P'+(squad.indexOf(ent)<2?1:2),ent.x,ent.y+17);}
       if(team==='squad'&&ent.selected&&ent.alive){
         ctx.strokeStyle='#eadb82';ctx.lineWidth=2;
         // Small ground brackets leave the silhouette and walking feet visible.
@@ -3153,7 +3161,7 @@
     refreshCursorWorld();
     if(!cursorWorld||!started||menuOpen||paused||finished||mapOpen)return;
     if(selection==='all')clearSquadFormation();
-    selectedUnits().forEach(s=>{s.target=null;s.path=null;s.pathIndex=0});
+    if(commands?.mode!=='client')selectedUnits().forEach(s=>{s.target=null;s.path=null;s.pathIndex=0});
     throwGrenade(cursorWorld.x,cursorWorld.y);
   }
 
@@ -3251,7 +3259,7 @@
       if(!bothLatched){
         bothLatched=true;
         if(selection==='all')clearSquadFormation();
-        selectedUnits().forEach(s=>{s.target=null;s.path=null;s.pathIndex=0});
+        if(commands?.mode!=='client')selectedUnits().forEach(s=>{s.target=null;s.path=null;s.pathIndex=0});
         throwGrenade(p.x,p.y);
       }
       return;
@@ -3277,7 +3285,7 @@
         if(!actionAllowed('grenades'))return;
         macFireHeld=false;
         if(selection==='all')clearSquadFormation();
-        selectedUnits().forEach(s=>{s.target=null;s.path=null;s.pathIndex=0});
+        if(commands?.mode!=='client')selectedUnits().forEach(s=>{s.target=null;s.path=null;s.pathIndex=0});
         throwGrenade(p.x,p.y);
         return;
       }
@@ -3556,10 +3564,10 @@
     if(commands?.mode==='client')return;
     window.BadFodderCoop?.remoteStep(dt);
     runAdaptive(()=>adaptiveDirector.update(dt));
-    applyTouchMovement(dt);
+    if(!menuOpen&&!paused&&!mapOpen)applyTouchMovement(dt);
     if(keyboardFireHeld&&actionAllowed('firearms'))refreshCursorWorld();
-    if(actionAllowed('firearms')&&(rightHeld||macFireHeld||keyboardFireHeld)&&cursorWorld&&!bothLatched)squadFireAt(cursorWorld.x,cursorWorld.y);
-    if(actionAllowed('firearms')&&touchState.fireHeld)fireMobile();
+    if(!menuOpen&&!paused&&!mapOpen&&actionAllowed('firearms')&&(rightHeld||macFireHeld||keyboardFireHeld)&&cursorWorld&&!bothLatched)squadFireAt(cursorWorld.x,cursorWorld.y);
+    if(!menuOpen&&!paused&&!mapOpen&&actionAllowed('firearms')&&touchState.fireHeld)fireMobile();
     squad.forEach((s,i)=>{s.aiming=actionAllowed('firearms')&&(rightHeld||macFireHeld||keyboardFireHeld||touchState.fireHeld);s.streetActor=missionController?.state.actors.get('player-'+i)});
     updateSquad(dt);
 
@@ -3631,7 +3639,7 @@
       const frameDt=Math.min(.1,Math.max(0,(now-last)/1000||0));
       last=now;
 
-      if(commands?.mode!=='client'&&started&&!menuOpen&&!paused&&!finished&&!mapOpen){
+      if(commands?.mode!=='client'&&started&&!finished&&((commands?.mode==='host')||(!menuOpen&&!paused&&!mapOpen))){
         simulationAccumulator=Math.min(FIXED_DT*MAX_CATCHUP_STEPS,simulationAccumulator+frameDt);
         let steps=0;
         while(simulationAccumulator>=FIXED_DT&&steps<MAX_CATCHUP_STEPS){
@@ -3717,8 +3725,9 @@
   // Thin co-op adapter: networking never owns the single-player boot path.
   window.BadFodderCoopBridge={
     map:()=>MAP_DATA.key, size:()=>({w:WORLD_W,h:WORLD_H}), squad:()=>squad,
-    active:()=>started&&!menuOpen&&!paused&&!finished&&!mapOpen,
+    active:()=>started&&!finished&&(commands?.mode==='host'||(!menuOpen&&!paused&&!mapOpen)),
     status:setStatus,
+    shootGarrison:(u,e)=>fireBullet('squad',u.x,u.y,e.x,e.y,squad.indexOf(u)),
     choose(map,resume){
       if(MAP_DATA.key===map)return true;
       const index=campaign.missions.findIndex(m=>m.map===map);
@@ -3763,13 +3772,15 @@
       return {squad,enemies,civilians,pickups,bullets,thrown,effects,missionStage,phaseHoldTime,squadGrenades,finished,win,
         checkpoint:enemyCommander?.checkpointState()||null,stats:window.BadFodderMissionStats?.snapshot()||[]};
     },
-    receive(state){
+    receive(state,refresh=true){
       const wasFinished=finished;
       for(let i=0;i<4;i++){const selected=squad[i]?.selected;Object.assign(squad[i],state.squad[i]);squad[i].selected=selected;}
-      enemies=state.enemies;civilians=state.civilians;pickups=state.pickups;bullets=state.bullets;thrown=state.thrown;effects=state.effects;
-      missionStage=state.missionStage;phaseHoldTime=state.phaseHoldTime;squadGrenades=state.squadGrenades;finished=state.finished;win=state.win;
+      const merge=(old,rows)=>rows.map((r,i)=>Object.assign(old[i]||{},r));
+      enemies=merge(enemies,state.enemies);civilians=merge(civilians,state.civilians);pickups=state.pickups;bullets=state.bullets;thrown=state.thrown;effects=state.effects;
+      coopCheckpoint=state.checkpoint;missionStage=state.missionStage;phaseHoldTime=state.phaseHoldTime;squadGrenades=state.squadGrenades;finished=state.finished;win=state.win;
+      if(selection!=='all'&&!squad[selection]?.alive)setSelection('all');
       window.BadFodderMissionStats?.receive(state.stats);
-      updateRoster();updateHud(true);
+      if(refresh){updateRoster();updateHud(true);}
       if(finished&&!wasFinished)showMissionResult();
     },
     frame(dt){
@@ -3781,20 +3792,22 @@
     },
     menu:showTitle
   };
+  let coopLoadPromise=null;
   document.getElementById('menuMultiplayer').addEventListener('click',async()=>{
     releaseInterruptedInput();paused=true;menuOpen=true;
     try{
-      for(const src of ['multiplayer-protocol.js','multiplayer-signalling.js','multiplayer-session.js']){
+      if(!coopLoadPromise)coopLoadPromise=(async()=>{for(const src of ['multiplayer-protocol.js','multiplayer-signalling.js','multiplayer-session.js']){
         if(document.querySelector('script[data-coop="'+src+'"]'))continue;
         await new Promise((resolve,reject)=>{const script=document.createElement('script');script.dataset.coop=src;script.src=src;script.onload=resolve;script.onerror=()=>{script.remove();reject(new Error('Multiplayer could not load'));};document.head.appendChild(script);});
-      }
-      window.BadFodderCoop.open();
+      }})().catch(e=>{coopLoadPromise=null;throw e;});
+      await coopLoadPromise;window.BadFodderCoop.open();
     }catch(e){setStatus(e.message);menu.show('title');}
   });
 
   // BOOT_MISSION: defer assets and simulation until the briefing is accepted.
   if(launchAfterLoad)startGame();
   else{loadingEl.classList.add('hidden');menu.ready(false);menu.show('title');}
+  if(sessionStorage.getItem('badfodder.coop.resume'))document.getElementById('menuMultiplayer').click();
 })();
 </script>
 </body>

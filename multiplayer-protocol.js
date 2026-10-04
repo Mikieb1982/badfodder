@@ -2,8 +2,8 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.BadFodderCoopProtocol=api;})(typeof window!=='undefined'?window:globalThis,function(){
  'use strict';
  const VERSION=1,MAX_BYTES=65536,TYPES=new Set(['move','fire','grenade','garrison','release','select','stick']);
- const actorKeys=['x','y','hp','maxHp','alive','dir','state','variant','anim','fireTimer','hitTimer','throwTimer','deadTimer','deathAngle','flash','aiming','manualGarrison','garrisonAnchorX','garrisonAnchorY','checkpointCover','checkpointGarrison','checkpointHeld','checkpointFortified','checkpointFacing','checkpointCenterX','checkpointCenterY','checkpointSandbagRadius','checkpointFortificationPhase','checkpointFortificationLead','checkpointFortificationRearLead','checkpointFortificationFrontLead'];
- const itemKeys=['x','y','vx','vy','life','owner','type','active','amount','startX','startY','tx','ty','t','flight','fuse','z','landed','angle'];
+ const actorKeys=['x','y','hp','maxHp','alive','dir','state','variant','anim','objectiveGroup','groupId','fireTimer','hitTimer','throwTimer','deadTimer','deathAngle','flash','aiming','manualGarrison','garrisonAnchorX','garrisonAnchorY','checkpointCover','checkpointGarrison','checkpointHeld','checkpointFortified','checkpointFacing','checkpointCenterX','checkpointCenterY','checkpointSandbagRadius','checkpointFortificationPhase','checkpointFortificationLead','checkpointFortificationRearLead','checkpointFortificationFrontLead'];
+ const itemKeys=['x','y','vx','vy','life','owner','type','active','optional','amount','startX','startY','tx','ty','t','flight','fuse','z','landed','angle'];
  const primitive=v=>v===null||typeof v==='boolean'||typeof v==='string'&&v.length<=64||typeof v==='number'&&Number.isFinite(v)&&Math.abs(v)<1e8;
  const pack=(obj,keys)=>keys.map(k=>primitive(obj[k])?obj[k]:null);
  const unpack=(row,keys)=>Object.fromEntries(keys.map((k,i)=>[k,row[i]]));

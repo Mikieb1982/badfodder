@@ -33,7 +33,7 @@
         const units=root.selectedUnits();
         if(units.length)return units;
       }
-      const squad=liveSquad().filter(s=>s?.alive);
+      const squad=liveSquad().filter((s,i)=>s?.alive&&(!root.BadFodderCommands||root.BadFodderCommands.owns(i)));
       const doc=root.document;
       if(!doc)return selectedOne()?[selectedOne()]:[];
       if(doc.getElementById('hudAll')?.classList?.contains('selected'))return squad;
@@ -172,6 +172,7 @@
   }
   function applyGarrisonShot(s,target){
     s.fireTimer=.11;s.state='fire';s.flash=.08;s.garrisonTracerFrames=3;s.garrisonTracerX=target.x;s.garrisonTracerY=target.y;
+    if(root.BadFodderCommands?.mode==='host'&&root.BadFodderCoopBridge?.shootGarrison)return root.BadFodderCoopBridge.shootGarrison(s,target);
     if(typeof root.fireBullet==='function')return root.fireBullet('squad',s.x,s.y,target.x,target.y);
     try{root.BadFodderSfx?.shoot?.('squad')}catch(_){ }
     if(Number.isFinite(target.hp)){
