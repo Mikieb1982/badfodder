@@ -20,3 +20,41 @@ for(const win of [false,true]){state.finished=true;state.win=win;const out=P.rea
 assert(!P.readSnapshot({...wire,s:[]}));assert(!P.readSnapshot({...wire,stats:[[0,'x',-1,true]]}));assert.deepEqual(P.totals(state.stats),[1,5]);
 C.configure();assert.equal(C.units(squad,'all').length,4);
 console.log('PASS: local default, ownership, input intents, wire validation, rate limits, garrison/death/checkpoints/results and report totals.');
+
+const S=require('../multiplayer-signalling');
+const crypto={getRandomValues(a){a.fill(3);return a;}};
+const code=S.roomCode(crypto);assert(S.validCode(code));assert(!S.validCode('../rooms'));assert(!S.validCode('RABBIT-1234'));
+const time=1000000,offer={type:'offer',sdp:'fake-sdp'};
+const room={host:'h',mission:'wigan',created:time,expires:time+S.TTL,offer};
+assert(S.validRoom(room,time));assert(!S.validRoom(room,time+S.TTL));assert(!S.validRoom({...room,mission:'cable-street'},time));
+(async()=>{
+ const calls=[],store={};let user=0;
+ const fetch=async(url,options={})=>{
+  calls.push([url,options]);let value,status=200;
+  if(url.includes('identitytoolkit'))value={idToken:'token'+(++user),localId:'u'+user};
+  else if(options.method==='DELETE'){delete store.room;value=null;}
+  else if(options.method==='PUT'){
+   const body=JSON.parse(options.body);
+   if(url.includes('/answer.json'))store.room.answer=body;
+   else if(url.includes('/joiner.json'))store.room.joiner=body;
+   else {assert.equal(options.headers['if-match'],'null_etag');store.room=body;}
+   value=body;
+  }else value=store.room;
+  return {ok:status===200,status,json:async()=>value};
+ };
+ const config={apiKey:'test',databaseURL:'https://test-default-rtdb.firebaseio.com'};
+ const host=S.create({fetch,now:()=>time,crypto,config}),join=S.create({fetch,now:()=>time,crypto,config});
+ assert.equal(await host.createRoom('wigan',offer),code);assert.equal((await join.joinRoom(code)).mission,'wigan');await join.answer({type:'answer',sdp:'reply'});assert.equal((await host.read()).answer.sdp,'reply');
+ await host.cleanup();assert.equal(store.room,undefined);
+ assert(calls.every(([url])=>!url.includes('firestore')&&!url.includes('functions')));
+ await assert.rejects(S.create({fetch,config:{apiKey:'x',databaseURL:''}}).initialise(),/NOT CONFIGURED/);
+ const Session=require('../multiplayer-session');let closed=false,sent=[];
+ class RTC{
+  constructor(){this.connectionState='new';this.iceGatheringState='complete';}
+  createDataChannel(label,options){assert(label==='control'?options.ordered:options.maxRetransmits===0);return {label,readyState:'open',bufferedAmount:0,send:v=>sent.push(v),close(){closed=true}};}
+  async createOffer(){return offer}async createAnswer(){return {type:'answer',sdp:'reply'}}async setLocalDescription(v){this.localDescription=v}async setRemoteDescription(v){this.remote=v}
+  close(){closed=true;}
+ }
+ const p=Session.peer({host:true,RTC});assert.deepEqual(await p.offer(),offer);await p.accept({type:'answer',sdp:'reply'});assert(p.sendControl('command'));assert(p.sendState('state'));assert.deepEqual(sent,['command','state']);p.close();assert(closed);
+ console.log('PASS: room create/join/answer/expiry/cleanup, missing-config isolation and native reliable/unreliable peer channels.');
+})().catch(e=>{console.error(e);process.exitCode=1});

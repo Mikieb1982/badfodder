@@ -9,7 +9,7 @@
     "firebase:serve": "firebase serve --only hosting",
     "firebase:deploy": "firebase deploy --only hosting",
     "firebase:github": "firebase init hosting:github",
-    "test": "node tests/mission-stats.cjs && node tests/garrison.cjs && node tests/adaptive-director.cjs && node tests/checkpoint-assaults.cjs && node tests/buildings.cjs && node tests/animation.cjs && node tests/scenery.cjs && node tests/navigation.cjs && node tests/wigan.cjs && node tests/mission-consistency.cjs && node tests/combat.cjs && node tests/visual-benchmark.cjs && node tests/gameplay-refinement.cjs && node tests/music.cjs && node tests/painted-art.cjs && node tests/navigation-performance.cjs && node tests/playthrough.cjs && node tests/browser-contract.cjs && node tests/mission-select.cjs && node tests/runtime-stability.cjs && node tests/cable-street-groundwork.cjs && node tests/cable-street-foundation.cjs && node tests/cable-street-navigation.cjs && node tests/cable-street-interactions.cjs && node tests/cable-street-authoring.cjs && node tests/cable-street-compile.cjs && node tests/cable-street-map-gates.cjs && node tests/cable-street-director.cjs && node tests/cable-street-crowd.cjs && node tests/cable-street-map-build.cjs && node tests/cable-street-art.cjs && node tests/cable-street-release.cjs && node tests/cable-street-playable.cjs && node tests/cable-street-action.cjs && node tests/cable-street-tactical.cjs && node tests/mission-identities.cjs",
+    "test": "node tests/multiplayer.cjs && node tests/mission-stats.cjs && node tests/garrison.cjs && node tests/adaptive-director.cjs && node tests/checkpoint-assaults.cjs && node tests/buildings.cjs && node tests/animation.cjs && node tests/scenery.cjs && node tests/navigation.cjs && node tests/wigan.cjs && node tests/mission-consistency.cjs && node tests/combat.cjs && node tests/visual-benchmark.cjs && node tests/gameplay-refinement.cjs && node tests/music.cjs && node tests/painted-art.cjs && node tests/navigation-performance.cjs && node tests/playthrough.cjs && node tests/browser-contract.cjs && node tests/mission-select.cjs && node tests/runtime-stability.cjs && node tests/cable-street-groundwork.cjs && node tests/cable-street-foundation.cjs && node tests/cable-street-navigation.cjs && node tests/cable-street-interactions.cjs && node tests/cable-street-authoring.cjs && node tests/cable-street-compile.cjs && node tests/cable-street-map-gates.cjs && node tests/cable-street-director.cjs && node tests/cable-street-crowd.cjs && node tests/cable-street-map-build.cjs && node tests/cable-street-art.cjs && node tests/cable-street-release.cjs && node tests/cable-street-playable.cjs && node tests/cable-street-action.cjs && node tests/cable-street-tactical.cjs && node tests/mission-identities.cjs",
     "cable:authoring:check": "node tools/cable-street/validate-authoring.cjs authoring/cable-street",
     "cable:authoring:require-ready": "node tools/cable-street/validate-authoring.cjs authoring/cable-street --require-ready",
     "cable:calibrate": "node tools/cable-street/calibrate-grid.cjs authoring/cable-street/calibration.json",
@@ -17,7 +17,9 @@
     "cable:build-runtime-map": "node tools/cable-street/build-runtime-map.cjs authoring/cable-street cable-street-map.js",
     "cable:verify-release": "node tools/cable-street/verify-release.cjs authoring/cable-street",
     "test:browser": "node tests/browser-lifecycle.cjs",
-    "test:director": "node tests/adaptive-director.cjs && node tests/checkpoint-assaults.cjs"
+    "test:director": "node tests/adaptive-director.cjs && node tests/checkpoint-assaults.cjs",
+    "test:coop": "node tests/multiplayer.cjs",
+    "test:coop:browser": "node tests/multiplayer-browser.cjs"
   },
   "devDependencies": {
     "firebase-tools": "^14.0.0",

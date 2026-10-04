@@ -101,3 +101,7 @@ Run `npm run cable:verify-release` to validate the production layout and `npm te
 Road and landmark positions are derived from OpenStreetMap data.
 
 © OpenStreetMap contributors, ODbL 1.0.
+
+## Optional two-player co-op
+
+Belzig and Wigan support two soldiers per player through browser WebRTC. Single player stays available without networking. See [connection and free Firebase setup](docs/MULTIPLAYER.md). Until the project has a signalling database, use Multiplayer > Manual Connection.
