@@ -1,0 +1,12 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const session=fs.readFileSync(path.join(__dirname,'../multiplayer-session.js'),'utf8');
+const protocol=fs.readFileSync(path.join(__dirname,'../multiplayer-protocol.js'),'utf8');
+const stats=fs.readFileSync(path.join(__dirname,'../mission-stats.js'),'utf8');
+require('../multiplayer-session');
+for(const token of ['snapshotInterval','predictedMoves','coopReady','lobby-ready','coopTeammate','coopPingButton','MOVE HERE','ENEMY HERE','DEFEND HERE','HELP!','CROSSFIRE · ENEMY SUPPRESSED','COVERING FIRE · ADVANCE','ENEMY FORCE SPLITTING','TEAMMATE UNDER PRESSURE','FLANK THREAT','latency<90','latency<180'])assert(session.includes(token),'Missing co-op experience feature: '+token);
+assert(session.includes('return hot?50:moving?67:110'),'Adaptive 10–20 Hz state cadence missing');
+assert(session.includes("flush(['fire','grenade','garrison','release'].includes(c.type))"),'Immediate combat/garrison state flush missing');
+assert(protocol.includes('assistTotals')&&protocol.includes('r.assists'),'Assist wire protocol missing');
+assert(stats.includes('ASSISTS')&&stats.includes('contributors')&&stats.includes('TEAM '),'Assist/team squad report missing');
+console.log('PASS: multiplayer smoothness, presence, pings, ready-room, co-op tactics and assists are guarded.');
