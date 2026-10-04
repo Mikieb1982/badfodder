@@ -25,14 +25,13 @@ const S=require('../multiplayer-signalling');
 const crypto={getRandomValues(a){a.fill(3);return a;}};
 const code=S.roomCode(crypto);assert(S.validCode(code));assert(!S.validCode('../rooms'));assert(!S.validCode('RABBIT-1234'));
 const time=1000000,offer={type:'offer',sdp:'fake-sdp'};
-const room={host:'h',mission:'wigan',created:time,expires:time+S.TTL,offer};
+const room={host:'HOSTPEER1',mission:'wigan',created:time,expires:time+S.TTL,offer};
 assert(S.validRoom(room,time));assert(!S.validRoom(room,time+S.TTL));assert(!S.validRoom({...room,mission:'cable-street'},time));
 (async()=>{
- const calls=[],store={};let user=0;
+ const calls=[],store={};
  const fetch=async(url,options={})=>{
   calls.push([url,options]);let value,status=200;
-  if(url.includes('identitytoolkit'))value={idToken:'token'+(++user),localId:'u'+user};
-  else if(options.method==='DELETE'){delete store.room;value=null;}
+  if(options.method==='DELETE'){delete store.room;value=null;}
   else if(options.method==='PUT'){
    const body=JSON.parse(options.body);
    if(url.includes('/answer.json'))store.room.answer=body;
@@ -42,12 +41,12 @@ assert(S.validRoom(room,time));assert(!S.validRoom(room,time+S.TTL));assert(!S.v
   }else value=store.room;
   return {ok:status===200,status,json:async()=>value};
  };
- const config={apiKey:'test',databaseURL:'https://test-default-rtdb.firebaseio.com'};
+ const config={databaseURL:'https://test-default-rtdb.firebaseio.com'};
  const host=S.create({fetch,now:()=>time,crypto,config}),join=S.create({fetch,now:()=>time,crypto,config});
  assert.equal(await host.createRoom('wigan',offer),code);assert.equal((await join.joinRoom(code)).mission,'wigan');await join.answer({type:'answer',sdp:'reply'});assert.equal((await host.read()).answer.sdp,'reply');
  await host.cleanup();assert.equal(store.room,undefined);
- assert(calls.every(([url])=>!url.includes('firestore')&&!url.includes('functions')));
- await assert.rejects(S.create({fetch,config:{apiKey:'x',databaseURL:''}}).initialise(),/NOT CONFIGURED/);
+ assert(calls.every(([url])=>!url.includes('identitytoolkit')&&!url.includes('firestore')&&!url.includes('functions')),'Signalling must not depend on Auth, Firestore or Functions');
+ await assert.rejects(S.create({fetch,config:{databaseURL:''}}).initialise(),/NOT CONFIGURED/);
  const Session=require('../multiplayer-session');let closed=false,sent=[];
  class RTC{
   constructor(){this.connectionState='new';this.iceGatheringState='complete';}
@@ -56,5 +55,5 @@ assert(S.validRoom(room,time));assert(!S.validRoom(room,time+S.TTL));assert(!S.v
   close(){closed=true;}
  }
  const p=Session.peer({host:true,RTC});assert.deepEqual(await p.offer(),offer);await p.accept({type:'answer',sdp:'reply'});assert(p.sendControl('command'));assert(p.sendState('state'));assert.deepEqual(sent,['command','state']);p.close();assert(closed);
- console.log('PASS: room create/join/answer/expiry/cleanup, missing-config isolation and native reliable/unreliable peer channels.');
+ console.log('PASS: free room create/join/answer/expiry/cleanup without Firebase Auth plus native reliable/unreliable peer channels.');
 })().catch(e=>{console.error(e);process.exitCode=1});
