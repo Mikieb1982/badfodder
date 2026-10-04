@@ -4,7 +4,7 @@
   let runtimeGetSquad=null,runtimeGetEnemies=null,squad=[],enemies=[],records=[];
   let enemyAlive=new WeakMap(),lastCasualty=new WeakSet();
 
-  function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+  function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]))}
   function injectStyle(){
     if(!root.document||root.document.getElementById('missionStatsStyle'))return;
     const s=root.document.createElement('style');s.id='missionStatsStyle';s.textContent=`
@@ -28,10 +28,23 @@
   }
   function creditKill(enemy){const killer=candidateKiller(enemy);const rec=records.find(r=>r.unit===killer);if(rec)rec.kills++}
   function currentMissionKey(){const title=root.document?.querySelector('#resultLocation,#briefingTitle')?.textContent||'';if(/wigan/i.test(title))return'wigan';if(/cable/i.test(title))return'cable-street-1936';return'bad-belzig'}
+
+  function paintRealPortrait(canvas,key,index,state='idle'){
+    if(!canvas)return Promise.resolve(false);
+    const art=root.BadFodderArt;if(!art?.preloadMissionArt||!art?.missionPortrait)return Promise.resolve(false);
+    return Promise.resolve(art.preloadMissionArt(key)).then(()=>{
+      try{
+        const image=art.missionPortrait(key,index,state);if(!image)return false;
+        const g=canvas.getContext('2d');g.clearRect(0,0,canvas.width,canvas.height);g.drawImage(image,0,0,canvas.width,canvas.height);
+        canvas.dataset.portraitSource='assets/characters/portraits-1936-1945.png';return true;
+      }catch(_){return false}
+    }).catch(()=>false);
+  }
+
   function showCasualty(rec){
     if(!root.document)return;injectStyle();const viewport=root.document.querySelector('.viewport');if(!viewport)return;viewport.querySelector('.casualty-callout')?.remove();
     const o=root.document.createElement('div');o.className='casualty-callout';o.setAttribute('role','status');o.setAttribute('aria-live','assertive');const card=root.document.createElement('div');card.className='casualty-card';const portrait=root.document.createElement('canvas');portrait.width=96;portrait.height=96;
-    try{const img=root.BadFodderArt?.missionPortrait?.(currentMissionKey(),rec.index,'dead')||root.BadFodderArt?.soldier?.('squad',2,2,'dead',rec.index);if(img)portrait.getContext('2d').drawImage(img,0,0,96,96)}catch(_){ }
+    paintRealPortrait(portrait,currentMissionKey(),rec.index,'dead');
     const text=root.document.createElement('div');text.innerHTML='<small>MAN DOWN</small><strong>'+esc(rec.name)+'</strong><span>KILLED IN ACTION</span>';card.append(portrait,text);o.appendChild(card);viewport.appendChild(o);setTimeout(()=>o.remove(),1800);
   }
   function casualty(unit){const rec=records.find(r=>r.unit===unit);if(rec)rec.alive=false;if(lastCasualty.has(unit))return;lastCasualty.add(unit);showCasualty(rec||{unit,name:unit.name||'Squad member',index:squad.indexOf(unit)})}
@@ -43,8 +56,10 @@
   function snapshot(){capture();return records.map((r,i)=>({index:i,name:r.name,kills:r.kills,alive:r.unit?.alive!==false}))}
   function renderResult(identity){
     if(!root.document)return;injectStyle();tick();const anchor=root.document.getElementById('resultFlavour');if(!anchor)return;anchor.parentElement?.querySelector('.mission-stat-report')?.remove();
+    const key=identity?.key||currentMissionKey();
+    try{root.BadFodderArt?.preloadMissionArt?.(key)}catch(_){ }
     const report=root.document.createElement('section');report.className='mission-stat-report';report.setAttribute('aria-label','Squad mission statistics');const h=root.document.createElement('div');h.className='mission-stat-heading';h.textContent='SQUAD REPORT';report.appendChild(h);const grid=root.document.createElement('div');grid.className='mission-stat-grid';
-    snapshot().forEach(r=>{const card=root.document.createElement('div');card.className='mission-stat-card'+(r.alive?'':' kia');const p=root.document.createElement('div');p.className='mission-stat-portrait';const c=root.document.createElement('canvas');c.width=112;c.height=112;try{const img=root.BadFodderArt?.missionPortrait?.(identity?.key||currentMissionKey(),r.index,r.alive?'idle':'dead')||root.BadFodderArt?.soldier?.('squad',2,r.alive?0:2,r.alive?'idle':'dead',r.index);if(img)c.getContext('2d').drawImage(img,0,0,112,112)}catch(_){ }const cross=root.document.createElement('span');cross.className='mission-stat-cross';cross.textContent='✕';p.append(c,cross);const name=root.document.createElement('strong');name.className='mission-stat-name';name.textContent=r.name;const kills=root.document.createElement('span');kills.className='mission-stat-kills';kills.innerHTML='KILLS <b>'+r.kills+'</b>';const status=root.document.createElement('span');status.className='mission-stat-kia';status.textContent=r.alive?'SURVIVED':'KIA';card.append(p,name,kills,status);grid.appendChild(card)});
+    snapshot().forEach(r=>{const card=root.document.createElement('div');card.className='mission-stat-card'+(r.alive?'':' kia');const p=root.document.createElement('div');p.className='mission-stat-portrait';const c=root.document.createElement('canvas');c.width=112;c.height=112;paintRealPortrait(c,key,r.index,r.alive?'idle':'dead');const cross=root.document.createElement('span');cross.className='mission-stat-cross';cross.textContent='✕';p.append(c,cross);const name=root.document.createElement('strong');name.className='mission-stat-name';name.textContent=r.name;const kills=root.document.createElement('span');kills.className='mission-stat-kills';kills.innerHTML='KILLS <b>'+r.kills+'</b>';const status=root.document.createElement('span');status.className='mission-stat-kia';status.textContent=r.alive?'SURVIVED':'KIA';card.append(p,name,kills,status);grid.appendChild(card)});
     report.appendChild(grid);anchor.insertAdjacentElement('afterend',report);
   }
   function patchAdaptive(adaptive=root.BadFodderAdaptive){
@@ -58,5 +73,5 @@
   function chainProperty(name,patch){
     const d=Object.getOwnPropertyDescriptor(root,name);if(d&&!d.configurable){patch(root[name]);return}if(d&&(d.get||d.set)){const g=d.get,s=d.set;Object.defineProperty(root,name,{configurable:true,enumerable:d.enumerable!==false,get(){return g?g.call(root):undefined},set(v){s?.call(root,v);patch(g?g.call(root):v)}});patch(g?g.call(root):undefined);return}let v=d&&'value'in d?d.value:root[name];Object.defineProperty(root,name,{configurable:true,enumerable:true,get(){return v},set(n){v=n;patch(n)}});patch(v);
   }
-  root.BadFodderMissionStats={begin,tick,snapshot,renderResult,patchAdaptive,patchMenu};injectStyle();chainProperty('BadFodderAdaptive',patchAdaptive);chainProperty('BadFodderMenu',patchMenu);
+  root.BadFodderMissionStats={begin,tick,snapshot,renderResult,paintRealPortrait,patchAdaptive,patchMenu};injectStyle();chainProperty('BadFodderAdaptive',patchAdaptive);chainProperty('BadFodderMenu',patchMenu);
 })(typeof window!=='undefined'?window:globalThis);
