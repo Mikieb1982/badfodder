@@ -115,6 +115,28 @@
     },true);
   }
 
+  function lockCheckpointGarrisons(){
+    for(const unit of liveSquad()){
+      if(!unit?.alive)continue;
+      const holding=!!unit.checkpointCover&&Number.isFinite(unit.checkpointGarrison);
+      if(holding){
+        if(unit.checkpointAnchorPhase!==unit.checkpointGarrison||!Number.isFinite(unit.checkpointAnchorX)||!Number.isFinite(unit.checkpointAnchorY)){
+          unit.checkpointAnchorPhase=unit.checkpointGarrison;
+          unit.checkpointAnchorX=unit.x;unit.checkpointAnchorY=unit.y;
+        }
+        unit.x=unit.checkpointAnchorX;unit.y=unit.checkpointAnchorY;
+        unit.path=null;unit.pendingPath=null;unit.pathIndex=0;unit.target=null;
+        unit.isFormationLeader=false;unit.followRepath=0;
+      }else if(unit.checkpointAnchorPhase!==undefined){
+        unit.checkpointAnchorPhase=undefined;unit.checkpointAnchorX=null;unit.checkpointAnchorY=null;
+      }
+    }
+  }
+  function installCheckpointLock(){
+    if(root.__checkpointGarrisonLock)return;root.__checkpointGarrisonLock=true;
+    setInterval(lockCheckpointGarrisons,16);
+  }
+
   function drawPersonalSandbags(ctx,ent,half){
     if(!ctx||!ent?.manualGarrison)return;
     const r=15;ctx.save();
@@ -163,6 +185,7 @@
       const commander=create.call(this,options),maintain=commander.maintain?.bind(commander);
       commander.maintain=function(time){
         const result=maintain?maintain(time):undefined,squad=options.getSquad?.()||[],enemies=options.getEnemies?.()||[],scale=options.scale||1;
+        lockCheckpointGarrisons();
         for(const s of squad){
           if(!s?.alive||!s.manualGarrison)continue;
           if(!Number.isFinite(s.garrisonAnchorX)){s.garrisonAnchorX=s.x;s.garrisonAnchorY=s.y}
@@ -189,9 +212,9 @@
     let value=d&&'value'in d?d.value:root[name];
     Object.defineProperty(root,name,{configurable:true,enumerable:true,get(){return value},set(next){value=next;patch(next)}});patch(value);return true;
   }
-  function install(){installButtons();installKeyboard();installMovementRelease();patchArt();patchAdaptive()}
+  function install(){installButtons();installKeyboard();installMovementRelease();installCheckpointLock();patchArt();patchAdaptive()}
 
-  root.BadFodderGarrison={toggleGarrison,release,releaseForMovement,selectedOne,drawPersonalSandbags,patchArt,patchAdaptive,install};
+  root.BadFodderGarrison={toggleGarrison,release,releaseForMovement,selectedOne,lockCheckpointGarrisons,drawPersonalSandbags,patchArt,patchAdaptive,install};
   chainProperty('BadFodderArt',patchArt);chainProperty('BadFodderAdaptive',patchAdaptive);
   if(root.document){if(root.document.readyState==='loading')root.document.addEventListener('DOMContentLoaded',install,{once:true});else install()}
 })(typeof window!=='undefined'?window:globalThis);
