@@ -4,11 +4,31 @@
   const RANGE=300;
   const FIRE_INTERVAL=.18;
   const KEY='h';
+  let runtimeGetSquad=null,runtimeGetEnemies=null;
+
+  function liveSquad(){
+    try{return typeof runtimeGetSquad==='function'?(runtimeGetSquad()||[]):[]}catch(_){return[]}
+  }
 
   function selectedOne(){
     try{
-      const units=typeof root.selectedUnits==='function'?root.selectedUnits():[];
-      return units.length===1?units[0]:null;
+      if(typeof root.selectedUnits==='function'){
+        const units=root.selectedUnits();
+        if(units.length===1)return units[0];
+      }
+      const squad=liveSquad();
+      if(!squad.length)return null;
+      if(squad.length===1)return squad[0].alive?squad[0]:null;
+      const doc=root.document;
+      if(!doc)return null;
+      if(doc.getElementById('hudAll')?.classList?.contains('selected'))return null;
+      const hud=[...doc.querySelectorAll('.hud-unit')];
+      const hudIndex=hud.findIndex(el=>el.classList?.contains('selected'));
+      if(hudIndex>=0&&squad[hudIndex]?.alive)return squad[hudIndex];
+      const cards=[...doc.querySelectorAll('.card')];
+      const cardIndex=cards.findIndex(el=>el.classList?.contains('selected'));
+      if(cardIndex>=0&&squad[cardIndex]?.alive)return squad[cardIndex];
+      return null;
     }catch(_){return null}
   }
 
@@ -22,14 +42,17 @@
     if(notice){notice.textContent=text;notice.classList.add('show');setTimeout(()=>notice.classList.remove('show'),1400)}
   }
 
+  function release(unit){
+    unit.manualGarrison=false;
+    unit.garrisonAnchorX=null;unit.garrisonAnchorY=null;unit.garrisonTarget=null;unit.garrisonNextFire=0;
+    unit.garrisonTracerFrames=0;unit.garrisonTracerX=null;unit.garrisonTracerY=null;
+  }
+
   function toggleGarrison(){
     if(!firearmsAllowed())return false;
     const unit=selectedOne();
     if(!unit){setNotice('Select one soldier to garrison.');return false}
-    if(unit.manualGarrison){
-      unit.manualGarrison=false;unit.garrisonAnchorX=null;unit.garrisonAnchorY=null;unit.garrisonTarget=null;unit.garrisonNextFire=0;
-      setNotice('Garrison released.');syncButtons();return false;
-    }
+    if(unit.manualGarrison){release(unit);setNotice('Garrison released.');syncButtons();return false}
     unit.manualGarrison=true;unit.garrisonAnchorX=unit.x;unit.garrisonAnchorY=unit.y;unit.garrisonTarget=null;unit.garrisonNextFire=0;
     unit.path=null;unit.pendingPath=null;unit.pathIndex=0;unit.target=null;
     setNotice('Garrison set. Soldier will hold and auto-fire.');syncButtons();return true;
@@ -41,7 +64,8 @@
       btn.hidden=!allowed;
       btn.classList.toggle('active',active);
       btn.setAttribute('aria-pressed',active?'true':'false');
-      btn.title=unit?'Garrison / release selected soldier (H)':'Select one soldier first';
+      btn.textContent=active?'RELEASE':'GARRISON';
+      btn.title=unit?(active?'Release selected soldier (H)':'Garrison selected soldier (H)'):'Select one soldier first';
     });
   }
 
@@ -75,8 +99,7 @@
       const target=e.target,tag=target?.tagName?.toLowerCase();
       if(tag==='input'||tag==='textarea'||tag==='select'||target?.isContentEditable)return;
       if(!firearmsAllowed())return;
-      e.preventDefault();
-      toggleGarrison();
+      e.preventDefault();toggleGarrison();
     });
   }
 
@@ -84,6 +107,10 @@
     if(!ctx||!ent?.manualGarrison)return;
     const r=15;
     ctx.save();
+    if(half==='front'&&ent.garrisonTracerFrames>0&&Number.isFinite(ent.garrisonTracerX)){
+      ctx.strokeStyle='rgba(255,232,150,.9)';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(ent.x,ent.y);ctx.lineTo(ent.garrisonTracerX,ent.garrisonTracerY);ctx.stroke();
+      ent.garrisonTracerFrames--;
+    }
     ctx.fillStyle='rgba(28,22,15,.28)';ctx.beginPath();ctx.ellipse(ent.x,ent.y+5,22,10,0,0,Math.PI*2);ctx.fill();
     const count=9;
     for(let i=0;i<count;i++){
@@ -113,10 +140,22 @@
     art.__manualGarrisonPatched=true;return true;
   }
 
+  function applyGarrisonShot(s,target){
+    s.fireTimer=.11;s.state='fire';s.flash=.08;s.garrisonTracerFrames=3;s.garrisonTracerX=target.x;s.garrisonTracerY=target.y;
+    if(typeof root.fireBullet==='function')return root.fireBullet('squad',s.x,s.y,target.x,target.y);
+    try{root.BadFodderSfx?.shoot?.('squad')}catch(_){ }
+    if(Number.isFinite(target.hp)){
+      target.hp=Math.max(0,target.hp-1);target.hitTimer=.12;target.flash=.08;
+      if(target.hp<=0){target.alive=false;target.deadTimer=0;target.aiState='dead'}
+    }
+    return true;
+  }
+
   function patchAdaptive(adaptive=root.BadFodderAdaptive){
     if(!adaptive||adaptive.__manualGarrisonPatched||typeof adaptive.createCommander!=='function')return false;
     const create=adaptive.createCommander;
     adaptive.createCommander=function(options={}){
+      runtimeGetSquad=options.getSquad||runtimeGetSquad;runtimeGetEnemies=options.getEnemies||runtimeGetEnemies;
       const commander=create.call(this,options);
       const maintain=commander.maintain?.bind(commander);
       commander.maintain=function(time){
@@ -131,10 +170,7 @@
           s.garrisonTarget=target||null;if(!target)continue;
           s.dir=Math.atan2(target.y-s.y,target.x-s.x);
           if((s.garrisonNextFire||0)>time)continue;
-          if(typeof root.fireBullet==='function'&&firearmsAllowed()){
-            root.fireBullet('squad',s.x,s.y,target.x,target.y);
-            s.fireTimer=.11;s.state='fire';s.flash=.08;s.garrisonNextFire=time+FIRE_INTERVAL;
-          }
+          if(firearmsAllowed()){applyGarrisonShot(s,target);s.garrisonNextFire=time+FIRE_INTERVAL}
         }
         return result;
       };
@@ -161,7 +197,7 @@
 
   function install(){installButtons();installKeyboard();patchArt();patchAdaptive()}
 
-  root.BadFodderGarrison={toggleGarrison,drawPersonalSandbags,patchArt,patchAdaptive,install};
+  root.BadFodderGarrison={toggleGarrison,release,selectedOne,drawPersonalSandbags,patchArt,patchAdaptive,install};
   chainProperty('BadFodderArt',patchArt);
   chainProperty('BadFodderAdaptive',patchAdaptive);
   if(root.document){if(root.document.readyState==='loading')root.document.addEventListener('DOMContentLoaded',install,{once:true});else install()}
