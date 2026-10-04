@@ -18,7 +18,7 @@ const server=http.createServer((req,res)=>{try{const name=decodeURIComponent(new
  const browser=await chromium.launch({headless:true,executablePath:process.env.BADFODDER_CHROMIUM,args:['--no-sandbox','--disable-dev-shm-usage','--allow-loopback-in-peer-connection']});
  try{
  for(const index of [0,1]){console.log('Checking native co-op mission',index);
-  const errors=[],pages=[],rooms=new Map();let authId=0;
+  const errors=[],pages=[],rooms=new Map();
   for(const mobile of [false,true]){
    const context=await browser.newContext(mobile?{viewport:{width:900,height:500},isMobile:true,hasTouch:true}:{viewport:{width:1280,height:900}});
    await context.addInitScript(({index})=>{sessionStorage.setItem('badfodder.presentation.prompted.v1','1');sessionStorage.setItem('badfodder.launch.v1',JSON.stringify({mode:'select',index}));const Native=RTCPeerConnection;window.RTCPeerConnection=class extends Native{constructor(config){super({...config,iceServers:[]});}};},{index});
@@ -37,8 +37,7 @@ const server=http.createServer((req,res)=>{try{const name=decodeURIComponent(new
     });
    }
    p.on('pageerror',e=>errors.push(e.message));
-   await p.route('**/multiplayer-config.json',r=>r.fulfill({contentType:'application/json',body:JSON.stringify({apiKey:'test',databaseURL:'https://coop-test.firebaseio.com'})}));
-   await p.route('https://identitytoolkit.googleapis.com/**',r=>r.fulfill({contentType:'application/json',body:JSON.stringify({localId:'p'+(++authId),idToken:'test'})}));
+   await p.route('**/multiplayer-config.json',r=>r.fulfill({contentType:'application/json',body:JSON.stringify({databaseURL:'https://coop-test.firebaseio.com'})}));
    await p.route('https://coop-test.firebaseio.com/**',async r=>{
     const req=r.request(),parts=new URL(req.url()).pathname.split('/'),code=parts[2],key=parts[3]?.replace('.json','');let data=null,status=200;
     if(req.method()==='PUT'){const value=JSON.parse(req.postData());if(key){data=rooms.get(code);if(!data)status=404;else data[key]=value;}else{rooms.set(code.replace('.json',''),value);data=value;}}
@@ -51,7 +50,13 @@ const server=http.createServer((req,res)=>{try{const name=decodeURIComponent(new
   const [host,client]=pages;
   console.log('Creating room');await host.locator('#coopHost').click();await host.waitForFunction(()=>document.querySelector('#coopRoom').value.startsWith('RABBIT-'));
   const code=await host.locator('#coopRoom').inputValue();await client.locator('#coopRoom').fill(code);await client.locator('#coopJoin').click();
-  console.log('Joining room',code);await Promise.all(pages.map(p=>p.waitForFunction(()=>__coopTest.state().started&&!__coopTest.state().menuOpen&&BadFodderCommands.mode!=='local',{},{timeout:120000}))).catch(async e=>{for(const p of pages)console.error(await p.evaluate(()=>({status:document.getElementById('coopStatus')?.textContent,state:__coopTest.state(),mode:BadFodderCommands.mode})));throw e;});
+  console.log('Joining room',code);
+  await Promise.all(pages.map(p=>p.locator('#coopReady').waitFor({state:'visible',timeout:30000})));
+  for(const p of pages)assert.equal(await p.locator('#coopLobbyRoster .coop-lobby-unit').count(),4,'Ready room did not show four soldiers');
+  await Promise.all(pages.map(p=>p.locator('#coopReady').click()));
+  await Promise.all(pages.map(p=>p.waitForFunction(()=>__coopTest.state().started&&!__coopTest.state().menuOpen&&BadFodderCommands.mode!=='local',{},{timeout:120000}))).catch(async e=>{for(const p of pages)console.error(await p.evaluate(()=>({status:document.getElementById('coopStatus')?.textContent,state:__coopTest.state(),mode:BadFodderCommands.mode})));throw e;});
+  for(const p of pages){await p.locator('#coopLiveHud').waitFor();assert(await p.locator('#coopQuality').isVisible());assert(await p.locator('#coopTeammate').isVisible());assert(await p.locator('#coopPingButton').isVisible());}
+  await client.evaluate(()=>BadFodderCoop.setPing('help'));await host.waitForFunction(()=>document.querySelector('#coopToast')?.textContent.includes('P2 · HELP!'));
   await client.waitForFunction(()=>__coopTest.state().units[0].x===__coopTest.state().units[0].x);
   assert(await host.evaluate(()=>__coopTest.state().director));assert(!(await client.evaluate(()=>__coopTest.state().director)),'Client started competing Director');
   const rejectedTarget=await host.evaluate(()=>__coopTest.target(0));await client.evaluate(p=>BadFodderCoop.command({type:'move',units:[0],...p}),rejectedTarget);await client.waitForTimeout(120);assert.equal(await host.evaluate(()=>__coopTest.state().commandResults.move||0),0,'P2 controlled P1');
@@ -65,7 +70,7 @@ const server=http.createServer((req,res)=>{try{const name=decodeURIComponent(new
   await host.evaluate(()=>{__coopTest.kill();__coopTest.phase();__coopTest.death(2);});await client.waitForFunction(()=>!__coopTest.state().units[2].alive&&__coopTest.state().stage===1&&__coopTest.state().checkpoint?.started);assert((await client.evaluate(()=>__coopTest.state().stats))[2].kills>=1);
   await host.evaluate(()=>__coopTest.death(3));await client.waitForFunction(()=>!__coopTest.state().units[3].alive);assert.equal(await client.evaluate(()=>BadFodderCommands.units(BadFodderCoopBridge.squad(),'all').length),0,'Dead P2 gained control of P1');
   await host.evaluate(()=>__coopTest.complete());await client.waitForFunction(()=>__coopTest.state().finished&&__coopTest.state().win);
-  assert.equal(await client.locator('.mission-stat-card').count(),4);assert((await client.locator('.mission-stat-report').textContent()).includes('PLAYER 2'));
+  assert.equal(await client.locator('.mission-stat-card').count(),4);const report=await client.locator('.mission-stat-report').textContent();assert(report.includes('P2')&&report.includes('ASSISTS'),'Multiplayer result report lacks ownership/assists');
   await client.waitForTimeout(1900);await host.screenshot({path:'/tmp/coop-'+index+'-host.png'});await client.screenshot({path:'/tmp/coop-'+index+'-mobile.png'});
   await host.locator('#resultRetry').click();await Promise.all(pages.map(p=>p.waitForFunction(()=>!__coopTest.state().finished&&!__coopTest.state().menuOpen)));
   await host.evaluate(()=>__coopTest.fail());await client.waitForFunction(()=>__coopTest.state().finished&&!__coopTest.state().win);assert.equal(await client.locator('.mission-stat-card.kia').count(),4);
@@ -74,13 +79,15 @@ const server=http.createServer((req,res)=>{try{const name=decodeURIComponent(new
   if(index===0){
    await host.locator('#menuMultiplayer').click();await host.locator('#coopManual').click();await host.locator('#coopManualHost').click();await host.waitForFunction(()=>document.querySelector('#coopOutgoing').value.length>0);
    const offer=await host.locator('#coopOutgoing').inputValue();await client.locator('#menuMultiplayer').click();await client.locator('#coopManual').click();await client.locator('#coopIncoming').fill(offer);await client.locator('#coopApply').click();await client.waitForFunction(()=>document.querySelector('#coopOutgoing').value.length>0);
-   await host.locator('#coopIncoming').fill(await client.locator('#coopOutgoing').inputValue());await host.locator('#coopApply').click();await Promise.all(pages.map(p=>p.waitForFunction(()=>__coopTest.state().started&&!__coopTest.state().menuOpen&&BadFodderCommands.mode!=='local')));
+   await host.locator('#coopIncoming').fill(await client.locator('#coopOutgoing').inputValue());await host.locator('#coopApply').click();
+   await Promise.all(pages.map(p=>p.locator('#coopReady').waitFor({state:'visible',timeout:30000})));await Promise.all(pages.map(p=>p.locator('#coopReady').click()));
+   await Promise.all(pages.map(p=>p.waitForFunction(()=>__coopTest.state().started&&!__coopTest.state().menuOpen&&BadFodderCommands.mode!=='local')));
    await host.evaluate(()=>BadFodderCoopBridge.menu());await client.waitForFunction(()=>BadFodderCommands.mode==='local');
-   await host.route('**/multiplayer-config.json',r=>r.fulfill({contentType:'application/json',body:'{}'}));await host.route('**/__/firebase/init.json',r=>r.fulfill({contentType:'application/json',body:JSON.stringify({apiKey:'test',databaseURL:''})}));
+   await host.route('**/multiplayer-config.json',r=>r.fulfill({contentType:'application/json',body:'{}'}));await host.route('**/__/firebase/init.json',r=>r.fulfill({contentType:'application/json',body:JSON.stringify({databaseURL:''})}));
    await host.locator('#menuMultiplayer').click();await host.locator('#coopHost').click();await host.waitForFunction(()=>document.querySelector('#coopStatus').textContent.includes('NOT CONFIGURED'));assert(await host.locator('#coopManualFields').isVisible());await host.locator('#coopReturn').click();assert.equal(await host.evaluate(()=>BadFodderCommands.mode),'local');assert.equal(await host.evaluate(()=>BadFodderCommands.units(BadFodderCoopBridge.squad(),'all').length),4);assert.deepEqual(errors,[]);
-   console.log('PASS: manual offer/reply connection and missing-Firebase fallback preserve single player.');
+   console.log('PASS: manual offer/reply ready-room and missing-Firebase fallback preserve single player.');
   }
-  for(const p of pages)await p.context().close();console.log('PASS: '+(process.env.BADFODDER_COOP_MOCK_RTC==='1'?'test-transport':'native')+' two-browser co-op '+(index?'Wigan':'Belzig')+' with desktop host/mobile joiner, commands, garrison, deaths, stats, results and disconnect.');
+  for(const p of pages)await p.context().close();console.log('PASS: '+(process.env.BADFODDER_COOP_MOCK_RTC==='1'?'test-transport':'native')+' two-browser co-op '+(index?'Wigan':'Belzig')+' with ready-room, teammate HUD, pings, commands, garrison, deaths, assists, results and disconnect.');
  }
  }finally{await browser.close();server.close();}
 })().catch(e=>{console.error(e);server.close();process.exitCode=1});
