@@ -9,6 +9,7 @@
     const sources=[];
     if(!root.BadFodderCheckpointFortification)sources.push('checkpoint-fortification.js?v=20261004-siege-3');
     if(!root.BadFodderCheckpointWaveConfig)sources.push('checkpoint-wave-config.js?v=20261004-siege-1');
+    if(!root.BadFodderGarrison)sources.push('garrison-control.js?v=20261004-garrison-1');
     if(root.document.readyState==='loading'){
       for(const src of sources)root.document.write('<script src="'+src+'"><\/script>');
     }else{
