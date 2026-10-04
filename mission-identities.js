@@ -22,8 +22,22 @@ const missions={
  victory:['BELZIG LIBERATED','THE TOWN IS BACK IN THE HANDS OF ITS PEOPLE'],failure:'THE UPRISING HAS FAILED',
  characters:[character('Karl','Former soldier / deserter','#727359','field-cap','kar98',{age:34,webbing:true,scarf:'#aeb2a2'}),character('Otto','Railway worker','#536274','flat-cap','mp40',{age:43,build:'broad',waistcoat:true}),character('Lotte','Civilian resistance member','#895b45','beret','kar98',{age:28,longCoat:true,scarf:'#d5bd8a',hair:'#634331'}),character('Greta','Resistance organiser','#665e54','headscarf','mp40',{age:52,longCoat:true,webbing:true})]}
 };
-const defenders=[character('Defender','German infantry','#606851','stahlhelm','kar98',{webbing:true}),character('Defender','NCO','#555f54','field-cap','mp40',{webbing:true}),character('Defender','Officer','#59614f','officer-cap','mp40',{longCoat:true,webbing:true}),character('Defender','Local defence soldier','#6d6957','stahlhelm','kar98',{age:58,webbing:true})];
+const enemyStyles={
+ belzig:[
+  character('Rifleman','Infantry','#606851','stahlhelm','kar98',{webbing:true,enemyDetail:true,trousers:'#51584c',gear:'ammo',age:30}),
+  character('SMG trooper','Assault infantry','#555f54','field-cap','mp40',{webbing:true,enemyDetail:true,trousers:'#484e47',gear:'magazines',age:24}),
+  character('Officer','Occupation officer','#59614f','officer-cap','pistol',{longCoat:true,webbing:true,enemyDetail:true,trousers:'#343b35',gear:'holster',age:46,moustache:true}),
+  character('Support soldier','Heavy infantry','#6d6957','stahlhelm','mg34',{webbing:true,enemyDetail:true,trousers:'#535247',gear:'support',build:'broad',age:38})
+ ],
+ wigan:[
+  character('Street patrol','Urban rifleman','#515d60','stahlhelm','kar98',{webbing:true,enemyDetail:true,trousers:'#444e52',gear:'ammo',age:32}),
+  character('Station guard','Urban SMG trooper','#4b5057','field-cap','mp40',{webbing:true,enemyDetail:true,trousers:'#635b4e',gear:'magazines',waistcoat:true,age:27}),
+  character('Patrol NCO','Urban commander','#58574e','officer-cap','pistol',{longCoat:true,webbing:true,enemyDetail:true,trousers:'#373e44',gear:'holster',age:48,moustache:true}),
+  character('Support gunner','Urban heavy soldier','#655b4e','stahlhelm','mg34',{webbing:true,enemyDetail:true,trousers:'#414950',gear:'support',build:'broad',scarf:'#8a8576',age:36})
+ ]
+};
+const defenders=enemyStyles.belzig;
 function get(mission){const key=typeof mission==='string'?mission:mission?.map||(mission?.id===1?'bad-belzig':mission?.id===2?'wigan':mission?.id);return missions[key==='bad-belzig'?'belzig':key==='cable-street-1936'?'cable-street':key]||missions.belzig;}
-function skin(mission,team,index=0,periodRole){const id=get(mission),i=Math.abs(index|0);if(periodRole==='police')return character('Police','Metropolitan police','#293e50','custodian',null,{webbing:true});if(periodRole==='march')return character('Marcher','Fascist marcher','#343331','cap',null);if(team==='squad')return id.characters[i%4];if(team==='enemy')return defenders[i%4];return {...id.characters[i%4],weapon:null,webbing:false,hat:['flat-cap','beret','cap','headscarf'][i%4]};}
-return{missions,get,skin,disclaimer:'This game uses real locations and historical settings. Some events are historical, while the main wartime battles and playable characters are fictional or alternate history.'};
+function skin(mission,team,index=0,periodRole){const id=get(mission),i=Math.abs(index|0);if(periodRole==='police')return character('Police','Metropolitan police','#293e50','custodian',null,{webbing:true});if(periodRole==='march')return character('Marcher','Fascist marcher','#343331','cap',null);if(team==='squad')return id.characters[i%4];if(team==='enemy')return (enemyStyles[id.key]||defenders)[i%4];return {...id.characters[i%4],weapon:null,webbing:false,hat:['flat-cap','beret','cap','headscarf'][i%4]};}
+return{missions,enemyStyles,get,skin,disclaimer:'This game uses real locations and historical settings. Some events are historical, while the main wartime battles and playable characters are fictional or alternate history.'};
 });

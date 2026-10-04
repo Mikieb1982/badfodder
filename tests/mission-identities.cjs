@@ -30,3 +30,35 @@ for(const key of ['cable-street','wigan','belzig'])for(let i=0;i<4;i++){
 assert.equal(identities.skin('cable-street','enemy',0,'police').weapon,null);
 assert.equal(identities.get('bad-belzig').title,'BELZIG');
 console.log('PASS: all mission identities, distinct roster names, unarmed Cable Street/civilians, unchanged internal map IDs.');
+
+// Enemy presentation must vary by costume/gear/weapon, not just jacket colour.
+for(const mission of ['belzig','wigan']){
+ const skins=Array.from({length:4},(_,i)=>identities.skin(mission,'enemy',i));
+ assert.equal(new Set(skins.map(s=>s.role)).size,4);
+ assert.equal(new Set(skins.map(s=>s.weapon)).size,4);
+ assert.equal(new Set(skins.map(s=>s.gear)).size,4);
+ assert(skins.every(s=>s.enemyDetail&&s.trousers&&s.webbing));
+ assert(skins.some(s=>s.longCoat)&&skins.some(s=>s.build==='broad'));
+ assert.equal(identities.skin(mission,'enemy',8),skins[0],'Reinforcement variants wrap deterministically');
+ assert.notDeepEqual(skins,identities.get(mission).characters);
+}
+assert.notDeepEqual(identities.enemyStyles.belzig,identities.enemyStyles.wigan);
+
+// Exercise the actual costume renderer in every direction/state and verify cache reuse.
+const vm=require('node:vm');let allocations=0,draws=0,fallback=0;
+const ctx=new Proxy({createLinearGradient(){return {addColorStop(){}}},drawImage(){draws++;}}, {get(target,key){return key in target?target[key]:()=>{};}});
+const art={drawActor(){fallback++;},pose:e=>({dir:e.dir,state:e.state,phase:e.phase||0,moving:e.state==='walk',facing:e.dir*Math.PI/4,death:1})};
+vm.runInNewContext(read('mission-character-art.js'),{
+ window:{BadFodderArt:art,BadFodderIdentities:identities},
+ document:{createElement(){allocations++;return {getContext:()=>ctx}}},Map,Image:class{},setTimeout,clearTimeout
+});
+for(const mission of ['belzig','wigan']){
+ art.setMissionIdentity(mission);
+ for(let variant=0;variant<4;variant++)for(let dir=0;dir<8;dir++)for(const state of ['idle','walk','fire','hurt','dead']){
+  const ent={variant,dir,state,x:10,y:20,phase:Math.PI/2};
+  art.drawActor(ctx,ent,'enemy');const before=allocations;
+  art.drawActor(ctx,ent,'enemy');assert.equal(allocations,before,'Cached enemy pose must not allocate per frame');
+ }
+}
+assert.equal(fallback,0);assert(draws>=640);assert(allocations<=128);
+console.log('PASS: mission-specific enemy silhouettes, equipment, weapon variation and cached directional/state rendering.');
