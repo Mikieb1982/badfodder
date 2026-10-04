@@ -1,14 +1,12 @@
 'use strict';
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const source=fs.readFileSync(require('node:path').join(__dirname,'../garrison-control.js'),'utf8');
-const soldier={x:100,y:100,alive:true,path:[1],pendingPath:{},pathIndex:1,target:{}};
-const enemy={x:150,y:100,alive:true};
-const shots=[];
+const soldier={x:100,y:100,alive:true,path:[1],pendingPath:{},pathIndex:1,target:{},hp:8};
+const enemy={x:150,y:100,alive:true,hp:2};
 const listeners={};
 const scope={
   window:null,globalThis:null,
-  selectedUnits:()=>[soldier],actionAllowed:()=>true,
-  fireBullet:(owner,sx,sy,tx,ty)=>shots.push({owner,sx,sy,tx,ty}),
+  actionAllowed:()=>true,
   addEventListener:(type,fn)=>{listeners[type]=fn},
   setTimeout,clearTimeout,setInterval,clearInterval,
   console
@@ -20,6 +18,7 @@ const baseAdaptive={createCommander(options){return{maintain(){return true}}}};
 scope.BadFodderAdaptive=baseAdaptive;
 assert(baseAdaptive.__manualGarrisonPatched,'Adaptive commander was not patched before commander creation');
 const commander=baseAdaptive.createCommander({getSquad:()=>[soldier],getEnemies:()=>[enemy],scale:1});
+assert.equal(scope.BadFodderGarrison.selectedOne(),soldier,'Garrison did not capture live squad state');
 assert.equal(scope.BadFodderGarrison.toggleGarrison(),true,'Garrison did not activate');
 assert.equal(soldier.manualGarrison,true);
 soldier.x=130;soldier.y=125;commander.maintain(1);
@@ -27,11 +26,15 @@ assert.equal(soldier.x,100,'Garrison soldier moved from anchor');
 assert.equal(soldier.y,100,'Garrison soldier moved from anchor');
 assert.equal(soldier.path,null);assert.equal(soldier.target,null);
 assert.equal(soldier.garrisonTarget,enemy,'Garrison did not acquire nearby enemy');
-assert.equal(shots.length,1,'Garrison did not auto-fire');
-assert.equal(shots[0].owner,'squad');
-assert.equal(scope.BadFodderGarrison.toggleGarrison(),false,'Garrison did not release');
+assert.equal(enemy.hp,1,'Garrison fallback shot did not damage nearby enemy');
+assert(soldier.garrisonTracerFrames>0,'Garrison firing has no visible tracer state');
+assert.equal(scope.BadFodderGarrison.toggleGarrison(),false,'Second press did not release garrison');
 assert.equal(soldier.manualGarrison,false);
+assert.equal(soldier.garrisonAnchorX,null);assert.equal(soldier.garrisonTarget,null);
+commander.maintain(2);
+assert.equal(enemy.hp,1,'Released soldier kept auto-firing');
 assert(source.includes("const KEY='h'"),'Desktop H garrison key missing');
 assert(source.includes("id='touchGarrison'")&&source.includes("querySelector('.touch-actions')"),'Mobile gameplay garrison button missing');
+assert(source.includes("btn.textContent=active?'RELEASE':'GARRISON'"),'Mobile control does not visibly switch to RELEASE');
 assert(!source.includes("querySelector('.hud-tools')"),'Garrison should not live with map/pause HUD tools');
-console.log('PASS: H-key/mobile garrison command anchors one soldier and auto-fires at nearby enemies.');
+console.log('PASS: live H/mobile garrison toggles hold/release and auto-engages without private index globals.');
