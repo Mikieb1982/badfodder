@@ -123,16 +123,21 @@
   }
 
   function install(root){
-    let attempts=0,timer=null;
-    const tryInstall=()=>{
-      attempts++;
-      const artReady=patchArt(root.BadFodderArt),adaptiveReady=patchAdaptive(root.BadFodderAdaptive);
-      if(artReady&&adaptiveReady){if(timer)root.clearInterval(timer);timer=null;return true}
-      if(attempts>=120&&timer){root.clearInterval(timer);timer=null}
-      return false;
-    };
-    tryInstall();
-    if(!(root.BadFodderArt?.__checkpointFortificationPatched&&root.BadFodderAdaptive?.__checkpointFortificationPatched))timer=root.setInterval(tryInstall,25);
+    patchArt(root.BadFodderArt);
+    if(root.BadFodderAdaptive){patchAdaptive(root.BadFodderAdaptive);return}
+
+    // adaptive-director.js loads later in the page. Intercept its one assignment so the
+    // commander is patched before the inline game boot code can create an instance.
+    const existing=Object.getOwnPropertyDescriptor(root,'BadFodderAdaptive');
+    if(!existing||existing.configurable){
+      let value=existing&&'value'in existing?existing.value:null;
+      Object.defineProperty(root,'BadFodderAdaptive',{
+        configurable:true,enumerable:true,
+        get(){return value},
+        set(next){value=next;patchAdaptive(next)}
+      });
+      if(value)patchAdaptive(value);
+    }
   }
 
   return{arrangeSquad,drawSandbagRing,patchArt,patchAdaptive,install};
