@@ -22,9 +22,19 @@ assert.equal(stats.length,4,'Squad report is not four-person');
 assert.equal(stats[0].kills,1,'Likely shooter did not receive kill credit');
 squad[2].alive=false;commander.maintain(2);stats=scope.BadFodderMissionStats.snapshot();
 assert.equal(stats[2].alive,false,'Squad casualty not retained in report');
-class Menu{showResult(){this.called=true}}
+class Menu{showResult(identity,won,next){this.called=true;this.won=won;this.next=next}}
 scope.BadFodderMenu=Menu;
 assert(Menu.prototype.__missionStatsPatched,'Result menu was not patched');
+let reports=0,lastIdentity=null;
+scope.BadFodderMissionStats.renderResult=identity=>{reports++;lastIdentity=identity};
+const failedMenu=new Menu(),identity={key:'bad-belzig'};
+failedMenu.showResult(identity,false,false);
+assert.equal(failedMenu.called,true,'Failure result screen did not open');
+assert.equal(failedMenu.won,false,'Failure result was converted to victory');
+assert.equal(reports,1,'Squad report was not rendered after mission failure');
+assert.equal(lastIdentity,identity,'Failure report did not receive mission identity');
+const wonMenu=new Menu();wonMenu.showResult(identity,true,true);
+assert.equal(reports,2,'Squad report was not rendered after mission victory');
 assert(source.includes('MAN DOWN')&&source.includes('KILLED IN ACTION'),'Casualty acknowledgement missing');
 assert(source.includes('SQUAD REPORT')&&source.includes("status.textContent=r.alive?'SURVIVED':'KIA'"),'End-of-mission report missing');
-console.log('PASS: casualty acknowledgement and per-soldier mission statistics are wired.');
+console.log('PASS: casualty acknowledgement and squad report work on both victory and mission failure.');
