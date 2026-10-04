@@ -30,6 +30,7 @@
         return;
       }
       try{
+        sessionStorage.setItem('badfodder.coop.invite',code);
         sessionStorage.setItem('badfodder.coop.resume',JSON.stringify({action:'join',room:code,invite:true}));
         location.replace('/');
       }catch(_){
