@@ -69,7 +69,7 @@
  function connectingTimeout(){clearTimeout(connectTimer);const gen=generation;connectTimer=setTimeout(()=>{if(gen!==generation||connection?.connected)return;stopTransport();mode='local';C.configure();status('DIRECT CONNECTION COULD NOT BE ESTABLISHED. TRY AGAIN or RETURN TO MENU.');},25000);}
  function makePeer(host){stopTransport();const gen=generation;mode=host?'host':'client';remoteLimit=P.limiter();seq=0;lastSeq=-1;nextSnapshot=0;localReady=false;remoteReady=false;
   connection=peer({host,onControl:raw=>{if(gen===generation)control(raw);},onState:raw=>{if(gen===generation)receive(raw);},onOpen:()=>{if(gen!==generation)return;clearTimeout(connectTimer);clearInterval(pollTimer);lastSeen=now();lobbyConnected=true;status('PLAYER 2 CONNECTED · BOTH PLAYERS PRESS READY');void renderLobby();
-   heartbeat=setInterval(()=>{if(started&&now()-lastSeen>14000){lost();return;}if(now()-lastPing>1000){lastPing=now();send({v:1,t:'ping',id:++pingSeq,at:now()});}},100);
+   heartbeat=setInterval(()=>{if(started&&now()-lastSeen>14000){lost();return;}if(now()-lastPing>1000){lastPing=now();send({v:1,t:'ping',id:++pingSeq,at:now()});}if(mode==='host'&&ready)flush();},100);
    if(host)send({v:1,t:'hello',mission:B.map()});
   },onLost:()=>{if(gen===generation)lost();}});
   connectTimer=setTimeout(()=>{if(gen!==generation)return;stopTransport();mode='local';C.configure();status('DIRECT CONNECTION COULD NOT BE ESTABLISHED. TRY AGAIN or RETURN TO MENU.');},900000);
