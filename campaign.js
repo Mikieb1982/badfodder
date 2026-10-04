@@ -8,17 +8,17 @@ const missions=[
   {
     id:1,title:'Belzig, 1945',environment:'temperate-town',map:'bad-belzig',squadSize:4,playable:true,
     phases:[
-      {type:'secure-zone',zone:'post',defenderGroup:'post',hold:1.0,contestRadius:72,title:'Secure the Postdistanzsäule',brief:'Move up Bahnhofstraße, clear the small Postdistanzsäule patrol, then hold the position.'},
-      {type:'secure-zone',zone:'castle',defenderGroup:'castle',hold:1.4,contestRadius:105,title:'Secure Burg Eisenhardt',brief:'Clear the castle defenders, enter the Burg Eisenhardt objective area and hold it briefly.'},
-      {type:'eliminate-and-reach',zone:'market',defenderGroup:'market',hold:1.6,contestRadius:100,title:'Take Marktplatz',brief:'Defeat the Marktplatz defenders, reach Rathaus and hold the square to finish the mission.'}
+      {type:'secure-zone',zone:'post',defenderGroup:'post',hold:2.5,contestRadius:72,title:'Secure the Postdistanzsäule',brief:'Clear the Postdistanzsäule patrol, enter the checkpoint position and repel the fast frontal counterattack.',checkpoint:{style:'rush',count:3}},
+      {type:'secure-zone',zone:'castle',defenderGroup:'castle',hold:2.8,contestRadius:105,title:'Secure Burg Eisenhardt',brief:'Clear the castle defenders, occupy the Burg checkpoint and hold it against a two-sided flanking counterattack.',checkpoint:{style:'pincer',count:4}},
+      {type:'eliminate-and-reach',zone:'market',defenderGroup:'market',hold:3.0,contestRadius:100,title:'Take Marktplatz',brief:'Defeat the Marktplatz defenders, occupy the Rathaus checkpoint and survive the final three-pronged assault.',checkpoint:{style:'siege',count:5}}
     ]
   },
   {
     id:2,title:'Wigan, 1941',environment:'wigan-town',map:'wigan',squadSize:4,playable:true,
     phases:[
-      {type:'secure-zone',zone:'tudor',defenderGroup:'tudor',hold:1.0,contestRadius:75,title:'Tudor Breakout',brief:'Clear the Tudor House opening defenders and hold the New Market Street end of town.'},
-      {type:'secure-zone',zone:'grandArcade',defenderGroup:'grandArcade',hold:1.3,contestRadius:95,title:'Town Centre Sweep',brief:'Choose your route through Market Place and the side streets, defeat the Grand Arcade defenders and secure the centre.'},
-      {type:'eliminate-and-reach',zone:'wallgate',defenderGroup:'wallgate',hold:1.6,contestRadius:90,title:'Station Run',brief:'Defeat the station defenders, reach the Wallgate and North Western gateway and hold extraction. King Street supplies are optional.'}
+      {type:'secure-zone',zone:'tudor',defenderGroup:'tudor',hold:2.5,contestRadius:75,title:'Tudor Breakout',brief:'Clear the Tudor House defenders, enter the checkpoint building and repel the immediate frontal rush.',checkpoint:{style:'rush',count:3}},
+      {type:'secure-zone',zone:'grandArcade',defenderGroup:'grandArcade',hold:2.8,contestRadius:95,title:'Town Centre Sweep',brief:'Fight through Market Place, garrison the Grand Arcade checkpoint and hold it against a pincer attack.',checkpoint:{style:'pincer',count:4}},
+      {type:'eliminate-and-reach',zone:'wallgate',defenderGroup:'wallgate',hold:3.0,contestRadius:90,title:'Station Run',brief:'Defeat the station defenders, occupy the Wallgate checkpoint and break the final multi-direction counterattack. King Street supplies are optional.',checkpoint:{style:'siege',count:5}}
     ]
   },
   {
