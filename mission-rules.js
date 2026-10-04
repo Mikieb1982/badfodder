@@ -5,6 +5,12 @@
   const api=factory();
   if(typeof module==='object'&&module.exports)module.exports=api;
   if(root)root.BadFodderMissionRules=api;
+  if(root&&root.document&&!root.BadFodderCheckpointFortification){
+    const script=root.document.createElement('script');
+    script.src='checkpoint-fortification.js?v=20261004-circle-1';
+    script.async=false;
+    root.document.head.appendChild(script);
+  }
 })(typeof window!=='undefined'?window:globalThis,function(){
   'use strict';
 
