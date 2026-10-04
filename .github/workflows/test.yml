@@ -31,3 +31,7 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Exercise mission lifecycle and touch controls
         run: npm run test:browser
+      - name: Exercise two-browser co-op experience
+        env:
+          BADFODDER_COOP_MOCK_RTC: '1'
+        run: npm run test:coop:browser
