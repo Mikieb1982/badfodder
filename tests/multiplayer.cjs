@@ -25,6 +25,7 @@ console.log('PASS: local default, ownership, wire validation, adaptive limits, g
 const S=require('../multiplayer-signalling');
 const crypto={getRandomValues(a){a.fill(3);return a;}};
 const code=S.roomCode(crypto);assert(S.validCode(code));assert(!S.validCode('../rooms'));assert(!S.validCode('RABBIT-1234'));
+assert.equal(S.inviteUrl(code,'https://bad-fodder.web.app/game'),'https://bad-fodder.web.app/join.html?room='+code);assert.equal(S.inviteUrl('bad'),'');
 const time=1000000,offer={type:'offer',sdp:'fake-sdp'};
 const room={host:'HOSTPEER1',mission:'wigan',created:time,expires:time+S.TTL,offer};
 assert(S.validRoom(room,time));assert(!S.validRoom(room,time+S.TTL));assert(!S.validRoom({...room,mission:'cable-street'},time));
@@ -56,5 +57,5 @@ assert(S.validRoom(room,time));assert(!S.validRoom(room,time+S.TTL));assert(!S.v
   close(){closed=true;}
  }
  const p=Session.peer({host:true,RTC});assert.deepEqual(await p.offer(),offer);await p.accept({type:'answer',sdp:'reply'});assert(p.sendControl('command'));assert(p.sendState('state'));assert.deepEqual(sent,['command','state']);p.close();assert(closed);
- console.log('PASS: free room signalling and native reliable/unreliable peer channels remain intact.');
+ console.log('PASS: free room signalling, shareable invite URLs and native reliable/unreliable peer channels remain intact.');
 })().catch(e=>{console.error(e);process.exitCode=1});
