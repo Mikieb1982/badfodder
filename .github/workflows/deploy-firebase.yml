@@ -41,6 +41,27 @@ jobs:
       - name: Deploy free Realtime Database signalling rules
         run: npx --yes firebase-tools deploy --only database --project bad-fodder --non-interactive
 
+      - name: Smoke test live multiplayer room service
+        shell: bash
+        run: |
+          set -euo pipefail
+          CODE="RABBIT-$(python3 - <<'PY'
+          import secrets
+          alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+          print(''.join(secrets.choice(alphabet) for _ in range(10)))
+          PY
+          )"
+          CREATED=$(($(date +%s) * 1000))
+          EXPIRES=$((CREATED + 60000))
+          URL="https://bad-fodder-default-rtdb.europe-west1.firebasedatabase.app/coopRooms/${CODE}.json"
+          trap 'curl -fsS -X DELETE "$URL" >/dev/null 2>&1 || true' EXIT
+          curl -fsS -X PUT -H 'Content-Type: application/json' \
+            --data "{\"host\":\"SMOKEHOST123\",\"mission\":\"bad-belzig\",\"created\":${CREATED},\"expires\":${EXPIRES},\"offer\":{\"type\":\"offer\",\"sdp\":\"smoke-offer\"}}" \
+            "$URL" >/dev/null
+          curl -fsS -X PUT -H 'Content-Type: application/json' --data '"SMOKEJOINER123"' "${URL%.json}/joiner.json" >/dev/null
+          curl -fsS -X PUT -H 'Content-Type: application/json' --data '{"type":"answer","sdp":"smoke-answer"}' "${URL%.json}/answer.json" >/dev/null
+          curl -fsS "$URL" | grep -q 'smoke-answer'
+
       - name: Deploy live site to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
