@@ -1,6 +1,7 @@
 'use strict';
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'../mission-stats.js'),'utf8');
+const characterArt=fs.readFileSync(path.join(__dirname,'../mission-character-art.js'),'utf8');
 const squad=[
   {name:'One',x:0,y:0,alive:true,fireTimer:.1,dir:0},
   {name:'Two',x:100,y:0,alive:true,fireTimer:0,dir:Math.PI},
@@ -8,7 +9,7 @@ const squad=[
   {name:'Four',x:100,y:100,alive:true,fireTimer:0,dir:0}
 ];
 const enemies=[{x:40,y:0,alive:true,hp:1}];
-const scope={window:null,globalThis:null,setTimeout,clearTimeout,WeakMap,WeakSet,Math,console};
+const scope={window:null,globalThis:null,setTimeout,clearTimeout,WeakMap,WeakSet,Math,Promise,console};
 scope.window=scope;scope.globalThis=scope;
 vm.createContext(scope);vm.runInContext(source,scope);
 assert(scope.BadFodderMissionStats,'Mission stats module missing');
@@ -37,4 +38,8 @@ const wonMenu=new Menu();wonMenu.showResult(identity,true,true);
 assert.equal(reports,2,'Squad report was not rendered after mission victory');
 assert(source.includes('MAN DOWN')&&source.includes('KILLED IN ACTION'),'Casualty acknowledgement missing');
 assert(source.includes('SQUAD REPORT')&&source.includes("status.textContent=r.alive?'SURVIVED':'KIA'"),'End-of-mission report missing');
-console.log('PASS: casualty acknowledgement and squad report work on both victory and mission failure.');
+assert(characterArt.includes("portraits:'assets/characters/portraits-1936-1945.png'"),'Real character portrait atlas path missing');
+assert(source.includes('paintRealPortrait')&&source.includes('preloadMissionArt')&&source.includes('missionPortrait'),'Squad report does not wait for the real mission portrait atlas');
+assert(source.includes("canvas.dataset.portraitSource='assets/characters/portraits-1936-1945.png'"),'Squad report does not identify the real portrait source');
+assert(!source.includes("||root.BadFodderArt?.soldier?.('squad'"),'Squad report still falls back to generated character art');
+console.log('PASS: casualty acknowledgement and real-portrait squad report work on victory and mission failure.');
