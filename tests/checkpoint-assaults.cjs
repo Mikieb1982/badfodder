@@ -52,35 +52,39 @@ function baseScenario(style,count,index=0){
 baseScenario('rush',3,0);baseScenario('pincer',4,1);baseScenario('siege',5,2);
 
 {
-  const f=fixture({style:'pincer',count:16,intermission:.45,waves:[{style:'siege',count:18}]},1);
-  f.commander.maintain(1);assert.equal(f.enemies.filter(e=>e.alive&&e.checkpointWave).length,16);
+  const f=fixture({style:'pincer',count:8,intermission:.45,waves:[{style:'pincer',count:16},{style:'siege',count:18}]},1);
+  f.commander.maintain(1);assert.equal(f.enemies.filter(e=>e.alive&&e.checkpointWave).length,8);
   f.enemies.filter(e=>e.checkpointWave).forEach(e=>e.alive=false);
   f.commander.maintain(2);assert.equal(f.commander.checkpointState().cleared,true);
   f.commander.maintain(3);
-  const second=f.enemies.filter(e=>e.alive&&e.checkpointExtra);
-  assert.equal(second.length,18,'Second checkpoint did not launch its larger second wave');
-  assert.equal(new Set(second.map(e=>e.groupId)).size,3,'Second checkpoint follow-up should be a three-pronged siege');
-  assert(second.every(e=>e.checkpointAggressive&&e.cooldown<.4&&e.reactionTimer<.25&&e.burstLimit>=4),'Checkpoint attackers should use the aggressive combat profile');
-  second.forEach(e=>e.alive=false);f.commander.maintain(4);f.commander.maintain(5);
-  assert.equal(f.enemies.filter(e=>e.alive&&e.checkpointExtra).length,0,'Second checkpoint spawned an unwanted third wave');
+  let live=f.enemies.filter(e=>e.alive&&e.checkpointExtra);
+  assert.equal(live.length,16,'Second checkpoint did not launch its larger pincer wave');
+  assert.equal(new Set(live.map(e=>e.groupId)).size,2,'Checkpoint reinforcement should attack as a pincer');
+  assert(live.every(e=>e.checkpointAggressive&&e.cooldown<.4&&e.reactionTimer<.25&&e.burstLimit>=4),'Checkpoint reinforcements should use the aggressive combat profile');
+  live.forEach(e=>e.alive=false);f.commander.maintain(4);f.commander.maintain(5);
+  live=f.enemies.filter(e=>e.alive&&e.checkpointExtra);
+  assert.equal(live.length,18,'Second checkpoint did not launch its final siege wave');
+  assert.equal(new Set(live.map(e=>e.groupId)).size,3,'Final checkpoint reinforcement should be a three-pronged siege');
 }
 
 {
-  const f=fixture({style:'siege',count:18,intermission:.4,waves:[{style:'pincer',count:20},{style:'last-stand',count:24}]},2);
-  f.commander.maintain(1);let live=f.enemies.filter(e=>e.alive&&e.checkpointWave);assert.equal(live.length,18);
+  const f=fixture({style:'siege',count:8,intermission:.4,waves:[{style:'siege',count:18},{style:'pincer',count:20},{style:'last-stand',count:24}]},2);
+  f.commander.maintain(1);let live=f.enemies.filter(e=>e.alive&&e.checkpointWave);assert.equal(live.length,8);
   live.forEach(e=>e.alive=false);f.commander.maintain(2);f.commander.maintain(3);
-  live=f.enemies.filter(e=>e.alive&&e.checkpointExtra);assert.equal(live.length,20,'Final stand wave two size');assert.equal(new Set(live.map(e=>e.groupId)).size,2,'Wave two must be a pincer');
+  live=f.enemies.filter(e=>e.alive&&e.checkpointExtra);assert.equal(live.length,18,'Final stand reinforcement one size');assert.equal(new Set(live.map(e=>e.groupId)).size,3,'Wave two must be a siege');
   live.forEach(e=>e.alive=false);f.commander.maintain(4);f.commander.maintain(5);
-  live=f.enemies.filter(e=>e.alive&&e.checkpointExtra);assert.equal(live.length,24,'Final stand wave three size');assert.equal(new Set(live.map(e=>e.groupId)).size,4,'Last stand must close from four directions');
+  live=f.enemies.filter(e=>e.alive&&e.checkpointExtra);assert.equal(live.length,20,'Final stand reinforcement two size');assert.equal(new Set(live.map(e=>e.groupId)).size,2,'Wave three must be a pincer');
+  live.forEach(e=>e.alive=false);f.commander.maintain(6);f.commander.maintain(7);
+  live=f.enemies.filter(e=>e.alive&&e.checkpointExtra);assert.equal(live.length,24,'Final stand last wave size');assert.equal(new Set(live.map(e=>e.groupId)).size,4,'Last stand must close from four directions');
 }
 
 {
   const fake={missions:['bad-belzig','wigan'].map(map=>({map,playable:true,phases:[{},{},{}]}))};WaveConfig.apply(fake);
   for(const mission of fake.missions){
-    assert.equal(mission.phases[0].checkpoint.count,14);assert.equal(mission.phases[0].checkpoint.waves.length,0);
-    assert.equal(mission.phases[1].checkpoint.count,16);assert.deepEqual(mission.phases[1].checkpoint.waves.map(w=>w.count),[18]);
-    assert.equal(mission.phases[2].checkpoint.count,18);assert.deepEqual(mission.phases[2].checkpoint.waves.map(w=>w.count),[20,24]);
-    assert.equal(mission.phases[2].checkpoint.waves[1].style,'last-stand');
+    assert.equal(mission.phases[0].checkpoint.count,8);assert.deepEqual(mission.phases[0].checkpoint.waves.map(w=>w.count),[14]);
+    assert.equal(mission.phases[1].checkpoint.count,8);assert.deepEqual(mission.phases[1].checkpoint.waves.map(w=>w.count),[16,18]);
+    assert.equal(mission.phases[2].checkpoint.count,8);assert.deepEqual(mission.phases[2].checkpoint.waves.map(w=>w.count),[18,20,24]);
+    assert.equal(mission.phases[2].checkpoint.waves[2].style,'last-stand');
   }
 }
 
@@ -90,4 +94,4 @@ baseScenario('rush',3,0);baseScenario('pincer',4,1);baseScenario('siege',5,2);
   assert(Fortification.drawSandbagRing(ctx,ent,'all'));assert(fills>85,'Sandbag fortification is not drawing the denser three-row detailed bag geometry');
 }
 
-console.log('PASS: detailed three-row sandbags, tight outward defence, heavier aggressive checkpoint assaults and escalating final stand.');
+console.log('PASS: detailed three-row sandbags, tight outward defence, heavier aggressive checkpoint reinforcements and escalating final stand.');
