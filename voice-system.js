@@ -175,13 +175,22 @@
     let audio;
     try{audio=new root.Audio(req.url)}catch(_){missing.add(req.url);finishCurrent();return}
     current.audio=audio;audio.preload='auto';audio.volume=clamp(volume*positionalGain(req.speaker));
+    audio.setAttribute?.('playsinline','');audio.setAttribute?.('webkit-playsinline','');
     let failed=false;
-    const fail=()=>{if(failed)return;failed=true;missing.add(req.url);try{audio.pause()}catch(_){};finishCurrent()};
-    audio.addEventListener?.('ended',finishCurrent,{once:true});audio.addEventListener?.('error',fail,{once:true});
+    const fail=(markMissing=true)=>{if(failed)return;failed=true;if(markMissing)missing.add(req.url);try{audio.pause()}catch(_){};finishCurrent()};
+    audio.addEventListener?.('ended',finishCurrent,{once:true});audio.addEventListener?.('error',()=>fail(true),{once:true});
     try{
       const p=audio.play();
-      if(p&&typeof p.catch==='function')p.catch(fail);
-    }catch(_){fail()}
+      if(p&&typeof p.catch==='function')p.catch(error=>{
+        // Safari/iOS may reject autoplay until a direct tap. That is not a missing asset;
+        // keep the narration retryable via REPLAY NARRATION.
+        const blocked=error?.name==='NotAllowedError'||error?.name==='AbortError';
+        fail(!blocked);
+      });
+    }catch(error){
+      const blocked=error?.name==='NotAllowedError'||error?.name==='AbortError';
+      fail(!blocked);
+    }
   }
   function pump(){
     if(current||!enabled||!queue.length)return;
@@ -350,6 +359,11 @@
   function install(){
     patchMenu();patchGarrison();patchAdaptive();injectUi();installInputHooks();
     if(root.document&&!root.__badFodderVoiceMonitor){root.__badFodderVoiceMonitor=true;root.setInterval?.(monitorRuntime,280)}
+    if(root.document&&!root.__badFodderVoiceLifecycle){
+      root.__badFodderVoiceLifecycle=true;
+      root.document.addEventListener?.('visibilitychange',()=>{if(root.document.hidden)stopAll(false)});
+      root.addEventListener?.('pagehide',()=>stopAll(false));
+    }
   }
 
   function assetRequirements(){
