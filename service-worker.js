@@ -1,8 +1,9 @@
 /* Offline application shell for If I Can Shoot Rabbits. */
 'use strict';
 
-const CACHE_NAME='if-i-can-shoot-rabbits-offline-v2';
+const CACHE_NAME='if-i-can-shoot-rabbits-offline-v3';
 const SHELL=['./','./index.html','./manifest.webmanifest'];
+const unavailable=()=>new Response('',{status:503,statusText:'Offline'});
 
 async function cacheOne(cache,url){
   try{await cache.add(url);return true}catch(_){return false}
@@ -50,7 +51,7 @@ async function networkFirst(request){
     if(response&&response.ok)await cache.put(request,response.clone());
     return response;
   }catch(_){
-    return (await cache.match(request))||(await cache.match('./index.html'))||Response.error();
+    return (await cache.match(request))||(await cache.match('./index.html'))||unavailable();
   }
 }
 
@@ -62,7 +63,7 @@ async function cacheFirst(request){
     const response=await fetch(request);
     if(response&&response.ok)await cache.put(request,response.clone());
     return response;
-  }catch(_){return Response.error()}
+  }catch(_){return unavailable()}
 }
 
 async function rangeResponse(request){
@@ -70,7 +71,7 @@ async function rangeResponse(request){
   const cached=await cache.match(request,{ignoreSearch:true});
   if(!cached){
     // Preserve the browser's native range handling while online.
-    try{return await fetch(request)}catch(_){return Response.error()}
+    try{return await fetch(request)}catch(_){return unavailable()}
   }
   const range=request.headers.get('range')||'';
   const match=/^bytes=(\d*)-(\d*)$/i.exec(range.trim());
@@ -102,7 +103,7 @@ async function staleWhileRevalidate(request){
     if(response&&response.ok)cache.put(request,response.clone());
     return response;
   }).catch(()=>null);
-  return cached||(await update)||Response.error();
+  return cached||(await update)||unavailable();
 }
 
 self.addEventListener('fetch',event=>{
