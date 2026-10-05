@@ -155,35 +155,25 @@
   }
   function hideCaption(){if(captionEl)captionEl.style.opacity='0'}
 
-  function pickVoice(req){
-    const synth=root.speechSynthesis;if(!synth?.getVoices)return null;
-    const voices=synth.getVoices().filter(v=>String(v.lang||'').toLowerCase().startsWith(String(req.lang||'en').slice(0,2).toLowerCase()));
-    if(!voices.length)return null;
-    return voices[Math.abs(req.voiceSlot||0)%voices.length];
-  }
   function finishCurrent(){
     current=null;hideCaption();
     setTimeout(pump,90);
   }
-  function speakTts(req){
-    if(!root.speechSynthesis||typeof root.SpeechSynthesisUtterance!=='function'){finishCurrent();return}
-    const u=new root.SpeechSynthesisUtterance(req.text);
-    u.lang=req.lang||'en-GB';u.volume=clamp(volume*positionalGain(req.speaker));
-    u.rate=req.team==='narrator'?.9:req.team==='enemy'?1.02:1;
-    u.pitch=req.team==='narrator'?.88:req.team==='enemy'?.82:[.88,.96,.92,1][req.voiceSlot||0];
-    const voice=pickVoice(req);if(voice)u.voice=voice;
-    u.onend=finishCurrent;u.onerror=finishCurrent;
-    try{root.speechSynthesis.speak(u)}catch(_){finishCurrent()}
-  }
   function playRecorded(req){
+    // Until recorded character banks are supplied, gameplay dialogue is caption-only.
+    // The three mission briefing MP3s are the only speech that should play.
+    if(req.team!=='narrator'){
+      setTimeout(finishCurrent,1400);
+      return;
+    }
     const available=root.BadFodderAvailableAudio;
-    if(Array.isArray(available)&&req.url&&req.url.startsWith(BASE+'/')&&!available.includes(req.url)){speakTts(req);return}
-    if(!root.Audio||!req.url||missing.has(req.url)){speakTts(req);return}
+    if(Array.isArray(available)&&req.url&&req.url.startsWith(BASE+'/')&&!available.includes(req.url)){finishCurrent();return}
+    if(!root.Audio||!req.url||missing.has(req.url)){finishCurrent();return}
     let audio;
-    try{audio=new root.Audio(req.url)}catch(_){missing.add(req.url);speakTts(req);return}
+    try{audio=new root.Audio(req.url)}catch(_){missing.add(req.url);finishCurrent();return}
     current.audio=audio;audio.preload='auto';audio.volume=clamp(volume*positionalGain(req.speaker));
     let failed=false;
-    const fail=()=>{if(failed)return;failed=true;missing.add(req.url);try{audio.pause()}catch(_){};speakTts(req)};
+    const fail=()=>{if(failed)return;failed=true;missing.add(req.url);try{audio.pause()}catch(_){};finishCurrent()};
     audio.addEventListener?.('ended',finishCurrent,{once:true});audio.addEventListener?.('error',fail,{once:true});
     try{
       const p=audio.play();
@@ -201,7 +191,7 @@
     const key=req.team+':'+req.event+':'+(req.speaker?.name||'');
     const t=now(),repeat=req.event==='underFire'?5000:req.event==='spotted'||req.event==='contact'?7000:2600;
     if(req.team!=='narrator'&&t-(lastEvent.get(key)||0)<repeat)return false;
-    lastEvent.set(key,t);
+    lastEvent.set(key,t;
     if(req.team==='narrator'){stopAll(false);queue=[req];pump();return true}
     if(current?.req?.team==='narrator')return false;
     queue.push(req);queue.sort((a,b)=>b.priority-a.priority);if(queue.length>8)queue.length=8;pump();return true;
