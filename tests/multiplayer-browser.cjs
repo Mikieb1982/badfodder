@@ -81,7 +81,7 @@ const server=http.createServer((req,res)=>{try{const name=decodeURIComponent(new
   await client.waitForTimeout(1900);
   await host.locator('#resultRetry').click();await Promise.all(pages.map(p=>p.waitForFunction(()=>!__coopTest.state().finished&&!__coopTest.state().menuOpen)));
   await host.evaluate(()=>__coopTest.fail());await client.waitForFunction(()=>__coopTest.state().finished&&!__coopTest.state().win);assert.equal(await client.locator('.mission-stat-card.kia').count(),4);
-  await host.locator('#resultRetry').click();await host.waitForFunction(()=>!__coopTest.state().finished);await client.evaluate(()=>BadFodderCoopBridge.menu());await host.waitForFunction(()=>document.getElementById('status').textContent.includes('DISCONNECTED'));
+  await host.locator('#resultRetry').click();await host.waitForFunction(()=>!__coopTest.state().finished);await client.evaluate(()=>BadFodderCoopBridge.menu());await host.waitForFunction(()=>BadFodderCoop.diagnostics().connection==='disconnected');
   await host.evaluate(()=>{__coopTest.select(0);__coopTest.localMove(__coopTest.target(0));});assert.equal(await host.evaluate(()=>__coopTest.state().faults),0);await host.evaluate(()=>BadFodderCoopBridge.menu());assert.equal(await host.evaluate(()=>BadFodderCommands.mode),'local');assert.equal(await host.evaluate(()=>BadFodderCommands.units(BadFodderCoopBridge.squad(),'all').length),4);assert.deepEqual(errors,[]);
   if(index===0){
    await host.locator('#menuMultiplayer').click();await host.locator('#coopManual').click();await host.locator('#coopManualHost').click();await host.waitForFunction(()=>document.querySelector('#coopOutgoing').value.length>0);
