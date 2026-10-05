@@ -38,6 +38,8 @@ jobs:
         run: |
           npm ci --ignore-scripts
           npx --no-install playwright install --with-deps chromium
+      - name: Build visual test site
+        run: npm run build
       - name: Update intentional visual baseline
         run: npm run test:visual:update
       - name: Verify production build
