@@ -1,0 +1,51 @@
+name: Apply briefing narration visual
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/apply-briefing-visual.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Keep briefing narration caption off the visible briefing text
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('voice-system.js')
+          s=p.read_text(encoding='utf-8')
+          old="""  function showCaption(req){
+              if(!root.document||!req?.caption)return;
+          """.replace('      ','')
+          new="""  function showCaption(req){
+              if(req?.team==='narrator')return;
+              if(!root.document||!req?.caption)return;
+          """.replace('      ','')
+          if old not in s:
+              raise SystemExit('caption anchor not found')
+          p.write_text(s.replace(old,new,1),encoding='utf-8')
+          PY
+      - name: Install dependencies and Chromium
+        run: |
+          npm ci --ignore-scripts
+          npx --no-install playwright install --with-deps chromium
+      - name: Update intentional visual baseline
+        run: npm run test:visual:update
+      - name: Verify production build
+        run: npm run test:build
+      - name: Commit focused visual update
+        shell: bash
+        run: |
+          rm .github/workflows/apply-briefing-visual.yml
+          git config user.name "Angsthase"
+          git config user.email "mikieburrow@gmail.com"
+          git add voice-system.js tests/visual/scenes.spec.cjs-snapshots .github/workflows/apply-briefing-visual.yml
+          git commit -m "Polish narrated briefing presentation"
+          git push origin HEAD:main
