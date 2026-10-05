@@ -8,6 +8,7 @@
 
   const STORAGE_KEY='badfodder.voices.enabled.v1';
   const VOLUME_KEY='badfodder.voices.volume.v1';
+  const DEFAULT_VOLUME=1;
   const BASE='audio/voices';
   const clamp=(n,a=0,b=1)=>Math.max(a,Math.min(b,Number(n)||0));
   const slug=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
@@ -71,11 +72,13 @@
     return normalizeMission(text);
   };
 
-  let enabled=true,volume=.8;
+  let enabled=true,volume=DEFAULT_VOLUME;
   try{
-    const v=root.BadFodderStorage?.local?.getItem(STORAGE_KEY);
+    const store=root.BadFodderStorage?.local;
+    const v=store?.getItem(STORAGE_KEY);
     if(v!==null&&v!==undefined)enabled=v!=='0';
-    const n=Number(root.BadFodderStorage?.local?.getItem(VOLUME_KEY));
+    const savedVolume=store?.getItem(VOLUME_KEY);
+    const n=savedVolume!==null&&savedVolume!==undefined?Number(savedVolume):NaN;
     if(Number.isFinite(n))volume=clamp(n);
   }catch(_){}
 
