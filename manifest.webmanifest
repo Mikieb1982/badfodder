@@ -1,6 +1,8 @@
 {
+  "id": "./",
   "name": "If I Can Shoot Rabbits",
   "short_name": "Shoot Rabbits",
+  "description": "A top-down tactical action game with campaign, standalone missions and optional co-op.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -11,6 +13,8 @@
   "orientation": "landscape",
   "background_color": "#0b100d",
   "theme_color": "#1e281b",
+  "categories": ["games", "entertainment"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "assets/icons/icon-192.png?v=character-transparent-1",
