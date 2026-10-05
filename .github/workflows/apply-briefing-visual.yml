@@ -21,16 +21,12 @@ jobs:
           from pathlib import Path
           p=Path('voice-system.js')
           s=p.read_text(encoding='utf-8')
-          old="""  function showCaption(req){
-            if(!root.document||!req?.caption)return;
-          """
-          new="""  function showCaption(req){
-            if(req?.team==='narrator')return;
-            if(!root.document||!req?.caption)return;
-          """
-          if old not in s:
-              raise SystemExit('caption anchor not found')
-          p.write_text(s.replace(old,new,1),encoding='utf-8')
+          target="    if(!root.document||!req?.caption)return;"
+          if "if(req?.team==='narrator')return;" not in s:
+              if target not in s:
+                  raise SystemExit('caption line not found')
+              s=s.replace(target,"    if(req?.team==='narrator')return;\n"+target,1)
+          p.write_text(s,encoding='utf-8')
           PY
           node - <<'NODE'
           const fs=require('node:fs');
