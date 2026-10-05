@@ -31,6 +31,22 @@ assert.equal(identities.skin('cable-street','enemy',0,'police').weapon,null);
 assert.equal(identities.get('bad-belzig').title,'BELZIG');
 console.log('PASS: all mission identities, distinct roster names, unarmed Cable Street/civilians, unchanged internal map IDs.');
 
+// Playable characters carry stable, lightweight campaign identity data.
+const allProfiles=['cable-street','wigan','belzig'].flatMap(key=>identities.get(key).characters);
+assert.equal(new Set(allProfiles.map(c=>c.id)).size,allProfiles.length,'Playable character IDs must be unique across current chapters');
+for(const c of allProfiles){
+ assert.equal(typeof c.id,'string');assert(c.id.includes(':'));
+ assert.equal(c.occupation,c.role);
+ assert(identities.CHARACTER_TRAITS.includes(c.trait),'Unknown character trait: '+c.trait);
+ assert.equal(c.healthState,'FIT');assert.equal(c.experience,0);assert.equal(c.alive,true);
+ assert.match(c.voiceSet,/^squad\/voice-[1-4]$/);assert(Array.isArray(c.relationships));
+}
+const karl=identities.runtimeCharacter('bad-belzig',0,{x:22,y:44,hp:6,maxHp:8,experience:2,relationships:['belzig:otto']});
+assert.equal(karl.id,'belzig:karl');assert.equal(karl.name,'Karl');assert.equal(karl.occupation,'Former soldier / deserter');assert.equal(karl.x,22);assert.equal(karl.hp,6);assert.equal(karl.experience,2);assert.deepEqual(karl.relationships,['belzig:otto']);
+const deadKarl=identities.runtimeCharacter('bad-belzig',0,{alive:false,healthState:'DEAD'});assert.equal(deadKarl.alive,false);assert.equal(deadKarl.healthState,'DEAD');
+assert.deepEqual(identities.profile('wigan',5),identities.get('wigan').characters[1],'Character profile indexing must stay deterministic');
+console.log('PASS: stable IDs, occupations, traits, health state, experience, voice sets and relationship metadata.');
+
 // Enemy presentation must vary by costume/gear/weapon, not just jacket colour.
 for(const mission of ['belzig','wigan']){
  const skins=Array.from({length:4},(_,i)=>identities.skin(mission,'enemy',i));
