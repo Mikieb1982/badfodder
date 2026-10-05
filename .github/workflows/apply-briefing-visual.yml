@@ -14,7 +14,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-      - name: Keep briefing narration caption off the visible briefing text
+      - name: Polish briefing narration presentation
         shell: bash
         run: |
           python3 - <<'PY'
@@ -22,16 +22,22 @@ jobs:
           p=Path('voice-system.js')
           s=p.read_text(encoding='utf-8')
           old="""  function showCaption(req){
-              if(!root.document||!req?.caption)return;
-          """.replace('      ','')
+            if(!root.document||!req?.caption)return;
+          """
           new="""  function showCaption(req){
-              if(req?.team==='narrator')return;
-              if(!root.document||!req?.caption)return;
-          """.replace('      ','')
+            if(req?.team==='narrator')return;
+            if(!root.document||!req?.caption)return;
+          """
           if old not in s:
               raise SystemExit('caption anchor not found')
           p.write_text(s.replace(old,new,1),encoding='utf-8')
           PY
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const p=JSON.parse(fs.readFileSync('package.json','utf8'));
+          p.scripts['test:visual:update']='playwright test -c playwright.config.cjs --update-snapshots';
+          fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n');
+          NODE
       - name: Install dependencies and Chromium
         run: |
           npm ci --ignore-scripts
@@ -46,6 +52,6 @@ jobs:
           rm .github/workflows/apply-briefing-visual.yml
           git config user.name "Angsthase"
           git config user.email "mikieburrow@gmail.com"
-          git add voice-system.js tests/visual/scenes.spec.cjs-snapshots .github/workflows/apply-briefing-visual.yml
+          git add voice-system.js package.json tests/visual/scenes.spec.cjs-snapshots .github/workflows/apply-briefing-visual.yml
           git commit -m "Polish narrated briefing presentation"
           git push origin HEAD:main
