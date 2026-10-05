@@ -21,7 +21,7 @@ h1{font:800 27px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppe
 .loading span{font:12px system-ui,sans-serif;color:#b8c3ac}
 
 .game-hud{inset:0;font-family:system-ui,sans-serif;text-shadow:0 1px 1px #0008;pointer-events:none}
-.wigan-tactical .hud-topline,.wigan-tactical .hud-roster,.wigan-tactical .hud-notice{visibility:hidden}
+.wigan-tactical .hud-mission,.wigan-tactical .hud-counters,.wigan-tactical .hud-roster,.wigan-tactical .hud-notice{visibility:hidden}
 .wigan-tactical .touch-gameplay{visibility:hidden}
 
 .hud-topline{position:absolute;inset:10px 10px auto;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
