@@ -39,6 +39,12 @@ for(const [missionKey,mission] of Object.entries(missions))mission.characters.fo
  profile.relationships=[];
  profile.alive=true;
 });
+for(const mission of Object.values(missions)){
+ for(const [a,b,type] of [[0,1,'NEIGHBOURS'],[2,3,'FRIENDS']]){
+  const left=mission.characters[a],right=mission.characters[b];
+  left.relationships.push({id:right.id,type});right.relationships.push({id:left.id,type});
+ }
+}
 const enemyStyles={
  belzig:[
   character('Rifleman','Infantry','#606851','stahlhelm','kar98',{webbing:true,enemyDetail:true,trousers:'#51584c',gear:'ammo',age:30}),
@@ -58,8 +64,13 @@ function get(mission){const key=typeof mission==='string'?mission:mission?.map||
 function profile(mission,index=0){const roster=get(mission).characters;return roster[Math.abs(index|0)%roster.length];}
 function runtimeCharacter(mission,index=0,state={}){
  const base=profile(mission,index),alive=state.alive===undefined?base.alive:state.alive!==false;
- return{...base,...state,id:base.id,name:base.name,occupation:base.occupation,role:base.role,trait:base.trait,voiceSet:base.voiceSet,relationships:[...(state.relationships||base.relationships||[])],experience:Number.isFinite(state.experience)?Math.max(0,state.experience):base.experience,healthState:state.healthState||base.healthState,alive};
+ return{...base,...state,id:base.id,name:base.name,occupation:base.occupation,role:base.role,trait:base.trait,voiceSet:base.voiceSet,relationships:(state.relationships||base.relationships||[]).map(r=>typeof r==='object'&&r?{...r}:r),experience:Number.isFinite(state.experience)?Math.max(0,state.experience):base.experience,healthState:state.healthState||base.healthState,alive};
+}
+function modifiers(unit={}){
+ const practice=Math.min(24,Math.max(0,Number(unit.experience)||0))*.001;
+ return{movement:(unit.trait==='RUNNER'?1.06:1)*(1+practice),spread:(unit.trait==='STEADY'?.92:1)*(1-practice),
+  suppression:(unit.trait==='STUBBORN'?.9:1)*(1-practice),aid:unit.trait==='MEDIC'?1.15:1,work:unit.trait==='MECHANIC'?1.1:1};
 }
 function skin(mission,team,index=0,periodRole){const id=get(mission),i=Math.abs(index|0);if(periodRole==='police')return character('Police','Metropolitan police','#293e50','custodian',null,{webbing:true});if(periodRole==='march')return character('Marcher','Fascist marcher','#343331','cap',null);if(team==='squad')return id.characters[i%4];if(team==='enemy')return (enemyStyles[id.key]||defenders)[i%4];return {...id.characters[i%4],weapon:null,webbing:false,hat:['flat-cap','beret','cap','headscarf'][i%4]};}
-return{missions,enemyStyles,CHARACTER_TRAITS,get,profile,runtimeCharacter,skin,disclaimer:'This game uses real locations and historical settings. Some events are historical, while the main wartime battles and playable characters are fictional or alternate history.'};
+return{missions,enemyStyles,CHARACTER_TRAITS,get,profile,runtimeCharacter,modifiers,skin,disclaimer:'This game uses real locations and historical settings. Some events are historical, while the main wartime battles and playable characters are fictional or alternate history.'};
 });

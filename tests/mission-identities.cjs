@@ -78,3 +78,10 @@ for(const mission of ['belzig','wigan']){
 }
 assert.equal(fallback,0);assert(draws>=640);assert(allocations<=128);
 console.log('PASS: mission-specific enemy silhouettes, equipment, weapon variation and cached directional/state rendering.');
+assert.equal(identities.modifiers({trait:'RUNNER'}).movement,1.06);
+assert.equal(identities.modifiers({trait:'STEADY'}).spread,.92);
+assert.equal(identities.modifiers({trait:'STUBBORN'}).suppression,.9);
+assert.equal(identities.modifiers({experience:100000}).movement,1.024,'Practice must stay modest and bounded');
+const independent=identities.runtimeCharacter('wigan',0);independent.relationships[0].type='CHANGED';
+assert.notEqual(identities.profile('wigan',0).relationships[0].type,'CHANGED','Runtime relationships must not mutate the roster template');
+console.log('PASS: modest live traits, bounded practice and independent relationship data.');

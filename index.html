@@ -1289,6 +1289,7 @@
       chip.setAttribute('aria-label',(s.alive?'Select ':'Down: ')+s.name+(energy===null?', health '+s.hp+' of '+s.maxHp:', energy '+energy+' percent'));
       const cachedPortrait=chip.querySelector('canvas');
       chip.setAttribute('aria-pressed',String(s.selected));chip.disabled=!s.alive||!!(commands&&!commands.owns(i));
+      chip.title=s.name+' · '+s.occupation+' · '+s.trait.toLowerCase();
       const hp=Array.from({length:energy===null?s.maxHp:10},(_,h)=>'<i class="'+(h<(energy===null?s.hp:energy/10)?((energy===null?s.hp<=2:energy<30)?'on low':'on'):'')+'"></i>').join('');
       chip.innerHTML='<span class="hud-unit-info"><span class="hud-name"><em>'+(i+1)+'</em>'+s.name+(commands&&commands.mode!=='local'?' P'+(i<2?1:2):'')+'</span><span class="hud-health">'+hp+'</span><span class="hud-state">'+(s.alive?(s.manualGarrison?'HOLD ◇ ':s.selected?'SELECTED ▸ ':'')+(energy===null?'HP '+s.hp+'/'+s.maxHp:'ENERGY '+energy+'%'):'DOWN ×')+'</span></span>';
       const portrait=cachedPortrait||document.createElement('canvas');portrait.width=96;portrait.height=96;portrait.className='hud-portrait';
@@ -1377,12 +1378,12 @@
     const startX=S(786),startY=S(1450);
     squad=names.map((name,i)=>{
       const spawn=mapSquad&&mapSquad[i]?mapSquad[i]:[786+(i%2)*17,1450+Math.floor(i/2)*17];
-      return({
+      return(window.BadFodderIdentities.runtimeCharacter(missionIdentity.key,i,{
       name,variant:i,identityRole:'squad',x:S(spawn[0]),y:S(spawn[1]),
       hp:8,maxHp:8,alive:true,selected:true,target:null,cooldown:0,reload:0,flash:0,
       dir:-Math.PI/2,anim:i*.7,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0,path:null,pathIndex:0,
       fireHeat:0,hitTimer:0,damageGrace:0,formSlot:0,followRepath:0,isFormationLeader:false
-    })});
+    }))});
 
     rebuildUnitButtons();
     squadMaxEl.textContent=String(squad.length);
@@ -1516,6 +1517,7 @@
   function completeCurrentMission(){
     if(finished)return;
     finished=true;win=true;
+    if(commands?.mode!=='client')squad.filter(s=>s.alive).forEach(s=>s.experience=Math.min(24,(s.experience||0)+1));
     const mission=activeMission();
     if(!commands||commands.mode==='local'){if(missionLaunch.isCampaign())campaign.complete(activeMissionIndex);}
     hudStage.textContent='MISSION COMPLETE';
@@ -1651,6 +1653,8 @@
 
 
   function moveEntity(ent,dx,dy,r=10){
+    const discipline=ent.identityRole==='squad'?window.BadFodderIdentities.modifiers(ent).movement:1;
+    dx*=discipline;dy*=discipline;
     const nx=Math.max(r,Math.min(WORLD_W-r,ent.x+dx));
     if(!obstacleAt(nx,ent.y,r))ent.x=nx;
     const ny=Math.max(r,Math.min(WORLD_H-r,ent.y+dy));
@@ -1760,7 +1764,7 @@
       s.fireTimer=.11;s.state='fire';
 
       const heat=Math.min(1,s.fireHeat||0);
-      const spread=5+heat*22;
+      const spread=(5+heat*22)*window.BadFodderIdentities.modifiers(s).spread;
       const tx=x+(gameplayRng.random()-.5)*spread;
       const ty=y+(gameplayRng.random()-.5)*spread;
 

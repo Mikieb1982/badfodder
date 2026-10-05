@@ -12,6 +12,7 @@ restart:beginMission, pause:togglePause, main:showTitle, resume:resumeMission,
 fail:()=>{squad.forEach(s=>s.alive=false);checkFailure()},complete:completeCurrentMission,
 identity:()=>missionIdentity, phase:()=>missionStage,
 objectives:()=>missionObjectivesRuntime.snapshot(),
+characters:()=>squad.map(s=>({id:s.id,name:s.name,occupation:s.occupation,trait:s.trait,healthState:s.healthState,experience:s.experience,voiceSet:s.voiceSet,relationships:s.relationships})),
 objectiveTransition:()=>{const first=currentObjectivePhase(),zone=phaseZone(first);enemies.forEach(e=>e.alive=false);squad.forEach(s=>{s.x=zone.x;s.y=zone.y});updateMissionProgress(first.hold||.1);const result={stage:missionStage,statuses:missionObjectivesRuntime.manager.all().map(o=>o.status)};resetGame();return result},
 adaptive:()=>({enabled:!!adaptiveDirector&&!adaptiveDirector.state.disabled,decisions:adaptiveDirector?.state.decisions,commander:!!enemyCommander,militaryEnemies:enemies.length}),
 directorFault:()=>{adaptiveDirector.update=()=>{throw new Error('Injected optional Director fault')};simulateStep(1/60)},
@@ -67,6 +68,8 @@ async function runLifecycle(providedBrowser, testInfo){
   assert.equal(objectiveTransition.stage,1);assert.deepEqual(objectiveTransition.statuses,['COMPLETED','ACTIVE','PENDING']);
   assert.equal((await page.evaluate(()=>window.__testGame.objectives())).manager.objectives[0].status,'ACTIVE','Restart must reset objective state');
   await controllerSelection();
+  const characters=await page.evaluate(()=>window.__testGame.characters());
+  assert.equal(new Set(characters.map(c=>c.id)).size,4);assert(characters.every(c=>c.occupation&&c.trait&&c.voiceSet&&c.healthState==='FIT'&&c.relationships.length));
   const identity=await page.evaluate(()=>window.__testGame.identity());assert.equal(identity.year,map==='wigan'?1941:1945);assert.equal(await page.locator('#loadingEra').textContent(),identity.loading);assert((await page.locator('#hudSquadBar').textContent()).includes(identity.characters[0].name));assert((await page.evaluate(()=>BadFodderMusic.source)).endsWith('assets/audio/mission.mp3'));
   const chips=page.locator('#hudSquadBar .hud-unit');
   await chips.nth(0).click();
