@@ -175,6 +175,8 @@
     try{root.speechSynthesis.speak(u)}catch(_){finishCurrent()}
   }
   function playRecorded(req){
+    const available=root.BadFodderAvailableAudio;
+    if(Array.isArray(available)&&req.url&&req.url.startsWith(BASE+'/')&&!available.includes(req.url)){speakTts(req);return}
     if(!root.Audio||!req.url||missing.has(req.url)){speakTts(req);return}
     let audio;
     try{audio=new root.Audio(req.url)}catch(_){missing.add(req.url);speakTts(req);return}
