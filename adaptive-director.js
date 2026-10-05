@@ -201,7 +201,7 @@
       return null;
     }
     function garrisonSquad(zone,phaseIndex){
-      const living=getSquad().filter(s=>s.alive&&dist(s,zone)<=zone.r*1.15);
+      const living=getSquad().filter(s=>s.alive&&!s.downed&&dist(s,zone)<=zone.r*1.15);
       if(!living.length)return;
       const radius=Math.min(zone.r*.34,scale*22);
       living.forEach((s,i)=>{

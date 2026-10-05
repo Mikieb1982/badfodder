@@ -563,6 +563,7 @@
 <script src="mission-stats.js"></script>
 <script src="mission-rules.js"></script>
 <script src="mission-objectives.js"></script>
+<script src="character-health.js"></script>
 <script src="mission-route-validation.js?v=20261002-cable-nav-3"></script>
 <script src="campaign.js"></script>
 <script src="mission-bootstrap.js?v=20261002-cable-foundation-2"></script>
@@ -933,17 +934,17 @@
     return sel==='all'||sel===index||(Array.isArray(sel)&&sel.includes(index));
   }
   function selectionIds(sel=selection){
-    const allowed=squad.map((s,i)=>s.alive&&(!commands||commands.owns(i))?i:-1).filter(i=>i>=0);
+    const allowed=squad.map((s,i)=>s.alive&&!s.downed&&(!commands||commands.owns(i))?i:-1).filter(i=>i>=0);
     if(sel==='all')return allowed;
     const values=Array.isArray(sel)?sel:[sel];
     return [...new Set(values)].filter(i=>Number.isInteger(i)&&allowed.includes(i));
   }
   function selectedUnits(){
-    if(commands&&commands.mode!=='local')return commands.units(squad,selection);
+    if(commands&&commands.mode!=='local')return commands.units(squad,selection).filter(s=>!s.downed);
     const ids=new Set(selectionIds());
-    const units=squad.filter((s,i)=>s.alive&&ids.has(i));
+    const units=squad.filter((s,i)=>s.alive&&!s.downed&&ids.has(i));
     if(units.length)return units;
-    return squad.filter(s=>s.alive);
+    return squad.filter(s=>s.alive&&!s.downed);
   }
 
   function selectedHistoricalActor(){
@@ -1288,10 +1289,10 @@
       const energy=missionController?Math.round((missionController.state.actors.get('player-'+i)?.stamina??100)/10)*10:null;
       chip.setAttribute('aria-label',(s.alive?'Select ':'Down: ')+s.name+(energy===null?', health '+s.hp+' of '+s.maxHp:', energy '+energy+' percent'));
       const cachedPortrait=chip.querySelector('canvas');
-      chip.setAttribute('aria-pressed',String(s.selected));chip.disabled=!s.alive||!!(commands&&!commands.owns(i));
+      chip.setAttribute('aria-pressed',String(s.selected));chip.disabled=!s.alive||s.downed||!!(commands&&!commands.owns(i));
       chip.title=s.name+' · '+s.occupation+' · '+s.trait.toLowerCase();
       const hp=Array.from({length:energy===null?s.maxHp:10},(_,h)=>'<i class="'+(h<(energy===null?s.hp:energy/10)?((energy===null?s.hp<=2:energy<30)?'on low':'on'):'')+'"></i>').join('');
-      chip.innerHTML='<span class="hud-unit-info"><span class="hud-name"><em>'+(i+1)+'</em>'+s.name+(commands&&commands.mode!=='local'?' P'+(i<2?1:2):'')+'</span><span class="hud-health">'+hp+'</span><span class="hud-state">'+(s.alive?(s.manualGarrison?'HOLD ◇ ':s.selected?'SELECTED ▸ ':'')+(energy===null?'HP '+s.hp+'/'+s.maxHp:'ENERGY '+energy+'%'):'DOWN ×')+'</span></span>';
+      chip.innerHTML='<span class="hud-unit-info"><span class="hud-name"><em>'+(i+1)+'</em>'+s.name+(commands&&commands.mode!=='local'?' P'+(i<2?1:2):'')+'</span><span class="hud-health">'+hp+'</span><span class="hud-state">'+(s.alive?(s.downed?'DOWN + ':s.carryingUnit?'CARRYING + ':s.manualGarrison?'HOLD ◇ ':s.selected?'SELECTED ▸ ':'')+(energy===null?'HP '+s.hp+'/'+s.maxHp:'ENERGY '+energy+'%'):'DOWN ×')+'</span></span>';
       const portrait=cachedPortrait||document.createElement('canvas');portrait.width=96;portrait.height=96;portrait.className='hud-portrait';
       const pg=portrait.getContext('2d');pg.imageSmoothingEnabled=true;pg.drawImage(art.missionPortrait?art.missionPortrait(missionIdentity.key,i,s.alive?'idle':'dead'):art.soldier(missionController?'civilian':'squad',2,s.alive?0:2,s.alive?'idle':'dead',i),0,0,96,96);
       chip.insertBefore(portrait,chip.firstChild);
@@ -1445,6 +1446,7 @@
     squadGrenades=actionAllowed('grenades')?5:0;missionStage=0;phaseHoldTime=0;
     missionObjectivesRuntime=window.BadFodderObjectives.create(mission);
     window.BadFodderMissionObjectives=missionObjectivesRuntime;
+    window.BadFodderHealth.bindRuntime({getSquad:()=>squad,getSelected:selectedUnits,damage:applyDamageBase,dispatchAid:()=>coopCommand('aid')});
     initializeAdaptiveDirector();
     finished=false;win=false;paused=false;mapOpen=false;selection='all';zoom=preferredZoom;
     releaseAllFireInputs();
@@ -1559,7 +1561,7 @@
 
   function updateMissionProgress(dt){
     if(finished)return;
-    const living=squad.filter(s=>s.alive);
+    const living=squad.filter(s=>s.alive&&!s.downed);
     const previous=missionObjectivesRuntime.manager.current()?.id;
     const state=missionObjectivesRuntime.update(dt,{living,enemies,zones,scale:S(1)});
     phaseHoldTime=missionObjectivesRuntime.holdTime();
@@ -1654,7 +1656,8 @@
 
   function moveEntity(ent,dx,dy,r=10){
     const discipline=ent.identityRole==='squad'?window.BadFodderIdentities.modifiers(ent).movement:1;
-    dx*=discipline;dy*=discipline;
+    const health=ent.identityRole==='squad'?window.BadFodderHealth.movementScale(ent):1;
+    dx*=discipline*health;dy*=discipline*health;
     const nx=Math.max(r,Math.min(WORLD_W-r,ent.x+dx));
     if(!obstacleAt(nx,ent.y,r))ent.x=nx;
     const ny=Math.max(r,Math.min(WORLD_H-r,ent.y+dy));
@@ -1664,7 +1667,7 @@
   function nearestLivingSquad(e){
     let unit=null,d=Infinity;
     squad.forEach(s=>{
-      if(!s.alive)return;
+      if(!s.alive||s.downed)return;
       const q=Math.hypot(e.x-s.x,e.y-s.y);
       if(q<d){d=q;unit=s}
     });
@@ -1703,10 +1706,13 @@
 
 
   function applyDamage(target,amount,hitX,hitY,source=null){
+    return window.BadFodderHealth.handleDamage(target,amount,hitX,hitY,source);
+  }
+  function applyDamageBase(target,amount,hitX,hitY,source=null){
     if(!target.alive)return;
 
     const isSquad=squad.includes(target);
-    if(isSquad&&(target.damageGrace||0)>0)return;
+    if(isSquad&&(target.damageGrace||0)>0&&!target._healthFinalising)return;
 
     if(commands?.mode==='host'&&Number.isInteger(source))target.lastHitBy=source;
     target.hp-=amount;
@@ -1758,7 +1764,7 @@
 
     let fired=false;
     units.forEach(s=>{
-      if(s.cooldown>0)return;
+      if(s.cooldown>0||s.downed||s.carryingUnit)return;
 
       updateFacing(s,x-s.x,y-s.y);
       s.fireTimer=.11;s.state='fire';
@@ -1783,6 +1789,7 @@
     const units=selectedUnits();
     if(!units.length||squadGrenades<=0)return false;
     const s=units[0];
+    if(s.downed||s.carryingUnit)return false;
     if(Math.hypot(x-s.x,y-s.y)>S(190)){setStatus('Grenade target is out of range.');return}
 
     squadGrenades--;
@@ -2082,6 +2089,7 @@
         s.deadTimer=(s.deadTimer||0)+dt;
         return;
       }
+      if(s.downed){s.damageGrace=Math.max(0,(s.damageGrace||0)-dt);s.state='hurt';return}
       s.anim=(s.anim||0)+dt*8;
       s.cooldown=Math.max(0,s.cooldown-dt);
       s.flash=Math.max(0,s.flash-dt);
@@ -2113,7 +2121,7 @@
     pickups.forEach(p=>{
       if(!p.active)return;
       for(const s of squad){
-        if(!s.alive)continue;
+        if(!s.alive||s.downed)continue;
         if(Math.hypot(s.x-p.x,s.y-p.y)<32){
           if(p.type==='grenade'){
             const added=Math.min(p.amount||2,8-squadGrenades);
@@ -2386,7 +2394,7 @@
   }
 
   function checkFailure(){
-    if(!finished&&!squad.some(s=>s.alive)){finished=true;win=false;hudStage.textContent='MISSION FAILED';setStatus(missionIdentity.failure);showMissionResult()}
+    if(!finished&&!squad.some(s=>s.alive&&!s.downed)){finished=true;win=false;hudStage.textContent='MISSION FAILED';setStatus(missionIdentity.failure);showMissionResult()}
   }
 
   function setMoveTargets(p){
@@ -3126,6 +3134,11 @@
         }
       }
       drawSoldier(ent,team,historicalRenderState,historicalClock);
+      if(team==='squad'&&(ent.downed||ent.carryingUnit)){
+        const label=ent.downed?(ent.stabilised?'STABLE +':'DOWN + '+Math.ceil(window.BadFodderHealth.remaining(ent))):'CARRYING +';
+        ctx.save();ctx.font='bold 11px system-ui';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='#18252e';ctx.fillStyle='#d6edff';
+        ctx.strokeText(label,ent.x,ent.y-40);ctx.fillText(label,ent.x,ent.y-40);ctx.restore();
+      }
       if(team==='enemy'&&ent.alert&&ent.alive){
         if((ent.cueTimer||0)>0){
           const pulse=.72+Math.sin((ent.cueTimer||0)*18)*.12;
@@ -3632,6 +3645,7 @@
     if(!menuOpen&&!paused&&!mapOpen&&actionAllowed('firearms')&&touchState.fireHeld)fireMobile();
     squad.forEach((s,i)=>{s.aiming=actionAllowed('firearms')&&(rightHeld||macFireHeld||keyboardFireHeld||touchState.fireHeld);s.streetActor=missionController?.state.actors.get('player-'+i)});
     updateSquad(dt);
+    window.BadFodderHealth.fixedUpdate(dt);
 
     if(missionController){
       if(missionInteractionLayer){
@@ -3809,6 +3823,7 @@
         }
         if(c.type==='fire')return squadFireAt(c.x,c.y);
         if(c.type==='grenade')return throwGrenade(c.x,c.y);
+        if(c.type==='aid')return window.BadFodderHealth.contextualAction();
         if(c.type==='garrison'||c.type==='release'){
           if(units.length!==1)return false;
           if(c.type==='release')return window.BadFodderGarrison?.release(units[0]);
@@ -3829,6 +3844,7 @@
       window.BadFodderMissionStats?.tick();
       return {squad,enemies,civilians,pickups,bullets,thrown,effects,missionStage,phaseHoldTime,squadGrenades,finished,win,
         objectives:missionObjectivesRuntime.snapshot(),
+        health:window.BadFodderHealth.snapshot(),
         checkpoint:enemyCommander?.checkpointState()||null,stats:window.BadFodderMissionStats?.snapshot()||[]};
     },
     receive(state,refresh=true){
@@ -3839,6 +3855,7 @@
       coopCheckpoint=state.checkpoint;missionStage=state.missionStage;phaseHoldTime=state.phaseHoldTime;squadGrenades=state.squadGrenades;finished=state.finished;win=state.win;
       if(state.objectives)missionObjectivesRuntime.restore(state.objectives);
       else missionObjectivesRuntime.syncPhase(missionStage,{completed:finished&&win,failed:finished&&!win});
+      if(state.health)window.BadFodderHealth.receive(state.health);
       if(selection!=='all'){
         const remaining=selectionIds();
         if(remaining.length)setSelection(remaining);else setSelection('all');

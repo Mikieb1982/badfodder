@@ -5,7 +5,7 @@ const squad=Array.from({length:4},(_,i)=>({alive:true,x:100+i,y:200,hp:8,maxHp:8
 assert.equal(C.mode,'local');assert.equal(C.dispatch('move',[0],{x:1,y:2}),false);assert.equal(C.units(squad,'all').length,4);
 let received;C.configure('client',c=>received=c);assert.deepEqual(C.units(squad,'all'),squad.slice(2));assert.equal(C.units(squad,0).length,0);assert(!C.owns(0));assert(C.owns(2));
 const context={player:1,squad,active:true,w:1000,h:1000};
-for(const type of ['move','fire','grenade','garrison','release','select','stick']){
+for(const type of ['move','fire','grenade','garrison','release','select','stick','aid']){
  C.dispatch(type,[2],{x:1,y:1});const decoded=P.parse(P.encode(received));assert(P.validCommand(decoded,context));
  assert(!P.validCommand({...decoded,units:[0]},context));assert(!P.validCommand({...decoded,units:[2,2]},context));
  assert(!P.validCommand(decoded,{...context,active:false}));
@@ -19,6 +19,13 @@ state.squad[2].manualGarrison=true;const wire=P.snapshot(state,1),result=P.readS
 for(const win of [false,true]){state.finished=true;state.win=win;const out=P.readSnapshot(P.snapshot(state,2));assert(out.finished);assert.equal(out.win,win);}
 assert(!P.readSnapshot({...wire,s:[]}));assert(!P.readSnapshot({...wire,stats:[[0,'x',-1,0,true]]}));assert.deepEqual(P.totals(state.stats),[1,5]);assert.deepEqual(P.assistTotals(state.stats),[5,1]);
 const backwards={...wire,stats:wire.stats.map(r=>[r[0],r[1],r[2],r[4]])};assert.equal(P.readSnapshot(backwards).stats[0].assists,0,'Old 4-field reports should remain readable during rolling deploys');
+const health=[['DOWN',true,true,null,2,null],['FIT',false,false,null,null,null],['FIT',false,false,null,null,0],['FIT',false,false,null,null,null]];
+assert.deepEqual(P.readSnapshot({...wire,health}).health,health,'Casualty and carrier state survives the wire');
+for(const row of [['DOWN',true,true,null,9,null],['DOWN',true,true,-1,2,null],['DEAD',false,false,null,null,null]]){
+ const invalid=health.map(r=>r.slice());invalid[0]=row;assert(!P.readSnapshot({...wire,health:invalid}));
+}
+const brokenCarry=health.map(r=>r.slice());brokenCarry[2][5]=null;assert(!P.readSnapshot({...wire,health:brokenCarry}));
+squad[2].downed=true;assert(!P.validCommand({type:'aid',units:[2]},context));squad[2].downed=false;
 C.configure();assert.equal(C.units(squad,'all').length,4);
 console.log('PASS: local default, ownership, wire validation, adaptive limits, garrison/death/checkpoints/results plus kill/assist report totals.');
 

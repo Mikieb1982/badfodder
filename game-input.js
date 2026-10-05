@@ -18,6 +18,5 @@
  }
  root.BadFodderInput={joystick};
  load('controller-support.js',()=>{if(lastJoystick)root.BadFodderController?.bindJoystick?.(lastJoystick)});
- load('character-health.js');
  load('install-app.js');
 })(window);

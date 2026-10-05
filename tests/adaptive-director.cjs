@@ -42,7 +42,7 @@ for(const hook of ['sample','valid','execute','maintain']){
 const html=fs.readFileSync('index.html','utf8');
 const safe=html.slice(html.indexOf('  function runAdaptive('),html.indexOf('  function initializeAdaptiveDirector('));
 const simulate=html.slice(html.indexOf('  function simulateStep('),html.indexOf('  function handleRuntimeFault('));
-let simulationSteps=0;const scope={commands:{mode:'local'},window:{},menuOpen:false,paused:false,mapOpen:false,adaptiveDirector:basic({sample:()=>{throw Error('Director fault')}}).d,
+let simulationSteps=0;const scope={commands:{mode:'local'},window:{BadFodderHealth:require('../character-health')},menuOpen:false,paused:false,mapOpen:false,adaptiveDirector:basic({sample:()=>{throw Error('Director fault')}}).d,
  applyTouchMovement:()=>simulationSteps++,keyboardFireHeld:false,actionAllowed:()=>false,squad:[],
  missionController:null,missionInteractionLayer:null,missionDirector:null,missionCrowd:null,
  processEnemyPathQueue:()=>{},updateSquad:()=>{},updateEnemies:()=>{},updateCivilians:()=>{},updateProjectiles:()=>{},updateCamera:()=>{},checkFailure:()=>{},updateMissionProgress:()=>{},updateHud:()=>{},

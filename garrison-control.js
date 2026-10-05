@@ -78,6 +78,7 @@
     if(!chosen&&root.BadFodderCommands?.mode!=='local'&&root.BadFodderCoop?.garrison)return root.BadFodderCoop.garrison();
     if(!firearmsAllowed())return false;
     const unit=chosen||selectedOne();
+    if(unit?.downed||unit?.alive===false)return false;
     if(!unit){setNotice('Select one soldier to garrison.');return false}
     if(unit.manualGarrison){release(unit);setNotice('Garrison released.');syncButtons();return false}
     unit.manualGarrison=true;unit.garrisonAnchorX=unit.x;unit.garrisonAnchorY=unit.y;unit.garrisonTarget=null;unit.garrisonNextFire=0;

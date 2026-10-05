@@ -7,8 +7,8 @@
  'use strict';
  const STATES=Object.freeze(['FIT','WOUNDED','BADLY_WOUNDED','DOWN','DEAD']);
  const DOWN_SECONDS=12,CARRY_SPEED=.58,AID_RANGE=58;
- let runtimeGetSquad=null,originalDamage=null,originalMove=null,patchedDamage=false,patchedMove=false;
- const now=()=>typeof performance!=='undefined'&&performance.now?performance.now()/1000:Date.now()/1000;
+ let runtimeGetSquad=null,runtimeGetSelected=null,runtimeDispatchAid=null,originalDamage=null,originalMove=null,patchedDamage=false,patchedMove=false,simulationClock=null;
+ const now=()=>simulationClock!==null?simulationClock:typeof performance!=='undefined'&&performance.now?performance.now()/1000:Date.now()/1000;
 
  function squad(){try{return runtimeGetSquad?.()||[]}catch(_){return[]}}
  function stateFor(unit){
@@ -28,7 +28,10 @@
  }
  function down(unit,seconds=DOWN_SECONDS){
   if(!unit||unit.alive===false)return false;
+  if(unit.carryingUnit)dropCarry(unit);if(unit.carriedBy)dropCarry(unit.carriedBy);
+  unit.manualGarrison=false;unit.checkpointCover=false;unit.checkpointGarrison=null;
   unit.hp=0;unit.alive=true;unit.downed=true;unit.stabilised=false;unit.healthState='DOWN';unit.downUntil=now()+Math.max(1,seconds);
+  unit.damageGrace=.8;
   unit.carryingUnit=null;unit.carriedBy=null;freezeDowned(unit);return true;
  }
  function stabilise(unit,helper=null){
@@ -48,7 +51,7 @@
   unit.carriedBy=null;helper.carryingUnit=null;helper.carrySlow=1;return true;
  }
  function selectedHelper(){
-  try{return(root.selectedUnits?.()||[]).find(unit=>unit?.alive&&!unit.downed)||null}catch(_){return null}
+  try{return(runtimeGetSelected?.()||root.selectedUnits?.()||[]).find(unit=>unit?.alive&&!unit.downed)||null}catch(_){return null}
  }
  function nearestDowned(helper){
   if(!helper)return null;let best=null,dist=AID_RANGE;
@@ -57,11 +60,13 @@
  }
  function contextualAction(){
   const helper=selectedHelper();if(!helper)return false;
+  if(runtimeDispatchAid?.())return true;
   if(helper.carryingUnit)return dropCarry(helper);
   const target=nearestDowned(helper);if(!target)return false;
   return target.stabilised?beginCarry(target,helper):stabilise(target,helper);
  }
  function contextualLabel(){
+  if(root.document?.getElementById('menuScreen')&&!root.document.getElementById('menuScreen').hidden)return'';
   const helper=selectedHelper();if(!helper)return'';
   if(helper.carryingUnit)return'DROP';
   const target=nearestDowned(helper);if(!target)return'';
@@ -90,17 +95,37 @@
  function patchDamage(){
   if(patchedDamage||typeof root.applyDamage!=='function')return false;
   originalDamage=root.applyDamage;
-  root.applyDamage=function(target,amount,hitX,hitY,source=null){
+  root.applyDamage=handleDamage;
+  patchedDamage=true;return true;
+ }
+ function handleDamage(target,amount,hitX,hitY,source=null){
    if(!isSquad(target)||target?._healthFinalising)return originalDamage(target,amount,hitX,hitY,source);
-   if(target.downed){const result=originalDamage(target,Math.max(1,amount),hitX,hitY,source);target.downed=false;target.healthState=target.alive===false?'DEAD':stateFor(target);return result}
+   if((target.damageGrace||0)>0)return;
+   if(target.downed){const result=originalDamage(target,Math.max(1,amount),hitX,hitY,source);target.downed=false;target.healthState=target.alive===false?'DEAD':stateFor(target);if(target.carriedBy)dropCarry(target.carriedBy);if(target.carryingUnit)dropCarry(target);return result}
    const hp=Number(target.hp)||0,next=hp-(Number(amount)||0);
    if(next<=0&&target.alive!==false){
     const safe=Math.max(0,hp-1),result=originalDamage(target,safe,hitX,hitY,source);
     down(target);return result;
    }
    const result=originalDamage(target,amount,hitX,hitY,source);sync(target);return result;
-  };
-  patchedDamage=true;return true;
+ }
+ function bindRuntime({getSquad,getSelected,damage,dispatchAid}={}){
+  runtimeGetSquad=getSquad;runtimeGetSelected=getSelected;runtimeDispatchAid=dispatchAid;originalDamage=damage;simulationClock=0;
+ }
+ function fixedUpdate(dt){if(simulationClock===null)return;if(!Number.isFinite(dt)||dt<0)return;simulationClock+=dt;tick()}
+ function remaining(unit){return Math.max(0,(unit?.downUntil||now())-now())}
+ function movementScale(unit){
+  if(!unit||unit.alive===false||unit.downed)return 0;
+  const wound=stateFor(unit);
+  return(unit.carryingUnit?CARRY_SPEED:1)*(wound==='BADLY_WOUNDED'?.78:wound==='WOUNDED'?.92:1);
+ }
+ function snapshot(){
+  const units=squad();return units.map(u=>[stateFor(u),!!u.downed,!!u.stabilised,
+   u.downed&&!u.stabilised?Math.max(0,(u.downUntil||now())-now()):null,
+   u.carriedBy?units.indexOf(u.carriedBy):null,u.carryingUnit?units.indexOf(u.carryingUnit):null]);
+ }
+ function receive(rows){
+  const units=squad();rows.forEach((r,i)=>{const u=units[i];if(!u)return;u.healthState=r[0];u.downed=r[1];u.stabilised=r[2];u.downUntil=r[3]===null?null:now()+r[3];u.carriedBy=r[4]===null?null:units[r[4]];u.carryingUnit=r[5]===null?null:units[r[5]]});syncAidButton();
  }
  function patchMovement(){
   if(patchedMove||typeof root.moveEntity!=='function')return false;
@@ -111,7 +136,7 @@
  function patchAdaptive(adaptive=root.BadFodderAdaptive){
   if(!adaptive||adaptive.__characterHealthPatched||typeof adaptive.createCommander!=='function')return false;
   const create=adaptive.createCommander;
-  adaptive.createCommander=function(options={}){runtimeGetSquad=options.getSquad||runtimeGetSquad;const commander=create.call(this,options),maintain=commander.maintain?.bind(commander);commander.maintain=function(time){const result=maintain?maintain(time):undefined;tick();return result};return commander};
+  adaptive.createCommander=function(options={}){runtimeGetSquad=options.getSquad||runtimeGetSquad;const commander=create.call(this,options),maintain=commander.maintain?.bind(commander);commander.maintain=function(time){const result=maintain?maintain(time):undefined;if(simulationClock===null)tick();return result};return commander};
   adaptive.__characterHealthPatched=true;return true;
  }
  function chainProperty(name,patch){
@@ -130,8 +155,8 @@
   const tag=event.target?.tagName?.toLowerCase();if(tag==='input'||tag==='textarea'||tag==='select'||event.target?.isContentEditable)return;
   if(contextualLabel()){event.preventDefault();event.stopImmediatePropagation?.();contextualAction();syncAidButton()}
  }
- function install(){patchDamage();patchMovement();aidButton();root.addEventListener?.('keydown',keyboard,true);setInterval(tick,120)}
+ function install(){patchDamage();patchMovement();aidButton();root.addEventListener?.('keydown',keyboard,true);setInterval(()=>{if(simulationClock===null)tick()},120)}
  chainProperty('BadFodderAdaptive',patchAdaptive);
  if(root.document){if(root.document.readyState==='loading')root.document.addEventListener('DOMContentLoaded',install,{once:true});else install()}
- return{STATES,DOWN_SECONDS,CARRY_SPEED,AID_RANGE,stateFor,sync,down,stabilise,beginCarry,dropCarry,contextualAction,contextualLabel,finalise,tick,patchDamage,patchMovement,patchAdaptive};
+ return{STATES,DOWN_SECONDS,CARRY_SPEED,AID_RANGE,stateFor,sync,down,stabilise,beginCarry,dropCarry,contextualAction,contextualLabel,finalise,tick,patchDamage,patchMovement,patchAdaptive,bindRuntime,handleDamage,fixedUpdate,movementScale,snapshot,receive,remaining};
 });

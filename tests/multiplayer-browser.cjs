@@ -7,10 +7,11 @@ const root=path.resolve(__dirname,'..',process.env.BADFODDER_TEST_DIST==='1'?'di
 const injection=`const commandResults={};const coopExecute=BadFodderCoopBridge.execute;BadFodderCoopBridge.execute=c=>{const result=coopExecute(c);if(result)commandResults[c.type]=(commandResults[c.type]||0)+1;return result;};window.__coopTest={
  state:()=>({started,paused,menuOpen,finished,win,faults:runtimeFaultCount,stage:missionStage,hp:squad.map(s=>s.hp),units:squad.map(s=>({x:s.x,y:s.y,alive:s.alive,garrison:!!s.manualGarrison})),grenades:squadGrenades,bullets:bullets.length,director:!!adaptiveDirector,checkpoint:coopCheckpoint,commandResults,stats:BadFodderMissionStats.snapshot()}),
  target:(id)=>{const s=squad[id];for(const [dx,dy] of [[60,0],[-60,0],[0,60],[0,-60]])if(routeClear(s.x,s.y,s.x+dx,s.y+dy,NAV_RADIUS))return{x:s.x+dx,y:s.y+dy};throw Error('No open target')},
- death:(id)=>{squad[id].damageGrace=0;applyDamage(squad[id],100,squad[id].x,squad[id].y)},
+ death:(id)=>{squad[id].damageGrace=0;BadFodderHealth.finalise(squad[id])},
  kill:()=>{const e=enemies.find(e=>e.alive);applyDamage(e,100,e.x,e.y,2);BadFodderMissionStats.tick()},
  phase:()=>{missionObjectivesRuntime.syncPhase(1);missionStage=1;phaseHoldTime=1;enemyCommander.checkpointState().started=true;},complete:completeCurrentMission,fail:()=>{squad.forEach(s=>s.alive=false);checkFailure()},
  select:setSelection,localMove:p=>setMoveTargets(p),fire:p=>squadFireAt(p.x,p.y),grenade:p=>throwGrenade(p.x,p.y)
+ ,health:()=>BadFodderHealth.snapshot(),down:()=>{bullets=[];thrown=[];enemies.forEach(e=>e.cooldown=30);Object.assign(squad[2],{hp:8,alive:true,downed:false,healthState:'FIT',damageGrace:30});squad[0].x=squad[2].x-20;squad[0].y=squad[2].y;BadFodderHealth.down(squad[0]);},recover:()=>{Object.assign(squad[0],{hp:8,downed:false,stabilised:false,downUntil:null,healthState:'FIT'});}
 };`;
 const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.webp':'image/webp','.png':'image/png','.mp3':'audio/mpeg'};
 const server=http.createServer((req,res)=>{try{const name=decodeURIComponent(new URL(req.url,'http://local').pathname),file=path.join(root,name==='/'?'index.html':name);if(!file.startsWith(root+path.sep))throw Error();let data=fs.readFileSync(file);if(file.endsWith('index.html'))data=Buffer.from(data.toString().replace('  // BOOT_MISSION:',injection+'\n  // BOOT_MISSION:'));res.setHeader('Content-Type',types[path.extname(file)]||'application/octet-stream');res.end(data);}catch{res.writeHead(404);res.end();}});
@@ -69,6 +70,10 @@ const server=http.createServer((req,res)=>{try{const name=decodeURIComponent(new
   await client.evaluate(()=>BadFodderCoop.garrison());await host.waitForFunction(()=>__coopTest.state().units[2].garrison);await client.waitForFunction(()=>__coopTest.state().units[2].garrison);
   const grenades=await host.evaluate(()=>__coopTest.state().grenades);await client.evaluate(()=>{const u=BadFodderCoopBridge.squad()[2];__coopTest.fire({x:u.x+30,y:u.y});__coopTest.grenade({x:u.x+20,y:u.y});});await host.waitForFunction(n=>__coopTest.state().grenades<n,grenades);await client.waitForFunction(n=>__coopTest.state().grenades<n,grenades);assert((await host.evaluate(()=>__coopTest.state().commandResults.fire))>=1,'Remote fire did not reach normal combat');assert((await host.evaluate(()=>__coopTest.state().commandResults.grenade))>=1);
 
+  await host.evaluate(()=>__coopTest.down());await client.waitForFunction(()=>__coopTest.health()[0][1]);
+  await client.keyboard.press('e');await host.waitForFunction(()=>__coopTest.health()[0][2]);
+  await client.keyboard.press('e');await host.waitForFunction(()=>__coopTest.health()[2][5]===0);await client.waitForFunction(()=>__coopTest.health()[0][4]===2);
+  await client.keyboard.press('e');await host.waitForFunction(()=>__coopTest.health()[2][5]===null);await host.evaluate(()=>__coopTest.recover());
   await host.evaluate(()=>{__coopTest.kill();__coopTest.phase();__coopTest.death(2);});await client.waitForFunction(()=>!__coopTest.state().units[2].alive&&__coopTest.state().stage===1&&__coopTest.state().checkpoint?.started);assert((await client.evaluate(()=>__coopTest.state().stats))[2].kills>=1);
   await host.evaluate(()=>__coopTest.death(3));await client.waitForFunction(()=>!__coopTest.state().units[3].alive);assert.equal(await client.evaluate(()=>BadFodderCommands.units(BadFodderCoopBridge.squad(),'all').length),0,'Dead P2 gained control of P1');
   await host.evaluate(()=>__coopTest.complete());await client.waitForFunction(()=>__coopTest.state().finished&&__coopTest.state().win);
