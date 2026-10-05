@@ -14,8 +14,11 @@ identity:()=>missionIdentity, phase:()=>missionStage,
 objectives:()=>missionObjectivesRuntime.snapshot(),
 characters:()=>squad.map(s=>({id:s.id,name:s.name,occupation:s.occupation,trait:s.trait,healthState:s.healthState,experience:s.experience,voiceSet:s.voiceSet,relationships:s.relationships})),
 health:()=>BadFodderHealth.snapshot(),
+civilians:()=>({counts:civilianRuntime.counts(),rows:civilianRuntime.snapshot(),optional:missionObjectivesRuntime.manager.get('evacuate-residents').status}),
+prepareResidents:()=>{enemies.forEach(e=>e.alive=false);squad.forEach(s=>{s.path=null;s.target=null});const c=civilians[0],z=civilianRuntime.zones[0];squad[1].x=z.x+z.r+40;squad[1].y=z.y;c.x=squad[1].x+10;c.y=squad[1].y;setSelection(1);updateHud(true)},
+evacuateResident:()=>{const c=civilians[0],z=civilianRuntime.zones[0];c.x=z.x;c.y=z.y;civilianRuntime.update(.1);updateMissionProgress(.1);updateHud(true)},
 downForRescue:()=>{adaptiveDirector=null;clearSquadFormation();squad.forEach(s=>{s.path=null;s.target=null});enemies.forEach(e=>e.alive=false);squad[0].x=squad[1].x-25;squad[0].y=squad[1].y;squad[0].hp=2;squad[0].damageGrace=0;applyDamage(squad[0],3,squad[0].x,squad[0].y);setSelection(1);updateHud(true);},
-objectiveTransition:()=>{const first=currentObjectivePhase(),zone=phaseZone(first);enemies.forEach(e=>e.alive=false);squad.forEach(s=>{s.x=zone.x;s.y=zone.y});updateMissionProgress(first.hold||.1);const result={stage:missionStage,statuses:missionObjectivesRuntime.manager.all().map(o=>o.status)};resetGame();return result},
+objectiveTransition:()=>{const first=currentObjectivePhase(),zone=phaseZone(first);enemies.forEach(e=>e.alive=false);squad.forEach(s=>{s.x=zone.x;s.y=zone.y});updateMissionProgress(first.hold||.1);const result={stage:missionStage,statuses:missionObjectivesRuntime.manager.all().filter(o=>!o.optional).map(o=>o.status)};resetGame();return result},
 adaptive:()=>({enabled:!!adaptiveDirector&&!adaptiveDirector.state.disabled,decisions:adaptiveDirector?.state.decisions,commander:!!enemyCommander,militaryEnemies:enemies.length}),
 directorFault:()=>{adaptiveDirector.update=()=>{throw new Error('Injected optional Director fault')};simulateStep(1/60)},
 
@@ -75,6 +78,15 @@ async function runLifecycle(providedBrowser, testInfo){
   await action();assert.equal((await p.evaluate(()=>window.__testGame.health()))[1][5],null,'Contextual action did not drop casualty');
   await p.evaluate(()=>window.__testGame.restart());
  }
+ async function civilianCycle(p,touch=false){
+  await p.evaluate(()=>window.__testGame.prepareResidents());
+  if(touch)await p.locator('#touchAction').dispatchEvent('pointerdown',{pointerId:72,pointerType:'touch'});else await p.keyboard.press('e');
+  assert.equal((await p.evaluate(()=>window.__testGame.civilians())).rows[0][1],1,'Resident did not follow selected helper');
+  if(process.env.BADFODDER_SCREENSHOTS)await p.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS,'civilians-'+(touch?'touch':'desktop')+'.png')});
+  await p.evaluate(()=>window.__testGame.evacuateResident());
+  const outcome=await p.evaluate(()=>window.__testGame.civilians());assert(outcome.counts.evacuated>=1);assert.equal(outcome.optional,'COMPLETED');
+  await p.evaluate(()=>window.__testGame.restart());
+ }
  await page.locator('[data-view="missions"] [data-back]').click();
  for(const [button,map] of [['#menuMissionBad','bad-belzig'],['#menuMissionWigan','wigan']]){
   await page.locator('#menuMissionSelect').click();await page.locator(button).click();assert.equal((await page.evaluate(()=>window.__testGame.state())).menuOpen,true);assert(await page.locator('#briefingStory').isVisible());assert.equal(await page.locator('#briefingCharacters canvas').count(),4);await page.evaluate(()=>BadFodderArt.preloadMissionArt(document.getElementById('briefingTitle').textContent.toLowerCase()));if(process.env.BADFODDER_SCREENSHOTS)await page.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp',map+'-briefing.png')});await page.locator('#briefingBack').click();assert(await page.locator(button).isVisible());await page.locator('[data-view="missions"] [data-back]').click();
@@ -85,7 +97,7 @@ async function runLifecycle(providedBrowser, testInfo){
   await controllerSelection();
   const characters=await page.evaluate(()=>window.__testGame.characters());
   assert.equal(new Set(characters.map(c=>c.id)).size,4);assert(characters.every(c=>c.occupation&&c.trait&&c.voiceSet&&c.healthState==='FIT'&&c.relationships.length));
-  await casualtyCycle(page);
+  await casualtyCycle(page);await civilianCycle(page);
   const identity=await page.evaluate(()=>window.__testGame.identity());assert.equal(identity.year,map==='wigan'?1941:1945);assert.equal(await page.locator('#loadingEra').textContent(),identity.loading);assert((await page.locator('#hudSquadBar').textContent()).includes(identity.characters[0].name));assert((await page.evaluate(()=>BadFodderMusic.source)).endsWith('assets/audio/mission.mp3'));
   const chips=page.locator('#hudSquadBar .hud-unit');
   await chips.nth(0).click();
@@ -135,7 +147,7 @@ async function runLifecycle(providedBrowser, testInfo){
  expectedStartupLogs=1;await page.goto(url+'?failStartup=1',{waitUntil:'domcontentloaded'});await page.locator('#menuStart').click();await page.locator('#briefingBegin').click();await page.waitForFunction(()=>document.getElementById('menuStart').textContent==='CAMPAIGN UNAVAILABLE');assert(await page.locator('#menuResume').isHidden());assert(await page.locator('#loading').isHidden());await page.evaluate(()=>history.replaceState(null,'',location.pathname));await select('#menuMissionBad');await active();
  await page.evaluate(()=>window.__testGame.main());await page.locator('#menuStart').click();await page.locator('#briefingBegin').click();await page.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen,{},{timeout:90000});assert.equal((await active()).mode,'campaign');
  const mobile=await newPage({viewport:{width:915,height:412},...(browserName!=='firefox'?{isMobile:true}:{}),hasTouch:true});mobile.on('pageerror',e=>errors.push(e.message));await mobile.goto(url,{waitUntil:'domcontentloaded'});await mobile.locator('[data-presentation-skip]').click();await mobile.waitForFunction(()=>!!window.__testGame);await mobile.locator('#menuStart').click();await mobile.locator('#briefingBegin').click();await mobile.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen);
- await casualtyCycle(mobile,true);
+ await casualtyCycle(mobile,true);await civilianCycle(mobile,true);
  // Exercise pinch through real pointer listeners in every browser engine.
  const originalZoom=await mobile.evaluate(()=>window.__testGame.state().zoom);
  await mobile.evaluate(()=>{const c=document.getElementById('game'),r=c.getBoundingClientRect(),capture=c.setPointerCapture;c.setPointerCapture=()=>{};const fire=(type,id,x)=>c.dispatchEvent(new PointerEvent(type,{pointerId:id,pointerType:'touch',clientX:r.left+x,clientY:r.top+100,bubbles:true,buttons:type==='pointerup'?0:1}));fire('pointerdown',901,200);fire('pointerdown',902,300);fire('pointermove',902,360);fire('pointerup',901,200);fire('pointerup',902,360);c.setPointerCapture=capture;});

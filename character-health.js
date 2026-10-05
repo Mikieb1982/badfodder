@@ -7,7 +7,7 @@
  'use strict';
  const STATES=Object.freeze(['FIT','WOUNDED','BADLY_WOUNDED','DOWN','DEAD']);
  const DOWN_SECONDS=12,CARRY_SPEED=.58,AID_RANGE=58;
- let runtimeGetSquad=null,runtimeGetSelected=null,runtimeDispatchAid=null,originalDamage=null,originalMove=null,patchedDamage=false,patchedMove=false,simulationClock=null;
+ let runtimeGetSquad=null,runtimeGetSelected=null,runtimeDispatchAid=null,runtimeIsActive=()=>true,originalDamage=null,originalMove=null,patchedDamage=false,patchedMove=false,simulationClock=null;
  const now=()=>simulationClock!==null?simulationClock:typeof performance!=='undefined'&&performance.now?performance.now()/1000:Date.now()/1000;
 
  function squad(){try{return runtimeGetSquad?.()||[]}catch(_){return[]}}
@@ -59,6 +59,7 @@
   return best;
  }
  function contextualAction(){
+  if(!runtimeIsActive())return false;
   const helper=selectedHelper();if(!helper)return false;
   if(runtimeDispatchAid?.())return true;
   if(helper.carryingUnit)return dropCarry(helper);
@@ -66,6 +67,7 @@
   return target.stabilised?beginCarry(target,helper):stabilise(target,helper);
  }
  function contextualLabel(){
+  if(!runtimeIsActive())return'';
   if(root.document?.getElementById('menuScreen')&&!root.document.getElementById('menuScreen').hidden)return'';
   const helper=selectedHelper();if(!helper)return'';
   if(helper.carryingUnit)return'DROP';
@@ -109,8 +111,8 @@
    }
    const result=originalDamage(target,amount,hitX,hitY,source);sync(target);return result;
  }
- function bindRuntime({getSquad,getSelected,damage,dispatchAid}={}){
-  runtimeGetSquad=getSquad;runtimeGetSelected=getSelected;runtimeDispatchAid=dispatchAid;originalDamage=damage;simulationClock=0;
+ function bindRuntime({getSquad,getSelected,damage,dispatchAid,isActive=()=>true}={}){
+  runtimeIsActive=isActive;runtimeGetSquad=getSquad;runtimeGetSelected=getSelected;runtimeDispatchAid=dispatchAid;originalDamage=damage;simulationClock=0;
  }
  function fixedUpdate(dt){if(simulationClock===null)return;if(!Number.isFinite(dt)||dt<0)return;simulationClock+=dt;tick()}
  function remaining(unit){return Math.max(0,(unit?.downUntil||now())-now())}

@@ -5,7 +5,7 @@ const squad=Array.from({length:4},(_,i)=>({alive:true,x:100+i,y:200,hp:8,maxHp:8
 assert.equal(C.mode,'local');assert.equal(C.dispatch('move',[0],{x:1,y:2}),false);assert.equal(C.units(squad,'all').length,4);
 let received;C.configure('client',c=>received=c);assert.deepEqual(C.units(squad,'all'),squad.slice(2));assert.equal(C.units(squad,0).length,0);assert(!C.owns(0));assert(C.owns(2));
 const context={player:1,squad,active:true,w:1000,h:1000};
-for(const type of ['move','fire','grenade','garrison','release','select','stick','aid']){
+for(const type of ['move','fire','grenade','garrison','release','select','stick','aid','interact']){
  C.dispatch(type,[2],{x:1,y:1});const decoded=P.parse(P.encode(received));assert(P.validCommand(decoded,context));
  assert(!P.validCommand({...decoded,units:[0]},context));assert(!P.validCommand({...decoded,units:[2,2]},context));
  assert(!P.validCommand(decoded,{...context,active:false}));

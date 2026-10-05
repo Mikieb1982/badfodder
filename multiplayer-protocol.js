@@ -1,7 +1,7 @@
 /* Small wire protocol. Intent only from P2; state only from the authoritative host. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.BadFodderCoopProtocol=api;})(typeof window!=='undefined'?window:globalThis,function(){
  'use strict';
- const VERSION=1,MAX_BYTES=65536,SNAPSHOT_BYTES=60*1024,TYPES=new Set(['move','fire','grenade','garrison','release','select','stick','aid']);
+ const VERSION=1,MAX_BYTES=65536,SNAPSHOT_BYTES=60*1024,TYPES=new Set(['move','fire','grenade','garrison','release','select','stick','aid','interact']);
  const actorKeys=['x','y','hp','maxHp','alive','dir','state','variant','anim','objectiveGroup','groupId','fireTimer','hitTimer','throwTimer','deadTimer','deathAngle','flash','aiming','manualGarrison','garrisonAnchorX','garrisonAnchorY','checkpointCover','checkpointGarrison','checkpointHeld','checkpointFortified','checkpointFacing','checkpointCenterX','checkpointCenterY','checkpointSandbagRadius','checkpointFortificationPhase','checkpointFortificationLead','checkpointFortificationRearLead','checkpointFortificationFrontLead'];
  const itemKeys=['x','y','vx','vy','life','owner','type','active','optional','amount','startX','startY','tx','ty','t','flight','fuse','z','landed','angle'];
  const primitive=v=>v===null||typeof v==='boolean'||typeof v==='string'&&v.length<=80||typeof v==='number'&&Number.isFinite(v)&&Math.abs(v)<1e8;
@@ -24,6 +24,7 @@
    stage:s.missionStage,hold:s.phaseHoldTime,grenades:s.squadGrenades,done:s.finished,win:s.win,
    ...(s.objectives?{objectives:s.objectives}:{}),
    ...(s.health?{health:s.health}:{}),
+   ...(s.civilianState?{civilianState:s.civilianState}:{}),
    checkpoint:s.checkpoint?{phase:s.checkpoint.phase,started:!!s.checkpoint.started,cleared:!!s.checkpoint.cleared,style:s.checkpoint.style}:null,
    stats:s.stats.map(r=>[r.index,r.name,r.kills,Number.isSafeInteger(r.assists)?r.assists:0,r.alive])};
  }
@@ -47,8 +48,9 @@
   if(p.checkpoint!==null&&(!p.checkpoint||!Number.isInteger(p.checkpoint.phase)||typeof p.checkpoint.started!=='boolean'||typeof p.checkpoint.cleared!=='boolean'||!['rush','pincer','siege'].includes(p.checkpoint.style)))return null;
   if(p.objectives!=null&&!validObjectives(p.objectives))return null;
   if(p.health!=null&&!validHealth(p.health,p.s))return null;
+  if(p.civilianState!=null&&(!Array.isArray(p.civilianState)||p.civilianState.length!==p.c.length||!p.civilianState.every(r=>Array.isArray(r)&&r.length===3&&['CALM','FRIGHTENED','HIDING','FOLLOWING','FLEEING','EVACUATED','WOUNDED','DOWN','DEAD'].includes(r[0])&&(r[1]===null||Number.isInteger(r[1])&&r[1]>=0&&r[1]<4)&&(r[2]===null||Number.isFinite(r[2])&&r[2]>=0&&r[2]<=86400))))return null;
   const rows=(list,keys)=>list.map(r=>unpack(r,keys));
-  return {squad:rows(p.s,actorKeys),enemies:rows(p.e,actorKeys),civilians:rows(p.c,actorKeys),pickups:rows(p.p,itemKeys),bullets:rows(p.b,itemKeys),thrown:rows(p.g,itemKeys),effects:rows(p.f,itemKeys),missionStage:p.stage,phaseHoldTime:p.hold,squadGrenades:p.grenades,finished:p.done,win:p.win,checkpoint:p.checkpoint,objectives:p.objectives||null,health:p.health||null,stats:p.stats.map(r=>({index:r[0],name:r[1],kills:r[2],assists:r.length===5?r[3]:0,alive:r[r.length-1]}))};
+  return {squad:rows(p.s,actorKeys),enemies:rows(p.e,actorKeys),civilians:rows(p.c,actorKeys),pickups:rows(p.p,itemKeys),bullets:rows(p.b,itemKeys),thrown:rows(p.g,itemKeys),effects:rows(p.f,itemKeys),missionStage:p.stage,phaseHoldTime:p.hold,squadGrenades:p.grenades,finished:p.done,win:p.win,checkpoint:p.checkpoint,objectives:p.objectives||null,health:p.health||null,civilianState:p.civilianState||null,stats:p.stats.map(r=>({index:r[0],name:r[1],kills:r[2],assists:r.length===5?r[3]:0,alive:r[r.length-1]}))};
  }
  function validObjectives(saved){
   try{
