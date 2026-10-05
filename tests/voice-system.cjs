@@ -2,6 +2,7 @@ const assert=require('assert');
 const voices=require('../voice-system.js');
 
 assert.equal(typeof voices.assetRequirements,'function','Voice asset manifest is missing');
+assert.equal(voices.volume,1,'Narration should default to 100% when no saved preference exists');
 assert.equal(voices.actionEvent('FLANK_LEFT'),'flankLeft');
 assert.equal(voices.actionEvent('RETREAT'),'retreat');
 assert.equal(voices.actionEvent('PRESSURE_SIDE'),'flankRight');
@@ -19,4 +20,4 @@ assert(files.some(f=>f.path==='audio/voices/briefings/wigan.mp3'));
 const text=voices.briefingText({title:'TEST',location:'HERE',year:1945,background:['Background.'],mission:'Do the thing',objectives:['ONE','TWO'],final:['GO.']});
 assert(text.includes('Background.')&&text.includes('Your mission: Do the thing')&&text.includes('Objectives: ONE. TWO.')&&text.includes('GO.'),'Briefing narration text is incomplete');
 
-console.log('PASS: voice dialogue mappings, briefing narration and required asset manifest');
+console.log('PASS: voice defaults, dialogue mappings, briefing narration and required asset manifest');
