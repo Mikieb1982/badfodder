@@ -1,7 +1,7 @@
 /* Offline application shell for If I Can Shoot Rabbits. */
 'use strict';
 
-const CACHE_NAME='if-i-can-shoot-rabbits-offline-v3';
+const CACHE_NAME='if-i-can-shoot-rabbits-offline-v4';
 const SHELL=['./','./index.html','./manifest.webmanifest'];
 const unavailable=()=>new Response('',{status:503,statusText:'Offline'});
 
@@ -66,36 +66,6 @@ async function cacheFirst(request){
   }catch(_){return unavailable()}
 }
 
-async function rangeResponse(request){
-  const cache=await caches.open(CACHE_NAME);
-  const cached=await cache.match(request,{ignoreSearch:true});
-  if(!cached){
-    // Preserve the browser's native range handling while online.
-    try{return await fetch(request)}catch(_){return unavailable()}
-  }
-  const range=request.headers.get('range')||'';
-  const match=/^bytes=(\d*)-(\d*)$/i.exec(range.trim());
-  if(!match)return cached;
-  const bytes=await cached.arrayBuffer(),size=bytes.byteLength;
-  let start,end;
-  if(!match[1]&&match[2]){
-    const suffix=Number(match[2]);
-    if(!Number.isFinite(suffix)||suffix<=0)return new Response(null,{status:416,headers:{'Content-Range':`bytes */${size}`}});
-    start=Math.max(0,size-suffix);end=size-1;
-  }else{
-    start=Number(match[1]);
-    end=match[2]?Math.min(Number(match[2]),size-1):size-1;
-  }
-  if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||start>=size||end<start){
-    return new Response(null,{status:416,headers:{'Content-Range':`bytes */${size}`}});
-  }
-  const headers=new Headers(cached.headers);
-  headers.set('Content-Range',`bytes ${start}-${end}/${size}`);
-  headers.set('Accept-Ranges','bytes');
-  headers.set('Content-Length',String(end-start+1));
-  return new Response(bytes.slice(start,end+1),{status:206,statusText:'Partial Content',headers});
-}
-
 async function staleWhileRevalidate(request){
   const cache=await caches.open(CACHE_NAME);
   const cached=await cache.match(request,{ignoreSearch:true});
@@ -115,12 +85,9 @@ self.addEventListener('fetch',event=>{
     event.respondWith(networkFirst(request));
     return;
   }
-  // Firefox and Safari request audio in byte ranges. Serve those ranges from the
-  // already-cached full file so installed/offline playback behaves like HTTP.
-  if(request.headers.has('range')){
-    event.respondWith(rangeResponse(request));
-    return;
-  }
+  // Media elements use browser-specific byte-range behaviour. Let the browser
+  // own those requests instead of manufacturing 206 responses in the worker.
+  if(request.headers.has('range'))return;
   if(url.pathname.includes('/static/')){
     event.respondWith(cacheFirst(request));
     return;
