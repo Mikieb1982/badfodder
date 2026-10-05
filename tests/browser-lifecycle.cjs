@@ -78,6 +78,29 @@ async function runLifecycle(providedBrowser, testInfo){
   await action();assert.equal((await p.evaluate(()=>window.__testGame.health()))[1][5],null,'Contextual action did not drop casualty');
   await p.evaluate(()=>window.__testGame.restart());
  }
+ async function assertTouchLayout(p,label){
+  const rects=await p.evaluate(()=>{
+   const names=['.hud-roster','#touchJoystick','.hud-mission',...Array.from(document.querySelectorAll('.touch-actions button'),b=>'#'+b.id)];
+   const out={};for(const name of names){const e=document.querySelector(name);if(!e||e.hidden||getComputedStyle(e).display==='none'||getComputedStyle(e).visibility==='hidden')continue;const r=e.getBoundingClientRect();if(r.width&&r.height)out[name]={x:r.x,y:r.y,right:r.right,bottom:r.bottom,w:r.width,h:r.height}}
+   const r=document.getElementById('game').getBoundingClientRect();return{out,canvas:{x:r.x,y:r.y,right:r.right,bottom:r.bottom}};
+  });
+  const controls=Object.keys(rects.out).filter(n=>n.startsWith('#touch'));
+  const overlap=(a,b)=>Math.min(a.right,b.right)-Math.max(a.x,b.x)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.y,b.y)>1;
+  for(const [i,name] of controls.entries()){
+   const r=rects.out[name];assert(r.w>=44&&r.h>=44,label+': small '+name);
+   assert(r.x>=rects.canvas.x-1&&r.y>=rects.canvas.y-1&&r.right<=rects.canvas.right+1&&r.bottom<=rects.canvas.bottom+1,label+': clipped '+name);
+   for(const other of ['.hud-roster','.hud-mission',...controls.slice(i+1)])assert(!overlap(r,rects.out[other]),label+': '+name+' overlaps '+other);
+  }
+  if(process.env.BADFODDER_SCREENSHOTS)await p.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS,'touch-layout-'+label+'.png')});
+ }
+ async function militaryLayout(p){
+  await p.evaluate(()=>{__testGame.prepareResidents();__testGame.downForRescue()});
+  await p.waitForFunction(()=>!document.getElementById('touchAid').hidden);
+  for(const size of [{width:915,height:412},{width:844,height:390},{width:667,height:375},{width:568,height:320}]){
+   await p.setViewportSize(size);await p.waitForTimeout(120);await assertTouchLayout(p,'military-'+size.width);
+  }
+  await p.setViewportSize({width:915,height:412});await p.evaluate(()=>__testGame.restart());
+ }
  async function civilianCycle(p,touch=false){
   await p.evaluate(()=>window.__testGame.prepareResidents());
   if(touch)await p.locator('#touchAction').dispatchEvent('pointerdown',{pointerId:72,pointerType:'touch'});else await p.keyboard.press('e');
@@ -152,7 +175,7 @@ async function runLifecycle(providedBrowser, testInfo){
  const originalZoom=await mobile.evaluate(()=>window.__testGame.state().zoom);
  await mobile.evaluate(()=>{const c=document.getElementById('game'),r=c.getBoundingClientRect(),capture=c.setPointerCapture;c.setPointerCapture=()=>{};const fire=(type,id,x)=>c.dispatchEvent(new PointerEvent(type,{pointerId:id,pointerType:'touch',clientX:r.left+x,clientY:r.top+100,bubbles:true,buttons:type==='pointerup'?0:1}));fire('pointerdown',901,200);fire('pointerdown',902,300);fire('pointermove',902,360);fire('pointerup',901,200);fire('pointerup',902,360);c.setPointerCapture=capture;});
  assert((await mobile.evaluate(()=>window.__testGame.state().zoom))>originalZoom,'Pinch did not change zoom');
- await mobile.evaluate(()=>{document.querySelector('.viewport').requestFullscreen=async()=>{throw new Error('Test denial')};});await mobile.locator('#touchFull').click();assert(await mobile.evaluate(()=>document.body.classList.contains('mobile-fullscreen-fallback')),'Fullscreen denial did not use fallback');await mobile.locator('#touchFull').click();
+ await mobile.evaluate(()=>{document.querySelector('.viewport').requestFullscreen=async()=>{throw new Error('Test denial')};});await mobile.locator('#touchFull').click();assert(await mobile.evaluate(()=>document.body.classList.contains('mobile-fullscreen-fallback')),'Fullscreen denial did not use fallback');await militaryLayout(mobile);await mobile.locator('#touchFull').click();
  const joy=await mobile.locator('#touchJoystick').boundingBox(),before=await mobile.evaluate(()=>window.__testGame.state().units[0]);
  if(browserName==='chromium'){const touch=await mobile.context().newCDPSession(mobile);await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:joy.x+joy.width*.5,y:joy.y+joy.height*.2}]});await mobile.waitForTimeout(500);await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});}else{
   // Firefox's touch context does not turn Playwright mouse presses into pointer events.
@@ -165,7 +188,7 @@ async function runLifecycle(providedBrowser, testInfo){
  const after=await mobile.evaluate(()=>window.__testGame.state().units[0]);assert(Math.hypot(before.x-after.x,before.y-after.y)>1,'Joystick did not move squad');await mobile.locator('#touchPause').click();await mobile.locator('#menuResume').click();if(process.env.BADFODDER_SCREENSHOTS)await mobile.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp','mobile-upgrade.png')});
  await mobile.evaluate(()=>window.__testGame.main());await mobile.locator('#menuMissionSelect').click();await mobile.locator('#menuHistoricalCable').click();await mobile.locator('#briefingBegin').click();await mobile.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen,{},{timeout:90000});
  assert(await mobile.locator('#touchShove').isVisible());assert(await mobile.locator('#touchDebris').isVisible());assert(await mobile.locator('#touchFire').isHidden());
- await mobile.evaluate(()=>window.__testGame.battle());await mobile.locator('#touchShove').tap();assert((await mobile.evaluate(()=>window.__testGame.state())).streetActors.some(a=>a.attackKind==='shove'),'Touch shove did not attack');await mobile.evaluate(()=>window.__testGame.battle());await mobile.locator('#touchDebris').tap();assert((await mobile.evaluate(()=>window.__testGame.state())).streetActors.some(a=>a.attackKind==='throw'),'Touch debris did not attack');if(process.env.BADFODDER_SCREENSHOTS)await mobile.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp','cable-street-mobile.png')});
+ await mobile.evaluate(()=>window.__testGame.battle());await assertTouchLayout(mobile,'cable-street');await mobile.locator('#touchShove').tap();assert((await mobile.evaluate(()=>window.__testGame.state())).streetActors.some(a=>a.attackKind==='shove'),'Touch shove did not attack');await mobile.evaluate(()=>window.__testGame.battle());await mobile.locator('#touchDebris').tap();assert((await mobile.evaluate(()=>window.__testGame.state())).streetActors.some(a=>a.attackKind==='throw'),'Touch debris did not attack');if(process.env.BADFODDER_SCREENSHOTS)await mobile.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp','cable-street-mobile.png')});
  await mobile.evaluate(()=>window.__testGame.main());await mobile.locator('#menuMissionSelect').click();await mobile.locator('#menuMissionWigan').click();await mobile.locator('#briefingBegin').click();await mobile.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen,{},{timeout:90000});assert.equal((await mobile.evaluate(()=>window.__testGame.state())).map,'wigan');await mobile.locator('#touchPause').tap();await mobile.locator('#menuResume').tap();await resultCycle(mobile,'wigan-mobile');
  const fallback=await newPage({viewport:{width:390,height:844},hasTouch:true});fallback.on('pageerror',e=>errors.push(e.message));await fallback.route('**/assets/characters/**',route=>route.abort());await fallback.goto(url,{waitUntil:'domcontentloaded'});assert(await fallback.evaluate(()=>matchMedia('(orientation:portrait)').matches));if(process.env.BADFODDER_SCREENSHOTS)await fallback.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp','portrait-landscape-required.png')});await fallback.setViewportSize({width:844,height:390});await fallback.locator('[data-presentation-skip]').click();await fallback.locator('#menuMissionSelect').click();await fallback.locator('#menuMissionBad').click();if(process.env.BADFODDER_SCREENSHOTS)await fallback.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp','portrait-mobile-briefing.png')});assert(await fallback.locator('#briefingBegin').isVisible());await fallback.locator('#briefingBegin').click();await fallback.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen,{},{timeout:90000});assert.equal((await fallback.evaluate(()=>window.__testGame.state())).faults,0,'Missing optional art must use the procedural costume fallback');await fallback.close();
  const failedAssets=await newPage({viewport:{width:1280,height:900}});

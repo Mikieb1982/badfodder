@@ -168,4 +168,52 @@ h1{font:800 27px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppe
 
 @media(pointer:coarse) and (orientation:landscape){.hud-name,.hud-state{grid-column:1}}
 
+/* Reserve the bottom row for selection. Actions and movement sit above it. */
+@media(pointer:coarse){
+  .viewport{--touch-roster-space:76px;--touch-cell:70px;--touch-row:54px;--touch-gap:8px}
+  .viewport .hud-roster{
+    bottom:calc(8px + env(safe-area-inset-bottom,0px));
+    width:min(610px,calc(100% - 24px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px)));
+    left:calc(50% + (env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))/2);
+  }
+  .viewport .hud-unit{min-height:44px}
+  .viewport #hudAll{min-height:44px}
+  .viewport .touch-actions{
+    display:grid;grid-template-columns:repeat(3,var(--touch-cell));grid-auto-rows:var(--touch-row);
+    gap:var(--touch-gap);align-items:stretch;
+    left:max(12px,env(safe-area-inset-left,0px));
+    bottom:calc(var(--touch-roster-space) + env(safe-area-inset-bottom,0px));
+  }
+  #touchFire,#touchGrenade,#touchGarrison,#touchRegroup,#touchAction,#touchDrop,#touchAid,#touchShove,#touchDebris{
+    width:100%;height:100%;min-width:0;min-height:48px;margin:0;padding:0 3px;
+    border-radius:12px;font-size:9px;letter-spacing:.02em;
+  }
+  #touchFire,#touchShove{order:0;font-size:12px;background:#39523ae8}
+  #touchGrenade,#touchDebris{order:1}
+  #touchGarrison{order:2}#touchRegroup{order:3}#touchAction{order:4}#touchAid{order:5}
+  .street-action #touchAction{order:2}.street-action #touchDrop{order:3}
+  .street-action #touchAction,.street-action #touchDrop{width:100%;height:100%;min-height:48px}
+  .touch-action[hidden]{display:none!important}
+  .viewport .touch-joystick{
+    right:max(12px,env(safe-area-inset-right,0px));
+    bottom:calc(var(--touch-roster-space) + env(safe-area-inset-bottom,0px));
+  }
+  #voiceCaption{bottom:calc(var(--touch-roster-space) + 118px + env(safe-area-inset-bottom,0px))!important;max-width:62%!important}
+}
+@media(pointer:coarse) and (max-width:600px){
+  .viewport{--touch-cell:64px}
+  .viewport .touch-actions{grid-template-columns:repeat(2,var(--touch-cell))}
+  .viewport .touch-joystick{width:96px;height:96px}
+  .viewport .hud-portrait{display:none}
+  .viewport .hud-unit{grid-template-columns:1fr}
+  .viewport .hud-name,.viewport .hud-health,.viewport .hud-state{grid-column:1}
+  #voiceCaption{bottom:calc(var(--touch-roster-space) + 172px + env(safe-area-inset-bottom,0px))!important}
+}
+@media(pointer:coarse) and (orientation:landscape) and (max-height:340px){
+  .viewport{--touch-cell:60px;--touch-row:48px;--touch-roster-space:68px;--touch-gap:6px}
+  .viewport .touch-actions{grid-template-columns:repeat(3,var(--touch-cell))}
+  .viewport .touch-joystick{width:90px;height:90px}
+  #voiceCaption{bottom:calc(var(--touch-roster-space) + 108px + env(safe-area-inset-bottom,0px))!important}
+}
+
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}

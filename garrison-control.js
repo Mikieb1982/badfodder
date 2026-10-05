@@ -97,7 +97,6 @@
     const b=root.document.createElement('button');
     b.id='touchGarrison';b.type='button';b.className='touch-action touch-gameplay';b.textContent='GARRISON';
     b.dataset.garrisonCommand='1';b.setAttribute('aria-pressed','false');b.setAttribute('aria-label','Garrison selected soldier');
-    b.style.width='70px';b.style.height='58px';b.style.fontSize='8px';b.style.padding='0 4px';b.style.marginBottom='2px';
     b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();toggleGarrison()});
     return b;
   }
@@ -105,7 +104,6 @@
     const b=root.document.createElement('button');
     b.id='touchRegroup';b.type='button';b.className='touch-action touch-gameplay';b.textContent='REGROUP';
     b.dataset.regroupCommand='1';b.setAttribute('aria-label','Regroup surviving squad members');
-    b.style.width='66px';b.style.height='54px';b.style.fontSize='8px';b.style.padding='0 4px';b.style.marginBottom='3px';
     b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();regroup()});
     return b;
   }

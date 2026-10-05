@@ -149,7 +149,7 @@
  function aidButton(){
   if(!root.document)return null;let button=root.document.getElementById('touchAid');if(button)return button;
   const actions=root.document.querySelector('.touch-actions');if(!actions)return null;
-  button=root.document.createElement('button');button.id='touchAid';button.type='button';button.className='touch-action touch-gameplay';button.hidden=true;button.style.width='66px';button.style.height='54px';button.style.fontSize='8px';button.style.padding='0 4px';button.setAttribute('aria-label','Contextual casualty action');button.addEventListener('pointerdown',event=>{event.preventDefault();event.stopPropagation();contextualAction();syncAidButton()});actions.appendChild(button);return button;
+  button=root.document.createElement('button');button.id='touchAid';button.type='button';button.className='touch-action touch-gameplay';button.hidden=true;button.setAttribute('aria-label','Contextual casualty action');button.addEventListener('pointerdown',event=>{event.preventDefault();event.stopPropagation();contextualAction();syncAidButton()});actions.appendChild(button);return button;
  }
  function syncAidButton(){const button=aidButton();if(!button)return;const label=contextualLabel();button.hidden=!label;if(label)button.textContent=label}
  function keyboard(event){
