@@ -11,7 +11,9 @@ assert(pad.includes("down(gp,7)")&&pad.includes("edge(gp,5)")&&pad.includes("edg
 assert(pad.includes("tap('h','KeyH')")&&pad.includes("tap('e','KeyE')"),'Garrison/action controller mappings missing');
 assert(install.includes('beforeinstallprompt')&&install.includes("serviceWorker.register('service-worker.js'"),'Install prompt or service worker registration missing');
 assert(sw.includes("addEventListener('install'")&&sw.includes("addEventListener('fetch'")&&sw.includes('offline-assets.json'),'Offline service worker contract missing');
+assert(sw.includes("request.headers.has('range')")&&sw.includes('Content-Range')&&sw.includes('status:206'),'Cached media byte-range support missing');
+assert(sw.includes("cache.match(request,{ignoreSearch:true})"),'Cache-busted media must resolve to the installed offline asset');
 assert(build.includes("stableRuntime=new Set(['service-worker.js'])"),'Service worker must remain at root scope');
 assert(build.includes("offline-assets.json"),'Offline production asset manifest missing');
 assert.equal(manifest.display,'standalone');assert.equal(manifest.start_url,'./');assert.equal(manifest.scope,'./');
-console.log('PASS: controller mappings, install prompt and offline PWA contract.');
+console.log('PASS: controller mappings, install prompt, offline PWA and cached media ranges.');
