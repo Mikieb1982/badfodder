@@ -7,7 +7,7 @@
   'use strict';
   const clamp=(n,a=0,b=1)=>Math.max(a,Math.min(b,Number(n)||0));
   const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
-  const MILITARY=['HOLD','PROBE','PRESSURE','MAJOR_PUSH','FLANK_LEFT','FLANK_RIGHT','REINFORCE','REGROUP','RETREAT','AMBUSH','CHANGE_APPROACH','DEFEND_OBJECTIVE','PATROL','DO_NOTHING'];
+  const MILITARY=['HOLD','PROBE','PRESSURE','MAJOR_PUSH','FLANK_LEFT','FLANK_RIGHT','REINFORCE','REGROUP','RETREAT','AMBUSH','CHANGE_APPROACH','DEFEND_OBJECTIVE','PATROL','OPTIONAL_RESCUE','SUPPLY_OPPORTUNITY','DO_NOTHING'];
   const CABLE=['PRESSURE_MAIN','PRESSURE_SIDE','PROBE_DEFENCE','DELAY_PRESSURE','ESCALATE_PRESSURE','SWITCH_PRESSURE','REGROUP','CROWD_EVENT','MATERIAL_OPPORTUNITY','CIVILIAN_EVENT','MOUNTED_PRESSURE','RECOVERY_WINDOW','DO_NOTHING'];
   const FIELDS=['aggression','caution','mobility','grenadeUse','retreatFrequency','casualtyRate','objectiveFocus'];
   function profile(source={}){
@@ -31,15 +31,16 @@
   }
   function create({mission,adapter,memory=profile(),random=Math.random,debug=false,storage=null}={}){
     const cable=mission==='cable-street',actions=cable?CABLE:MILITARY;
-    const state={time:0,tension:0,situation:'quiet',history:[],log:[],disabled:false,nextDecision:6,decisions:0};
-    const cooldowns=Object.create(null),events={shots:0,grenades:0,combat:0};
+    const state={time:0,tension:0,situation:'quiet',history:[],log:[],disabled:false,nextDecision:6,decisions:0,lastMeaningfulEvent:0,quietUntil:0};
+    const cooldowns=Object.create(null),events={shots:0,grenades:0,combat:0,meaningful:0};
     let nextSample=0,last=null,still=0,lastCombat=0,combatUntil=0,nextSave=30,lastDecision=-Infinity,recoveryUntil=0;
     function disable(){state.disabled=true;try{adapter.release?.()}catch{}}
     function guard(fn,fallback=false){if(state.disabled)return fallback;try{return fn()}catch{disable();return fallback}}
     function notify(type){return guard(()=>{
       if(type==='shot'){events.shots=Math.min(100,events.shots+1);events.combat=1}
       if(type==='grenade'){events.grenades=Math.min(8,events.grenades+1);events.combat=1}
-      if(type==='combat')events.combat=1;
+      if(type==='combat')events.combat=Math.min(40,events.combat+1);
+      if(type==='meaningful')events.meaningful=1;
     })}
     function sample(){
       const s=adapter.sample(state.time),dt=last?Math.max(.1,state.time-last.time):1;
@@ -48,7 +49,11 @@
       const losses=last?Math.max(0,last.enemies-s.enemies):0;
       const damage=last?Math.max(0,last.strength-s.strength):0;
       const objectiveChanged=!!last&&s.phase!==last.phase;
-      const progress=last?Math.max(0,s.progress-last.progress):0;
+      const progress=last?Math.max(0,s.progress-last.progress,(s.objectiveProgress||0)-(last.objectiveProgress||0)):0;
+      const rescueChanged=!!last&&(s.civiliansRescued!==last.civiliansRescued||s.civilianDown!==last.civilianDown);
+      if(events.meaningful||progress||objectiveChanged||rescueChanged||events.combat||s.combat)state.lastMeaningfulEvent=state.time;
+      if(objectiveChanged)state.quietUntil=state.time+5;
+      s.timeSinceMeaningfulEvent=state.time-state.lastMeaningfulEvent;s.combatIntensity=clamp((events.shots+events.combat)/24);
       if(events.combat||losses||damage||s.combat){lastCombat=state.time;combatUntil=state.time+6}
       const blend=(key,value)=>memory[key]=clamp(memory[key]*.92+clamp(value)*.08);
       blend('aggression',events.shots/12+(s.activity||0));
@@ -67,17 +72,17 @@
         if(!route){if(memory.routes.length>=8)memory.routes.shift();route={key:s.route.slice(0,48),weight:0};memory.routes.push(route)}
         route.weight=clamp(route.weight+dt*.25,0,12);repeated=route.weight>4;
       }
-      const target=clamp((s.pressure||0)*40+(state.time<combatUntil?20:0)+(1-s.strength)*25+damage*120+(s.climax?10:0),0,100);
+      const target=clamp((s.pressure||0)*40+(state.time<combatUntil?20:0)+(1-s.strength)*25+damage*120+(s.climax?10:0)+(s.combatIntensity||0)*15+(s.civilianDanger||0)*12,0,100);
       state.tension=clamp(state.tension*.7+target*.3,0,100);
-      const struggling=s.strength<.4||damage>.12||s.breach||s.confidence<.32;
-      const excessive=state.tension>78||(s.pressure||0)>.88;
+      const struggling=s.strength<.4||damage>.12||s.breach||s.confidence<.32||s.downed>0||s.suppression>.65||(s.ammo??1)<.15;
+      const excessive=state.tension>78||(s.pressure||0)>.88||(s.civilianDanger||0)>.7;
       const dominant=!struggling&&(losses>0||s.dominant||memory.aggression>.5)&&s.strength>.65;
-      const bored=state.time-lastCombat>16&&!progress&&!objectiveChanged;
+      const bored=state.time-lastCombat>16&&s.timeSinceMeaningfulEvent>16&&!progress&&!objectiveChanged;
       state.situation=struggling?'struggling':excessive?'overwhelmed':dominant?'dominant':still>10||repeated?'repeating':bored?'bored':state.time<combatUntil?'fight':'anticipation';
       s.repeated=repeated||still>10;s.struggling=struggling;s.excessive=excessive;s.dominant=dominant;s.bored=bored;
-      s.recovery=state.time<recoveryUntil;s.failedAttack=!!s.failedAttack;
+      s.recovery=state.time<recoveryUntil||state.time<state.quietUntil;s.failedAttack=!!s.failedAttack;
       if((damage>.12||objectiveChanged||losses>=2)&&state.time-lastDecision>=5)state.nextDecision=state.time;
-      events.shots=0;events.grenades=0;events.combat=0;
+      events.shots=0;events.grenades=0;events.combat=0;events.meaningful=0;
       last={...s,time:state.time};
       if(storage&&state.time>=nextSave){nextSave=state.time+30;try{storage.setItem('badfodder.director.profile.v1',JSON.stringify(memory))}catch{}}
       return s;
@@ -100,7 +105,8 @@
         REGROUP:recover||s.failedAttack?110:4,RETREAT:recover||s.failedAttack?75:2,
         AMBUSH:attack&&repeat?38:10,CHANGE_APPROACH:attack&&repeat?70:12,
         DEFEND_OBJECTIVE:attack&&s.objectiveFocus>.4?50:8,PATROL:attack&&s.bored?45:12,
-        DO_NOTHING:s.recovery?100:recover?15:2
+        OPTIONAL_RESCUE:s.civilianDown>0?100:0,SUPPLY_OPPORTUNITY:recover?60:s.bored?30:5,
+        DO_NOTHING:s.recovery?150:recover?35:s.civilianDanger>.5?25:8
       };
       // Persistent preferences gently bias choices; they never ban a player tactic.
       if(attack){if(cable)weights.SWITCH_PRESSURE+=memory.mobility*8;else{weights.AMBUSH+=memory.grenadeUse*10;weights.PROBE+=memory.caution*8}}
@@ -110,9 +116,9 @@
       const decision=choose(scores(s),state.history,random);if(!decision)return;
       if(adapter.execute(decision.action,s,state.time)===false)return;
       const action=decision.action;
-      const recovery=['REGROUP','RETREAT','RECOVERY_WINDOW','DELAY_PRESSURE'].includes(action);
+      const recovery=['REGROUP','RETREAT','RECOVERY_WINDOW','DELAY_PRESSURE','OPTIONAL_RESCUE','SUPPLY_OPPORTUNITY'].includes(action);
       if(recovery)recoveryUntil=state.time+12;
-      cooldowns[action]=state.time+(action==='DO_NOTHING'?5:/EVENT|OPPORTUNITY|MOUNTED/.test(action)?40:18);
+      cooldowns[action]=state.time+(action==='DO_NOTHING'?5:/EVENT|OPPORTUNITY|MOUNTED|RESCUE/.test(action)?40:18);
       state.history.push(action);if(state.history.length>6)state.history.shift();
       state.decisions++;lastDecision=state.time;
       if(debug){state.log.push({time:+state.time.toFixed(1),mission,tension:Math.round(state.tension),situation:state.situation,decision:action,confidence:+decision.confidence.toFixed(2)});if(state.log.length>32)state.log.shift()}
@@ -132,7 +138,7 @@
     return{state,memory,update,notify,guard,scores,disable};
   }
 
-  function createCommander({getEnemies,getSquad,getPhase,getZones,roads,scale=1,navigation,queuePath,blocked}={}){
+  function createCommander({getEnemies,getSquad,getPhase,getZones,roads,scale=1,navigation,queuePath,blocked,getContext=()=>({}),opportunities=null}={}){
     let clock=0,failedUntil=0;
     const groups=new Map(),routePoints=[],counts=new Map(),checkpointStates=new Map();
     for(const e of getEnemies()){
@@ -295,6 +301,7 @@
       maintainCheckpoint();
     }
     function valid(action){
+      if(['OPTIONAL_RESCUE','SUPPLY_OPPORTUNITY'].includes(action))return opportunities?.valid(action)||false;
       if(action==='DO_NOTHING')return true;
       const gs=liveGroups(),known=knowledge();
       if(!gs.length)return false;
@@ -308,6 +315,7 @@
     }
     function execute(action,s,time){
       clock=time;if(action==='DO_NOTHING')return true;
+      if(['OPTIONAL_RESCUE','SUPPLY_OPPORTUNITY'].includes(action))return opportunities?.execute(action)||false;
       const known=knowledge(),gs=liveGroups();
       if(!gs.length)return false;
       const focus=known||getZones()[getPhase().zone]||center(gs[0]);
@@ -349,7 +357,7 @@
       return true;
     }
     function sample(time){
-      clock=time;const squad=getSquad(),living=squad.filter(s=>s.alive),enemies=getEnemies(),alive=enemies.filter(e=>(e.alive&&!e.surrendered));
+      clock=time;const squad=getSquad(),living=squad.filter(s=>s.alive&&!s.downed),enemies=getEnemies(),alive=enemies.filter(e=>(e.alive&&!e.surrendered));
       for(const [id,g] of groups){const count=g.filter(e=>(e.alive&&!e.surrendered)).length;if(count<(counts.get(id)??g.length)&&count<=g.length/2)failedUntil=clock+14;counts.set(id,count)}
       const position=living.length?center(living):{x:0,y:0},phase=getPhase(),zone=getZones()[phase.zone];
       const known=knowledge(),near=alive.filter(e=>dist(e,position)<scale*180);
@@ -357,7 +365,7 @@
         phase:phase.index,progress:phase.index,objective:phase.objective||null,enemies:alive.length,pressure:clamp(near.filter(e=>e.alert).length/7),combat:near.some(e=>e.fireTimer>0),
         threatDistance:known?dist(position,known):0,objectiveFocus:zone?clamp(1-dist(position,zone)/(scale*200)):0,climax:phase.index>=2,
         route:Math.floor(position.x/(scale*100))+':'+Math.floor(position.y/(scale*100)),
-        failedAttack:clock<failedUntil};
+        failedAttack:clock<failedUntil,...getContext()};
     }
     function control(e,dt,followPath){
       const order=e.commandOrder;if(!order)return null;

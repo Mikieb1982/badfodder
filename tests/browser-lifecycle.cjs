@@ -13,7 +13,7 @@ fail:()=>{squad.forEach(s=>s.alive=false);checkFailure()},complete:completeCurre
 identity:()=>missionIdentity, phase:()=>missionStage,
 objectives:()=>missionObjectivesRuntime.snapshot(),
 characters:()=>squad.map(s=>({id:s.id,name:s.name,occupation:s.occupation,trait:s.trait,healthState:s.healthState,experience:s.experience,voiceSet:s.voiceSet,relationships:s.relationships})),
-enemyState:()=>enemyBehaviour.snapshot(),surrender:()=>{const e=enemies[1];Object.assign(e,{alive:true,hp:1,surrendered:false,x:squad[1].x,y:squad[1].y,combatRole:'RIFLEMAN'});squad.forEach(s=>{s.x=e.x+5;s.y=e.y});for(let i=0;i<4;i++){e.suppression=.95;enemyBehaviour.fixedUpdate(.5)}return{alive:e.alive,surrendered:e.surrendered};},
+opportunity:()=>{civilianRuntime.damage(civilians[0],3);return opportunitiesRuntime.execute('OPTIONAL_RESCUE')},opportunityState:()=>missionObjectivesRuntime.manager.get('director-rescue-0')?.status,enemyState:()=>enemyBehaviour.snapshot(),surrender:()=>{const e=enemies[1];Object.assign(e,{alive:true,hp:1,surrendered:false,x:squad[1].x,y:squad[1].y,combatRole:'RIFLEMAN'});squad.forEach(s=>{s.x=e.x+5;s.y=e.y});for(let i=0;i<4;i++){e.suppression=.95;enemyBehaviour.fixedUpdate(.5)}return{alive:e.alive,surrendered:e.surrendered};},
 tactics:()=>({state:tacticsRuntime.snapshot(),movement:BadFodderCombatTactics.movementScale(squad[0]),spread:BadFodderCombatTactics.spreadScale(squad[0])}),
 pressure:()=>{enemies.forEach(e=>e.alive=false);adaptiveDirector=null;clearSquadFormation();squad.forEach(s=>{s.path=null;s.target=null});squad[0].coverMask=0;squad[0].suppression=.85;updateHud(true)},
 building:()=>({state:buildingRuntime.snapshot(),grenades:squadGrenades}),
@@ -129,6 +129,11 @@ async function runLifecycle(providedBrowser, testInfo){
   await p.evaluate(()=>__testGame.restart());
  }
  async function civilianCycle(p,touch=false){
+ await p.evaluate(()=>__testGame.prepareResidents());assert(await p.evaluate(()=>__testGame.opportunity()));
+ if(touch)await p.locator('#touchAction').dispatchEvent('pointerdown',{pointerId:79,pointerType:'touch'});else await p.keyboard.press('e');
+ await p.waitForFunction(()=>__testGame.opportunityState()==='COMPLETED');
+ await p.evaluate(()=>__testGame.restart());
+
   await p.evaluate(()=>window.__testGame.prepareResidents());
   if(touch)await p.locator('#touchAction').dispatchEvent('pointerdown',{pointerId:72,pointerType:'touch'});else await p.keyboard.press('e');
   assert.equal((await p.evaluate(()=>window.__testGame.civilians())).rows[0][1],1,'Resident did not follow selected helper');

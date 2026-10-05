@@ -574,6 +574,7 @@
 <script src="player-commands.js"></script>
 <script src="mission-launch.js?v=20261002-cable-foundation-2"></script>
 <script src="historical-missions.js?v=20261003-tactical-1"></script>
+<script src="adaptive-opportunities.js"></script>
 <script src="adaptive-director.js?v=20261004-1"></script>
 <script src="voice-system.js?v=20261005-1"></script>
 <script src="mission-assets.js"></script>
@@ -714,7 +715,7 @@
   let lastHudStats='',lastRosterSignature='',hudNoticeUntil=0;
   let runtimeFaultCount=0,runtimeFaultAt=0,runtimeSafeStop=false,runtimeFaultTotal=0;
   let missionController=null,missionInteractionLayer=null,missionDirector=null,missionCrowd=null;
-  let missionObjectivesRuntime=null,civilianRuntime=null,buildingRuntime=null,tacticsRuntime=null,enemyBehaviour=null;
+  let missionObjectivesRuntime=null,civilianRuntime=null,buildingRuntime=null,tacticsRuntime=null,enemyBehaviour=null,opportunitiesRuntime=null;
   function currentObjectivePhase(){
     const objective=missionObjectivesRuntime?.manager.current();
     return objective?{...objective,type:objective.meta?.legacy?objective.legacyType:objective.type}:(activeMission().phases||[])[missionStage];
@@ -746,7 +747,7 @@
       const adapter=missionController?adaptive.createCableAdapter({controller:missionController,director:missionDirector,interactions:missionInteractionLayer,crowd:missionCrowd,scale:SCALE}):
         (enemyCommander=adaptive.createCommander({getEnemies:()=>enemies,getSquad:()=>squad,
           getPhase:()=>({...currentObjectivePhase(),index:missionStage,objective:missionObjectivesRuntime?.manager.directorContext().objective}),getZones:()=>zones,
-          roads,scale:SCALE,navigation,queuePath:queueEnemyPath,blocked:obstacleAt}));
+          roads,scale:SCALE,navigation,queuePath:queueEnemyPath,blocked:obstacleAt,getContext:()=>opportunitiesRuntime?.context()||{},opportunities:opportunitiesRuntime}));
       adaptiveDirector=adaptive.create({mission:MAP_DATA.key,adapter,memory:adaptiveMemory,storage,
         random:gameplayRng.random,debug:new URLSearchParams(location.search).get('directorDebug')==='1'});
       if(new URLSearchParams(location.search).get('directorDebug')==='1')window.BadFodderDirectorLog=adaptiveDirector.state.log;
@@ -1505,7 +1506,7 @@
       const rally={x:squad[0].x,y:squad[0].y,r:S(65)};
       civilianRuntime=window.BadFodderCivilians.create({getCivilians:()=>civilians,getSquad:()=>squad,getEnemies:()=>enemies,getNoise:()=>noise,
         zones:[rally],scale:S(1),move:moveEntity,path:assignPath,follow:followPath,face:updateFacing,
-        onEvent:(event)=>{if(event==='evacuated'){const n=civilianRuntime.counts().evacuated;setStatus(n+' civilians evacuated.');if(n>=1)missionObjectivesRuntime.signal('evacuate-residents');}}});
+        onEvent:(event)=>{runAdaptive(()=>adaptiveDirector.notify('meaningful'));if(event==='evacuated'){const n=civilianRuntime.counts().evacuated;setStatus(n+' civilians evacuated.');if(n>=1)missionObjectivesRuntime.signal('evacuate-residents');}}});
       missionObjectivesRuntime.manager.add({id:'evacuate-residents',type:'EVACUATE',optional:true,priority:-10,
         title:'Guide residents to safety',text:'Optional: gather residents with E / ACTION and guide them to the rally point.',marker:rally});
       missionObjectivesRuntime.manager.activate('evacuate-residents');
@@ -1519,7 +1520,9 @@
         }});
       for(const site of buildingRuntime.sites)site.geometry.interactive=true;
     }
+    opportunitiesRuntime=missionController?null:window.BadFodderOpportunities.create({getCivilians:()=>civilians,getPickups:()=>pickups,getSquad:()=>squad,getObjectives:()=>missionObjectivesRuntime,scale:SCALE,status:setStatus});
     initializeAdaptiveDirector();
+    missionObjectivesRuntime.manager.onChange(event=>{if(['complete','activate','discover','add'].includes(event.action))runAdaptive(()=>adaptiveDirector.notify('meaningful'))});
     finished=false;win=false;paused=false;mapOpen=false;selection='all';zoom=preferredZoom;
     releaseAllFireInputs();
     hudNoticeUntil=0;hudNotice?.classList.remove('show');
@@ -3785,6 +3788,7 @@
     updateEnemies(dt);
     updateCivilians(dt);
     updateProjectiles(dt);
+    opportunitiesRuntime?.fixedUpdate(dt);
     squad.forEach(ent=>art.animate(ent,dt));
     enemies.forEach(ent=>art.animate(ent,dt));
     civilians.forEach(ent=>art.animate(ent,dt));
