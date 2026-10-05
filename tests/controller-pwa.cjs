@@ -8,8 +8,8 @@ assert(input.includes("load('controller-support.js'")&&input.includes("load('ins
 assert(pad.includes('navigator.getGamepads'),'Gamepad API support missing');
 assert(pad.includes("pad.axes[0]")&&pad.includes("pad.axes[2]")||pad.includes("gp.axes[0]")&&pad.includes("gp.axes[2]"),'Dual-stick controller mapping missing');
 assert(pad.includes("down(gp,7)")&&pad.includes("edge(gp,5)")&&pad.includes("edge(gp,9)"),'Fire, grenade and pause controller mappings missing');
-assert(pad.includes("tap('h','KeyH')")&&pad.includes("tap('e','KeyE')"),'Garrison/action controller mappings missing');
-assert(pad.includes('CONTROLLER')&&pad.includes('A/Cross')&&pad.includes('RT/R2'),'Controller help must be visible in the game menu');
+assert(pad.includes("tap('h','KeyH')")&&pad.includes("tap('e','KeyE')")&&pad.includes("tap('r','KeyR')"),'Garrison/action/regroup controller mappings missing');
+assert(pad.includes('D-pad down: regroup')&&pad.includes('CONTROLLER')&&pad.includes('A/Cross')&&pad.includes('RT/R2'),'Controller help must expose core squad controls');
 assert(install.includes('beforeinstallprompt')&&install.includes("serviceWorker.register('service-worker.js'"),'Install prompt or service worker registration missing');
 assert(sw.includes("addEventListener('install'")&&sw.includes("addEventListener('fetch'")&&sw.includes('offline-assets.json'),'Offline service worker contract missing');
 assert(sw.includes("if(request.headers.has('range'))return"),'Media byte ranges must remain browser-native for Firefox/Safari compatibility');
@@ -18,4 +18,4 @@ assert(sw.includes("status:503")&&!sw.includes('Response.error()'),'Offline fail
 assert(build.includes("stableRuntime=new Set(['service-worker.js'])"),'Service worker must remain at root scope');
 assert(build.includes("offline-assets.json"),'Offline production asset manifest missing');
 assert.equal(manifest.display,'standalone');assert.equal(manifest.start_url,'./');assert.equal(manifest.scope,'./');
-console.log('PASS: controller mappings, in-game help, install prompt, offline PWA and native media ranges.');
+console.log('PASS: controller mappings, regroup help, install prompt, offline PWA and native media ranges.');
