@@ -1,7 +1,7 @@
-/* Single-soldier garrison gameplay command for Bad Fodder. */
+/* Single-soldier garrison and squad regroup gameplay commands. */
 (function(root){
   'use strict';
-  const RANGE=300,FIRE_INTERVAL=.18,KEY='h';
+  const RANGE=300,FIRE_INTERVAL=.18,KEY='h',REGROUP_KEY='r';
   let runtimeGetSquad=null,runtimeGetEnemies=null;
 
   function liveSquad(){try{return typeof runtimeGetSquad==='function'?(runtimeGetSquad()||[]):[]}catch(_){return[]}}
@@ -61,6 +61,19 @@
     if(changed){syncButtons();setNotice('Garrison released: movement order received.')}
     return changed;
   }
+  function regroup(){
+    if(typeof root.setSelection!=='function'||typeof root.setMoveTargets!=='function'){setNotice('Regroup unavailable.');return false}
+    const selected=typeof root.selectedUnits==='function'?(root.selectedUnits()||[]).filter(s=>s?.alive):[];
+    const preferred=selected[0]||null;
+    root.setSelection('all');
+    const units=typeof root.selectedUnits==='function'?(root.selectedUnits()||[]).filter(s=>s?.alive):liveSquad().filter(s=>s?.alive);
+    if(!units.length)return false;
+    const anchor=preferred&&units.includes(preferred)?preferred:units[0];
+    if(root.BadFodderCommands?.mode!=='client')for(const unit of units)if(unit?.manualGarrison)release(unit);
+    root.setMoveTargets({x:anchor.x,y:anchor.y,regroup:true});
+    syncButtons();setNotice(units.length===1?'Selected survivor ready.':'Squad regrouping.');
+    return true;
+  }
   function toggleGarrison(chosen=null){
     if(!chosen&&root.BadFodderCommands?.mode!=='local'&&root.BadFodderCoop?.garrison)return root.BadFodderCoop.garrison();
     if(!firearmsAllowed())return false;
@@ -87,11 +100,20 @@
     b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();toggleGarrison()});
     return b;
   }
+  function makeRegroupButton(){
+    const b=root.document.createElement('button');
+    b.id='touchRegroup';b.type='button';b.className='touch-action touch-gameplay';b.textContent='REGROUP';
+    b.dataset.regroupCommand='1';b.setAttribute('aria-label','Regroup surviving squad members');
+    b.style.width='66px';b.style.height='54px';b.style.fontSize='8px';b.style.padding='0 4px';b.style.marginBottom='3px';
+    b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();regroup()});
+    return b;
+  }
   function installButtons(){
     if(!root.document)return;
     const oldTop=root.document.getElementById('hudGarrison');if(oldTop)oldTop.remove();
     const actions=root.document.querySelector('.touch-actions');
     if(actions&&!root.document.getElementById('touchGarrison'))actions.appendChild(makeTouchButton());
+    if(actions&&!root.document.getElementById('touchRegroup'))actions.appendChild(makeRegroupButton());
     if(!root.__garrisonButtonSync){
       root.__garrisonButtonSync=true;root.document.addEventListener('click',()=>setTimeout(syncButtons,0),true);setInterval(syncButtons,350);
     }
@@ -100,17 +122,19 @@
   function installKeyboard(){
     if(root.__garrisonKeyboard||!root.document)return;root.__garrisonKeyboard=true;
     root.addEventListener('keydown',e=>{
-      if(e.repeat||String(e.key||'').toLowerCase()!==KEY)return;
+      if(e.repeat)return;
+      const key=String(e.key||'').toLowerCase();
+      if(key!==KEY&&key!==REGROUP_KEY)return;
       const target=e.target,tag=target?.tagName?.toLowerCase();
       if(tag==='input'||tag==='textarea'||tag==='select'||target?.isContentEditable)return;
-      if(!firearmsAllowed())return;e.preventDefault();toggleGarrison();
+      e.preventDefault();if(key===KEY){if(firearmsAllowed())toggleGarrison()}else regroup();
     });
   }
   function installMovementRelease(){
     if(root.__garrisonMovementRelease||!root.document)return;root.__garrisonMovementRelease=true;
     root.document.addEventListener('pointerdown',e=>{
       const target=e.target;
-      if(target?.closest?.('[data-garrison-command]'))return;
+      if(target?.closest?.('[data-garrison-command],[data-regroup-command]'))return;
       const canvas=target?.id==='game'||target?.tagName?.toLowerCase()==='canvas';
       const joystick=target?.id==='touchJoystick'||target?.closest?.('#touchJoystick');
       if((canvas&&e.button===0)||joystick)releaseForMovement();
@@ -218,7 +242,7 @@
   }
   function install(){installButtons();installKeyboard();installMovementRelease();installCheckpointLock();patchArt();patchAdaptive()}
 
-  root.BadFodderGarrison={toggleGarrison,release,releaseForMovement,selectedOne,lockCheckpointGarrisons,drawPersonalSandbags,patchArt,patchAdaptive,install};
+  root.BadFodderGarrison={toggleGarrison,regroup,release,releaseForMovement,selectedOne,selectedForMovement,lockCheckpointGarrisons,drawPersonalSandbags,patchArt,patchAdaptive,install};
   chainProperty('BadFodderArt',patchArt);chainProperty('BadFodderAdaptive',patchAdaptive);
   if(root.document){if(root.document.readyState==='loading')root.document.addEventListener('DOMContentLoaded',install,{once:true});else install()}
 })(typeof window!=='undefined'?window:globalThis);
