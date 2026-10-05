@@ -18,11 +18,13 @@ function setup(saved,savedVolume,session={}){
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
 (async()=>{
-  const skew=setup();skew.event('pointerdown');await settle();skew.step(-.01);assert.equal(skew.audio.volume,0,'Older frame timestamp creates negative volume');skew.step(1200.01);assert.equal(skew.audio.volume,.22);
+  const skew=setup();skew.event('pointerdown');await settle();skew.step(-.01);assert.equal(skew.audio.volume,0,'Older frame timestamp creates negative volume');skew.step(1200.01);assert.equal(skew.audio.volume,.04);
   const t=setup();assert.equal(t.appended,1);assert(t.audio.loop);assert.equal(t.audio.volume,0);assert.equal(t.plays,0);
   assert.equal(t.api.source,'assets/audio/bad_fodder.mp3','Normal homepage load keeps the title music');
-  assert.equal(t.api.volume,.22,'No saved slider setting uses the intended default');
+  assert.equal(t.api.volume,.04,'No saved slider setting uses the quieter four percent default');
+  assert.equal(t.storage.get('badfodder.music.mix.v2'),'1','New quieter mix migration is recorded');
   assert.equal(setup(undefined,'0').api.volume,0,'A saved zero volume stays zero');
+  assert.equal(setup(undefined,'.22').api.volume,.04,'Legacy louder music is migrated down to four percent');
 
   const mission=setup(undefined,undefined,{'badfodder.launch.autostart.v1':'1'});
   await settle();
@@ -37,11 +39,11 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   assert.equal(cable.api.source,'assets/audio/cable_street.mp3','Cable Street keeps its dedicated music');
 
   t.block(true);t.event('pointerdown');await settle();assert.equal(t.button.textContent,'MUSIC: ON');assert(t.audio.paused);
-  t.block(false);t.event('keydown');await settle();t.step(600);assert.equal(t.audio.volume,.11);t.step(600);assert.equal(t.audio.volume,.22);
+  t.block(false);t.event('keydown');await settle();t.step(600);assert.equal(t.audio.volume,.02);t.step(600);assert.equal(t.audio.volume,.04);
   const plays=t.plays;t.event('pointerdown');await settle();assert.equal(t.plays,plays,'Gestures must not restart a playing track');
   t.click();t.step(350);assert.equal(t.audio.volume,0);assert(t.audio.muted);assert.equal(t.storage.get('badfodder.music.v1'),'0');
   const off=setup(t.storage.get('badfodder.music.v1'));off.event('pointerdown');await settle();assert.equal(off.plays,0);assert.equal(off.button.textContent,'MUSIC: OFF');
-  t.click();t.step(500);assert.equal(t.audio.volume,.22);assert(!t.audio.muted);
+  t.click();t.step(500);assert.equal(t.audio.volume,.04);assert(!t.audio.muted);
   t.document.hidden=true;t.event('visibilitychange');assert(t.audio.paused);
   t.document.hidden=false;t.event('visibilitychange');await settle();assert(!t.audio.paused);
   t.error();assert.equal(t.button.textContent,'MUSIC: RETRY');t.click();await settle();assert(t.audio.src.startsWith('assets/audio/bad_fodder.mp3?v='));assert.equal(t.button.textContent,'MUSIC: ON');
@@ -53,5 +55,5 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   assert.equal(switcher.api.source,'assets/audio/bad_fodder.mp3');
 
   const race=setup();race.event('pointerdown');race.api.setEnabled(false);await settle();race.step(1200);assert(race.audio.muted);assert.equal(race.audio.volume,0,'An in-flight play must respect mute');
-  console.log('PASS: title/mission/Cable Street routing, mission autostart, runtime switching, gesture unlock/retry, fades, saved mute and visibility handling.');
+  console.log('PASS: quiet title/mission/Cable Street mix, routing, mission autostart, runtime switching, gesture unlock/retry, fades, saved mute and visibility handling.');
 })().catch(error=>{console.error(error);process.exitCode=1});
