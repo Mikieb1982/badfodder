@@ -1,4 +1,4 @@
-name: Deploy Bad Fodder to Firebase
+name: Deploy If I Can Shoot Rabbits to Firebase
 
 on:
   workflow_run:
@@ -39,6 +39,14 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22'
+
+      - name: Provide Firebase emulator Java runtime
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends openjdk-21-jre-headless
+          echo "JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64" >> "$GITHUB_ENV"
+          echo "/usr/lib/jvm/java-21-openjdk-amd64/bin" >> "$GITHUB_PATH"
 
       - run: npm ci --ignore-scripts
       - name: Verify manual deployment commit
