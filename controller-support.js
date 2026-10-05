@@ -26,7 +26,16 @@ function menuInput(gp){releaseMove();hold('f',false,'KeyF');if(edge(gp,12))focus
 function gameplayInput(gp){move(gp);aim(gp);if(edge(gp,0))tap('e','KeyE');if(edge(gp,1))tap('x','KeyX');if(edge(gp,2))click('stopBtn');if(edge(gp,3))tap('h','KeyH');if(edge(gp,5))tap('g','KeyG');if(edge(gp,8))click('touchMap')||click('mapBtn');if(edge(gp,9))click('touchPause')||click('pauseBtn');if(edge(gp,12))tap('a','KeyA');if(edge(gp,14))cycle(-1);if(edge(gp,15))cycle(1);hold('f',down(gp,7),'KeyF')}
 function reset(){releaseMove();for(const k of [...held])hold(k,false,k==='f'?'KeyF':k);previous=[]}
 function loop(){const gp=pad();if(!gp){reset();requestAnimationFrame(loop);return}if(menuOpen())menuInput(gp);else gameplayInput(gp);requestAnimationFrame(loop)}
-function install(){if(!navigator.getGamepads)return;root.addEventListener('gamepadconnected',e=>{padIndex=e.gamepad.index;previous=[];notice('Controller connected: '+(e.gamepad.id||'gamepad'))});root.addEventListener('gamepaddisconnected',e=>{if(e.gamepad.index===padIndex){padIndex=-1;reset();notice('Controller disconnected.')}});root.addEventListener('blur',reset);document.addEventListener('visibilitychange',()=>{if(document.hidden)reset()});requestAnimationFrame(loop)}
+function installLegend(){
+ const panel=document.querySelector('[data-view="controls"]');const dl=panel?.querySelector('dl');
+ if(dl&&!document.getElementById('controllerControlHelp')){
+  const dt=document.createElement('dt');dt.id='controllerControlHelp';dt.textContent='CONTROLLER';
+  const dd=document.createElement('dd');dd.textContent='Left stick: move · Right stick: aim · RT/R2: fire or shove · RB/R1: grenade/throw · A/Cross: action · B/Circle: cancel/drop · Y/Triangle: garrison · X/Square: stop · D-pad: squad · View/Create: map · Start/Options: pause.';
+  dl.append(dt,dd);
+ }
+ const hint=document.querySelector('#menuScreen .menu-hint');if(hint&&!/CONTROLLER/.test(hint.textContent||''))hint.textContent=(hint.textContent||'')+' · CONTROLLER';
+}
+function install(){if(!navigator.getGamepads)return;installLegend();root.addEventListener('gamepadconnected',e=>{padIndex=e.gamepad.index;previous=[];notice('Controller connected: '+(e.gamepad.id||'gamepad'))});root.addEventListener('gamepaddisconnected',e=>{if(e.gamepad.index===padIndex){padIndex=-1;reset();notice('Controller disconnected.')}});root.addEventListener('blur',reset);document.addEventListener('visibilitychange',()=>{if(document.hidden)reset()});requestAnimationFrame(loop)}
 root.BadFodderController={bindJoystick,reset,connected:()=>!!pad()};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })(window);
