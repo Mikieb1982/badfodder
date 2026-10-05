@@ -27,14 +27,24 @@ function sourceForMission(mission){
 let source=sourceForBoot();
 const KEY='badfodder.music.v1';
 const VOLUME_KEY='badfodder.music.volume.v1';
-const DEFAULT_VOLUME=.22;
+const MIX_VERSION_KEY='badfodder.music.mix.v2';
+const DEFAULT_VOLUME=.04;
 let enabled=true;
 let volume=DEFAULT_VOLUME;
 try{
-  const saved=(typeof BadFodderStorage!=='undefined'?BadFodderStorage.local:localStorage).getItem(KEY);
+  const store=typeof BadFodderStorage!=='undefined'?BadFodderStorage.local:localStorage;
+  const saved=store.getItem(KEY);
   if(saved!==null)enabled=saved!=='0';
-  const savedVolume=(typeof BadFodderStorage!=='undefined'?BadFodderStorage.local:localStorage).getItem(VOLUME_KEY);
-  if(savedVolume!==null&&Number.isFinite(Number(savedVolume)))volume=Math.max(0,Math.min(1,Number(savedVolume)));
+  const savedVolume=store.getItem(VOLUME_KEY);
+  const parsed=savedVolume!==null?Number(savedVolume):NaN;
+  if(store.getItem(MIX_VERSION_KEY)==='1'){
+    if(Number.isFinite(parsed))volume=Math.max(0,Math.min(1,parsed));
+  }else{
+    // One-time rebalance: preserve quieter choices, but bring legacy louder mixes down to 4%.
+    if(Number.isFinite(parsed))volume=Math.max(0,Math.min(DEFAULT_VOLUME,parsed));
+    store.setItem(VOLUME_KEY,String(volume));
+    store.setItem(MIX_VERSION_KEY,'1');
+  }
 }catch(e){}
 const audio=document.createElement('audio');
 audio.src=source;
@@ -119,7 +129,11 @@ function setVolume(value){
   const next=Math.max(0,Math.min(1,Number(value)));
   if(!Number.isFinite(next))return;
   volume=next;
-  try{(typeof BadFodderStorage!=='undefined'?BadFodderStorage.local:localStorage).setItem(VOLUME_KEY,String(volume))}catch(e){}
+  try{
+    const store=typeof BadFodderStorage!=='undefined'?BadFodderStorage.local:localStorage;
+    store.setItem(VOLUME_KEY,String(volume));
+    store.setItem(MIX_VERSION_KEY,'1');
+  }catch(e){}
   if(enabled&&started&&!audio.paused&&!loadError){
     audio.muted=false;
     fadeTo(volume,120);
