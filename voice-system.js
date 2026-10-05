@@ -191,7 +191,7 @@
     const key=req.team+':'+req.event+':'+(req.speaker?.name||'');
     const t=now(),repeat=req.event==='underFire'?5000:req.event==='spotted'||req.event==='contact'?7000:2600;
     if(req.team!=='narrator'&&t-(lastEvent.get(key)||0)<repeat)return false;
-    lastEvent.set(key,t;
+    lastEvent.set(key,t);
     if(req.team==='narrator'){stopAll(false);queue=[req];pump();return true}
     if(current?.req?.team==='narrator')return false;
     queue.push(req);queue.sort((a,b)=>b.priority-a.priority);if(queue.length>8)queue.length=8;pump();return true;
