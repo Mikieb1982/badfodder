@@ -1,27 +1,28 @@
 'use strict';
 // Two real browsers + native DataChannels; Firebase REST is mocked locally, never billed.
 const assert=require('node:assert/strict'),fs=require('node:fs'),http=require('node:http'),path=require('node:path');
-const {chromium}=require(process.env.BADFODDER_PLAYWRIGHT||'playwright');
+const browsers=require(process.env.BADFODDER_PLAYWRIGHT||'playwright');
+const browserName=process.env.BADFODDER_BROWSER||'chromium';
 const root=path.resolve(__dirname,'..',process.env.BADFODDER_TEST_DIST==='1'?'dist':'.');
 const injection=`const commandResults={};const coopExecute=BadFodderCoopBridge.execute;BadFodderCoopBridge.execute=c=>{const result=coopExecute(c);if(result)commandResults[c.type]=(commandResults[c.type]||0)+1;return result;};window.__coopTest={
  state:()=>({started,paused,menuOpen,finished,win,faults:runtimeFaultCount,stage:missionStage,hp:squad.map(s=>s.hp),units:squad.map(s=>({x:s.x,y:s.y,alive:s.alive,garrison:!!s.manualGarrison})),grenades:squadGrenades,bullets:bullets.length,director:!!adaptiveDirector,checkpoint:coopCheckpoint,commandResults,stats:BadFodderMissionStats.snapshot()}),
  target:(id)=>{const s=squad[id];for(const [dx,dy] of [[60,0],[-60,0],[0,60],[0,-60]])if(routeClear(s.x,s.y,s.x+dx,s.y+dy,NAV_RADIUS))return{x:s.x+dx,y:s.y+dy};throw Error('No open target')},
  death:(id)=>{squad[id].damageGrace=0;applyDamage(squad[id],100,squad[id].x,squad[id].y)},
  kill:()=>{const e=enemies.find(e=>e.alive);applyDamage(e,100,e.x,e.y,2);BadFodderMissionStats.tick()},
- phase:()=>{missionStage=1;phaseHoldTime=1;enemyCommander.checkpointState().started=true;},complete:completeCurrentMission,fail:()=>{squad.forEach(s=>s.alive=false);checkFailure()},
+ phase:()=>{missionObjectivesRuntime.syncPhase(1);missionStage=1;phaseHoldTime=1;enemyCommander.checkpointState().started=true;},complete:completeCurrentMission,fail:()=>{squad.forEach(s=>s.alive=false);checkFailure()},
  select:setSelection,localMove:p=>setMoveTargets(p),fire:p=>squadFireAt(p.x,p.y),grenade:p=>throwGrenade(p.x,p.y)
 };`;
 const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.webp':'image/webp','.png':'image/png','.mp3':'audio/mpeg'};
 const server=http.createServer((req,res)=>{try{const name=decodeURIComponent(new URL(req.url,'http://local').pathname),file=path.join(root,name==='/'?'index.html':name);if(!file.startsWith(root+path.sep))throw Error();let data=fs.readFileSync(file);if(file.endsWith('index.html'))data=Buffer.from(data.toString().replace('  // BOOT_MISSION:',injection+'\n  // BOOT_MISSION:'));res.setHeader('Content-Type',types[path.extname(file)]||'application/octet-stream');res.end(data);}catch{res.writeHead(404);res.end();}});
 (async()=>{
  await new Promise(r=>server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+server.address().port;
- const browser=await chromium.launch({headless:true,executablePath:process.env.BADFODDER_CHROMIUM,args:['--no-sandbox','--disable-dev-shm-usage','--allow-loopback-in-peer-connection']});
+ const browser=await browsers[browserName].launch({headless:true,...(browserName==='chromium'?{executablePath:process.env.BADFODDER_CHROMIUM,args:['--no-sandbox','--disable-dev-shm-usage','--allow-loopback-in-peer-connection']}:{} )});
  const contexts=[],logs=[];
  try{
  for(const index of [0,1]){console.log('Checking native co-op mission',index);
   const errors=[],pages=[],rooms=new Map();
   for(const mobile of [false,true]){
-   const context=await browser.newContext(mobile?{viewport:{width:900,height:500},isMobile:true,hasTouch:true}:{viewport:{width:1280,height:900}});
+   const context=await browser.newContext(mobile?{viewport:{width:900,height:500},...(browserName==='firefox'?{}:{isMobile:true}),hasTouch:true}:{viewport:{width:1280,height:900}});
    await context.addInitScript(({index})=>{sessionStorage.setItem('badfodder.presentation.prompted.v1','1');sessionStorage.setItem('badfodder.launch.v1',JSON.stringify({mode:'select',index}));const Native=RTCPeerConnection;window.RTCPeerConnection=class extends Native{constructor(config){super({...config,iceServers:[]});}};},{index});
    const p=await context.newPage();const slot=pages.length;pages.push(p);
    if(process.env.BADFODDER_COOP_MOCK_RTC==='1'){
@@ -45,7 +46,7 @@ const server=http.createServer((req,res)=>{try{const name=decodeURIComponent(new
     else if(req.method()==='DELETE')rooms.delete(code.replace('.json',''));else data=rooms.get(code.replace('.json',''))||null;
     await r.fulfill({status,contentType:'application/json',body:JSON.stringify(data)});
    });
-   await p.goto(url);await p.waitForFunction(()=>!!window.__coopTest);assert.equal(await p.evaluate(()=>typeof BadFodderCoop),'undefined','Single player must not initialise networking');
+   await p.goto(url,{waitUntil:'domcontentloaded'});await p.waitForFunction(()=>!!window.__coopTest);assert.equal(await p.evaluate(()=>typeof BadFodderCoop),'undefined','Single player must not initialise networking');
    await p.locator('#menuMultiplayer').click();await p.locator('#coopHost').waitFor();
   }
   const [host,client]=pages;
