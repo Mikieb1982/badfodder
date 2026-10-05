@@ -33,7 +33,6 @@ function installLegend(){
   const dd=document.createElement('dd');dd.textContent='Left stick: move · Right stick: aim · RT/R2: fire or shove · RB/R1: grenade/throw · A/Cross: action · B/Circle: cancel/drop · Y/Triangle: garrison · X/Square: stop · D-pad: squad · View/Create: map · Start/Options: pause.';
   dl.append(dt,dd);
  }
- const hint=document.querySelector('#menuScreen .menu-hint');if(hint&&!/CONTROLLER/.test(hint.textContent||''))hint.textContent=(hint.textContent||'')+' · CONTROLLER';
 }
 function install(){if(!navigator.getGamepads)return;installLegend();root.addEventListener('gamepadconnected',e=>{padIndex=e.gamepad.index;previous=[];notice('Controller connected: '+(e.gamepad.id||'gamepad'))});root.addEventListener('gamepaddisconnected',e=>{if(e.gamepad.index===padIndex){padIndex=-1;reset();notice('Controller disconnected.')}});root.addEventListener('blur',reset);document.addEventListener('visibilitychange',()=>{if(document.hidden)reset()});requestAnimationFrame(loop)}
 root.BadFodderController={bindJoystick,reset,connected:()=>!!pad()};
