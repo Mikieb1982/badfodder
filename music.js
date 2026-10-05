@@ -52,6 +52,7 @@ audio.loop=true;
 audio.preload='auto';
 audio.volume=0;
 audio.setAttribute('playsinline','');
+audio.setAttribute('webkit-playsinline','');
 audio.setAttribute('aria-hidden','true');
 document.body.appendChild(audio);
 const button=document.getElementById('menuMusic');
@@ -96,7 +97,7 @@ async function start(){
     else{audio.muted=true;cancelAnimationFrame(raf);audio.volume=0}
     render();
   }catch(e){
-    // Autoplay blocking can be retried by the next user gesture.
+    // Safari and other browsers may block autoplay until a direct user gesture.
     render();
   }finally{pending=false}
 }
@@ -146,7 +147,13 @@ function arm(event){
   if(event.target===button)return;
   start();
 }
+function pauseForBackground(){
+  cancelAnimationFrame(raf);
+  if(started||pending)audio.pause();
+}
 addEventListener('pointerdown',arm,{passive:true});
+// iOS Safari has historically been stricter about media unlock; keep a touch fallback.
+addEventListener('touchstart',arm,{passive:true});
 addEventListener('keydown',arm);
 button.addEventListener('click',toggle);
 if(volumeInput){
@@ -155,9 +162,12 @@ if(volumeInput){
   volumeInput.addEventListener('change',e=>setVolume(Number(e.target.value)/100));
 }
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden){if(started||pending)audio.pause();return}
+  if(document.hidden){pauseForBackground();return}
   if(enabled&&started)start();
 });
+// Safari can restore pages from the back-forward cache without a normal reload.
+addEventListener('pagehide',pauseForBackground);
+addEventListener('pageshow',()=>{if(enabled&&started)start()});
 audio.addEventListener('error',()=>{loadError=true;started=false;render()});
 audio.addEventListener('canplay',render);
 window.BadFodderMusic={
@@ -168,6 +178,6 @@ window.BadFodderMusic={
 render();
 
 // Mission selection reloads the document. Attempt the mission track immediately;
-// if the browser blocks autoplay, the next pointer/key gesture retries it.
+// if the browser blocks autoplay, the next pointer/touch/key gesture retries it.
 if(autoStartPending())start();
 })();
