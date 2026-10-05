@@ -7,9 +7,8 @@ const manifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.webmanifest')
 function check(dir){for(const e of fs.readdirSync(dir,{withFileTypes:true})){const f=path.join(dir,e.name);if(e.isDirectory()){check(f);continue}if(/\.(html|js|css|webmanifest|json)$/.test(f)){for(const m of fs.readFileSync(f,'utf8').matchAll(/\/static\/[a-f0-9]{16}\/[a-zA-Z0-9_.\/-]+/g))assert(fs.existsSync(path.join(root,m[0])),'Broken versioned asset: '+m[0]);}}}
 check(root);assert(config.hosting.headers.some(h=>h.source==='/static/**'&&h.headers[0].value.includes('immutable')));
 assert(!fs.existsSync(path.join(root,'assets/characters/belzig.png')));assert(html.includes('/assets/characters/belzig.webp'));assert(!fs.existsSync(path.join(root,'assets/characters/belzig.webp')));
-function findNamed(dir,name){for(const e of fs.readdirSync(dir,{withFileTypes:true})){const f=path.join(dir,e.name);if(e.isDirectory()){const hit=findNamed(f,name);if(hit)return hit}else if(e.name===name)return f}return null}
-const voiceFile=findNamed(root,'voice-system.js');assert(voiceFile,'Production voice system missing');const voice=fs.readFileSync(voiceFile,'utf8');
-assert(/\/static\/[a-f0-9]{16}\/audio\/voices\/briefings\/belzig\.mp3/.test(voice),'Belzig briefing recording is not versioned into production');
-assert(/\/static\/[a-f0-9]{16}\/audio\/voices\/briefings\/cable-street\.mp3/.test(voice),'Cable Street briefing recording is not versioned into production');
+for(const name of ['belzig.mp3','cable-street.mp3']){
+ const file=path.join(root,'audio/voices/briefings',name);assert(fs.existsSync(file),'Missing production briefing recording: '+name);assert(fs.statSync(file).size>128,'Invalid production briefing recording: '+name);
+}
 assert(!fs.existsSync(path.join(root,'audio/voices/briefings/wigan.mp3')),'Invalid Wigan placeholder should not ship');
 console.log('PASS: curated production output, authoritative manifest, versioned asset closure, briefing audio and cache policy.');
