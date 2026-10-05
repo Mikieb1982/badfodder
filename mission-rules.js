@@ -54,7 +54,7 @@
       ...clone(def),
       id:objectiveId(def,index),
       type,
-      legacyType:typeof def.type==='string'?def.type:null,
+      legacyType:typeof def.legacyType==='string'?def.legacyType:typeof def.type==='string'?def.type:null,
       title:String(def.title||def.brief||def.text||'Objective'),
       text:String(def.text||def.brief||def.title||'Complete the objective.'),
       status,
@@ -87,6 +87,17 @@
         if(!ids.has(nextId))throw new Error('Unknown chained objective: '+nextId);
       }
     }
+    for(const field of ['requires','next']){
+      const visiting=new Set(),visited=new Set();
+      const byId=new Map(normalized.map(o=>[o.id,o]));
+      function visit(id){
+        if(visiting.has(id))throw new Error('Cyclic objective '+field+': '+id);
+        if(visited.has(id))return;
+        visiting.add(id);for(const ref of byId.get(id)[field])visit(ref);
+        visiting.delete(id);visited.add(id);
+      }
+      for(const id of ids)visit(id);
+    }
     return normalized;
   }
 
@@ -102,7 +113,7 @@
       this.objectives=definitions.length?validateObjectives(definitions):[];
       if(activate&&this.objectives.length&&!this.objectives.some(o=>o.status==='ACTIVE')){
         const first=this.objectives.find(o=>o.status==='PENDING'&&this._eligible(o));
-        if(first)first.status='ACTIVE';
+        if(first){first.status='ACTIVE';first.discovered=true}
       }
       this._emit('reset',null);
       return this;
@@ -122,7 +133,10 @@
 
     _get(id){return this.objectives.find(o=>o.id===id)||null}
     _require(id){const objective=this._get(id);if(!objective)throw new Error('Unknown objective: '+id);return objective}
-    _eligible(objective){return objective.requires.every(id=>this._get(id)?.status==='COMPLETED')}
+    _eligible(objective){return objective.requires.every(id=>{
+      const dependency=this._get(id);
+      return dependency?.status==='COMPLETED'||dependency?.optional&&['FAILED','SKIPPED'].includes(dependency.status);
+    })}
 
     get(id){const objective=this._get(id);return objective?clone(objective):null}
     all(){return clone(this.objectives)}
@@ -164,6 +178,8 @@
 
     complete(id,detail=null){
       const objective=this._require(id);
+      if(['COMPLETED','FAILED','SKIPPED'].includes(objective.status))return this.get(id);
+      if(objective.status!=='ACTIVE')throw new Error('Objective is not active: '+id);
       objective.status='COMPLETED';
       objective.discovered=true;
       if(detail&&detail.text)objective.text=String(detail.text);
@@ -174,16 +190,19 @@
 
     fail(id,detail=null){
       const objective=this._require(id);
+      if(['COMPLETED','FAILED','SKIPPED'].includes(objective.status))return this.get(id);
       objective.status='FAILED';
       objective.discovered=true;
       if(detail&&detail.text)objective.text=String(detail.text);
       this._emit('fail',objective,detail);
+      if(objective.optional&&this.options.autoAdvance)this._activateNext(objective);
       return this.get(id);
     }
 
     skip(id,detail=null){
       const objective=this._require(id);
       if(!objective.optional)throw new Error('Only optional objectives can be skipped: '+id);
+      if(['COMPLETED','FAILED','SKIPPED'].includes(objective.status))return this.get(id);
       objective.status='SKIPPED';
       this._emit('skip',objective,detail);
       if(this.options.autoAdvance)this._activateNext(objective);
@@ -197,8 +216,8 @@
         return;
       }
       const index=this.objectives.indexOf(objective);
-      for(let i=index+1;i<this.objectives.length;i++){
-        const next=this.objectives[i];
+      const candidates=[...this.objectives.slice(index+1),...this.objectives.slice(0,index)];
+      for(const next of candidates){
         if(next.status==='PENDING'&&this._eligible(next)){this.activate(next.id);break}
       }
     }
@@ -210,6 +229,9 @@
       let index=this.objectives.length;
       if(beforeId!=null){index=this.objectives.findIndex(o=>o.id===beforeId);if(index<0)throw new Error('Unknown objective: '+beforeId)}
       else if(afterId!=null){index=this.objectives.findIndex(o=>o.id===afterId);if(index<0)throw new Error('Unknown objective: '+afterId);index++}
+      const candidate=this.all();candidate.splice(index,0,objective);
+      validateObjectives(candidate);
+      if(activate&&!this._eligible(objective))throw new Error('Objective dependencies are incomplete: '+objective.id);
       this.objectives.splice(index,0,objective);
       this._emit('add',objective);
       if(activate)this.activate(objective.id);
@@ -225,6 +247,7 @@
         other.next=other.next.filter(ref=>ref!==id);
       }
       this._emit('remove',objective);
+      if(this.options.autoAdvance&&!this.current()&&!this.missionState().failed)this._activateNext(objective);
       return clone(objective);
     }
 
@@ -232,15 +255,18 @@
       const index=this.objectives.findIndex(o=>o.id===id);
       if(index<0)throw new Error('Unknown objective: '+id);
       const previous=this.objectives[index];
-      const next=normalizeObjective({...definition,id:definition.id||id},index);
+      const next=normalizeObjective({...previous,...definition,legacyType:definition.type||previous.legacyType,id:definition.id||id},index);
       if(next.id!==id&&this._get(next.id))throw new Error('Duplicate objective id: '+next.id);
       if(preserveStatus&&definition.status==null)next.status=previous.status;
       if(definition.discovered==null)next.discovered=previous.discovered;
-      this.objectives[index]=next;
-      for(const other of this.objectives){
+      const candidate=this.all();candidate[index]=next;
+      for(const other of candidate){
         other.requires=other.requires.map(ref=>ref===id?next.id:ref);
         other.next=other.next.map(ref=>ref===id?next.id:ref);
       }
+      validateObjectives(candidate);
+      if(activate&&!next.requires.every(ref=>candidate.find(o=>o.id===ref)?.status==='COMPLETED'))throw new Error('Objective dependencies are incomplete: '+next.id);
+      this.objectives=candidate;
       this._emit('replace',next,{previous});
       if(activate)this.activate(next.id);
       return this.get(next.id);

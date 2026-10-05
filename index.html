@@ -562,6 +562,7 @@
 <script src="garrison-control.js"></script>
 <script src="mission-stats.js"></script>
 <script src="mission-rules.js"></script>
+<script src="mission-objectives.js"></script>
 <script src="mission-route-validation.js?v=20261002-cable-nav-3"></script>
 <script src="campaign.js"></script>
 <script src="mission-bootstrap.js?v=20261002-cable-foundation-2"></script>
@@ -708,6 +709,11 @@
   let lastHudStats='',lastRosterSignature='',hudNoticeUntil=0;
   let runtimeFaultCount=0,runtimeFaultAt=0,runtimeSafeStop=false,runtimeFaultTotal=0;
   let missionController=null,missionInteractionLayer=null,missionDirector=null,missionCrowd=null;
+  let missionObjectivesRuntime=null;
+  function currentObjectivePhase(){
+    const objective=missionObjectivesRuntime?.manager.current();
+    return objective?{...objective,type:objective.meta?.legacy?objective.legacyType:objective.type}:(activeMission().phases||[])[missionStage];
+  }
   const gameplayRng=BadFodderRng.create(new URLSearchParams(location.search).get('seed'));
   const lifecycle=BadFodderLifecycle.create({read:()=>({started,finished,runtimeSafeStop}),apply:flags=>{paused=flags.paused;menuOpen=flags.menuOpen;if(flags.runtimeSafeStop!==undefined)runtimeSafeStop=flags.runtimeSafeStop;}});
   const diagnostics=BadFodderRuntime.diagnostics({enabled:new URLSearchParams(location.search).get('debug')==='1',read:()=>({lifecycle:lifecycle.state,actors:squad.length+civilians.length,enemies:enemies.length,bullets:bullets.length,effects:effects.length,pathQueue:enemyPathQueue.length,navigation:navigation.metrics(),scenery:sceneryTiles?.metrics?.(),runtimeFaults:runtimeFaultCount,runtimeFaultTotal,coop:window.BadFodderCoop?.diagnostics?.(),build:window.BadFodderBuild||'development',browser:navigator.userAgent,viewport:{width:innerWidth,height:innerHeight,dpr:devicePixelRatio},mission:MAP_DATA.key,seed:gameplayRng.seed??null,director:adaptiveDirector?{disabled:adaptiveDirector.state.disabled,situation:adaptiveDirector.state.situation,decisions:adaptiveDirector.state.decisions,recent:adaptiveDirector.state.log.slice(-8)}:null})});
@@ -734,7 +740,7 @@
       if(!adaptiveMemory)adaptiveMemory=adaptive.loadProfile(storage);
       const adapter=missionController?adaptive.createCableAdapter({controller:missionController,director:missionDirector,interactions:missionInteractionLayer,crowd:missionCrowd,scale:SCALE}):
         (enemyCommander=adaptive.createCommander({getEnemies:()=>enemies,getSquad:()=>squad,
-          getPhase:()=>({...activeMission().phases[missionStage],index:missionStage}),getZones:()=>zones,
+          getPhase:()=>({...currentObjectivePhase(),index:missionStage,objective:missionObjectivesRuntime?.manager.directorContext().objective}),getZones:()=>zones,
           roads,scale:SCALE,navigation,queuePath:queueEnemyPath,blocked:obstacleAt}));
       adaptiveDirector=adaptive.create({mission:MAP_DATA.key,adapter,memory:adaptiveMemory,storage,
         random:gameplayRng.random,debug:new URLSearchParams(location.search).get('directorDebug')==='1'});
@@ -1436,6 +1442,8 @@
     [...squad,...enemies,...civilians].forEach(ent=>art.animate(ent,0));
     bullets=[];thrown=[];effects=[];noise=[];enemyPathQueue=[];
     squadGrenades=actionAllowed('grenades')?5:0;missionStage=0;phaseHoldTime=0;
+    missionObjectivesRuntime=window.BadFodderObjectives.create(mission);
+    window.BadFodderMissionObjectives=missionObjectivesRuntime;
     initializeAdaptiveDirector();
     finished=false;win=false;paused=false;mapOpen=false;selection='all';zoom=preferredZoom;
     releaseAllFireInputs();
@@ -1524,7 +1532,7 @@
   }
 
   function announceNextPhase(){
-    const phase=(activeMission().phases||[])[missionStage];
+    const phase=currentObjectivePhase();
     if(!phase)return;
     if(MAP_DATA.key==='wigan'&&phase.zone==='wallgate'&&MAP_DATA.optionalEncounters&&MAP_DATA.optionalEncounters.kingStreet){
       setStatus('Optional: King Street has a guarded grenade cache.');
@@ -1534,11 +1542,12 @@
   }
 
   function advanceMissionPhase(){
-    const phases=activeMission().phases||[];
-    missionStage++;
+    const current=missionObjectivesRuntime.manager.current();
+    if(current)missionObjectivesRuntime.manager.complete(current.id);
+    missionStage=missionObjectivesRuntime.phase()??(activeMission().phases||[]).length;
     phaseHoldTime=0;
     wiganRouteCache={key:null,path:[]};
-    if(missionStage>=phases.length){
+    if(missionObjectivesRuntime.manager.missionState().complete){
       completeCurrentMission();
       return;
     }
@@ -1548,14 +1557,14 @@
 
   function updateMissionProgress(dt){
     if(finished)return;
-    const mission=activeMission(),phases=mission.phases||[];
-    const phase=phases[missionStage];
-    if(!phase){completeCurrentMission();return}
     const living=squad.filter(s=>s.alive);
-    const result=phaseEvaluation(phase,living);
-    const progression=missionRules.advanceHold(phase,result,phaseHoldTime,dt);
-    phaseHoldTime=progression.holdTime;
-    if(progression.complete)advanceMissionPhase();
+    const previous=missionObjectivesRuntime.manager.current()?.id;
+    const state=missionObjectivesRuntime.update(dt,{living,enemies,zones,scale:S(1)});
+    phaseHoldTime=missionObjectivesRuntime.holdTime();
+    if(state.failed){finished=true;win=false;hudStage.textContent='MISSION FAILED';setStatus('A critical objective was lost.');showMissionResult();return}
+    if(state.complete){completeCurrentMission();return}
+    missionStage=missionObjectivesRuntime.phase()??missionStage;
+    if(previous!==missionObjectivesRuntime.manager.current()?.id){wiganRouteCache={key:null,path:[]};announceNextPhase();updateHud(true)}
   }
 
   let nextHudUpdate=0;
@@ -1565,10 +1574,11 @@
     nextHudUpdate=hudNow+100;
     const mission=activeMission();
     const phases=mission.phases||[];
-    const phaseCount=Math.max(1,phases.length);
+    const objectiveRows=missionObjectivesRuntime?.manager.all().filter(o=>!o.optional)||[];
+    const phaseCount=Math.max(1,objectiveRows.length||phases.length);
     const living=squad.filter(s=>s.alive);
     const remaining=enemies.filter(e=>e.alive).length;
-    const currentPhase=phases[missionStage];
+    const currentPhase=currentObjectivePhase();
     const objectiveDefenders=currentPhase?phaseDefenders(currentPhase):null;
     const targetCount=objectiveDefenders?objectiveDefenders.length:remaining;
 
@@ -1580,7 +1590,7 @@
     hudSquadLabel.textContent=historicalMode?'VOLUNTEERS':'SQUAD';
     hudStage.textContent=finished?(win?'MISSION COMPLETE':'MISSION FAILED'):'OBJECTIVE '+Math.min(phaseCount,missionStage+1)+'/'+phaseCount;
     rebuildHudProgress(phaseCount);
-    hudProgress.querySelectorAll('i').forEach((p,i)=>{p.className=win||i<missionStage?'done':i===missionStage?'current':'';});
+    hudProgress.querySelectorAll('i').forEach((p,i)=>{p.className=win||objectiveRows[i]?.status==='COMPLETED'?'done':objectiveRows[i]?.status==='ACTIVE'?'current':'';});
 
     const stats=[living.length,squad.length,remaining,targetCount,squadGrenades,mission.id,missionStage].join('|');
     if(force||stats!==lastHudStats){
@@ -1633,9 +1643,9 @@
     hudEnemyLabel.textContent='TARGETS';
     hudGrenadeLabel.textContent='GRENADES';
 
-    const phase=phases[missionStage];
+    const phase=currentObjectivePhase();
     if(!phase)return;
-    const result=phaseEvaluation(phase,living);
+    const result=missionObjectivesRuntime.evaluate(missionObjectivesRuntime.manager.current(),{living,enemies,zones,scale:S(1)});
     setStatus('Phase '+(missionStage+1)+': '+phaseStatus(phase,result));
   }
 
@@ -2911,16 +2921,19 @@
   }
 
   function missionObjectives(){
-    return (activeMission().phases||[]).map((phase,i)=>({
+    const definitions=missionObjectivesRuntime?missionObjectivesRuntime.manager.visible():activeMission().phases||[];
+    return definitions.map((phase,i)=>({
       phase,
-      zone:phase.zone?zones[phase.zone]:null,
+      zone:missionObjectivesRuntime?missionObjectivesRuntime.marker(phase,zones):phase.zone?zones[phase.zone]:null,
+      active:phase.status?phase.status==='ACTIVE':i===missionStage,
+      done:phase.status?phase.status==='COMPLETED':i<missionStage,
       label:(phase.title||('OBJECTIVE '+(i+1))).toUpperCase()
     })).filter(o=>o.zone);
   }
 
   function drawObjectiveZones(){
     missionObjectives().forEach((o,i)=>{
-      const z=o.zone,active=i===missionStage,done=i<missionStage;
+      const z=o.zone,active=o.active,done=o.done;
       ctx.save();
       if(active){
         ctx.fillStyle='rgba(228,203,131,.07)';ctx.beginPath();ctx.arc(z.x,z.y,z.r,0,Math.PI*2);ctx.fill();
@@ -2950,7 +2963,7 @@
   }
 
   function guidanceTarget(){
-    const phase=(activeMission().phases||[])[missionStage],leader=squad.find(s=>s.alive);
+    const phase=currentObjectivePhase(),leader=squad.find(s=>s.alive);
     if(!phase||!leader)return null;
 
     const defenders=phaseDefenders(phase);
@@ -2996,8 +3009,8 @@
     const objectives=missionObjectives();
     objectives.forEach((o,i)=>{
       const z=o.zone,label=o.label.length>16?o.label.slice(0,16):o.label;
-      ctx.strokeStyle=i===missionStage?'#f2db69':'#c9bf93';ctx.lineWidth=i===missionStage?4:2;
-      ctx.beginPath();ctx.arc(x+z.x*sx,y+z.y*sy,8+(i===missionStage?3:0),0,Math.PI*2);ctx.stroke();
+      ctx.strokeStyle=o.active?'#f2db69':'#c9bf93';ctx.lineWidth=o.active?4:2;
+      ctx.beginPath();ctx.arc(x+z.x*sx,y+z.y*sy,8+(o.active?3:0),0,Math.PI*2);ctx.stroke();
       ctx.fillStyle='#fff0ad';ctx.font='bold 11px "Courier New",monospace';ctx.textAlign='left';
       ctx.fillText(label,x+z.x*sx+11,y+z.y*sy+4);
     });
@@ -3614,6 +3627,7 @@
       if(missionDirector){
         missionDirector.fixedUpdate(dt);
         const historicalProgress=missionDirector.snapshot();
+        missionObjectivesRuntime.syncPhase(historicalProgress.phaseIndex,historicalProgress);
         missionStage=historicalProgress.phaseIndex;
         if(historicalProgress.completed)completeCurrentMission();
         else if(historicalProgress.failed){finished=true;win=false;hudStage.textContent='MISSION FAILED';setStatus(historicalProgress.status);showMissionResult()}
@@ -3796,6 +3810,7 @@
     capture(){
       window.BadFodderMissionStats?.tick();
       return {squad,enemies,civilians,pickups,bullets,thrown,effects,missionStage,phaseHoldTime,squadGrenades,finished,win,
+        objectives:missionObjectivesRuntime.snapshot(),
         checkpoint:enemyCommander?.checkpointState()||null,stats:window.BadFodderMissionStats?.snapshot()||[]};
     },
     receive(state,refresh=true){
@@ -3804,6 +3819,8 @@
       const merge=(old,rows)=>rows.map((r,i)=>Object.assign(old[i]||{},r));
       enemies=merge(enemies,state.enemies);civilians=merge(civilians,state.civilians);pickups=state.pickups;bullets=state.bullets;thrown=state.thrown;effects=state.effects;
       coopCheckpoint=state.checkpoint;missionStage=state.missionStage;phaseHoldTime=state.phaseHoldTime;squadGrenades=state.squadGrenades;finished=state.finished;win=state.win;
+      if(state.objectives)missionObjectivesRuntime.restore(state.objectives);
+      else missionObjectivesRuntime.syncPhase(missionStage,{completed:finished&&win,failed:finished&&!win});
       if(selection!=='all'){
         const remaining=selectionIds();
         if(remaining.length)setSelection(remaining);else setSelection('all');

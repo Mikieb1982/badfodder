@@ -35,7 +35,7 @@ assert(!hud.includes('missionStage++'),'HUD must not advance mission progression
 assert(index.includes('function updateMissionProgress(dt)'));
 const holdProbe=MissionRules.advanceHold({hold:1},{ready:true},0,.25);assert.equal(holdProbe.holdTime,.25);assert(!holdProbe.complete);
 assert(index.includes('updateMissionProgress(dt);'));
-assert(index.includes('missionRules.advanceHold(phase,result,phaseHoldTime,dt)'));
+assert(index.includes('missionObjectivesRuntime.update(dt,{living,enemies,zones,scale:S(1)})'));
 assert(index.includes('reactionTimer<=0'),'Enemies can fire before reaction delay finishes');
 assert(index.includes("prepareEnemyReaction(e,sees?.48:.58,sees?'!':'?')"));
 assert(index.includes("prepareEnemyReaction(t,.22,'!')"));

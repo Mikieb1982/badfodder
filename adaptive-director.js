@@ -354,7 +354,7 @@
       const position=living.length?center(living):{x:0,y:0},phase=getPhase(),zone=getZones()[phase.zone];
       const known=knowledge(),near=alive.filter(e=>dist(e,position)<scale*180);
       return{position,scale,strength:squad.reduce((n,s)=>n+(s.alive?s.hp/s.maxHp:0),0)/Math.max(1,squad.length),casualties:1-living.length/Math.max(1,squad.length),
-        phase:phase.index,progress:phase.index,enemies:alive.length,pressure:clamp(near.filter(e=>e.alert).length/7),combat:near.some(e=>e.fireTimer>0),
+        phase:phase.index,progress:phase.index,objective:phase.objective||null,enemies:alive.length,pressure:clamp(near.filter(e=>e.alert).length/7),combat:near.some(e=>e.fireTimer>0),
         threatDistance:known?dist(position,known):0,objectiveFocus:zone?clamp(1-dist(position,zone)/(scale*200)):0,climax:phase.index>=2,
         route:Math.floor(position.x/(scale*100))+':'+Math.floor(position.y/(scale*100)),
         failedAttack:clock<failedUntil};

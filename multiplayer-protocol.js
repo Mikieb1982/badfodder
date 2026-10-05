@@ -22,6 +22,7 @@
   const rows=(list,keys)=>list.map(v=>pack(keys===actorKeys?{...v,alive:v.alive!==false,state:v.state||'idle',dir:v.dir||0}:v,keys));
   return {v:VERSION,t:'state',seq,s:rows(s.squad,actorKeys),e:rows(s.enemies,actorKeys),c:rows(s.civilians,actorKeys),p:rows(s.pickups,itemKeys),b:rows(s.bullets,itemKeys),g:rows(s.thrown,itemKeys),f:rows(s.effects,itemKeys),
    stage:s.missionStage,hold:s.phaseHoldTime,grenades:s.squadGrenades,done:s.finished,win:s.win,
+   ...(s.objectives?{objectives:s.objectives}:{}),
    checkpoint:s.checkpoint?{phase:s.checkpoint.phase,started:!!s.checkpoint.started,cleared:!!s.checkpoint.cleared,style:s.checkpoint.style}:null,
    stats:s.stats.map(r=>[r.index,r.name,r.kills,Number.isSafeInteger(r.assists)?r.assists:0,r.alive])};
  }
@@ -43,8 +44,19 @@
   if(![...p.s,...p.e,...p.c].every(r=>Number.isFinite(r[0])&&Number.isFinite(r[1])&&typeof r[4]==='boolean'&&Number.isFinite(r[5])&&['idle','walk','run','fire','hurt','throw','dead','stumble','aim'].includes(r[6])))return null;
   if(!Array.isArray(p.stats)||p.stats.length!==4||!p.stats.every((r,i)=>Array.isArray(r)&&(r.length===4||r.length===5)&&r[0]===i&&typeof r[1]==='string'&&r[1].length<64&&Number.isSafeInteger(r[2])&&r[2]>=0&&(r.length===4||Number.isSafeInteger(r[3])&&r[3]>=0)&&typeof r[r.length-1]==='boolean'))return null;
   if(p.checkpoint!==null&&(!p.checkpoint||!Number.isInteger(p.checkpoint.phase)||typeof p.checkpoint.started!=='boolean'||typeof p.checkpoint.cleared!=='boolean'||!['rush','pincer','siege'].includes(p.checkpoint.style)))return null;
+  if(p.objectives!=null&&!validObjectives(p.objectives))return null;
   const rows=(list,keys)=>list.map(r=>unpack(r,keys));
-  return {squad:rows(p.s,actorKeys),enemies:rows(p.e,actorKeys),civilians:rows(p.c,actorKeys),pickups:rows(p.p,itemKeys),bullets:rows(p.b,itemKeys),thrown:rows(p.g,itemKeys),effects:rows(p.f,itemKeys),missionStage:p.stage,phaseHoldTime:p.hold,squadGrenades:p.grenades,finished:p.done,win:p.win,checkpoint:p.checkpoint,stats:p.stats.map(r=>({index:r[0],name:r[1],kills:r[2],assists:r.length===5?r[3]:0,alive:r[r.length-1]}))};
+  return {squad:rows(p.s,actorKeys),enemies:rows(p.e,actorKeys),civilians:rows(p.c,actorKeys),pickups:rows(p.p,itemKeys),bullets:rows(p.b,itemKeys),thrown:rows(p.g,itemKeys),effects:rows(p.f,itemKeys),missionStage:p.stage,phaseHoldTime:p.hold,squadGrenades:p.grenades,finished:p.done,win:p.win,checkpoint:p.checkpoint,objectives:p.objectives||null,stats:p.stats.map(r=>({index:r[0],name:r[1],kills:r[2],assists:r.length===5?r[3]:0,alive:r[r.length-1]}))};
+ }
+ function validObjectives(saved){
+  try{
+   const list=saved?.manager?.objectives;
+   if(bytes(JSON.stringify(saved))>16384||!Array.isArray(list)||!list.length||list.length>32||!Array.isArray(saved.holds)||saved.holds.length>32)return false;
+   if(!list.every(o=>typeof o.id==='string'&&o.id.length<=80&&typeof o.title==='string'&&o.title.length<=512&&typeof o.text==='string'&&o.text.length<=512))return false;
+   const runtime=typeof module==='object'&&module.exports?require('./mission-objectives.js'):globalThis.BadFodderObjectives;
+   runtime.create({objectives:list}).restore(saved);
+   return true;
+  }catch{return false}
  }
  const owner=i=>i<2?1:2;
  const totals=records=>[1,2].map(p=>records.filter(r=>owner(r.index)===p).reduce((n,r)=>n+r.kills,0));

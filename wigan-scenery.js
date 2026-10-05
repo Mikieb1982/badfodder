@@ -164,7 +164,7 @@
    g.beginPath();g.arc(px,py,8,0,TAU);g.fillStyle='#202a23';g.fill();g.strokeStyle='#e5d09a';g.lineWidth=1;g.stroke();
    g.fillStyle='#fff0c7';g.font='700 9px system-ui,sans-serif';g.textAlign='center';g.fillText(String(i+1),px,py+3);
   }
-  const objective=objectives[stage];
+  const objective=objectives.find(o=>o.active)||objectives[stage];
   if(objective){g.strokeStyle='#ffe476';g.lineWidth=2;g.beginPath();g.arc(x+objective.zone.x/2*sx,y+objective.zone.y/2*sy,13,0,TAU);g.stroke();}
   for(const s of squad.filter(s=>s.alive)){g.fillStyle='#80d8e8';g.fillRect(x+s.x/2*sx-2,y+s.y/2*sy-2,4,4);}
   const columns=compact||sideLegend?2:3,rowH=22,lx=sideLegend?x+mw+24:compact?18:Math.max(18,(W-750)/2),columnW=(sideLegend?W-lx-18:W-lx*2)/columns;

@@ -11,6 +11,8 @@ fault:()=>{for(let i=0;i<3;i++)handleRuntimeFault(new Error('Injected unrecovera
 restart:beginMission, pause:togglePause, main:showTitle, resume:resumeMission,
 fail:()=>{squad.forEach(s=>s.alive=false);checkFailure()},complete:completeCurrentMission,
 identity:()=>missionIdentity, phase:()=>missionStage,
+objectives:()=>missionObjectivesRuntime.snapshot(),
+objectiveTransition:()=>{const first=currentObjectivePhase(),zone=phaseZone(first);enemies.forEach(e=>e.alive=false);squad.forEach(s=>{s.x=zone.x;s.y=zone.y});updateMissionProgress(first.hold||.1);const result={stage:missionStage,statuses:missionObjectivesRuntime.manager.all().map(o=>o.status)};resetGame();return result},
 adaptive:()=>({enabled:!!adaptiveDirector&&!adaptiveDirector.state.disabled,decisions:adaptiveDirector?.state.decisions,commander:!!enemyCommander,militaryEnemies:enemies.length}),
 directorFault:()=>{adaptiveDirector.update=()=>{throw new Error('Injected optional Director fault')};simulateStep(1/60)},
 
@@ -45,6 +47,9 @@ async function runLifecycle(providedBrowser, testInfo){
  for(const [button,map] of [['#menuMissionBad','bad-belzig'],['#menuMissionWigan','wigan']]){
   await page.locator('#menuMissionSelect').click();await page.locator(button).click();assert.equal((await page.evaluate(()=>window.__testGame.state())).menuOpen,true);assert(await page.locator('#briefingStory').isVisible());assert.equal(await page.locator('#briefingCharacters canvas').count(),4);await page.evaluate(()=>BadFodderArt.preloadMissionArt(document.getElementById('briefingTitle').textContent.toLowerCase()));if(process.env.BADFODDER_SCREENSHOTS)await page.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp',map+'-briefing.png')});await page.locator('#briefingBack').click();assert(await page.locator(button).isVisible());await page.locator('[data-view="missions"] [data-back]').click();
   await select(button);assert.equal((await active()).map,map);
+  const objectiveTransition=await page.evaluate(()=>window.__testGame.objectiveTransition());
+  assert.equal(objectiveTransition.stage,1);assert.deepEqual(objectiveTransition.statuses,['COMPLETED','ACTIVE','PENDING']);
+  assert.equal((await page.evaluate(()=>window.__testGame.objectives())).manager.objectives[0].status,'ACTIVE','Restart must reset objective state');
   const identity=await page.evaluate(()=>window.__testGame.identity());assert.equal(identity.year,map==='wigan'?1941:1945);assert.equal(await page.locator('#loadingEra').textContent(),identity.loading);assert((await page.locator('#hudSquadBar').textContent()).includes(identity.characters[0].name));assert((await page.evaluate(()=>BadFodderMusic.source)).endsWith('assets/audio/mission.mp3'));
   const chips=page.locator('#hudSquadBar .hud-unit');
   await chips.nth(0).click();
