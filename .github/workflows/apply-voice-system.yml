@@ -1,0 +1,42 @@
+name: Apply voice system
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/apply-voice-system.yml
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply focused voice integration
+        run: python3 tools/runtime/apply-voice-system.py
+      - name: Install test dependencies
+        run: npm ci --ignore-scripts
+      - name: Voice system tests
+        run: node tests/voice-system.cjs
+      - name: Menu and browser contract tests
+        run: |
+          node tests/mission-select.cjs
+          node tests/browser-contract.cjs
+      - name: Full regression suite
+        run: npm test
+      - name: Commit implementation
+        shell: bash
+        run: |
+          rm .github/workflows/apply-voice-system.yml
+          rm tools/runtime/apply-voice-system.py
+          git config user.name "Angsthase"
+          git config user.email "mikieburrow@gmail.com"
+          git add -A
+          git commit -m "Integrate reactive voices and narrated briefings"
+          git push origin HEAD:main
