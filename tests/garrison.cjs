@@ -17,7 +17,8 @@ assert(scope.BadFodderGarrison,'Garrison module missing');
 const baseAdaptive={createCommander(options){return{maintain(){return true}}}};
 scope.BadFodderAdaptive=baseAdaptive;
 assert(baseAdaptive.__manualGarrisonPatched,'Adaptive commander was not patched before commander creation');
-const commander=baseAdaptive.createCommander({getSquad:()=>[soldier],getEnemies:()=>[enemy],scale:1});
+let runtimeSquad=[soldier];
+const commander=baseAdaptive.createCommander({getSquad:()=>runtimeSquad,getEnemies:()=>[enemy],scale:1});
 assert.equal(scope.BadFodderGarrison.selectedOne(),soldier,'Garrison did not capture live squad state');
 assert.equal(scope.BadFodderGarrison.toggleGarrison(),true,'Garrison did not activate');
 assert.equal(soldier.manualGarrison,true);
@@ -36,6 +37,21 @@ assert.equal(enemy.hp,1,'Released soldier kept auto-firing');
 assert.equal(scope.BadFodderGarrison.toggleGarrison(),true,'Garrison could not be re-entered');
 assert.equal(scope.BadFodderGarrison.toggleGarrison(),false,'Second H/button press did not still release garrison');
 
+// Regroup expands the selection to all survivors, releases personal holds and moves them back to the chosen survivor.
+const wing={x:260,y:180,alive:true,hp:8,manualGarrison:true,garrisonAnchorX:260,garrisonAnchorY:180};
+runtimeSquad=[soldier,wing];soldier.manualGarrison=true;soldier.garrisonAnchorX=soldier.x;soldier.garrisonAnchorY=soldier.y;
+let currentSelection=[soldier],selectionCommand=null,moveCommand=null;
+scope.selectedUnits=()=>currentSelection;
+scope.setSelection=value=>{selectionCommand=value;if(value==='all')currentSelection=runtimeSquad.filter(s=>s.alive)};
+scope.setMoveTargets=point=>{moveCommand=point};
+assert.equal(scope.BadFodderGarrison.regroup(),true,'Regroup command was not accepted');
+assert.equal(selectionCommand,'all','Regroup did not select all surviving squad members');
+assert.equal(soldier.manualGarrison,false,'Regroup did not release the selected soldier');
+assert.equal(wing.manualGarrison,false,'Regroup did not release a separated squad member');
+assert.equal(moveCommand.x,soldier.x,'Regroup did not use the previously selected survivor as the anchor');
+assert.equal(moveCommand.y,soldier.y,'Regroup anchor Y is incorrect');
+assert.equal(moveCommand.regroup,true,'Regroup movement is not marked as a regroup order');
+
 // POI/checkpoint garrison is a hard hold, unlike the player's manual H-garrison.
 soldier.checkpointGarrison=2;soldier.checkpointCover=true;soldier.x=210;soldier.y=220;
 scope.BadFodderGarrison.lockCheckpointGarrisons();
@@ -53,10 +69,10 @@ scope.BadFodderGarrison.lockCheckpointGarrisons();
 assert.equal(soldier.checkpointAnchorX,null,'POI position lock remained after defence ended');
 assert.equal(soldier.checkpointAnchorY,null,'POI position lock remained after defence ended');
 
-assert(source.includes("KEY='h'"),'Desktop H garrison key missing');
-assert(source.includes("id='touchGarrison'")&&source.includes("querySelector('.touch-actions')"),'Mobile gameplay garrison button missing');
+assert(source.includes("KEY='h',REGROUP_KEY='r'"),'Desktop H/R squad command keys missing');
+assert(source.includes("id='touchGarrison'")&&source.includes("id='touchRegroup'")&&source.includes("querySelector('.touch-actions')"),'Mobile garrison/regroup buttons missing');
 assert(source.includes("btn.textContent=active?'RELEASE':'GARRISON'"),'Mobile control does not visibly switch to RELEASE');
 assert(source.includes("target?.id==='game'")&&source.includes("target?.id==='touchJoystick'"),'Desktop/mobile movement release hook missing');
 assert(source.includes('lockCheckpointGarrisons')&&source.includes('checkpointAnchorX'),'Fixed POI garrison lock missing');
 assert(!source.includes("querySelector('.hud-tools')"),'Garrison should not live with map/pause HUD tools');
-console.log('PASS: manual garrison releases on movement while POI garrisons remain fixed during defence.');
+console.log('PASS: selection-aware regroup releases personal holds while POI garrisons remain fixed during defence.');
