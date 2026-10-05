@@ -1,4 +1,4 @@
-/* Presentation-only mission identities. Map IDs, campaign indices and saves stay stable. */
+/* Mission identities and lightweight persistent character profiles. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.BadFodderIdentities=api;})(typeof window!=='undefined'?window:globalThis,function(){
 'use strict';
 const character=(name,role,coat,hat,weapon,extra={})=>({name,role,coat,hat,weapon,...extra});
@@ -22,6 +22,23 @@ const missions={
  victory:['BELZIG LIBERATED','THE TOWN IS BACK IN THE HANDS OF ITS PEOPLE'],failure:'THE UPRISING HAS FAILED',
  characters:[character('Karl','Former soldier / deserter','#727359','field-cap','kar98',{age:34,webbing:true,scarf:'#aeb2a2'}),character('Otto','Railway worker','#536274','flat-cap','mp40',{age:43,build:'broad',waistcoat:true}),character('Lotte','Civilian resistance member','#895b45','beret','kar98',{age:28,longCoat:true,scarf:'#d5bd8a',hair:'#634331'}),character('Greta','Resistance organiser','#665e54','headscarf','mp40',{age:52,longCoat:true,webbing:true})]}
 };
+const CHARACTER_TRAITS=Object.freeze(['RUNNER','STEADY','MEDIC','MECHANIC','LOCAL','ORGANISER','STUBBORN']);
+const missionTraits={
+ 'cable-street':['STUBBORN','ORGANISER','RUNNER','MEDIC'],
+ wigan:['STEADY','LOCAL','RUNNER','STUBBORN'],
+ belzig:['STEADY','MECHANIC','RUNNER','ORGANISER']
+};
+const slug=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+for(const [missionKey,mission] of Object.entries(missions))mission.characters.forEach((profile,index)=>{
+ profile.id=missionKey+':'+slug(profile.name);
+ profile.occupation=profile.role;
+ profile.trait=missionTraits[missionKey]?.[index]||'STEADY';
+ profile.healthState='FIT';
+ profile.experience=0;
+ profile.voiceSet='squad/voice-'+(index+1);
+ profile.relationships=[];
+ profile.alive=true;
+});
 const enemyStyles={
  belzig:[
   character('Rifleman','Infantry','#606851','stahlhelm','kar98',{webbing:true,enemyDetail:true,trousers:'#51584c',gear:'ammo',age:30}),
@@ -38,6 +55,11 @@ const enemyStyles={
 };
 const defenders=enemyStyles.belzig;
 function get(mission){const key=typeof mission==='string'?mission:mission?.map||(mission?.id===1?'bad-belzig':mission?.id===2?'wigan':mission?.id);return missions[key==='bad-belzig'?'belzig':key==='cable-street-1936'?'cable-street':key]||missions.belzig;}
+function profile(mission,index=0){const roster=get(mission).characters;return roster[Math.abs(index|0)%roster.length];}
+function runtimeCharacter(mission,index=0,state={}){
+ const base=profile(mission,index),alive=state.alive===undefined?base.alive:state.alive!==false;
+ return{...base,...state,id:base.id,name:base.name,occupation:base.occupation,role:base.role,trait:base.trait,voiceSet:base.voiceSet,relationships:[...(state.relationships||base.relationships||[])],experience:Number.isFinite(state.experience)?Math.max(0,state.experience):base.experience,healthState:state.healthState||base.healthState,alive};
+}
 function skin(mission,team,index=0,periodRole){const id=get(mission),i=Math.abs(index|0);if(periodRole==='police')return character('Police','Metropolitan police','#293e50','custodian',null,{webbing:true});if(periodRole==='march')return character('Marcher','Fascist marcher','#343331','cap',null);if(team==='squad')return id.characters[i%4];if(team==='enemy')return (enemyStyles[id.key]||defenders)[i%4];return {...id.characters[i%4],weapon:null,webbing:false,hat:['flat-cap','beret','cap','headscarf'][i%4]};}
-return{missions,enemyStyles,get,skin,disclaimer:'This game uses real locations and historical settings. Some events are historical, while the main wartime battles and playable characters are fictional or alternate history.'};
+return{missions,enemyStyles,CHARACTER_TRAITS,get,profile,runtimeCharacter,skin,disclaimer:'This game uses real locations and historical settings. Some events are historical, while the main wartime battles and playable characters are fictional or alternate history.'};
 });
