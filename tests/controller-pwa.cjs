@@ -12,10 +12,10 @@ assert(pad.includes("tap('h','KeyH')")&&pad.includes("tap('e','KeyE')"),'Garriso
 assert(pad.includes('CONTROLLER')&&pad.includes('A/Cross')&&pad.includes('RT/R2'),'Controller help must be visible in the game menu');
 assert(install.includes('beforeinstallprompt')&&install.includes("serviceWorker.register('service-worker.js'"),'Install prompt or service worker registration missing');
 assert(sw.includes("addEventListener('install'")&&sw.includes("addEventListener('fetch'")&&sw.includes('offline-assets.json'),'Offline service worker contract missing');
-assert(sw.includes("request.headers.has('range')")&&sw.includes('Content-Range')&&sw.includes('status:206'),'Cached media byte-range support missing');
-assert(sw.includes("cache.match(request,{ignoreSearch:true})"),'Cache-busted media must resolve to the installed offline asset');
+assert(sw.includes("if(request.headers.has('range'))return"),'Media byte ranges must remain browser-native for Firefox/Safari compatibility');
+assert(sw.includes("cache.match(request,{ignoreSearch:true})"),'Cache-busted static assets must resolve to the installed offline asset');
 assert(sw.includes("status:503")&&!sw.includes('Response.error()'),'Offline failures must resolve normally instead of surfacing browser service-worker errors');
 assert(build.includes("stableRuntime=new Set(['service-worker.js'])"),'Service worker must remain at root scope');
 assert(build.includes("offline-assets.json"),'Offline production asset manifest missing');
 assert.equal(manifest.display,'standalone');assert.equal(manifest.start_url,'./');assert.equal(manifest.scope,'./');
-console.log('PASS: controller mappings, in-game help, install prompt, offline PWA and cached media ranges.');
+console.log('PASS: controller mappings, in-game help, install prompt, offline PWA and native media ranges.');
