@@ -1236,7 +1236,7 @@
   function setSelection(sel){
     const next=sel==='all'?'all':selectionIds(sel);
     if(next!=='all'&&!next.length)return;
-    if(squadFormation.active)clearSquadFormation();
+    if(squadFormation.active)clearSquadFormation(true);
     selection=next;
     const ids=new Set(selectionIds());
     squad.forEach((s,i)=>s.selected=s.alive&&(!commands||commands.owns(i))&&ids.has(i));
@@ -1828,7 +1828,9 @@
 
 
 
-  function clearSquadFormation(){
+  function clearSquadFormation(preserveOrders=false){
+    const continuing=preserveOrders&&!squadFormation.manualMoving&&squadFormation.destination
+      ?{members:[...squadFormation.members],destination:{...squadFormation.destination}}:null;
     squadFormation.active=false;
     squadFormation.leader=null;
     squadFormation.members=[];
@@ -1840,6 +1842,18 @@
       s.formSlot=0;
       s.followRepath=0;
     });
+    if(continuing){
+      const units=continuing.members.filter(s=>s.alive&&!s.manualGarrison&&!s.checkpointCover);
+      const target=continuing.destination,lead=units[0];
+      if(lead){
+        const angle=Math.atan2(target.y-lead.y,target.x-lead.x);
+        units.forEach((unit,i)=>{
+          const offset=(i-(units.length-1)/2)*26;
+          const x=target.x-Math.sin(angle)*offset,y=target.y+Math.cos(angle)*offset;
+          if(!assignPath(unit,x,y))assignPath(unit,target.x,target.y);
+        });
+      }
+    }
   }
 
   function promoteFormationLeader(){

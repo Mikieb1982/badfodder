@@ -43,6 +43,22 @@ async function runLifecycle(providedBrowser, testInfo){
  async function active(){const state=await page.evaluate(()=>window.__testGame.state());assert(state.started&&!state.menuOpen&&!state.paused&&!state.runtimeSafeStop);assert.equal(state.faults,0);assert.equal(state.lifecycle,'PLAYING');return state}
  async function resultCycle(p,map){await p.evaluate(()=>window.__testGame.fail());assert(await p.locator('#resultRetry').isVisible());const id=await p.evaluate(()=>window.__testGame.identity());assert.equal(await p.locator('#resultTitle').textContent(),id.failure);await p.locator('#resultBriefing').click();assert(await p.locator('#briefingBegin').isVisible());await p.locator('#briefingBack').click();await p.locator('#resultRetry').click();await p.waitForFunction(()=>!window.__testGame.state().menuOpen&&!window.__testGame.state().finished);assert(await p.locator('#briefingBegin').isHidden());await p.evaluate(()=>window.__testGame.complete());assert.equal(await p.locator('#resultTitle').textContent(),id.victory[0]);if(process.env.BADFODDER_SCREENSHOTS)await p.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp',map+'-result.png')});await p.locator('#resultRetry').click();}
  async function pauseMenuResume(){await page.evaluate(()=>window.__testGame.pause());await page.locator('#menuMain').click();assert(await page.locator('#menuResume').isVisible());await page.locator('#menuResume').click();await active()}
+ async function controllerSelection(){
+  await page.waitForFunction(()=>!!window.BadFodderController);
+  await page.evaluate(()=>{
+   window.__originalGamepads=navigator.getGamepads.bind(navigator);
+   window.__testPad={index:0,connected:true,axes:[0,0,0,0],buttons:Array.from({length:16},()=>({pressed:false,value:0}))};
+   Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[window.__testPad]});
+   window.BadFodderController.reset();
+  });
+  async function press(indices,count){
+   await page.evaluate(()=>window.__testPad.buttons.forEach(b=>b.pressed=false));await page.waitForTimeout(100);
+   await page.evaluate(indices=>indices.forEach(i=>window.__testPad.buttons[i].pressed=true),indices);
+   await page.waitForFunction(count=>window.__testGame.state().units.filter(u=>u.selected).length===count,count);
+  }
+  await press([15],1);await press([4,15],2);await press([12],4);
+  await page.evaluate(()=>{window.BadFodderController.reset();Object.defineProperty(navigator,'getGamepads',{configurable:true,value:window.__originalGamepads});delete window.__testPad;delete window.__originalGamepads;});
+ }
  await page.locator('[data-view="missions"] [data-back]').click();
  for(const [button,map] of [['#menuMissionBad','bad-belzig'],['#menuMissionWigan','wigan']]){
   await page.locator('#menuMissionSelect').click();await page.locator(button).click();assert.equal((await page.evaluate(()=>window.__testGame.state())).menuOpen,true);assert(await page.locator('#briefingStory').isVisible());assert.equal(await page.locator('#briefingCharacters canvas').count(),4);await page.evaluate(()=>BadFodderArt.preloadMissionArt(document.getElementById('briefingTitle').textContent.toLowerCase()));if(process.env.BADFODDER_SCREENSHOTS)await page.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp',map+'-briefing.png')});await page.locator('#briefingBack').click();assert(await page.locator(button).isVisible());await page.locator('[data-view="missions"] [data-back]').click();
@@ -50,6 +66,7 @@ async function runLifecycle(providedBrowser, testInfo){
   const objectiveTransition=await page.evaluate(()=>window.__testGame.objectiveTransition());
   assert.equal(objectiveTransition.stage,1);assert.deepEqual(objectiveTransition.statuses,['COMPLETED','ACTIVE','PENDING']);
   assert.equal((await page.evaluate(()=>window.__testGame.objectives())).manager.objectives[0].status,'ACTIVE','Restart must reset objective state');
+  await controllerSelection();
   const identity=await page.evaluate(()=>window.__testGame.identity());assert.equal(identity.year,map==='wigan'?1941:1945);assert.equal(await page.locator('#loadingEra').textContent(),identity.loading);assert((await page.locator('#hudSquadBar').textContent()).includes(identity.characters[0].name));assert((await page.evaluate(()=>BadFodderMusic.source)).endsWith('assets/audio/mission.mp3'));
   const chips=page.locator('#hudSquadBar .hud-unit');
   await chips.nth(0).click();
