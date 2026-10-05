@@ -1,0 +1,17 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'..');
+const read=file=>fs.readFileSync(path.join(root,file),'utf8');
+const input=read('game-input.js'),pad=read('controller-support.js'),install=read('install-app.js'),sw=read('service-worker.js'),build=read('tools/runtime/build.cjs');
+const manifest=JSON.parse(read('manifest.webmanifest'));
+assert(input.includes("load('controller-support.js'")&&input.includes("load('install-app.js'"),'Runtime support modules are not loaded');
+assert(pad.includes('navigator.getGamepads'),'Gamepad API support missing');
+assert(pad.includes("pad.axes[0]")&&pad.includes("pad.axes[2]")||pad.includes("gp.axes[0]")&&pad.includes("gp.axes[2]"),'Dual-stick controller mapping missing');
+assert(pad.includes("down(gp,7)")&&pad.includes("edge(gp,5)")&&pad.includes("edge(gp,9)"),'Fire, grenade and pause controller mappings missing');
+assert(pad.includes("tap('h','KeyH')")&&pad.includes("tap('e','KeyE')"),'Garrison/action controller mappings missing');
+assert(install.includes('beforeinstallprompt')&&install.includes("serviceWorker.register('service-worker.js'"),'Install prompt or service worker registration missing');
+assert(sw.includes("addEventListener('install'")&&sw.includes("addEventListener('fetch'")&&sw.includes('offline-assets.json'),'Offline service worker contract missing');
+assert(build.includes("stableRuntime=new Set(['service-worker.js'])"),'Service worker must remain at root scope');
+assert(build.includes("offline-assets.json"),'Offline production asset manifest missing');
+assert.equal(manifest.display,'standalone');assert.equal(manifest.start_url,'./');assert.equal(manifest.scope,'./');
+console.log('PASS: controller mappings, install prompt and offline PWA contract.');
