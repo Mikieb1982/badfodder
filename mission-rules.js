@@ -315,14 +315,14 @@
 
   function phaseDefenders(phase,enemies){
     if(!phase||!phase.defenderGroup)return null;
-    return enemies.filter(e=>e.alive&&e.objectiveGroup===phase.defenderGroup);
+    return enemies.filter(e=>(e.alive&&!e.surrendered)&&e.objectiveGroup===phase.defenderGroup);
   }
 
   function evaluatePhase({phase,living,enemies,zones,scale=1}){
     living=Array.isArray(living)?living:[];
     enemies=Array.isArray(enemies)?enemies:[];
     zones=zones||{};
-    const remaining=enemies.filter(e=>e.alive).length;
+    const remaining=enemies.filter(e=>(e.alive&&!e.surrendered)).length;
     if(!phase)return{complete:true,ready:true,status:'Mission complete.'};
 
     const zone=phase.zone?zones[phase.zone]||null:null;
@@ -336,11 +336,11 @@
       const assigned=phaseDefenders(phase,enemies);
       const radius=(phase.radius||160)*scale;
       const defenders=assigned||(
-        zone?enemies.filter(e=>e.alive&&Math.hypot(e.x-zone.x,e.y-zone.y)<radius):[]
+        zone?enemies.filter(e=>(e.alive&&!e.surrendered)&&Math.hypot(e.x-zone.x,e.y-zone.y)<radius):[]
       );
       const contestRadius=(phase.contestRadius||75)*scale;
       const contesters=zone&&defenders.length===0
-        ?enemies.filter(e=>e.alive&&Math.hypot(e.x-zone.x,e.y-zone.y)<contestRadius)
+        ?enemies.filter(e=>(e.alive&&!e.surrendered)&&Math.hypot(e.x-zone.x,e.y-zone.y)<contestRadius)
         :[];
       const ready=inZone&&defenders.length===0&&contesters.length===0;
 

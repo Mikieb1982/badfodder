@@ -43,9 +43,9 @@
       switch(objective.type){
         case 'REACH':case 'ESCAPE':ready=!!zone&&inside.length>0;break;
         case 'CLEAR':ready=objective.defenderGroup?rules.phaseDefenders(objective,context.enemies||[]).length===0
-          :!!zone&&(context.enemies||[]).every(e=>!e.alive||!rules.pointInCircle(e.x,e.y,zone));break;
+          :!!zone&&(context.enemies||[]).every(e=>(!e.alive||e.surrendered)||!rules.pointInCircle(e.x,e.y,zone));break;
         case 'CAPTURE':case 'HOLD':case 'DEFEND':case 'GARRISON':{
-          const contested=!!zone&&(context.enemies||[]).some(e=>e.alive&&rules.pointInCircle(e.x,e.y,zone));
+          const contested=!!zone&&(context.enemies||[]).some(e=>(e.alive&&!e.surrendered)&&rules.pointInCircle(e.x,e.y,zone));
           const defenders=rules.phaseDefenders(objective,context.enemies||[]);
           ready=inside.length>0&&!contested&&(!defenders||!defenders.length)&&(objective.type!=='GARRISON'||inside.some(s=>s.manualGarrison||s.checkpointCover));
           break;

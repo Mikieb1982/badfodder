@@ -13,6 +13,7 @@ fail:()=>{squad.forEach(s=>s.alive=false);checkFailure()},complete:completeCurre
 identity:()=>missionIdentity, phase:()=>missionStage,
 objectives:()=>missionObjectivesRuntime.snapshot(),
 characters:()=>squad.map(s=>({id:s.id,name:s.name,occupation:s.occupation,trait:s.trait,healthState:s.healthState,experience:s.experience,voiceSet:s.voiceSet,relationships:s.relationships})),
+enemyState:()=>enemyBehaviour.snapshot(),surrender:()=>{const e=enemies[1];Object.assign(e,{alive:true,hp:1,surrendered:false,x:squad[1].x,y:squad[1].y,combatRole:'RIFLEMAN'});squad.forEach(s=>{s.x=e.x+5;s.y=e.y});for(let i=0;i<4;i++){e.suppression=.95;enemyBehaviour.fixedUpdate(.5)}return{alive:e.alive,surrendered:e.surrendered};},
 tactics:()=>({state:tacticsRuntime.snapshot(),movement:BadFodderCombatTactics.movementScale(squad[0]),spread:BadFodderCombatTactics.spreadScale(squad[0])}),
 pressure:()=>{enemies.forEach(e=>e.alive=false);adaptiveDirector=null;clearSquadFormation();squad.forEach(s=>{s.path=null;s.target=null});squad[0].coverMask=0;squad[0].suppression=.85;updateHud(true)},
 building:()=>({state:buildingRuntime.snapshot(),grenades:squadGrenades}),
@@ -112,6 +113,7 @@ async function runLifecycle(providedBrowser, testInfo){
  await p.evaluate(()=>window.__testGame.step(300));
  assert.equal((await p.evaluate(()=>window.__testGame.tactics())).state.squad[0][0],0);
 
+  const surrender=await p.evaluate(()=>__testGame.surrender());assert(surrender.alive&&surrender.surrendered,'Overwhelmed enemies must surrender alive');
   const id=await p.evaluate(()=>__testGame.prepareBuilding());
   async function action(){if(touch)await p.locator('#touchAction').dispatchEvent('pointerdown',{pointerId:74,pointerType:'touch'});else await p.keyboard.press('e')}
   await action();assert.equal((await p.evaluate(()=>__testGame.state())).units[1].building,id,'Entrance did not place the selected person inside');

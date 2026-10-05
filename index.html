@@ -557,6 +557,7 @@
 <script src="sfx.js?v=20261003-tactical-1"></script>
 <script src="combat-geometry.js"></script>
 <script src="combat-tactics.js"></script>
+<script src="enemy-behaviour.js"></script>
 <script src="navigation.js?v=20261003-upgrade-1"></script>
 <script src="checkpoint-fortification.js"></script>
 <script src="checkpoint-wave-config.js"></script>
@@ -713,7 +714,7 @@
   let lastHudStats='',lastRosterSignature='',hudNoticeUntil=0;
   let runtimeFaultCount=0,runtimeFaultAt=0,runtimeSafeStop=false,runtimeFaultTotal=0;
   let missionController=null,missionInteractionLayer=null,missionDirector=null,missionCrowd=null;
-  let missionObjectivesRuntime=null,civilianRuntime=null,buildingRuntime=null,tacticsRuntime=null;
+  let missionObjectivesRuntime=null,civilianRuntime=null,buildingRuntime=null,tacticsRuntime=null,enemyBehaviour=null;
   function currentObjectivePhase(){
     const objective=missionObjectivesRuntime?.manager.current();
     return objective?{...objective,type:objective.meta?.legacy?objective.legacyType:objective.type}:(activeMission().phases||[])[missionStage];
@@ -1497,7 +1498,8 @@
       select:setSelection,move:setMoveTargets,isActive:()=>started&&!menuOpen&&!paused&&!finished&&!mapOpen,
       prepareHold:s=>buildingRuntime?.exit(s),firearmsAllowed:()=>actionAllowed('firearms'),canSee:(s,e)=>!lineBlocked(s.x,s.y,e.x,e.y),
       shoot:(s,e)=>{const spread=10*window.BadFodderCombatTactics.spreadScale(s);fireBullet('squad',s.x,s.y,e.x+(gameplayRng.random()-.5)*spread,e.y+(gameplayRng.random()-.5)*spread,squad.indexOf(s))}});
-    civilianRuntime=null;buildingRuntime=null;tacticsRuntime=null;
+    civilianRuntime=null;buildingRuntime=null;tacticsRuntime=null;enemyBehaviour=null;
+    if(!missionController)enemyBehaviour=window.BadFodderEnemyBehaviour.create({getEnemies:()=>enemies,getSquad:()=>squad,scale:SCALE,canSee:(e,s)=>!lineBlocked(e.x,e.y,s.x,s.y),onSurrender:()=>setStatus('An isolated enemy has surrendered.')});
     if(!missionController)tacticsRuntime=window.BadFodderCombatTactics.create({getSquad:()=>squad,getEnemies:()=>enemies,obstacleAt,scale:SCALE,canSee:(ax,ay,bx,by)=>!lineBlocked(ax,ay,bx,by),resistance:u=>u.identityRole==='squad'?window.BadFodderIdentities.modifiers(u).suppression:1});
     if(!missionController){
       const rally={x:squad[0].x,y:squad[0].y,r:S(65)};
@@ -1652,7 +1654,7 @@
     const objectiveRows=missionObjectivesRuntime?.manager.all().filter(o=>!o.optional)||[];
     const phaseCount=Math.max(1,objectiveRows.length||phases.length);
     const living=squad.filter(s=>s.alive);
-    const remaining=enemies.filter(e=>e.alive).length;
+    const remaining=enemies.filter(e=>e.alive&&!e.surrendered).length;
     const currentPhase=currentObjectivePhase();
     const objectiveDefenders=currentPhase?phaseDefenders(currentPhase):null;
     const targetCount=objectiveDefenders?objectiveDefenders.length:remaining;
@@ -1731,7 +1733,7 @@
     if(ent.insideBuilding&&ent.identityRole==='squad')buildingRuntime?.exit(ent);
     const discipline=ent.identityRole==='squad'?window.BadFodderIdentities.modifiers(ent).movement:1;
     const health=ent.identityRole==='squad'?window.BadFodderHealth.movementScale(ent):1;
-    const suppression=window.BadFodderCombatTactics.movementScale(ent);
+    const suppression=window.BadFodderCombatTactics.movementScale(ent)*(ent.combatRole?window.BadFodderEnemyBehaviour.modifiers(ent).speed:1);
     dx*=discipline*health*suppression;dy*=discipline*health*suppression;
     const nx=Math.max(r,Math.min(WORLD_W-r,ent.x+dx));
     if(!obstacleAt(nx,ent.y,r))ent.x=nx;
@@ -1755,7 +1757,7 @@
   }
 
   function prepareEnemyReaction(e,minDelay=.42,cue='!'){
-    const delay=minDelay+unit(Math.floor(e.homeX+e.homeY),31)*.22;
+    const delay=(minDelay+unit(Math.floor(e.homeX+e.homeY),31)*.22)*window.BadFodderEnemyBehaviour.modifiers(e).reaction;
     e.reactionTimer=Math.max(e.reactionTimer||0,delay);
     e.cueTimer=Math.max(e.cueTimer||0,.9);
     e.alertCue=cue;
@@ -1764,7 +1766,7 @@
 
   function alertNearbyEnemies(source,x,y,r=S(230)){
     enemies.forEach(e=>{
-      if(!e.alive||e===source)return;
+      if(!e.alive||e.surrendered||e===source)return;
       const sameGroup=source&&e.groupId===source.groupId;
       if(!sameGroup&&Math.hypot(e.x-x,e.y-y)>r)return;
       const newlyAlerted=!e.alert;
@@ -1889,7 +1891,7 @@
     noise.push({x,y,r:S(320),life:.7});
 
     enemies.forEach(e=>{
-      if(!e.alive)return;
+      if(!e.alive||e.surrendered)return;
       const d=Math.hypot(e.x-x,e.y-y);
       if(d>=S(58))return;
       const shielded=lineBlocked(x,y,e.x,e.y);
@@ -2105,9 +2107,11 @@
   }
 
   function chooseEnemyTacticalPoint(e,target){
+    const objective=currentObjectivePhase(),zone=zones[objective?.zone];
+    target=window.BadFodderEnemyBehaviour.tacticalTarget(e,target,objective,zone);
     const base=Math.atan2(e.y-target.y,e.x-target.x);
-    const roleOffset=e.role==='left'?.78:e.role==='right'?-.78:0;
-    const desiredRadius=e.role==='anchor'?S(112):S(96);
+    const roleOffset=e.combatRole==='FLANKER'?(e.groupId%2?.95:-.95):e.role==='left'?.78:e.role==='right'?-.78:0;
+    const desiredRadius=e.combatRole==='AGGRESSOR'?S(65):e.combatRole==='SUPPRESSOR'?S(125):e.role==='anchor'?S(112):S(96);
     let best=null,bestScore=-Infinity;
 
     for(const radius of [desiredRadius-S(18),desiredRadius,desiredRadius+S(20)]){
@@ -2121,7 +2125,7 @@
         const cover=nearbyCoverScore(x,y,target.x,target.y);
         const street=streetAffinity(x,y);
         const travel=Math.hypot(x-e.x,y-e.y);
-        const crowdPenalty=enemies.reduce((sum,other)=>sum+(other!==e&&other.alive?Math.max(0,S(30)-Math.hypot(x-other.x,y-other.y))*1.8:0),0);
+        const crowdPenalty=enemies.reduce((sum,other)=>sum+(other!==e&&other.alive&&!other.surrendered?Math.max(0,S(30)-Math.hypot(x-other.x,y-other.y))*1.8:0),0);
         const score=cover*18+street*22-travel*.018-Math.abs(radius-desiredRadius)*.02-crowdPenalty;
         if(score>bestScore){bestScore=score;best={x,y}}
       }
@@ -2224,7 +2228,7 @@
 
 
   function queueEnemyPath(e,x,y){
-    if(!e||!e.alive||!Number.isFinite(x)||!Number.isFinite(y))return false;
+    if(!e||!e.alive||e.surrendered||!Number.isFinite(x)||!Number.isFinite(y))return false;
     e.pendingPath={x,y};
     if(!e.pathQueued){
       e.pathQueued=true;
@@ -2241,7 +2245,7 @@
       e.pathQueued=false;
       const target=e.pendingPath;
       e.pendingPath=null;
-      if(!e.alive||!target)continue;
+      if(!e.alive||e.surrendered||!target)continue;
       assignPath(e,target.x,target.y);
       processed++;
     }
@@ -2267,6 +2271,7 @@
       e.reactionTimer=Math.max(0,(e.reactionTimer||0)-dt);
       e.cueTimer=Math.max(0,(e.cueTimer||0)-dt);
 
+      if(e.surrendered){e.state='idle';e.fireTimer=0;return;}
       const near=nearestLivingSquad(e);
       if(!near.unit)return;
       // Unalerted distant patrols need no tactical work until the squad approaches.
@@ -2344,7 +2349,7 @@
             updateFacing(e,near.unit.x-e.x,near.unit.y-e.y);
             e.fireTimer=.14;e.state='fire';
 
-            const spread=(24+Math.min(40,near.d*.09)+(moving?14:0))*window.BadFodderCombatTactics.spreadScale(e);
+            const spread=(24+Math.min(40,near.d*.09)+(moving?14:0))*window.BadFodderCombatTactics.spreadScale(e)*window.BadFodderEnemyBehaviour.modifiers(e).spread;
             fireBullet(
               'enemy',e.x,e.y,
               near.unit.x+(gameplayRng.random()-.5)*spread,
@@ -2354,8 +2359,8 @@
             e.burstCount++;
             if(e.burstCount>=e.burstLimit){
               e.burstCount=0;
-              e.burstLimit=2+Math.floor(unit(Math.floor(e.x*3+e.y),17)*2);
-              e.burstPause=.9+unit(Math.floor(e.x+e.y*2),19)*.65;
+              e.burstLimit=window.BadFodderEnemyBehaviour.modifiers(e).burst+Math.floor(unit(Math.floor(e.x*3+e.y),17)*2);
+              e.burstPause=(.9+unit(Math.floor(e.x+e.y*2),19)*.65)*window.BadFodderEnemyBehaviour.modifiers(e).pause;
               e.cooldown=.24;
             }else{
               e.cooldown=.2+unit(Math.floor(e.x+e.y),23)*.14;
@@ -2420,7 +2425,7 @@
       b.life-=dt;
       if(b.life<=0)return;
 
-      const targets=b.owner==='squad'?[...enemies,...civilians.filter(c=>c.alive&&c.civilianState!=='EVACUATED')]:[...squad,...civilians.filter(c=>c.alive&&c.civilianState!=='EVACUATED')];
+      const targets=b.owner==='squad'?[...enemies.filter(e=>!e.surrendered),...civilians.filter(c=>c.alive&&c.civilianState!=='EVACUATED')]:[...squad,...civilians.filter(c=>c.alive&&c.civilianState!=='EVACUATED')];
       const characterHit=combatGeometry.nearestCharacterHit(ax,ay,bx,by,targets,14);
       const obstacleT=combatGeometry.firstObstacleHitT(ax,ay,bx,by,obstacleAt,2,2);
       const characterT=characterHit?characterHit.t:null;
@@ -3062,7 +3067,7 @@
     Object.values(encounters).forEach(encounter=>{
       const zone=zones[encounter.zone];
       if(!zone)return;
-      const defenders=enemies.filter(e=>e.alive&&e.objectiveGroup===encounter.defenderGroup);
+      const defenders=enemies.filter(e=>e.alive&&!e.surrendered&&e.objectiveGroup===encounter.defenderGroup);
       const reward=pickups.find(p=>p.active&&p.optional);
       if(!defenders.length&&!reward)return;
       ctx.save();
@@ -3162,6 +3167,7 @@
       const index=squad.indexOf(ent);
       cableStreetArt.drawVolunteer(ctx,ent,art,{state:historicalState,index,clock:historicalClock});
     }else art.drawActor(ctx,ent,team);
+    if(team==='enemy'&&ent.surrendered){ctx.save();ctx.fillStyle='#fff4cc';ctx.font='bold 12px sans-serif';ctx.textAlign='center';ctx.fillText('HANDS UP',ent.x,ent.y-36);ctx.restore();}
   }
 
   function drawBulletTracer(b){
@@ -3737,6 +3743,7 @@
   function simulateStep(dt){
     if(commands?.mode==='client')return;
     tacticsRuntime?.fixedUpdate(dt);
+    enemyBehaviour?.fixedUpdate(dt);
     window.BadFodderCoop?.remoteStep(dt);
     runAdaptive(()=>adaptiveDirector.update(dt));
     if(!menuOpen&&!paused&&!mapOpen)applyTouchMovement(dt);
@@ -3948,6 +3955,7 @@
         health:window.BadFodderHealth.snapshot(),
         civilianState:civilianRuntime?.snapshot(),
         buildingState:buildingRuntime?.snapshot(),
+        enemyBehaviour:enemyBehaviour?.snapshot(),
         tactics:tacticsRuntime?.snapshot(),
         checkpoint:enemyCommander?.checkpointState()||null,stats:window.BadFodderMissionStats?.snapshot()||[]};
     },
@@ -3963,6 +3971,7 @@
       if(state.civilianState)civilianRuntime?.receive(state.civilianState);
       if(state.buildingState)buildingRuntime?.receive(state.buildingState);
       if(state.tactics)tacticsRuntime?.receive(state.tactics);
+      if(state.enemyBehaviour)enemyBehaviour?.receive(state.enemyBehaviour);
       if(selection!=='all'){
         const remaining=selectionIds();
         if(remaining.length)setSelection(remaining);else setSelection('all');

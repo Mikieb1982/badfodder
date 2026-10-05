@@ -149,9 +149,9 @@
       }
     }
     if(routePoints.length>1600){const step=routePoints.length/1600;const points=Array.from({length:1600},(_,i)=>routePoints[Math.floor(i*step)]);routePoints.length=0;routePoints.push(...points)}
-    const liveGroups=()=>[...groups.values()].map(g=>g.filter(e=>e.alive)).filter(g=>g.length);
+    const liveGroups=()=>[...groups.values()].map(g=>g.filter(e=>(e.alive&&!e.surrendered))).filter(g=>g.length);
     function knowledge(){
-      return getEnemies().filter(e=>e.alive&&e.lastSeen&&Number.isFinite(e.observedAt)&&clock-e.observedAt<24).sort((a,b)=>b.observedAt-a.observedAt)[0]?.lastSeen||null;
+      return getEnemies().filter(e=>(e.alive&&!e.surrendered)&&e.lastSeen&&Number.isFinite(e.observedAt)&&clock-e.observedAt<24).sort((a,b)=>b.observedAt-a.observedAt)[0]?.lastSeen||null;
     }
     const center=g=>({x:g.reduce((n,e)=>n+e.x,0)/g.length,y:g.reduce((n,e)=>n+e.y,0)/g.length});
     function routePoint(g,target,type){
@@ -278,10 +278,10 @@
       const phase=getPhase(),state=checkpointState(phase);if(!state)return;
       const zone=getZones()[phase.zone];if(!zone)return;
       const living=getSquad().filter(s=>s.alive),inside=living.some(s=>dist(s,zone)<=zone.r);
-      const original=getEnemies().filter(e=>e.alive&&!e.checkpointWave&&e.objectiveGroup===phase.defenderGroup);
+      const original=getEnemies().filter(e=>(e.alive&&!e.surrendered)&&!e.checkpointWave&&e.objectiveGroup===phase.defenderGroup);
       if(!state.started&&inside&&original.length===0)startCheckpointWave(phase,zone,state);
       if(!state.started)return;
-      const wave=getEnemies().filter(e=>e.alive&&e.checkpointWave&&e.checkpointPhase===phase.index);
+      const wave=getEnemies().filter(e=>(e.alive&&!e.surrendered)&&e.checkpointWave&&e.checkpointPhase===phase.index);
       if(wave.length){garrisonSquad(zone,phase.index);return}
       if(!state.cleared){state.cleared=true;for(const s of living)if(s.checkpointGarrison===phase.index){s.checkpointCover=false;s.checkpointHeld=phase.index}}
     }
@@ -349,8 +349,8 @@
       return true;
     }
     function sample(time){
-      clock=time;const squad=getSquad(),living=squad.filter(s=>s.alive),enemies=getEnemies(),alive=enemies.filter(e=>e.alive);
-      for(const [id,g] of groups){const count=g.filter(e=>e.alive).length;if(count<(counts.get(id)??g.length)&&count<=g.length/2)failedUntil=clock+14;counts.set(id,count)}
+      clock=time;const squad=getSquad(),living=squad.filter(s=>s.alive),enemies=getEnemies(),alive=enemies.filter(e=>(e.alive&&!e.surrendered));
+      for(const [id,g] of groups){const count=g.filter(e=>(e.alive&&!e.surrendered)).length;if(count<(counts.get(id)??g.length)&&count<=g.length/2)failedUntil=clock+14;counts.set(id,count)}
       const position=living.length?center(living):{x:0,y:0},phase=getPhase(),zone=getZones()[phase.zone];
       const known=knowledge(),near=alive.filter(e=>dist(e,position)<scale*180);
       return{position,scale,strength:squad.reduce((n,s)=>n+(s.alive?s.hp/s.maxHp:0),0)/Math.max(1,squad.length),casualties:1-living.length/Math.max(1,squad.length),

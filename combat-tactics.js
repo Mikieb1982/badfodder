@@ -1,7 +1,7 @@
 /* Local cover and suppression; all timers advance only with mission simulation. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.BadFodderCombatTactics=api;})(typeof window!=='undefined'?window:globalThis,function(){
  'use strict';
- const active=u=>u.alive&&!u.downed&&!u.insideBuilding;
+ const active=u=>u.alive&&!u.surrendered&&!u.downed&&!u.insideBuilding;
  const suppression=u=>Math.max(0,Math.min(1,u.suppression||0));
  function coveredAgainst(u,x,y){const sector=(Math.round(Math.atan2(y-u.y,x-u.x)*4/Math.PI)+8)%8;return !!((u.coverMask||0)&(1<<sector));}
  function movementScale(u){return 1-.35*suppression(u);}

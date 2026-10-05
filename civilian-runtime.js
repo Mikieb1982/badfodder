@@ -31,7 +31,7 @@
   }
   function update(dt){
    clock+=dt;let pathBudget=2;
-   const enemies=getEnemies().filter(e=>e.alive),noise=getNoise(),squad=getSquad();
+   const enemies=getEnemies().filter(e=>(e.alive&&!e.surrendered)),noise=getNoise(),squad=getSquad();
    for(const [i,c] of getCivilians().entries()){
     if(!c.alive||c.civilianState==='EVACUATED')continue;
     if(c.civilianState==='DOWN'){if(clock>=c.downUntil)damage(c,1);continue}

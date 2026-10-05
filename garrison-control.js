@@ -227,7 +227,7 @@
           if(!Number.isFinite(s.garrisonAnchorX)){s.garrisonAnchorX=s.x;s.garrisonAnchorY=s.y}
           s.x=s.garrisonAnchorX;s.y=s.garrisonAnchorY;s.path=null;s.pendingPath=null;s.pathIndex=0;s.target=null;
           let target=null,best=RANGE*scale;
-          for(const e of enemies){if(!e?.alive||runtime?.canSee&&!runtime.canSee(s,e))continue;const d=Math.hypot(e.x-s.x,e.y-s.y);if(d<best){best=d;target=e}}
+          for(const e of enemies){if(!e?.alive||e.surrendered||runtime?.canSee&&!runtime.canSee(s,e))continue;const d=Math.hypot(e.x-s.x,e.y-s.y);if(d<best){best=d;target=e}}
           s.garrisonTarget=target||null;if(!target)continue;s.dir=Math.atan2(target.y-s.y,target.x-s.x);
           if((s.garrisonNextFire||0)>time)continue;if(firearmsAllowed()){applyGarrisonShot(s,target);s.garrisonNextFire=time+FIRE_INTERVAL}
         }
