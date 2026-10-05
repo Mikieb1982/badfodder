@@ -1,0 +1,17 @@
+'use strict';
+const assert=require('node:assert/strict'),T=require('../combat-tactics'),P=require('../multiplayer-protocol');
+const make=(x,y)=>({x,y,alive:true,hp:8,maxHp:8,state:'idle'});
+const squad=Array.from({length:4},(_,i)=>make(20,i*100)),enemies=[make(50,0)];let wall=true,visible=true;
+const runtime=T.create({getSquad:()=>squad,getEnemies:()=>enemies,obstacleAt:(x,y)=>wall&&x>=40&&Math.abs(y)<5,canSee:()=>visible});
+runtime.fixedUpdate(1/60);assert(T.coveredAgainst(squad[0],100,0));assert(!T.coveredAgainst(squad[0],-100,0));assert(T.spreadScale(squad[0])<1);
+const seen=new Set();runtime.nearShot('enemy',100,10,0,10,seen);const covered=squad[0].suppression;assert(covered>0);runtime.nearShot('enemy',100,10,0,10,seen);assert.equal(squad[0].suppression,covered,'One bullet cannot accumulate suppression every simulation frame');
+wall=false;runtime.fixedUpdate(.1);squad[0].suppression=0;runtime.nearShot('enemy',100,10,0,10);assert(squad[0].suppression>covered,'Directional cover reduces pressure');
+visible=false;squad[0].suppression=0;runtime.nearShot('enemy',100,10,0,10);assert.equal(squad[0].suppression,0,'Walls stop pressure reaching actors behind them');visible=true;
+for(let i=0;i<8;i++)runtime.nearShot('enemy',100,10,0,10);assert(squad[0].suppression>=.65);assert(T.movementScale(squad[0])<1);assert(T.spreadScale(squad[0])>1);
+const hp=squad[0].hp;runtime.fixedUpdate(5);assert.equal(squad[0].suppression,0);assert.equal(squad[0].hp,hp,'Suppression is pressure, not extra damage');
+runtime.nearShot('squad',0,10,100,10);assert(enemies[0].suppression>0);assert.equal(squad[0].suppression,0,'Shots affect opposing forces only');
+squad[0].downed=true;runtime.nearShot('enemy',100,10,0,10);assert.equal(squad[0].suppression,0);squad[0].downed=false;
+const state=runtime.snapshot();enemies[0].suppression=0;runtime.receive(state);assert(enemies[0].suppression>0);
+const packet=P.snapshot({squad,enemies,civilians:[],pickups:[],bullets:[],thrown:[],effects:[],missionStage:0,phaseHoldTime:0,squadGrenades:4,finished:false,win:false,checkpoint:null,stats:squad.map((u,index)=>({index,name:'Local',kills:0,alive:true})),tactics:state},1);
+assert.deepEqual(P.readSnapshot(packet).tactics,state);assert(!P.readSnapshot({...packet,tactics:{squad:[[2,0]],enemies:[]}}));assert(!P.readSnapshot({...packet,tactics:{...state,squad:state.squad.map(()=>[0,256])}}));
+console.log('PASS: directional automatic cover, opposing near-miss pressure, walls, one contribution per bullet, decay, speed/accuracy effects and validated co-op state.');

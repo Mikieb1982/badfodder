@@ -26,6 +26,7 @@
    ...(s.health?{health:s.health}:{}),
    ...(s.civilianState?{civilianState:s.civilianState}:{}),
    ...(s.buildingState?{buildingState:s.buildingState}:{}),
+   ...(s.tactics?{tactics:s.tactics}:{}),
    checkpoint:s.checkpoint?{phase:s.checkpoint.phase,started:!!s.checkpoint.started,cleared:!!s.checkpoint.cleared,style:s.checkpoint.style}:null,
    stats:s.stats.map(r=>[r.index,r.name,r.kills,Number.isSafeInteger(r.assists)?r.assists:0,r.alive])};
  }
@@ -50,12 +51,16 @@
   if(p.objectives!=null&&!validObjectives(p.objectives))return null;
   if(p.health!=null&&!validHealth(p.health,p.s))return null;
   if(p.civilianState!=null&&(!Array.isArray(p.civilianState)||p.civilianState.length!==p.c.length||!p.civilianState.every(r=>Array.isArray(r)&&r.length===3&&['CALM','FRIGHTENED','HIDING','FOLLOWING','FLEEING','EVACUATED','WOUNDED','DOWN','DEAD'].includes(r[0])&&(r[1]===null||Number.isInteger(r[1])&&r[1]>=0&&r[1]<4)&&(r[2]===null||Number.isFinite(r[2])&&r[2]>=0&&r[2]<=86400))))return null;
+  if(p.tactics!=null){
+   const valid=(r,n)=>Array.isArray(r)&&r.length===n&&r.every(v=>Array.isArray(v)&&v.length===2&&Number.isFinite(v[0])&&v[0]>=0&&v[0]<=1&&Number.isInteger(v[1])&&v[1]>=0&&v[1]<=255);
+   if(!p.tactics||!valid(p.tactics.squad,p.s.length)||!valid(p.tactics.enemies,p.e.length))return null;
+  }
   if(p.buildingState!=null){
    const b=p.buildingState,id=v=>typeof v==='string'&&v.length<=80;
    if(!b||!Array.isArray(b.units)||b.units.length!==4||!b.units.every(v=>v===null||id(v))||!Array.isArray(b.sites)||b.sites.length>12||!b.sites.every(r=>Array.isArray(r)&&r.length===5&&id(r[0])&&r.slice(1).every(v=>typeof v==='boolean'))||new Set(b.sites.map(r=>r[0])).size!==b.sites.length||!b.units.every(v=>v===null||b.sites.some(r=>r[0]===v)))return null;
   }
   const rows=(list,keys)=>list.map(r=>unpack(r,keys));
-  return {squad:rows(p.s,actorKeys),enemies:rows(p.e,actorKeys),civilians:rows(p.c,actorKeys),pickups:rows(p.p,itemKeys),bullets:rows(p.b,itemKeys),thrown:rows(p.g,itemKeys),effects:rows(p.f,itemKeys),missionStage:p.stage,phaseHoldTime:p.hold,squadGrenades:p.grenades,finished:p.done,win:p.win,checkpoint:p.checkpoint,objectives:p.objectives||null,health:p.health||null,civilianState:p.civilianState||null,buildingState:p.buildingState||null,stats:p.stats.map(r=>({index:r[0],name:r[1],kills:r[2],assists:r.length===5?r[3]:0,alive:r[r.length-1]}))};
+  return {squad:rows(p.s,actorKeys),enemies:rows(p.e,actorKeys),civilians:rows(p.c,actorKeys),pickups:rows(p.p,itemKeys),bullets:rows(p.b,itemKeys),thrown:rows(p.g,itemKeys),effects:rows(p.f,itemKeys),missionStage:p.stage,phaseHoldTime:p.hold,squadGrenades:p.grenades,finished:p.done,win:p.win,checkpoint:p.checkpoint,objectives:p.objectives||null,health:p.health||null,civilianState:p.civilianState||null,buildingState:p.buildingState||null,tactics:p.tactics||null,stats:p.stats.map(r=>({index:r[0],name:r[1],kills:r[2],assists:r.length===5?r[3]:0,alive:r[r.length-1]}))};
  }
  function validObjectives(saved){
   try{

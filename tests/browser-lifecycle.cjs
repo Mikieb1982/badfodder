@@ -13,6 +13,8 @@ fail:()=>{squad.forEach(s=>s.alive=false);checkFailure()},complete:completeCurre
 identity:()=>missionIdentity, phase:()=>missionStage,
 objectives:()=>missionObjectivesRuntime.snapshot(),
 characters:()=>squad.map(s=>({id:s.id,name:s.name,occupation:s.occupation,trait:s.trait,healthState:s.healthState,experience:s.experience,voiceSet:s.voiceSet,relationships:s.relationships})),
+tactics:()=>({state:tacticsRuntime.snapshot(),movement:BadFodderCombatTactics.movementScale(squad[0]),spread:BadFodderCombatTactics.spreadScale(squad[0])}),
+pressure:()=>{enemies.forEach(e=>e.alive=false);adaptiveDirector=null;clearSquadFormation();squad.forEach(s=>{s.path=null;s.target=null});squad[0].coverMask=0;squad[0].suppression=.85;updateHud(true)},
 building:()=>({state:buildingRuntime.snapshot(),grenades:squadGrenades}),
 prepareBuilding:()=>{adaptiveDirector=null;clearSquadFormation();enemies.forEach(e=>e.alive=false);civilians.forEach(c=>{c.x=WORLD_W-50;c.y=WORLD_H-50;c.homeX=c.x;c.homeY=c.y;c.leaderIndex=null});squad.forEach(s=>{s.path=null;s.target=null});const site=buildingRuntime.sites.find(s=>s.cache);if(!site)throw Error('No reachable building site');Object.assign(squad[1],site.door);setSelection(1);updateHud(true);return site.id},
 health:()=>BadFodderHealth.snapshot(),
@@ -104,6 +106,12 @@ async function runLifecycle(providedBrowser, testInfo){
   await p.setViewportSize({width:915,height:412});await p.evaluate(()=>__testGame.restart());
  }
  async function buildingCycle(p,touch=false){
+ await p.evaluate(()=>window.__testGame.pressure());
+ assert((await p.evaluate(()=>window.__testGame.tactics())).movement<1);
+ await p.waitForFunction(()=>document.querySelector('.hud-state')?.textContent.includes('PINNED'));
+ await p.evaluate(()=>window.__testGame.step(300));
+ assert.equal((await p.evaluate(()=>window.__testGame.tactics())).state.squad[0][0],0);
+
   const id=await p.evaluate(()=>__testGame.prepareBuilding());
   async function action(){if(touch)await p.locator('#touchAction').dispatchEvent('pointerdown',{pointerId:74,pointerType:'touch'});else await p.keyboard.press('e')}
   await action();assert.equal((await p.evaluate(()=>__testGame.state())).units[1].building,id,'Entrance did not place the selected person inside');
