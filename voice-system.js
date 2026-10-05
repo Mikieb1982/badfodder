@@ -142,6 +142,7 @@
   }
 
   function showCaption(req){
+    if(req?.team==='narrator')return;
     if(!root.document||!req?.caption)return;
     if(!captionEl){
       captionEl=root.document.createElement('div');

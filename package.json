@@ -23,7 +23,7 @@
     "build": "node tools/runtime/build.cjs",
     "test:coop:rules": "firebase emulators:exec --only database --project demo-badfodder \"node tests/multiplayer-rules.cjs\"",
     "test:visual": "playwright test -c playwright.config.cjs",
-    "test:visual:update": "playwright test --update-snapshots",
+    "test:visual:update": "playwright test -c playwright.config.cjs --update-snapshots",
     "test:build": "npm run build && node tests/production-build.cjs",
     "check:runtime": "eslint game-input.js game-storage.js game-rng.js runtime-services.js mission-assets.js"
   },
