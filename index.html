@@ -563,6 +563,7 @@
 <script src="mission-stats.js"></script>
 <script src="mission-rules.js"></script>
 <script src="mission-objectives.js"></script>
+<script src="building-runtime.js"></script>
 <script src="civilian-runtime.js"></script>
 <script src="character-health.js"></script>
 <script src="mission-route-validation.js?v=20261002-cable-nav-3"></script>
@@ -585,7 +586,7 @@
   const frame=document.createElement('canvas');
   frame.width=1040;frame.height=650;
   let ctx=frame.getContext('2d');
-  let renderingStatic=false,scenery=null,sceneryTiles=null,sceneryBounds=null;
+  let renderingStatic=false,renderingOverview=false,scenery=null,sceneryTiles=null,sceneryBounds=null;
   ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
   display.imageSmoothingEnabled=true;
   const art=BadFodderArt;
@@ -711,7 +712,7 @@
   let lastHudStats='',lastRosterSignature='',hudNoticeUntil=0;
   let runtimeFaultCount=0,runtimeFaultAt=0,runtimeSafeStop=false,runtimeFaultTotal=0;
   let missionController=null,missionInteractionLayer=null,missionDirector=null,missionCrowd=null;
-  let missionObjectivesRuntime=null,civilianRuntime=null;
+  let missionObjectivesRuntime=null,civilianRuntime=null,buildingRuntime=null;
   function currentObjectivePhase(){
     const objective=missionObjectivesRuntime?.manager.current();
     return objective?{...objective,type:objective.meta?.legacy?objective.legacyType:objective.type}:(activeMission().phases||[])[missionStage];
@@ -959,7 +960,7 @@
     if(!touchAction)return;
     const selected=selectedHistoricalActor();
     const enabled=!!(missionInteractionLayer&&selected&&!menuOpen&&!paused&&!finished&&!mapOpen);
-    const civilianHint=civilianRuntime?.hint(selected?.unit)||'';
+    const civilianHint=contextAction(selected?.unit)?.label||'';
     touchAction.hidden=!missionInteractionLayer&&!civilianHint;
     touchAction.disabled=missionInteractionLayer?!enabled:!civilianHint||menuOpen||paused||finished||mapOpen;
     touchAction.textContent=missionInteractionLayer&&selected?missionInteractionLayer.hint(selected.id):civilianHint||'ACTION';
@@ -967,11 +968,44 @@
     touchDrop.textContent=selected&&missionController?.state.actors.get(selected.id)?.carrying?'DROP':'CANCEL';
   }
 
+  function contextAction(helper){
+    if(!helper)return null;
+    const site=buildingRuntime?.nearest(helper),resident=civilianRuntime?.nearest(helper);
+    if(site&&(helper.insideBuilding||!resident||Math.hypot(helper.x-site.door.x,helper.y-site.door.y)<Math.hypot(helper.x-resident.x,helper.y-resident.y)))return{type:'building',label:buildingRuntime.nextAction(helper,site),site};
+    return resident?{type:'civilian',label:civilianRuntime.hint(helper)}:null;
+  }
+
+  function createBuildingSites(rally){
+    const eligible=buildings.filter(b=>!b.hidden&&!b.landmarkFootprint&&b.solid);
+    const chosen=new Map();
+    for(const anchor of [rally,...Object.values(zones)]){
+      let added=0;
+      for(const b of [...eligible].sort((a,b)=>Math.hypot((a.minX+a.maxX)/2-anchor.x,(a.minY+a.maxY)/2-anchor.y)-Math.hypot((b.minX+b.maxX)/2-anchor.x,(b.minY+b.maxY)/2-anchor.y))){
+        if(chosen.has(b.i))continue;
+        const center={x:(b.minX+b.maxX)/2,y:(b.minY+b.maxY)/2};
+        if(!pointInPoly(center.x,center.y,b.points))continue;
+        const candidates=[];
+        b.points.forEach((p,i)=>{const q=b.points[(i+1)%b.points.length],d=Math.hypot(q[0]-p[0],q[1]-p[1]);if(d<1)return;for(const t of [.5,.25,.75])for(const sign of [1,-1]){const x=p[0]+(q[0]-p[0])*t-(q[1]-p[1])/d*S(18)*sign,y=p[1]+(q[1]-p[1])*t+(q[0]-p[0])/d*S(18)*sign;if(!obstacleAt(x,y,NAV_RADIUS))candidates.push({x,y})}});
+        candidates.sort((a,b)=>Math.hypot(a.x-anchor.x,a.y-anchor.y)-Math.hypot(b.x-anchor.x,b.y-anchor.y));
+        if(!candidates.length)continue;
+        const cache=chosen.size%4===0;
+        chosen.set(b.i,{id:'building-'+b.i,name:b.name||'House',geometry:b,center,door:candidates[0],cache,actions:['ENTER','EXIT','SEARCH','GARRISON','DEFEND','INTERACT',...(cache?['COLLECT']:[])]});
+        if(++added>=2||chosen.size>=12)break;
+      }
+      if(chosen.size>=12)break;
+    }
+    return [...chosen.values()];
+  }
+
   function performCivilianAction(){
-    if(!civilianRuntime||!started||menuOpen||paused||finished||mapOpen)return false;
+    if((!civilianRuntime&&!buildingRuntime)||!started||menuOpen||paused||finished||mapOpen)return false;
     if(coopCommand('interact'))return true;
     const helper=selectedUnits()[0];
-    const acted=civilianRuntime.interact(helper);
+    const action=contextAction(helper);
+    if(action?.type==='building'){
+      const acted=buildingRuntime.perform(helper,action.label,action.site);updateHud(true);return acted;
+    }
+    const acted=civilianRuntime?.interact(helper);
     if(acted){setStatus('Residents: '+civilianRuntime.counts().evacuated+' evacuated. Guide followers to the rally point; E / ACTION lets them hide.');updateHud(true);}
     return acted;
   }
@@ -1458,7 +1492,11 @@
     missionObjectivesRuntime=window.BadFodderObjectives.create(mission);
     window.BadFodderMissionObjectives=missionObjectivesRuntime;
     window.BadFodderHealth.bindRuntime({getSquad:()=>squad,getSelected:selectedUnits,damage:applyDamageBase,dispatchAid:()=>coopCommand('aid'),isActive:()=>started&&!menuOpen&&!paused&&!finished&&!mapOpen});
-    civilianRuntime=null;
+    window.BadFodderGarrison?.bindRuntime({getSquad:()=>squad,getEnemies:()=>enemies,getSelected:selectedUnits,
+      select:setSelection,move:setMoveTargets,isActive:()=>started&&!menuOpen&&!paused&&!finished&&!mapOpen,
+      prepareHold:s=>buildingRuntime?.exit(s),firearmsAllowed:()=>actionAllowed('firearms'),canSee:(s,e)=>!lineBlocked(s.x,s.y,e.x,e.y),
+      shoot:(s,e)=>fireBullet('squad',s.x,s.y,e.x,e.y,squad.indexOf(s))});
+    civilianRuntime=null;buildingRuntime=null;
     if(!missionController){
       const rally={x:squad[0].x,y:squad[0].y,r:S(65)};
       civilianRuntime=window.BadFodderCivilians.create({getCivilians:()=>civilians,getSquad:()=>squad,getEnemies:()=>enemies,getNoise:()=>noise,
@@ -1467,10 +1505,20 @@
       missionObjectivesRuntime.manager.add({id:'evacuate-residents',type:'EVACUATE',optional:true,priority:-10,
         title:'Guide residents to safety',text:'Optional: gather residents with E / ACTION and guide them to the rally point.',marker:rally});
       missionObjectivesRuntime.manager.activate('evacuate-residents');
+      buildingRuntime=window.BadFodderBuildingRuntime.create({sites:createBuildingSites(rally),getSquad:()=>squad,
+        release:u=>window.BadFodderGarrison.release(u),range:S(42),canReach:(u,p)=>routeClear(u.x,u.y,p.x,p.y,NAV_RADIUS),
+        onAction:(action,site)=>{
+          if(action==='COLLECT'){const added=Math.min(2,8-squadGrenades);if(!added)return false;squadGrenades+=added;setStatus(site.name+': collected '+added+' grenades.');}
+          else setStatus(site.name+': '+(action==='SEARCH'?(site.cache?'Supplies found. E / ACTION to collect.':'Search complete. E / ACTION to leave.'):action==='ENTER'?'E / ACTION to search.':action.toLowerCase()));
+          if(site.objectives?.[action])missionObjectivesRuntime.signal(site.objectives[action]);
+          return true;
+        }});
+      for(const site of buildingRuntime.sites)site.geometry.interactive=true;
     }
     initializeAdaptiveDirector();
     finished=false;win=false;paused=false;mapOpen=false;selection='all';zoom=preferredZoom;
     releaseAllFireInputs();
+    hudNoticeUntil=0;hudNotice?.classList.remove('show');
     cursorWorld=null;
     simulationAccumulator=0;
     runtimeFaultCount=0;runtimeFaultAt=0;runtimeSafeStop=false;
@@ -1678,6 +1726,7 @@
 
 
   function moveEntity(ent,dx,dy,r=10){
+    if(ent.insideBuilding&&ent.identityRole==='squad')buildingRuntime?.exit(ent);
     const discipline=ent.identityRole==='squad'?window.BadFodderIdentities.modifiers(ent).movement:1;
     const health=ent.identityRole==='squad'?window.BadFodderHealth.movementScale(ent):1;
     dx*=discipline*health;dy*=discipline*health;
@@ -2089,7 +2138,7 @@
   }
 
   function resolveSquadSpacing(){
-    const living=squad.filter(s=>s.alive);
+    const living=squad.filter(s=>s.alive&&!s.downed&&!s.insideBuilding);
     const min=NAV_RADIUS*2+2;
     for(let i=0;i<living.length;i++){
       for(let j=i+1;j<living.length;j++){
@@ -2117,6 +2166,7 @@
         return;
       }
       if(s.downed){s.damageGrace=Math.max(0,(s.damageGrace||0)-dt);s.state='hurt';return}
+      if(s.insideBuilding){s.state='idle';return}
       s.anim=(s.anim||0)+dt*8;
       s.cooldown=Math.max(0,s.cooldown-dt);
       s.flash=Math.max(0,s.flash-dt);
@@ -2429,6 +2479,7 @@
     if(coopCommand('move',p))return;
     const units=selectedUnits();
     if(!units.length)return;
+    units.forEach(u=>buildingRuntime?.exit(u));
 
     if(typeof missionInteractionLayer!=='undefined'&&missionInteractionLayer)units.forEach(s=>missionInteractionLayer.cancelJob('player-'+squad.indexOf(s)));
     const tx=Math.max(16,Math.min(WORLD_W-16,p.x));
@@ -2671,7 +2722,7 @@
   }
 
   function drawBuilding(b){
-    if(b.hidden)return;
+    if(b.hidden||renderingStatic&&b.interactive&&!renderingOverview)return;
     const margin=S(40),vw=VIEW_W/zoom,vh=VIEW_H/zoom;
     const bounds=sceneryBounds||{x:camera.x,y:camera.y,w:vw,h:vh};
     if(b.maxX<bounds.x-margin||b.minX>bounds.x+bounds.w+margin||b.maxY<bounds.y-margin||b.minY>bounds.y+bounds.h+margin)return;
@@ -2887,8 +2938,9 @@
     });
 
     [...buildingSet].sort((a,b)=>a.maxY-b.maxY).forEach(b=>{
+      const occupied=buildingRuntime?.sites.some(site=>site.geometry===b&&buildingRuntime.occupied(site));
       const fading=squad.some(s=>s.alive&&s.selected&&buildingOccludesActor(b,s));
-      ctx.save();ctx.globalAlpha=fading?(missionController ? .4 : .68):.98;drawBuilding(b);ctx.restore();
+      ctx.save();ctx.globalAlpha=occupied?.22:fading?(missionController ? .4 : .68):.98;drawBuilding(b);ctx.restore();
     });
     [...treeSet].sort((a,b)=>treeDots[a].y-treeDots[b].y).forEach(i=>{
       const t=treeDots[i],fading=squad.some(s=>s.alive&&s.selected&&treeOccludesActor(t,s));
@@ -2943,7 +2995,8 @@
     // A small overview is only used by the tactical map. Play uses native tiles.
     const scale=.25;scenery=document.createElement('canvas');
     scenery.width=Math.ceil(WORLD_W*scale);scenery.height=Math.ceil(WORLD_H*scale);
-    paintScenery(scenery,0,0,scale,true);
+    renderingOverview=true;
+    try{paintScenery(scenery,0,0,scale,true)}finally{renderingOverview=false}
     sceneryTiles=new BadFodderScenery({width:WORLD_W,height:WORLD_H,gutter:2,limit:LOW_POWER?12:24,paint:(x,y,w,h)=>{
       const tile=document.createElement('canvas');tile.width=w;tile.height=h;
       try{
@@ -3126,6 +3179,14 @@
     const shake=impact?Math.sin(historicalClock*65)*1.8:0;
     ctx.save();ctx.scale(zoom,zoom);ctx.translate(-camera.x+shake,-camera.y+shake*.5);
     sceneryTiles.draw(ctx,camera.x,camera.y,VIEW_W/zoom,VIEW_H/zoom);
+    if(buildingRuntime)for(const site of buildingRuntime.sites){
+      const occupied=buildingRuntime.occupied(site);ctx.save();
+      if(occupied)polygon(site.geometry.points,'#756c55','#d8d5bd',1);
+      ctx.globalAlpha=occupied?.22:1;drawBuilding(site.geometry);ctx.restore();
+      if(squad.some(u=>u.alive&&Math.hypot(u.x-site.door.x,u.y-site.door.y)<S(100))){
+        ctx.save();ctx.fillStyle='#f4e3ad';ctx.strokeStyle='#25322b';ctx.lineWidth=2;ctx.fillRect(site.door.x-4,site.door.y-4,8,8);ctx.strokeRect(site.door.x-4,site.door.y-4,8,8);ctx.restore();
+      }
+    }
     if(MAP_DATA.key==='wigan')BadFodderWigan.labels(ctx,MAP_DATA,zoom,canvasScale,camera,VIEW_W,VIEW_H);
     drawObjectiveZones();
     drawOptionalEncounters();
@@ -3621,7 +3682,7 @@
       if(!e.repeat)throwGrenadeAtCursor();
       return;
     }
-    if(key==='e'&&(missionInteractionLayer||civilianRuntime)){
+    if(key==='e'&&(missionInteractionLayer||civilianRuntime||buildingRuntime)){
       e.preventDefault();
       if(!e.repeat){if(missionInteractionLayer)performHistoricalNearestAction();else performCivilianAction();}
       return;
@@ -3852,7 +3913,7 @@
       return commands.apply(c.units,()=>{
         const units=selectedUnits();
         if(c.type==='move'){
-          units.forEach((u,i)=>{window.BadFodderGarrison?.release(u);u.isFormationLeader=false;assignPath(u,Math.max(16,Math.min(WORLD_W-16,c.x+i*18)),Math.max(16,Math.min(WORLD_H-16,c.y+i*18)));});return true;
+          units.forEach((u,i)=>{window.BadFodderGarrison?.release(u);buildingRuntime?.exit(u);u.isFormationLeader=false;assignPath(u,Math.max(16,Math.min(WORLD_W-16,c.x+i*18)),Math.max(16,Math.min(WORLD_H-16,c.y+i*18)));});return true;
         }
         if(c.type==='fire')return squadFireAt(c.x,c.y);
         if(c.type==='grenade')return throwGrenade(c.x,c.y);
@@ -3880,6 +3941,7 @@
         objectives:missionObjectivesRuntime.snapshot(),
         health:window.BadFodderHealth.snapshot(),
         civilianState:civilianRuntime?.snapshot(),
+        buildingState:buildingRuntime?.snapshot(),
         checkpoint:enemyCommander?.checkpointState()||null,stats:window.BadFodderMissionStats?.snapshot()||[]};
     },
     receive(state,refresh=true){
@@ -3892,6 +3954,7 @@
       else missionObjectivesRuntime.syncPhase(missionStage,{completed:finished&&win,failed:finished&&!win});
       if(state.health)window.BadFodderHealth.receive(state.health);
       if(state.civilianState)civilianRuntime?.receive(state.civilianState);
+      if(state.buildingState)buildingRuntime?.receive(state.buildingState);
       if(selection!=='all'){
         const remaining=selectionIds();
         if(remaining.length)setSelection(remaining);else setSelection('all');

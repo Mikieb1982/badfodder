@@ -76,3 +76,15 @@ assert(source.includes("target?.id==='game'")&&source.includes("target?.id==='to
 assert(source.includes('lockCheckpointGarrisons')&&source.includes('checkpointAnchorX'),'Fixed POI garrison lock missing');
 assert(!source.includes("querySelector('.hud-tools')"),'Garrison should not live with map/pause HUD tools');
 console.log('PASS: selection-aware regroup releases personal holds while POI garrisons remain fixed during defence.');
+
+// Live closure callbacks work without exporting engine functions on window.
+delete scope.selectedUnits;delete scope.setSelection;delete scope.setMoveTargets;
+let liveActive=true,held=0,shots=0,visible=true;currentSelection=[soldier];
+scope.BadFodderGarrison.bindRuntime({getSquad:()=>runtimeSquad,getEnemies:()=>[enemy],getSelected:()=>currentSelection,select:value=>{selectionCommand=value;currentSelection=runtimeSquad.filter(s=>s.alive&&!s.downed)},move:p=>moveCommand=p,isActive:()=>liveActive,firearmsAllowed:()=>true,prepareHold:()=>held++,canSee:()=>visible,shoot:()=>shots++});
+soldier.manualGarrison=false;assert(scope.BadFodderGarrison.toggleGarrison());assert(held);
+visible=false;commander.maintain(100);assert.equal(shots,0,'Walls must block garrison fire');
+visible=true;commander.maintain(101);assert.equal(shots,1,'Live garrisons must use normal projectiles');
+assert(scope.BadFodderGarrison.regroup());assert.equal(selectionCommand,'all');assert(!soldier.manualGarrison);
+assert.equal(scope.BadFodderGarrison.selectedOne(),null,'A subgroup cannot silently garrison its first member');
+liveActive=false;assert(!scope.BadFodderGarrison.regroup());assert(!scope.BadFodderGarrison.toggleGarrison(soldier));
+console.log('PASS: explicit live squad callbacks, normal garrison shots, line-of-sight, group selection and paused command guards.');

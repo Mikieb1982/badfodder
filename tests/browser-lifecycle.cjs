@@ -5,7 +5,7 @@ const {chromium,firefox,webkit}=require(process.env.BADFODDER_PLAYWRIGHT||'playw
 const root=path.resolve(__dirname,'..',process.env.BADFODDER_TEST_DIST==='1'?'dist':'.');
 const engine=({chromium,firefox,webkit})[process.env.BADFODDER_BROWSER||'chromium'];
 const injection=`
-window.__testGame={state:()=>({started,paused,menuOpen,finished,runtimeSafeStop,lifecycle:lifecycle.state,zoom,map:MAP_DATA.key,mode:missionLaunch.mode(),faults:runtimeFaultCount,touch:{...touchState},units:squad.map(s=>({x:s.x,y:s.y,hp:s.hp,selected:s.selected})),progress:missionDirector?.snapshot(),controllerDisposed:missionController?.disposed,streetActors:missionController?[...missionController.state.actors.values()].map(a=>({stamina:a.stamina,attackKind:a.attackKind})):[]}),
+window.__testGame={state:()=>({started,paused,menuOpen,finished,runtimeSafeStop,lifecycle:lifecycle.state,zoom,map:MAP_DATA.key,mode:missionLaunch.mode(),faults:runtimeFaultCount,touch:{...touchState},units:squad.map(s=>({x:s.x,y:s.y,hp:s.hp,selected:s.selected,garrison:!!s.manualGarrison,building:s.insideBuilding||null})),progress:missionDirector?.snapshot(),controllerDisposed:missionController?.disposed,streetActors:missionController?[...missionController.state.actors.values()].map(a=>({stamina:a.stamina,attackKind:a.attackKind})):[]}),
 step:n=>{for(let i=0;i<n;i++)simulateStep(1/60)}, moveTarget:()=>{const s=squad[0],r=canvas.getBoundingClientRect();for(const [dx,dy] of [[70,0],[-70,0],[0,70],[0,-70]]){const x=s.x+dx,y=s.y+dy;if(routeClear(s.x,s.y,x,y,NAV_RADIUS))return{x:(x-camera.x)*zoom/VIEW_W*r.width,y:(y-camera.y)*zoom/VIEW_H*r.height}}throw new Error('No open movement test target')},
 fault:()=>{for(let i=0;i<3;i++)handleRuntimeFault(new Error('Injected unrecoverable test fault'))},
 restart:beginMission, pause:togglePause, main:showTitle, resume:resumeMission,
@@ -13,6 +13,8 @@ fail:()=>{squad.forEach(s=>s.alive=false);checkFailure()},complete:completeCurre
 identity:()=>missionIdentity, phase:()=>missionStage,
 objectives:()=>missionObjectivesRuntime.snapshot(),
 characters:()=>squad.map(s=>({id:s.id,name:s.name,occupation:s.occupation,trait:s.trait,healthState:s.healthState,experience:s.experience,voiceSet:s.voiceSet,relationships:s.relationships})),
+building:()=>({state:buildingRuntime.snapshot(),grenades:squadGrenades}),
+prepareBuilding:()=>{adaptiveDirector=null;clearSquadFormation();enemies.forEach(e=>e.alive=false);civilians.forEach(c=>{c.x=WORLD_W-50;c.y=WORLD_H-50;c.homeX=c.x;c.homeY=c.y;c.leaderIndex=null});squad.forEach(s=>{s.path=null;s.target=null});const site=buildingRuntime.sites.find(s=>s.cache);if(!site)throw Error('No reachable building site');Object.assign(squad[1],site.door);setSelection(1);updateHud(true);return site.id},
 health:()=>BadFodderHealth.snapshot(),
 civilians:()=>({counts:civilianRuntime.counts(),rows:civilianRuntime.snapshot(),optional:missionObjectivesRuntime.manager.get('evacuate-residents').status}),
 prepareResidents:()=>{enemies.forEach(e=>e.alive=false);squad.forEach(s=>{s.path=null;s.target=null});const c=civilians[0],z=civilianRuntime.zones[0];squad[1].x=z.x+z.r+40;squad[1].y=z.y;c.x=squad[1].x+10;c.y=squad[1].y;setSelection(1);updateHud(true)},
@@ -101,6 +103,21 @@ async function runLifecycle(providedBrowser, testInfo){
   }
   await p.setViewportSize({width:915,height:412});await p.evaluate(()=>__testGame.restart());
  }
+ async function buildingCycle(p,touch=false){
+  const id=await p.evaluate(()=>__testGame.prepareBuilding());
+  async function action(){if(touch)await p.locator('#touchAction').dispatchEvent('pointerdown',{pointerId:74,pointerType:'touch'});else await p.keyboard.press('e')}
+  await action();assert.equal((await p.evaluate(()=>__testGame.state())).units[1].building,id,'Entrance did not place the selected person inside');
+  if(process.env.BADFODDER_SCREENSHOTS)await p.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS,'building-'+(touch?'touch':'desktop')+'.png')});
+  await action();assert((await p.evaluate(()=>__testGame.building())).state.sites.find(r=>r[0]===id)[1],'Search was not recorded');
+  const before=(await p.evaluate(()=>__testGame.building())).grenades;await action();assert.equal((await p.evaluate(()=>__testGame.building())).grenades,before+2);
+  await action();assert.equal((await p.evaluate(()=>__testGame.state())).units[1].building,null,'Exit did not return to the street');
+  await action();
+  if(touch)await p.locator('#touchGarrison').dispatchEvent('pointerdown',{pointerId:75,pointerType:'touch'});else await p.keyboard.press('h');
+  const held=(await p.evaluate(()=>__testGame.state())).units[1];assert(held.garrison);assert.equal(held.building,null,'Defensive hold must use the reachable doorway');
+  if(touch)await p.locator('#touchRegroup').dispatchEvent('pointerdown',{pointerId:76,pointerType:'touch'});else await p.keyboard.press('r');
+  const regrouped=(await p.evaluate(()=>__testGame.state())).units;assert(regrouped.every(u=>u.selected&&!u.garrison),'Live regroup did not release and select the squad');
+  await p.evaluate(()=>__testGame.restart());
+ }
  async function civilianCycle(p,touch=false){
   await p.evaluate(()=>window.__testGame.prepareResidents());
   if(touch)await p.locator('#touchAction').dispatchEvent('pointerdown',{pointerId:72,pointerType:'touch'});else await p.keyboard.press('e');
@@ -120,7 +137,7 @@ async function runLifecycle(providedBrowser, testInfo){
   await controllerSelection();
   const characters=await page.evaluate(()=>window.__testGame.characters());
   assert.equal(new Set(characters.map(c=>c.id)).size,4);assert(characters.every(c=>c.occupation&&c.trait&&c.voiceSet&&c.healthState==='FIT'&&c.relationships.length));
-  await casualtyCycle(page);await civilianCycle(page);
+  await casualtyCycle(page);await civilianCycle(page);await buildingCycle(page);
   const identity=await page.evaluate(()=>window.__testGame.identity());assert.equal(identity.year,map==='wigan'?1941:1945);assert.equal(await page.locator('#loadingEra').textContent(),identity.loading);assert((await page.locator('#hudSquadBar').textContent()).includes(identity.characters[0].name));assert((await page.evaluate(()=>BadFodderMusic.source)).endsWith('assets/audio/mission.mp3'));
   const chips=page.locator('#hudSquadBar .hud-unit');
   await chips.nth(0).click();
@@ -170,7 +187,7 @@ async function runLifecycle(providedBrowser, testInfo){
  expectedStartupLogs=1;await page.goto(url+'?failStartup=1',{waitUntil:'domcontentloaded'});await page.locator('#menuStart').click();await page.locator('#briefingBegin').click();await page.waitForFunction(()=>document.getElementById('menuStart').textContent==='CAMPAIGN UNAVAILABLE');assert(await page.locator('#menuResume').isHidden());assert(await page.locator('#loading').isHidden());await page.evaluate(()=>history.replaceState(null,'',location.pathname));await select('#menuMissionBad');await active();
  await page.evaluate(()=>window.__testGame.main());await page.locator('#menuStart').click();await page.locator('#briefingBegin').click();await page.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen,{},{timeout:90000});assert.equal((await active()).mode,'campaign');
  const mobile=await newPage({viewport:{width:915,height:412},...(browserName!=='firefox'?{isMobile:true}:{}),hasTouch:true});mobile.on('pageerror',e=>errors.push(e.message));await mobile.goto(url,{waitUntil:'domcontentloaded'});await mobile.locator('[data-presentation-skip]').click();await mobile.waitForFunction(()=>!!window.__testGame);await mobile.locator('#menuStart').click();await mobile.locator('#briefingBegin').click();await mobile.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen);
- await casualtyCycle(mobile,true);await civilianCycle(mobile,true);
+ await casualtyCycle(mobile,true);await civilianCycle(mobile,true);await buildingCycle(mobile,true);
  // Exercise pinch through real pointer listeners in every browser engine.
  const originalZoom=await mobile.evaluate(()=>window.__testGame.state().zoom);
  await mobile.evaluate(()=>{const c=document.getElementById('game'),r=c.getBoundingClientRect(),capture=c.setPointerCapture;c.setPointerCapture=()=>{};const fire=(type,id,x)=>c.dispatchEvent(new PointerEvent(type,{pointerId:id,pointerType:'touch',clientX:r.left+x,clientY:r.top+100,bubbles:true,buttons:type==='pointerup'?0:1}));fire('pointerdown',901,200);fire('pointerdown',902,300);fire('pointermove',902,360);fire('pointerup',901,200);fire('pointerup',902,360);c.setPointerCapture=capture;});

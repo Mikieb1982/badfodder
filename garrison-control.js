@@ -3,14 +3,18 @@
   'use strict';
   const RANGE=300,FIRE_INTERVAL=.18,KEY='h',REGROUP_KEY='r';
   let runtimeGetSquad=null,runtimeGetEnemies=null;
+  let runtime=null;
+  const getSelected=()=>runtime?.getSelected?.()||root.selectedUnits?.()||[];
+  function bindRuntime(options){runtime=options;runtimeGetSquad=options.getSquad;runtimeGetEnemies=options.getEnemies;syncButtons()}
 
   function liveSquad(){try{return typeof runtimeGetSquad==='function'?(runtimeGetSquad()||[]):[]}catch(_){return[]}}
 
   function selectedOne(){
     try{
-      if(typeof root.selectedUnits==='function'){
-        const units=root.selectedUnits();
+      if(runtime||typeof root.selectedUnits==='function'){
+        const units=getSelected();
         if(units.length===1)return units[0];
+        return null;
       }
       const squad=liveSquad();
       if(!squad.length)return null;
@@ -29,8 +33,8 @@
 
   function selectedForMovement(){
     try{
-      if(typeof root.selectedUnits==='function'){
-        const units=root.selectedUnits();
+      if(runtime||typeof root.selectedUnits==='function'){
+        const units=getSelected();
         if(units.length)return units;
       }
       const squad=liveSquad().filter((s,i)=>s?.alive&&(!root.BadFodderCommands||root.BadFodderCommands.owns(i)));
@@ -41,7 +45,7 @@
     }catch(_){return[]}
   }
 
-  function firearmsAllowed(){try{return typeof root.actionAllowed!=='function'||root.actionAllowed('firearms')}catch(_){return true}}
+  function firearmsAllowed(){try{return runtime?runtime.firearmsAllowed():typeof root.actionAllowed!=='function'||root.actionAllowed('firearms')}catch(_){return true}}
   function setNotice(text){
     try{if(typeof root.setStatus==='function')root.setStatus(text)}catch(_){ }
     const notice=root.document?.getElementById('hudNotice');
@@ -62,24 +66,28 @@
     return changed;
   }
   function regroup(){
-    if(typeof root.setSelection!=='function'||typeof root.setMoveTargets!=='function'){setNotice('Regroup unavailable.');return false}
-    const selected=typeof root.selectedUnits==='function'?(root.selectedUnits()||[]).filter(s=>s?.alive):[];
+    if(runtime&&!runtime.isActive())return false;
+    const select=runtime?.select||root.setSelection,move=runtime?.move||root.setMoveTargets;
+    if(typeof select!=='function'||typeof move!=='function'){setNotice('Regroup unavailable.');return false}
+    const selected=getSelected().filter(s=>s?.alive&&!s.downed);
     const preferred=selected[0]||null;
-    root.setSelection('all');
-    const units=typeof root.selectedUnits==='function'?(root.selectedUnits()||[]).filter(s=>s?.alive):liveSquad().filter(s=>s?.alive);
+    select('all');
+    const units=(runtime||typeof root.selectedUnits==='function'?getSelected():liveSquad()).filter(s=>s?.alive&&!s.downed);
     if(!units.length)return false;
     const anchor=preferred&&units.includes(preferred)?preferred:units[0];
     if(root.BadFodderCommands?.mode!=='client')for(const unit of units)if(unit?.manualGarrison)release(unit);
-    root.setMoveTargets({x:anchor.x,y:anchor.y,regroup:true});
+    move({x:anchor.x,y:anchor.y,regroup:true});
     syncButtons();setNotice(units.length===1?'Selected survivor ready.':'Squad regrouping.');
     return true;
   }
   function toggleGarrison(chosen=null){
+    if(runtime&&!runtime.isActive())return false;
     if(!chosen&&root.BadFodderCommands?.mode!=='local'&&root.BadFodderCoop?.garrison)return root.BadFodderCoop.garrison();
     if(!firearmsAllowed())return false;
     const unit=chosen||selectedOne();
     if(unit?.downed||unit?.alive===false)return false;
     if(!unit){setNotice('Select one soldier to garrison.');return false}
+    runtime?.prepareHold?.(unit);
     if(unit.manualGarrison){release(unit);setNotice('Garrison released.');syncButtons();return false}
     unit.manualGarrison=true;unit.garrisonAnchorX=unit.x;unit.garrisonAnchorY=unit.y;unit.garrisonTarget=null;unit.garrisonNextFire=0;
     unit.path=null;unit.pendingPath=null;unit.pathIndex=0;unit.target=null;
@@ -196,6 +204,7 @@
   function applyGarrisonShot(s,target){
     s.fireTimer=.11;s.state='fire';s.flash=.08;s.garrisonTracerFrames=3;s.garrisonTracerX=target.x;s.garrisonTracerY=target.y;
     if(root.BadFodderCommands?.mode==='host'&&root.BadFodderCoopBridge?.shootGarrison)return root.BadFodderCoopBridge.shootGarrison(s,target);
+    if(runtime?.shoot)return runtime.shoot(s,target);
     if(typeof root.fireBullet==='function')return root.fireBullet('squad',s.x,s.y,target.x,target.y);
     try{root.BadFodderSfx?.shoot?.('squad')}catch(_){ }
     if(Number.isFinite(target.hp)){
@@ -214,11 +223,11 @@
         const result=maintain?maintain(time):undefined,squad=options.getSquad?.()||[],enemies=options.getEnemies?.()||[],scale=options.scale||1;
         lockCheckpointGarrisons();
         for(const s of squad){
-          if(!s?.alive||!s.manualGarrison)continue;
+          if(!s?.alive||s.downed||!s.manualGarrison)continue;
           if(!Number.isFinite(s.garrisonAnchorX)){s.garrisonAnchorX=s.x;s.garrisonAnchorY=s.y}
           s.x=s.garrisonAnchorX;s.y=s.garrisonAnchorY;s.path=null;s.pendingPath=null;s.pathIndex=0;s.target=null;
           let target=null,best=RANGE*scale;
-          for(const e of enemies){if(!e?.alive)continue;const d=Math.hypot(e.x-s.x,e.y-s.y);if(d<best){best=d;target=e}}
+          for(const e of enemies){if(!e?.alive||runtime?.canSee&&!runtime.canSee(s,e))continue;const d=Math.hypot(e.x-s.x,e.y-s.y);if(d<best){best=d;target=e}}
           s.garrisonTarget=target||null;if(!target)continue;s.dir=Math.atan2(target.y-s.y,target.x-s.x);
           if((s.garrisonNextFire||0)>time)continue;if(firearmsAllowed()){applyGarrisonShot(s,target);s.garrisonNextFire=time+FIRE_INTERVAL}
         }
@@ -241,7 +250,7 @@
   }
   function install(){installButtons();installKeyboard();installMovementRelease();installCheckpointLock();patchArt();patchAdaptive()}
 
-  root.BadFodderGarrison={toggleGarrison,regroup,release,releaseForMovement,selectedOne,selectedForMovement,lockCheckpointGarrisons,drawPersonalSandbags,patchArt,patchAdaptive,install};
+  root.BadFodderGarrison={bindRuntime,toggleGarrison,regroup,release,releaseForMovement,selectedOne,selectedForMovement,lockCheckpointGarrisons,drawPersonalSandbags,patchArt,patchAdaptive,install};
   chainProperty('BadFodderArt',patchArt);chainProperty('BadFodderAdaptive',patchAdaptive);
   if(root.document){if(root.document.readyState==='loading')root.document.addEventListener('DOMContentLoaded',install,{once:true});else install()}
 })(typeof window!=='undefined'?window:globalThis);

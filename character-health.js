@@ -87,7 +87,7 @@
    if(!unit)continue;
    if(unit.downed){
     freezeDowned(unit);
-    if(unit.carriedBy){unit.x=unit.carriedBy.x-10;unit.y=unit.carriedBy.y+9;unit.dir=unit.carriedBy.dir||unit.dir}
+    if(unit.carriedBy){unit.x=unit.carriedBy.x-10;unit.y=unit.carriedBy.y+9;unit.dir=unit.carriedBy.dir||unit.dir;unit.insideBuilding=unit.carriedBy.insideBuilding||null}
     if(!unit.stabilised&&Number.isFinite(unit.downUntil)&&t>=unit.downUntil)finalise(unit);
    }else sync(unit);
    if(unit.carryingUnit){unit.fireTimer=Math.max(Number(unit.fireTimer)||0,.34);if(unit.alive===false||unit.downed)dropCarry(unit)}
