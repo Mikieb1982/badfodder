@@ -8,8 +8,8 @@
  };
  const pending=new Map();
  const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
- function script(file,retry=false){return new Promise((resolve,reject)=>{const el=document.createElement('script');const base=root.BadFodderAssetUrl?.(file.split('?')[0])||file;el.src=retry?base+(base.includes('?')?'&':'?')+'retry='+Date.now():base;const timer=setTimeout(()=>{el.remove();reject(new Error('Mission load timed out: '+file))},15000);el.onload=()=>{clearTimeout(timer);resolve()};el.onerror=()=>{clearTimeout(timer);el.remove();reject(new Error('Mission file failed: '+file))};document.head.appendChild(el);});}
- async function loadFile(file){try{return await script(file)}catch(first){await delay(250);try{return await script(file,true)}catch(second){second.cause=first;throw second}}}
+ function script(file){return new Promise((resolve,reject)=>{const el=document.createElement('script');el.src=root.BadFodderAssetUrl?.(file.split('?')[0])||file;const timer=setTimeout(()=>{el.remove();reject(new Error('Mission load timed out: '+file))},15000);el.onload=()=>{clearTimeout(timer);resolve()};el.onerror=()=>{clearTimeout(timer);el.remove();reject(new Error('Mission file failed: '+file))};document.head.appendChild(el);});}
+ async function loadFile(file){try{return await script(file)}catch(first){await delay(250);try{return await script(file)}catch(second){second.cause=first;throw second}}}
  function load(key){if(!groups[key])return Promise.reject(new Error('Unknown mission: '+key));if(!pending.has(key))pending.set(key,(async()=>{for(const file of groups[key])await loadFile(file);})().catch(error=>{pending.delete(key);throw error}));return pending.get(key);}
  const launch=BadFodderMissionLaunch.create({storage:BadFodderStorage.session,missions:BadFodderCampaign.missions,campaign:BadFodderCampaign,historicalMissions:BadFodderHistoricalMissions.missions});
  const ready=load(launch.current().map);
