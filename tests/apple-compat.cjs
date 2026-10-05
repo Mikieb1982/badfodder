@@ -1,0 +1,32 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=path.resolve(__dirname,'..');
+const read=file=>fs.readFileSync(path.join(root,file),'utf8');
+
+const html=read('index.html');
+const menu=read('menu-ui.js');
+const css=read('game-ui.css');
+const portrait=read('portrait-lock.css');
+const input=read('game-input.js');
+const music=read('music.js');
+const sfx=read('sfx.js');
+const lifecycle=read('playwright.lifecycle.config.cjs');
+
+assert(/viewport-fit=cover/.test(html),'Safari safe-area viewport support missing');
+assert(/rel="apple-touch-icon"/.test(html),'Apple home-screen icon missing');
+assert(menu.includes('apple-mobile-web-app-capable'),'Apple standalone-web-app support missing');
+assert(css.includes('safe-area-inset-top')&&css.includes('safe-area-inset-bottom'),'Notch/home-indicator safe-area layout missing');
+assert(css.includes('safe-area-inset-left')&&css.includes('safe-area-inset-right'),'Landscape safe-area layout missing');
+assert(html.includes('100dvh')||portrait.includes('100dvh'),'Dynamic iOS viewport-height fallback missing');
+assert(input.includes("'pointercancel'")&&input.includes("'lostpointercapture'"),'Safari pointer interruption recovery missing');
+assert(sfx.includes('window.webkitAudioContext'),'Safari Web Audio fallback missing');
+assert(sfx.includes("addEventListener('touchstart',arm"),'iOS SFX unlock gesture missing');
+assert(music.includes("audio.setAttribute('playsinline','')"),'Inline iOS music playback missing');
+assert(music.includes("audio.setAttribute('webkit-playsinline','')"),'Legacy iOS inline music playback missing');
+assert(music.includes("addEventListener('touchstart',arm"),'iOS music unlock gesture missing');
+assert(music.includes("addEventListener('pagehide',pauseForBackground)"),'Safari page-cache audio suspension missing');
+assert(music.includes("addEventListener('pageshow'"),'Safari page-cache audio restore missing');
+assert(lifecycle.includes("'webkit'"),'WebKit/Safari regression project missing');
+console.log('PASS: Safari, iPhone and iPad compatibility contract.');
