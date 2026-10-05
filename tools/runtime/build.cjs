@@ -7,6 +7,8 @@ const allowed=fs.readdirSync(root).filter(n=>/\.(js|css)$/.test(n));
 allowed.push('index.html','join.html','manifest.webmanifest','favicon.ico','multiplayer-config.json');
 function files(dir){return fs.readdirSync(path.join(root,dir),{withFileTypes:true}).flatMap(e=>e.isDirectory()?files(dir+'/'+e.name):[dir+'/'+e.name]);}
 allowed.push(...files('assets').filter(n=>/\.(png|webp|mp3|ico|json)$/.test(n)&&!(n.startsWith('assets/characters/')&&n.endsWith('.png')&&fs.existsSync(path.join(root,n.replace(/\.png$/,'.webp'))))));
+// Ship valid dialogue/narration audio too. Tiny/empty placeholder files are omitted so runtime TTS fallback can handle them cleanly.
+if(fs.existsSync(path.join(root,'audio')))allowed.push(...files('audio').filter(n=>/\.mp3$/i.test(n)&&fs.statSync(path.join(root,n)).size>128));
 const hashes=new Map(allowed.filter(n=>/\.(js|css|png|webp|mp3|ico)$/.test(n)).map(n=>[n,crypto.createHash('sha256').update(fs.readFileSync(path.join(root,n))).digest('hex').slice(0,16)]));
 // Query versions are rewritten consistently in HTML, CSS, JS and manifests.
 // Firebase revalidates these stable paths; immutable URLs use a build-specific directory.
