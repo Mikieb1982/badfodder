@@ -9,7 +9,8 @@ function files(dir){return fs.readdirSync(path.join(root,dir),{withFileTypes:tru
 allowed.push(...files('assets').filter(n=>/\.(png|webp|mp3|ico|json)$/.test(n)&&!(n.startsWith('assets/characters/')&&n.endsWith('.png')&&fs.existsSync(path.join(root,n.replace(/\.png$/,'.webp'))))));
 // Ship valid dialogue/narration audio too. Tiny/empty placeholder files are omitted so runtime TTS fallback can handle them cleanly.
 if(fs.existsSync(path.join(root,'audio')))allowed.push(...files('audio').filter(n=>/\.mp3$/i.test(n)&&fs.statSync(path.join(root,n)).size>128));
-const hashes=new Map(allowed.filter(n=>/\.(js|css|png|webp|mp3|ico)$/.test(n)).map(n=>[n,crypto.createHash('sha256').update(fs.readFileSync(path.join(root,n))).digest('hex').slice(0,16)]));
+// Dynamic voice paths stay at stable /audio URLs; other static assets remain content-addressed.
+const hashes=new Map(allowed.filter(n=>/\.(js|css|png|webp|mp3|ico)$/.test(n)&&!n.startsWith('audio/')).map(n=>[n,crypto.createHash('sha256').update(fs.readFileSync(path.join(root,n))).digest('hex').slice(0,16)]));
 // Query versions are rewritten consistently in HTML, CSS, JS and manifests.
 // Firebase revalidates these stable paths; immutable URLs use a build-specific directory.
 const release=crypto.createHash('sha256').update(allowed.map(n=>n+fs.readFileSync(path.join(root,n))).join('')).digest('hex').slice(0,16);
