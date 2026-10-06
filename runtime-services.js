@@ -18,3 +18,20 @@
  }
  return {fixedFrame,interrupt,renderFrame,fault,diagnostics};
 });
+
+/* Load optional tactical extensions after the base runtime is present. The build
+   tool content-addresses these paths and the service worker precaches them. */
+(function(root){
+ 'use strict';
+ if(!root||!root.document)return;
+ const files=['procedural-dispatch.js','combat-tactics-extension.js','director-pacing.js','procedural-sfx.js'];
+ function load(){
+  let chain=Promise.resolve();
+  for(const src of files)chain=chain.then(()=>new Promise(resolve=>{
+   if(root.document.querySelector('script[data-bad-fodder-extension="'+src+'"]')){resolve();return}
+   const script=root.document.createElement('script');script.src=src;script.async=false;script.dataset.badFodderExtension=src;script.onload=resolve;script.onerror=()=>{console.warn('Optional tactical extension failed to load:',src);resolve()};root.document.head.appendChild(script);
+  }));
+  root.BadFodderExtensionReady=chain;return chain;
+ }
+ root.BadFodderExtensionReady=load();
+})(typeof window!=='undefined'?window:globalThis);

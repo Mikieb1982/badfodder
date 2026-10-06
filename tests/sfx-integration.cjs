@@ -1,0 +1,10 @@
+'use strict';
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
+class Param{constructor(){this.value=0}setValueAtTime(v){this.value=v}exponentialRampToValueAtTime(v){this.value=v}cancelScheduledValues(){}}
+class Node{constructor(){this.gain=new Param();this.frequency=new Param();this.Q={value:0};this.pan={value:0};this.threshold={value:0};this.knee={value:0};this.ratio={value:0};this.attack={value:0};this.release={value:0}}connect(){return this}start(){}stop(){}}
+class Buf{constructor(n){this.data=new Float32Array(n);this.duration=n/48000}getChannelData(){return this.data}}
+class AC{constructor(){this.sampleRate=48000;this.currentTime=0;this.state='running';this.destination=new Node()}createGain(){return new Node()}createDynamicsCompressor(){return new Node()}createBuffer(_c,n){return new Buf(n)}createBufferSource(){return new Node()}createBiquadFilter(){return new Node()}createOscillator(){return new Node()}createStereoPanner(){return new Node()}createWaveShaper(){return new Node()}resume(){this.state='running';return Promise.resolve()}}
+const window={AudioContext:AC};const scope={window,globalThis:window,document:{getElementById:()=>null,addEventListener(){},readyState:'complete'},localStorage:{getItem:()=>null,setItem(){}},performance:{now:()=>1},addEventListener(){},console,Math,Float32Array,Promise,setTimeout,clearTimeout};window.document=scope.document;window.addEventListener=scope.addEventListener;vm.createContext(scope);
+for(const f of ['procedural-sfx.js','sfx.js'])vm.runInContext(fs.readFileSync(path.join(__dirname,'..',f),'utf8'),scope,{filename:f});
+assert(window.BadFodderSfx);assert(window.BadFodderProceduralSfx);assert.equal(window.BadFodderSfx.audioContext,null);window.BadFodderSfx.unlock();assert(window.BadFodderSfx.audioContext instanceof AC);assert.equal(window.BadFodderProceduralSfx.ready,true);window.BadFodderSfx.shoot('squad');window.BadFodderSfx.explosion();
+console.log('sfx integration ok');

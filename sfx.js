@@ -23,7 +23,7 @@ let lastBarricade=0;
 const button=document.getElementById('menuSfx');
 
 function ensureAudio(){
-  if(ctx)return ctx;
+  if(ctx){try{window.BadFodderProceduralSfx?.init?.(ctx)}catch(_){}return ctx}
   const AudioContext=window.AudioContext||window.webkitAudioContext;
   if(!AudioContext)return null;
 
@@ -50,6 +50,7 @@ function ensureAudio(){
     last=last*.82+white*.18;
     data[i]=white*.72+last*.28;
   }
+  try{window.BadFodderProceduralSfx?.init?.(ctx)}catch(_){}
   return ctx;
 }
 
@@ -219,6 +220,7 @@ window.BadFodderSfx={
   unlock,shoot,grenadeThrow,explosion,death,
   scuffle,barricade,crowdSurge,mountedCharge,
   toggle,setEnabled,
+  get audioContext(){return ctx},
   get enabled(){return enabled}
 };
 
