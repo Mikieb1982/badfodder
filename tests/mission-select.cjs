@@ -72,6 +72,9 @@ assert(index.includes("if(!missionLaunch.isCampaign())return false"),'Standalone
 assert(index.includes('start:startCampaignFromMenu,selectMission:startStandaloneMission'),'Menu launch actions are not connected');
 assert(menu.includes("this.get('menuMissionSelect').addEventListener"),'Mission Select panel is not interactive');
 assert(menu.includes("actions.selectMission(0)")&&menu.includes("actions.selectMission(1)"),'Both playable mission choices are not wired');
+assert(menu.includes('window.BadFodderMusic?.playMission(identity);'),'Mission music must switch when the briefing opens');
+assert(menu.includes("if(this.mode==='title')window.BadFodderMusic?.playHome()"),'Backing out of a title-screen briefing must restore title music');
 
 console.log('PASS: main menu offers Campaign and Mission Select with Bad Belzig and Wigan.');
 console.log('PASS: standalone mission choice is session-scoped and does not alter campaign progression; campaign mode still advances in order.');
+console.log('PASS: mission music starts with the briefing and title music is restored when backing out.');
