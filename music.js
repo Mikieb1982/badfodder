@@ -22,8 +22,9 @@ function sourceForBoot(){
   return MISSION_SOURCE;
 }
 function sourceForMission(mission){
-  if(mission&&(mission.id==='cable-street-1936'||mission.map==='cable-street'))return CABLE_STREET_SOURCE;
-  if(mission&&(mission.id==='barcelona-1936'||mission.map==='barcelona'))return BARCELONA_SOURCE;
+  const key=mission&&(mission.map||mission.key||mission.id)||'';
+  if(mission&&(mission.id==='cable-street-1936'||key==='cable-street'))return CABLE_STREET_SOURCE;
+  if(mission&&(mission.id==='barcelona-1936'||key==='barcelona'))return BARCELONA_SOURCE;
   return MISSION_SOURCE;
 }
 
