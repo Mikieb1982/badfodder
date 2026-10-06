@@ -25,7 +25,7 @@ jobs:
           cat tmp/barcelona-reference/part*.b64 > /tmp/barcelona.b64
           base64 -d /tmp/barcelona.b64 > /tmp/barcelona.png
           test "$(stat -c%s /tmp/barcelona.png)" -eq 664459
-          file /tmp/barcelona.png | grep -q 'PNG image data, 1024 x 576'
+          file /tmp/barcelona.png | grep -q 'PNG image data, 1024 x 572'
 
       - name: Commit image to current main
         shell: bash
@@ -40,5 +40,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add assets/characters/barcelona.png assets/characters/barcelona.webp
           git diff --cached --quiet && exit 0
-          git commit -m 'Add Barcelona character reference guide'
+          git commit -m 'Add full Barcelona character reference guide'
           git push origin HEAD:main
