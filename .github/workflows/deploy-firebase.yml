@@ -100,7 +100,7 @@ jobs:
           URL="https://bad-fodder.web.app/?verify=${GITHUB_SHA}"
           for attempt in {1..12}; do
             PAGE="$(curl -fsS -H 'Cache-Control: no-cache' "$URL" || true)"
-            if printf '%s' "$PAGE" | grep -q 'id="menuMissionBarcelona"' && printf '%s' "$PAGE" | grep -q 'BARCELONA, 19 JULY 1936'; then
+            if grep -Fq 'id="menuMissionBarcelona"' <<<"$PAGE" && grep -Fq 'BARCELONA, 19 JULY 1936' <<<"$PAGE"; then
               echo "Live Barcelona mission selector verified."
               exit 0
             fi
