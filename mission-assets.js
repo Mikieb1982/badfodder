@@ -2,7 +2,7 @@
 (function(root){
  'use strict';
  const groups={
-  barcelona:['barcelona-map.js','barcelona-art.js','friendly-resistance.js','barcelona-runtime.js'],
+  barcelona:['barcelona-map.js','barcelona-art.js','barcelona-polish.js?v=20261006-cohesion-2','barcelona-hud.js?v=20261006-notice-1','friendly-resistance.js','barcelona-runtime.js'],
   'bad-belzig':['town-map.js','bad-belzig-data.js'],
   wigan:['wigan-map.js','wigan-details.js','wigan-scenery.js?v=20261003-upgrade-1'],
   'cable-street':['cable-street-map.js?v=20261003-tactical-1','cable-street-runtime.js','cable-street-interactions.js?v=20261004-adaptive-1','cable-street-director.js?v=20261004-adaptive-1','cable-street-crowd.js?v=20261004-adaptive-1','cable-street-art.js?v=20261003-visual-2']
