@@ -111,3 +111,5 @@ for(const [integrity,constructionTier,label] of [[0,0,'BARRICADE SITE'],[60,2,'B
 console.log('PASS: Barcelona architecture/streets/scenery draw with finite coordinates; unbuilt, intact and breached barricades are distinct; full-barrier material release.');
 
 const northEntry=fixture();northEntry.objectives.syncPhase(5);northEntry.at(Map.zones.barricade);northEntry.allowed=p=>p.y<400;northEntry.tick(10);assert.equal(northEntry.runtime.stage.wave,1);assert.deepEqual(northEntry.attacks[0].positions,Map.assaultGroups[0].alternatePositions);
+
+require('./barcelona-characters.cjs');
