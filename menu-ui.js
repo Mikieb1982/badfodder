@@ -203,6 +203,7 @@ window.BadFodderMenu=class{
     this.syncFullscreen();this.buttons()[0]?.focus({preventScroll:true});
   }
   showBriefing(identity,begin,back='missions'){
+    window.BadFodderMusic?.playMission(identity);
     this.screen.hidden=false;this.root.classList.add('menu-open');this.briefingBegin=begin;this.briefingBack=back;
     this.screen.setAttribute('aria-label',identity.title+' mission briefing');
     this.get('briefingTitle').textContent=identity.title;
@@ -224,7 +225,7 @@ window.BadFodderMenu=class{
     this.get('briefingFinal').textContent=identity.final.join(' ');
     this.get('briefingBegin').disabled=false;this.showPanel('briefing');
   }
-  leaveBriefing(){this.briefingBegin=null;this.showPanel(this.briefingBack||'missions');}
+  leaveBriefing(){this.briefingBegin=null;if(this.mode==='title')window.BadFodderMusic?.playHome();this.showPanel(this.briefingBack||'missions');}
   showResult(identity,won,next){
     this.mode='result';this.screen.hidden=false;this.screen.dataset.mode='result';this.root.classList.add('menu-open');
     this.screen.setAttribute('aria-label',won?'Mission complete':'Mission failed');this.get('menuBadge').hidden=true;
