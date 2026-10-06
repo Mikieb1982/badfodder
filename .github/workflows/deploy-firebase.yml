@@ -40,6 +40,11 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Provide Opus production encoder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
       - name: Provide Firebase emulator Java runtime
         if: github.event_name == 'workflow_dispatch'
         run: |
