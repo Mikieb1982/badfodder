@@ -6,7 +6,7 @@
   let clock=0;
   const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   const stop=c=>{c.path=null;c.target=null;c.navDestination=null;c.state=c.alive?'idle':'dead'};
-  function init(c,i){Object.assign(c,{civilianId:c.civilianId||'resident-'+i,civilianState:'CALM',alive:true,hp:3,maxHp:3,leaderIndex:null,panic:0,repath:0,state:'idle'});return c}
+  function init(c,i){Object.assign(c,{civilianId:c.civilianId||'resident-'+i,civilianState:c.civilianState||'CALM',alive:true,hp:3,maxHp:3,leaderIndex:null,panic:0,repath:0,state:'idle'});return c}
   function counts(){const list=getCivilians();return{total:list.length,evacuated:list.filter(c=>c.civilianState==='EVACUATED').length,lost:list.filter(c=>c.civilianState==='DEAD').length,following:list.filter(c=>c.alive&&c.leaderIndex!==null).length,down:list.filter(c=>c.civilianState==='DOWN').length}}
   function nearest(helper){return getCivilians().filter(c=>c.alive&&c.civilianState!=='EVACUATED'&&distance(c,helper)<=90*scale).sort((a,b)=>(b.civilianState==='DOWN')-(a.civilianState==='DOWN')||distance(a,helper)-distance(b,helper))[0]||null}
   function hint(helper){const c=helper&&nearest(helper);return c?(c.civilianState==='DOWN'?'HELP':c.leaderIndex!==null?'HIDE':'GATHER'):''}
@@ -31,7 +31,7 @@
   }
   function update(dt){
    clock+=dt;let pathBudget=2;
-   const enemies=getEnemies().filter(e=>(e.alive&&!e.surrendered)),noise=getNoise(),squad=getSquad();
+   const enemies=getEnemies().filter(e=>(e.alive&&!e.surrendered&&!e.missionDormant)),noise=getNoise(),squad=getSquad();
    for(const [i,c] of getCivilians().entries()){
     if(!c.alive||c.civilianState==='EVACUATED')continue;
     if(c.civilianState==='DOWN'){if(clock>=c.downUntil)damage(c,1);continue}
@@ -49,7 +49,9 @@
     else if(!['HIDING','WOUNDED'].includes(c.civilianState)){c.civilianState='CALM';c.phase+=dt*.5;target={x:c.homeX+Math.cos(c.phase)*32*scale,y:c.homeY+Math.sin(c.phase*.8)*24*scale};speed=c.speed}
     if(c.hp<2)speed*=.65;
     if(target){
-     if(path&&follow){if(c.repath<=0&&pathBudget>0){path(c,target.x,target.y);c.repath=1.2;pathBudget--}c.state=follow(c,speed,dt)?'walk':'idle'}
+     if(path&&follow){if(c.repath<=0&&pathBudget>0){path(c,target.x,target.y);c.repath=1.2;pathBudget--}const next=c.path?.[c.pathIndex||0],ahead=next?(Array.isArray(next)?{x:next[0],y:next[1]}:next):target;
+      const blocked=c.leaderIndex!==null&&enemies.some(e=>distance(e,ahead)<70*scale&&distance(e,ahead)+15*scale<distance(e,c));
+      if(blocked){c.state='idle';c.civilianState='HIDING';c.panic=3}else c.state=follow(c,speed,dt)?'walk':'idle'}
      else{const dx=target.x-c.x,dy=target.y-c.y,d=Math.hypot(dx,dy);if(d>3){face?.(c,dx,dy);move?.(c,dx/d*speed*dt,dy/d*speed*dt,8);c.state='walk'}}
     }else{stop(c)}
    }
@@ -57,7 +59,8 @@
   function snapshot(){return getCivilians().map(c=>[c.civilianState,c.leaderIndex,c.civilianState==='DOWN'?Math.max(0,c.downUntil-clock):null])}
   function receive(rows){rows.forEach((r,i)=>{const c=getCivilians()[i];if(c){c.civilianState=r[0];c.leaderIndex=r[1];c.downUntil=r[2]===null?null:clock+r[2]}})}
   getCivilians().forEach(init);
-  return{update,interact,hint,nearest,damage,counts,snapshot,receive,zones};
+  function add(c){init(c,getCivilians().length);getCivilians().push(c);return c}
+  return{add,update,interact,hint,nearest,damage,counts,snapshot,receive,zones};
  }
  return{STATES,create};
 });

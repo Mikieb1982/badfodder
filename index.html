@@ -1018,7 +1018,7 @@
       const acted=buildingRuntime.perform(helper,action.label,action.site);updateHud(true);return acted;
     }
     const acted=civilianRuntime?.interact(helper);
-    if(acted){setStatus('Residents: '+civilianRuntime.counts().evacuated+' evacuated. Guide followers to the rally point; E / ACTION lets them hide.');updateHud(true);}
+    if(acted){setStatus('Residents: '+civilianRuntime.counts().evacuated+' evacuated. Guide followers to '+(barcelonaRuntime?'the western shelter':'the rally point')+'; E / ACTION lets them hide.');updateHud(true);}
     return acted;
   }
 
@@ -1235,7 +1235,7 @@
     window.BadFodderCoop?.flush();
     releaseInterruptedInput();lifecycle.transition('RESULT');mapOpen=false;
     menu.showResult(missionIdentity,win,win&&hasPlayableNextMission());
-    if(barcelonaRuntime){const result=barcelonaRuntime.summary();document.getElementById('resultFlavour').textContent=result.characters.filter(s=>s.alive).length+' neighbours survived · '+result.characters.filter(s=>!s.alive).length+' casualties · '+result.characters.filter(s=>s.alive&&s.health!=='FIT').length+' hurt · '+result.alliesLost+' friendly losses · '+(result.breached?'barricade breached':'barricade standing');}
+    if(barcelonaRuntime){const result=barcelonaRuntime.summary();document.getElementById('resultFlavour').textContent=result.characters.filter(s=>s.alive).length+' neighbours survived · '+result.characters.filter(s=>!s.alive).length+' casualties · '+result.characters.filter(s=>s.alive&&s.health!=='FIT').length+' hurt · '+result.alliesLost+' friendly losses · '+result.civiliansRescued+'/'+result.civiliansFound+' civilians rescued · '+result.civiliansLost+' lost · '+(result.breached?'barricade breached':'barricade standing');}
     syncTouchControlState();
   }
 
@@ -1521,10 +1521,10 @@
     if(!missionController){
       const rally={x:squad[0].x,y:squad[0].y,r:S(65)};
       civilianRuntime=window.BadFodderCivilians.create({getCivilians:()=>civilians,getSquad:()=>squad,getEnemies:()=>enemies,getNoise:()=>noise,
-        zones:[rally],scale:S(1),move:moveEntity,path:assignPath,follow:followPath,face:updateFacing,
-        onEvent:(event)=>{runAdaptive(()=>adaptiveDirector.notify('meaningful'));if(event==='evacuated'){const n=civilianRuntime.counts().evacuated;setStatus(n+' civilians evacuated.');if(n>=1)missionObjectivesRuntime.signal('evacuate-residents');}}});
+        zones:[MAP_DATA.key==='barcelona'?{x:S(MAP_DATA.zones.safe.x),y:S(MAP_DATA.zones.safe.y),r:S(MAP_DATA.zones.safe.r)}:rally],scale:S(1),move:moveEntity,path:assignPath,follow:followPath,face:updateFacing,
+        onEvent:(event)=>{runAdaptive(()=>adaptiveDirector.notify('meaningful'));if(event==='evacuated'){const n=civilianRuntime.counts().evacuated;setStatus(n+' civilians evacuated.');if(n>=1&&MAP_DATA.key!=='barcelona')missionObjectivesRuntime.signal('evacuate-residents');}}});
       missionObjectivesRuntime.manager.add({id:'evacuate-residents',type:'EVACUATE',optional:true,priority:-10,
-        title:'Guide residents to safety',text:'Optional: gather residents with E / ACTION and guide them to the rally point.',marker:rally});
+        title:MAP_DATA.key==='barcelona'?'Rescue every trapped resident':'Guide residents to safety',text:MAP_DATA.key==='barcelona'?'Optional: get every trapped resident to the western shelter.':'Optional: gather residents with E / ACTION and guide them to the rally point.',marker:MAP_DATA.key==='barcelona'?zones.safe:rally});
       missionObjectivesRuntime.manager.activate('evacuate-residents');
       buildingRuntime=window.BadFodderBuildingRuntime.create({sites:createBuildingSites(rally),getSquad:()=>squad,
         release:u=>window.BadFodderGarrison.release(u),range:S(42),canReach:(u,p)=>routeClear(u.x,u.y,p.x,p.y,NAV_RADIUS),
@@ -1539,11 +1539,14 @@
     opportunitiesRuntime=missionController?null:window.BadFodderOpportunities.create({getCivilians:()=>civilians,getPickups:()=>pickups,getSquad:()=>squad,getObjectives:()=>missionObjectivesRuntime,scale:SCALE,status:setStatus});
     if(MAP_DATA.key==='barcelona'){
       barcelonaRuntime=window.BadFodderBarcelona.create({map:MAP_DATA,objectives:missionObjectivesRuntime,getSquad:()=>squad,getEnemies:()=>enemies,navigation,scale:SCALE,status:setStatus,
+        getResidents:()=>civilians.filter(c=>c.rescueGroup==='santa-anna'),
+        spawnResidents:()=>{for(const [i,p]of MAP_DATA.rescue.positions.entries()){const c=civilianRuntime.add({rescueGroup:'santa-anna',civilianId:'santa-anna-'+i,civilianState:'HIDING',x:S(p[0]),y:S(p[1]),homeX:S(p[0]),homeY:S(p[1]),phase:i*.8,speed:35,dir:0,anim:i*.43,state:'idle',variant:i%4});art.animate(c,0)}},
+        reposition:points=>resistanceRuntime?.reposition(points),
         spawnAllowed:p=>{const visible=p.x>=camera.x-40&&p.x<=camera.x+VIEW_W/zoom+40&&p.y>=camera.y-40&&p.y<=camera.y+VIEW_H/zoom+40;return !visible||squad.filter(s=>s.alive&&!s.downed).every(s=>lineBlocked(s.x,s.y,p.x,p.y));},
         sound:event=>{if(event==='distant')window.BadFodderSfx?.shoot('enemy');},setGrenades:n=>squadGrenades=n,
-        spawn:(group,wave)=>{const base=enemies[0];for(const [i,p]of group.positions.entries()){
-          const e={...base,x:S(p[0]),y:S(p[1]),homeX:S(p[0]),homeY:S(p[1]),hp:3,maxHp:3,alive:true,surrendered:false,surrenderPressure:0,missionDormant:false,missionWithdrawn:false,variant:i%4,combatRole:group.roles[i],groupId:'barcelona-'+wave,objectiveGroup:'barricade',commandOrder:null,path:null,pendingPath:null,pathQueued:false,pathIndex:0,repath:0,alert:true,lastSeen:{x:zones.barricade.x,y:zones.barricade.y},observedAt:adaptiveDirector?.state.time||0,hitTimer:0,flash:0,fireTimer:0,deadTimer:0,cooldown:.6,suppression:0};
-          enemies.push(e);const name=e.groupId;if(enemyCommander){if(!enemyCommander.groups.has(name))enemyCommander.groups.set(name,[]);enemyCommander.groups.get(name).push(e);}queueEnemyPath(e,zones.barricade.x,zones.barricade.y);
+        spawn:(group,wave)=>{const base=enemies[0],target=zones[group.target||'barricade'];for(const [i,p]of group.positions.entries()){
+          const e={...base,x:S(p[0]),y:S(p[1]),homeX:S(p[0]),homeY:S(p[1]),hp:3,maxHp:3,alive:true,surrendered:false,surrenderPressure:0,missionDormant:false,missionWithdrawn:false,variant:i%4,combatRole:group.roles[i],groupId:'barcelona-'+wave,objectiveGroup:group.target||'barricade',commandOrder:null,path:null,pendingPath:null,pathQueued:false,pathIndex:0,repath:0,alert:true,lastSeen:{x:target.x,y:target.y},observedAt:adaptiveDirector?.state.time||0,hitTimer:0,flash:0,fireTimer:0,deadTimer:0,cooldown:.6,suppression:0};
+          enemies.push(e);const name=e.groupId;if(enemyCommander){if(!enemyCommander.groups.has(name))enemyCommander.groups.set(name,[]);enemyCommander.groups.get(name).push(e);}queueEnemyPath(e,target.x,target.y);
         }}});
       resistanceRuntime=window.BadFodderResistance.create({starts:MAP_DATA.resistance.starts,positions:MAP_DATA.resistance.positions,getEnemies:()=>enemies,getSquad:()=>squad,navigation:{...navigation,move:moveEntity},fire:fireBullet,scale:SCALE,canSee:(a,b)=>!lineBlocked(a.x,a.y,b.x,b.y),enabled:()=>missionObjectivesRuntime.manager.get('opening').status==='COMPLETED'});
       barcelonaRuntime.allies.push(...resistanceRuntime.units);
@@ -1747,7 +1750,7 @@
       return;
     }
     const civCounts=civilianRuntime?.counts();
-    if(barcelonaRuntime){const totals=barcelonaRuntime.summary(),ammo=squad.reduce((n,s)=>n+(s.alive?(s.ammo||0):0),0);document.getElementById('hudInstruction').hidden=false;document.getElementById('hudInstruction').textContent='AMMO '+ammo+' · NEIGHBOURS '+totals.allies+' · BARRICADE '+totals.barrier+'/90 · E / ACTION';}
+    if(barcelonaRuntime){const totals=barcelonaRuntime.summary(),ammo=squad.reduce((n,s)=>n+(s.alive?(s.ammo||0):0),0);document.getElementById('hudInstruction').hidden=false;document.getElementById('hudInstruction').textContent='AMMO '+ammo+' · NEIGHBOURS '+totals.allies+' · RESCUED '+totals.civiliansRescued+'/'+totals.civiliansFound+' · BARRICADE '+totals.barrier+'/90 · E / ACTION';}
     if(!barcelonaRuntime)document.getElementById('hudInstruction').hidden=!civCounts?.total;
     if(civCounts?.total&&!barcelonaRuntime)document.getElementById('hudInstruction').textContent='CIVILIANS '+civCounts.evacuated+'/'+civCounts.total+' SAFE · '+civCounts.lost+' LOST · E / ACTION: gather or hide';
     hudEnemyLabel.textContent='TARGETS';

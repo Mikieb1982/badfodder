@@ -29,7 +29,13 @@ const missions=[
     {id:'acquire-weapons',type:'INTERACT',zone:'contact',title:'ACQUIRE RIFLES',brief:'Meet the resistance contact outside the printer. E / ACTION: take rifles.'},
     {id:'reach-barricade',type:'REACH',zone:'barricade',title:'REACH THE BARRICADE',brief:'Return to the Rambla approach and cover the side passages.'},
     {id:'build-barricade',type:'INTERACT',zone:'barricade',title:'REINFORCE THE BARRICADE',brief:'Take two loads from nearby material piles. E / ACTION: carry, then reinforce.'},
-    {id:'hold-barricade',type:'DEFEND',zone:'barricade',title:'HOLD THE BARRICADE',brief:'Defend alongside your neighbours. Repair breaches and keep the route behind you open.',eventDriven:true}
+    {id:'hold-barricade',type:'DEFEND',zone:'barricade',title:'HOLD THE BARRICADE',brief:'Defend alongside your neighbours. Repair breaches and keep the route behind you open.',eventDriven:true},
+    {id:'recovery',type:'SURVIVE',zone:'barricade',eventDriven:true,title:'REGROUP AND RECOVER',brief:'Reload, help the wounded and regroup. The first column has pulled back.'},
+    {id:'reach-civilians',type:'REACH',zone:'residents',title:'FIND THE CIVILIANS',brief:'Residents are sheltering beside the Santa Anna apartments. Leave a guard or take everyone.'},
+    {id:'escort-civilians',type:'EVACUATE',zone:'safe',eventDriven:true,title:'GET THEM TO SAFETY',brief:'E / ACTION: gather residents. Guide them to the western shelter. Santa Anna is exposed; the southern passage offers cover.'},
+    {id:'second-route',type:'REACH',zone:'eastern',title:'DEFEND THE EASTERN ROUTE',brief:'A second column is coming up Portal de l’Àngel. Use the apartment corners and cover the crossing.'},
+    {id:'hold-east',type:'DEFEND',zone:'eastern',eventDriven:true,title:'STOP THE FLANKING COLUMN',brief:'Hold Santa Anna. Garrison the corners, cover the side street and help the wounded.'},
+    {id:'counterattack',type:'CAPTURE',zone:'advance',eventDriven:true,title:'SECURE THE JUNCTION',brief:'They are falling back. Advance with the resistance and secure the Portal junction.'}
    ].map(p=>({...p,text:p.title}))}
 ];
 

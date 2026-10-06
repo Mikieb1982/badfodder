@@ -22,7 +22,8 @@ function create({starts=[],positions=[],getEnemies,getSquad=()=>[],navigation,fi
    if(e&&u.cooldown<=0){u.dir=Math.atan2(e.y-u.y,e.x-u.x);if(fire('friendly',u.x,u.y,e.x,e.y,null)!==false){u.state='fire';u.fireTimer=.12;u.cooldown=u.wounded?1.5:1}}
   }
  }
- return{units,update,target,counts:()=>({alive:units.filter(u=>u.alive).length,lost:units.filter(u=>!u.alive).length,wounded:units.filter(u=>u.alive&&u.wounded).length})};
+ function reposition(points){positions=points;for(const u of units){u.path=null;u.pathIndex=0}pathClock=0}
+ return{units,update,target,reposition,counts:()=>({alive:units.filter(u=>u.alive).length,lost:units.filter(u=>!u.alive).length,wounded:units.filter(u=>u.alive&&u.wounded).length})};
 }
 return{create};
 });

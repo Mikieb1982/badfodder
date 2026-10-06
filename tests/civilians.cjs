@@ -17,4 +17,8 @@ objective.signal('residents');objective.update(.1,{living:[]});assert.equal(obje
 const actor={x:0,y:0,alive:true,hp:8,maxHp:8,dir:0,state:'idle'};
 const packet=P.snapshot({squad:Array(4).fill(actor),enemies:[],civilians:residents,pickups:[],bullets:[],thrown:[],effects:[],missionStage:0,phaseHoldTime:0,squadGrenades:5,finished:false,win:false,checkpoint:null,stats:Array.from({length:4},(_,index)=>({index,name:'Local',kills:0,alive:true})),civilianState:runtime.snapshot()},1);
 assert.deepEqual(P.readSnapshot(packet).civilianState,runtime.snapshot());assert(!P.readSnapshot({...packet,civilianState:[['FOLLOWING',99,null]]}));
+// New mission groups share initialization and stop before a live hostile on their route.
+const group=[],leaders=[{x:100,y:0,alive:true}],threats=[{x:65,y:0,alive:true}],steps=[];
+const navigation=C.create({getCivilians:()=>group,getSquad:()=>leaders,getEnemies:()=>threats,path:c=>{c.path=[{x:60,y:0}];c.pathIndex=0},follow:c=>{steps.push(c);return true}});
+const follower=navigation.add({x:0,y:0,homeX:0,homeY:0,speed:35,civilianState:'HIDING'});assert.equal(follower.civilianState,'HIDING');follower.leaderIndex=0;navigation.update(.1);assert.equal(steps.length,0);assert.equal(follower.civilianState,'HIDING');threats[0].missionDormant=true;navigation.update(.1);assert.equal(steps.length,1,'Dormant troops cannot block civilian extraction');
 console.log('PASS: gathering/hiding, bounded navigation, unsafe exits, evacuation, rescue, loss, separation, optional outcomes and co-op civilian states.');

@@ -26,14 +26,20 @@ return{key:'barcelona',title:'Barcelona · 19 July 1936',width:1000,height:900,b
  road('SANTA ANNA',[[310,666],[800,666]],42),road('WEST PASSAGE',[[250,475],[250,818]],34),road('EAST PASSAGE',[[406,490],[406,823]],34)],
  areas:[{type:'square',points:rect(359,204,322,211)}],vegetation:[{x:385,y:225,r:5},{x:646,y:225,r:5},{x:385,y:390,r:5},{x:646,y:390,r:5}],
  pois:{catalunya:{x:515,y:300},colon:{x:820,y:201},telefonica:{x:834,y:374},rambla:{x:325,y:705}},
- zones:{junction:{x:335,y:487,r:48},patrol:{x:310,y:470,r:105},contact:{x:213,y:553,r:38},barricade:{x:345,y:668,r:90},fallback:{x:310,y:765,r:65}},
+ zones:{junction:{x:335,y:487,r:48},patrol:{x:310,y:470,r:105},contact:{x:213,y:553,r:38},barricade:{x:345,y:668,r:90},fallback:{x:310,y:765,r:65},residents:{x:577,y:619,r:42},safe:{x:250,y:780,r:55},eastern:{x:575,y:695,r:75},advance:{x:744,y:478,r:65}},
  spawns:{squad:[[268,846],[287,846],[270,866],[289,866]],enemies:[[311,442],[357,474]],civilians:[[222,581],[249,605],[287,798],[389,716]],pickups:[{type:'med',x:230,y:553,amount:4},{type:'med',x:390,y:690,amount:4}]},
  defenderGroups:{patrol:[0,1]},
- resistance:{starts:[[209,544],[230,570],[218,594]],positions:[[271,642],[416,642],[362,653]]},
+ rescue:{positions:[[570,606],[583,606],[569,625],[585,625],[570,642],[585,643]]},
+ resistance:{starts:[[209,544],[230,570],[218,594]],positions:[[271,642],[416,642],[362,653]],eastern:[[271,642],[571,704],[607,692]],advance:[[271,642],[737,499],[795,520]]},
  barricade:{x:345,y:628,points:rect(289,621,108,14),materials:[{x:245,y:625},{x:421,y:702}]},
  assaultGroups:[
  {label:'PROBE',delay:5,positions:[[310,340],[347,358],[306,368]],roles:['PATROL','RIFLEMAN','FLANKER']},
- {label:'PRESSURE',delay:18,positions:[[744,410],[780,410],[830,410],[900,410]],roles:['SUPPRESSOR','FLANKER','RIFLEMAN','AGGRESSOR']},
- {label:'FINAL PUSH',delay:20,positions:[[310,320],[347,300],[420,340],[415,363],[310,299]],roles:['COMMANDER','SUPPRESSOR','FLANKER','RIFLEMAN','AGGRESSOR']}
- ]};
+ {label:'FRONTAL PRESSURE',delay:18,positions:[[310,320],[347,300],[420,340],[415,363]],roles:['SUPPRESSOR','FLANKER','RIFLEMAN','AGGRESSOR']},
+ ],
+ rescuePressure:{label:'PATROL AT THE CROSSING',delay:8,target:'residents',positions:[[744,410],[830,410]],roles:['PATROL','RIFLEMAN']},
+ easternGroups:[
+ {label:'EASTERN PROBE',delay:5,target:'eastern',positions:[[785,880],[820,850]],roles:['FLANKER','RIFLEMAN']},
+ {label:'FLANKING COLUMN',delay:18,target:'eastern',positions:[[790,880],[835,845],[854,790]],roles:['COMMANDER','SUPPRESSOR','AGGRESSOR']}
+ ],
+ rearguard:{label:'REARGUARD AT THE JUNCTION',delay:0,target:'advance',positions:[[733,410],[900,410]],roles:['RIFLEMAN','SUPPRESSOR']}};
 });
