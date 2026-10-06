@@ -142,7 +142,7 @@
   function briefingRequest(identity){
     const key=normalizeMission(identity?.key),text=briefingText(identity);if(!text)return null;
     return{team:'narrator',event:'briefing',priority:1000,text,caption:'Mission briefing',lang:'en-GB',
-      url:key==='barcelona'?null:`${BASE}/briefings/${key}.mp3`,voiceSlot:0,identity};
+      url:`${BASE}/briefings/${key}.mp3`,voiceSlot:0,identity};
   }
 
   function showCaption(req){
@@ -165,7 +165,7 @@
   }
   function playRecorded(req){
     // Until recorded character banks are supplied, gameplay dialogue is caption-only.
-    // The three mission briefing MP3s are the only speech that should play.
+    // Recorded mission briefing MP3s are the only speech that should play.
     if(req.team!=='narrator'){
       setTimeout(finishCurrent,1400);
       return;
@@ -379,6 +379,7 @@
       });
       files.push({path:`${BASE}/briefings/${mission}.mp3`,type:'briefing',mission,text:'Read the complete on-screen mission briefing in order: story, mission, objectives, final line.'});
     }
+    files.push({path:`${BASE}/briefings/barcelona.mp3`,type:'briefing',mission:'barcelona',text:'Read the complete on-screen mission briefing in order: story, mission, objectives, final line.'});
     return files;
   }
 
