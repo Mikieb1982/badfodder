@@ -30,9 +30,10 @@
     function read(){
       try{
         const raw=JSON.parse(storage.getItem(KEY)||'null');
-        if(raw&&raw.mode==='select'&&Number.isInteger(raw.index)){
-          const selected=missions[raw.index];
-          if(selected&&selected.playable)return{mode:'select',index:raw.index,id:null};
+        if(raw&&raw.mode==='select'&&(typeof raw.id==='string'||Number.isInteger(raw.index))){
+          const index=typeof raw.id==='string'?missions.findIndex(m=>m.id===raw.id):raw.index;
+          const selected=missions[index];
+          if(selected&&selected.playable)return{mode:'select',index,id:selected.id};
         }
         if(raw&&raw.mode==='historical'&&typeof raw.id==='string'){
           const selected=historicalById.get(raw.id);
@@ -54,11 +55,11 @@
     function mode(){return launch.mode}
     function isCampaign(){return launch.mode==='campaign'}
     function isSelection(){return launch.mode==='select'}
-    function isHistorical(){return launch.mode==='historical'}
+    function isHistorical(){return current()?.scenario==='historical'||launch.mode==='historical'}
 
     function currentIndex(){
       if(isSelection())return launch.index;
-      if(isHistorical())return null;
+      if(launch.mode==='historical')return null;
       const requested=Math.max(0,Math.min(missions.length-1,Number(campaign.state.current)||0));
       if(missions[requested]&&missions[requested].playable)return requested;
       for(let i=requested;i>=0;i--)if(missions[i]&&missions[i].playable)return i;
@@ -66,13 +67,13 @@
     }
 
     function currentId(){
-      if(isHistorical())return launch.id;
+      if(launch.mode==='historical')return launch.id;
       const mission=current();
       return mission?mission.id:null;
     }
 
     function current(){
-      if(isHistorical())return historicalById.get(launch.id)||null;
+      if(launch.mode==='historical')return historicalById.get(launch.id)||null;
       const index=currentIndex();
       return missions[index]||missions[0]||null;
     }
@@ -86,10 +87,11 @@
     }
 
     function select(index){
-      index=index|0;
+      index=typeof index==='string'?missions.findIndex(m=>m.id===index):index;
+      if(!Number.isInteger(index))return false;
       const selected=missions[index];
       if(!selected||!selected.playable)return false;
-      launch={mode:'select',index,id:null};
+      launch={mode:'select',index,id:selected.id};
       persist();
       return true;
     }

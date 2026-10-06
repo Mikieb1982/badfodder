@@ -64,7 +64,7 @@ map.spawns.pickups.forEach((p,i)=>checkSpawn('Supply spawn',p,i,4));
 assert(q.pathComponents instanceof Int32Array,'Connected-area cache must be exported by shared navigation');
 assert(!source.includes("filter(e=>!obstacleAt(e.x,e.y,12))"),'Invalid enemy spawns must not be silently deleted');
 
-const scope={window:{},localStorage:{getItem:()=>null,setItem(){}}};
+const scope={window:{BadFodderHistoricalMissions:require('../historical-missions')},localStorage:{getItem:()=>null,setItem(){}}};
 vm.runInNewContext(fs.readFileSync(path.join(root,'campaign.js'),'utf8'),scope);
 const badMission=scope.window.BadFodderCampaign.missions[0];
 const wiganMission=scope.window.BadFodderCampaign.missions[1];

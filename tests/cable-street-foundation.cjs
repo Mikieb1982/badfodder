@@ -11,7 +11,7 @@ function makeCampaign(){
     getItem:key=>data[key]??null,
     setItem:(key,value)=>{data[key]=String(value)}
   };
-  const scope={window:{},localStorage};
+  const scope={window:{BadFodderHistoricalMissions:require('../historical-missions')},localStorage};
   vm.runInNewContext(fs.readFileSync(path.join(root,'campaign.js'),'utf8'),scope);
   return scope.window.BadFodderCampaign;
 }
@@ -106,16 +106,16 @@ const corrupt=MissionLaunch.create({
 });
 assert(corrupt.isCampaign(),'Stale historical selection should fall back to campaign');
 
-campaign.state.current=2;
-campaign.state.unlocked=2;
+campaign.state.current=23;
+campaign.state.unlocked=23;
 const staleCampaign=MissionLaunch.create({
   storage:storage(),
   missions:campaign.missions,
   campaign,
   historicalMissions:[]
 });
-assert.equal(staleCampaign.currentIndex(),1,'Unavailable future campaign position should resolve to nearest playable mission');
-assert.equal(staleCampaign.current().id,2);
+assert.equal(staleCampaign.currentIndex(),2,'Unavailable future campaign position should resolve to nearest playable mission');
+assert.equal(staleCampaign.current().id,'cable-street');
 
 const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
 assert(index.includes('BadFodderMissionBootstrap'),'Live bootstrap does not use explicit mission resolver');

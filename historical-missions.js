@@ -1,5 +1,4 @@
-/* Historical missions live outside the standard If I Can Shoot Rabbits campaign.
-   They may use different action profiles and do not alter campaign progress. */
+/* Specialised historical mission definitions shared by campaign and standalone launches. */
 (function(root,factory){
   const api=factory();
   if(typeof module==='object'&&module.exports)module.exports=api;
@@ -10,6 +9,7 @@
   const missions=[
     {
       id:'cable-street-1936',
+      scenario:'historical',location:'London',country:'England',date:'1936-10-04',
       title:'Cable Street, 1936',
       subtitle:'London, 4 October 1936',
       blueprintVersion:'0.2',

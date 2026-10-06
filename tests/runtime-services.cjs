@@ -18,7 +18,7 @@ assert.throws(()=>P.budgetSnapshot(P.snapshot({...state,enemies:Array(512).fill(
 console.log('PASS: lifecycle guards, fixed steps, recovery, versioned/blocked storage, seeded RNG and UTF-8 snapshot budgets.');
 
 const fs=require('node:fs'),vm=require('node:vm'),B=require('../mission-bootstrap');
-const scope={window:{},localStorage:{getItem:()=>null,setItem(){}}};vm.createContext(scope);
+const scope={window:{BadFodderHistoricalMissions:require('../historical-missions')},localStorage:{getItem:()=>null,setItem(){}}};vm.createContext(scope);
 for(const file of ['town-map.js','bad-belzig-data.js','wigan-map.js','cable-street-map.js','campaign.js'])vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'..',file),'utf8'),scope);
 const maps=vm.runInContext('({"bad-belzig":TOWN_MAP,wigan:WIGAN_MAP,"cable-street":window.CABLE_STREET_MAP})',scope);
 const missions=[...scope.window.BadFodderCampaign.missions.filter(m=>m.playable),...require('../historical-missions').missions];

@@ -27,7 +27,7 @@
   const start=document.getElementById('menuStart');if(start)start.onclick=()=>retry('campaign',null,null);
   const bad=document.getElementById('menuMissionBad');if(bad)bad.onclick=()=>retry('select',0,null);
   const wigan=document.getElementById('menuMissionWigan');if(wigan)wigan.onclick=()=>retry('select',1,null);
-  const cable=document.getElementById('menuHistoricalCable');if(cable)cable.onclick=()=>retry('historical',null,'cable-street-1936');
+  const cable=document.getElementById('menuHistoricalCable');if(cable)cable.onclick=()=>retry('select',2,null);
  }
  root.BadFodderMissionAssets={load,ready,recover,has:key=>Object.hasOwn(groups,key)};
 })(window);

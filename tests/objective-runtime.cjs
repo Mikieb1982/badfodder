@@ -1,11 +1,11 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const Runtime=require('../mission-objectives'),Rules=require('../mission-rules'),Protocol=require('../multiplayer-protocol');
-const scope={window:{},localStorage:{getItem:()=>null,setItem(){}}};
+const scope={window:{BadFodderHistoricalMissions:require('../historical-missions')},localStorage:{getItem:()=>null,setItem(){}}};
 vm.runInNewContext(fs.readFileSync(require.resolve('../campaign.js'),'utf8'),scope);
 const source=fs.readFileSync(require.resolve('../index.html'),'utf8');
 const update=source.slice(source.indexOf('  function updateMissionProgress(dt){'),source.indexOf('  let nextHudUpdate='));
-for(const mission of scope.window.BadFodderCampaign.missions.filter(m=>m.playable)){
+for(const mission of scope.window.BadFodderCampaign.missions.filter(m=>m.playable&&m.scenario!=='historical')){
  const runtime=Runtime.create(mission),zones=Object.fromEntries(mission.phases.map((p,i)=>[p.zone,{x:i*1000,y:0,r:50}]));
  const squad=[{x:0,y:0,alive:true}],enemies=mission.phases.map((p,i)=>({x:i*1000,y:0,alive:true,objectiveGroup:p.defenderGroup}));
  let completed=false;

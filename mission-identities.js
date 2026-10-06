@@ -1,21 +1,22 @@
 /* Mission identities and lightweight persistent character profiles. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.BadFodderIdentities=api;})(typeof window!=='undefined'?window:globalThis,function(){
 'use strict';
+const scenarioLabels=Object.freeze({fictional:'FICTIONAL SCENARIO',historical:'BASED ON REAL EVENTS'});
 const character=(name,role,coat,hat,weapon,extra={})=>({name,role,coat,hat,weapon,...extra});
 const missions={
- 'cable-street':{key:'cable-street',title:'CABLE STREET',location:'LONDON',year:1936,classification:'HISTORICAL PROLOGUE',loading:'LONDON · 1936',
+ 'cable-street':{key:'cable-street',title:'CABLE STREET',location:'LONDON',year:1936,scenario:'historical',date:'1936-10-04',loading:'LONDON · 1936',
  background:["Europe has not yet gone to war, but the political conflict that will shape the coming years is already visible on the streets. The British Union of Fascists intends to march through London's East End.","Local residents and anti-fascist demonstrators have gathered in large numbers to stop them. Barricades are appearing across the streets. Police have been ordered to clear a route.","The player controls four fictional residents inside the wider confrontation. There are no soldiers coming to help. There are no rifles or grenades. There is only the street, the crowd and whatever can be used to keep the route closed."],
  mission:'Reach the main barricade. Gather materials and strengthen the defences before the police advance reaches them. When the push begins, hold the line. Repair damaged barricades. Assist people caught in the confrontation. Regroup when necessary. Keep the route closed.',
  objectives:['BUILD THE BARRICADE','WITHSTAND THE POLICE PUSH','REGROUP AND REPAIR','HOLD THE ROUTE'],final:[],
  victory:['THE ROUTE HAS HELD','THE MARCH HAS BEEN TURNED AWAY'],failure:'THE ROUTE HAS BEEN BREACHED',
  characters:[character('Jack','Dock worker','#756349','flat-cap',null,{build:'broad',age:42}),character('Rose','Local organiser','#805e66','beret',null,{scarf:'#d7b780',longCoat:true,hair:'#603b28'}),character('Sam','Tailor','#63778a','cap',null,{waistcoat:true,age:25}),character('Ada','Neighbourhood volunteer','#77694e','headscarf',null,{longCoat:true,hair:'#463029',age:48})]},
- wigan:{key:'wigan',title:'WIGAN',location:'LANCASHIRE, ENGLAND',year:1941,classification:'ALTERNATE HISTORY',loading:'ENGLAND · 1941',
+ wigan:{key:'wigan',title:'WIGAN',location:'LANCASHIRE, ENGLAND',year:1941,scenario:'fictional',loading:'ENGLAND · 1941',
  background:['Britain has been invaded. Enemy German forces have pushed north and taken control of Wigan town centre and its railway connections.','Regular military units are fighting elsewhere. The defence of the town has fallen to a handful of local volunteers. They are veterans, railway workers, factory workers and ordinary residents.','They are not commandos. They know the streets. That will have to be enough.'],
  mission:'Enter the town centre. Break the enemy position around the Tudor House / New Market Street area. Push towards Market Place and Grand Arcade. Use side streets to outflank defensive positions. Supplies around King Street remain optional. Finally advance towards Wigan Wallgate and Wigan North Western. Remove the remaining defenders and secure the railway gateway.',
  objectives:['BREAK THE TUDOR POSITION','SECURE THE GRAND ARCADE','CLEAR THE TOWN CENTRE','TAKE THE STATIONS'],final:['WIGAN NEEDS YOU.','TRY NOT TO SHOOT THE PUBS.'],
  victory:['WIGAN SECURED','THE STATIONS ARE BACK IN LOCAL HANDS','THE PUBS MOSTLY SURVIVED.'],failure:'WIGAN HAS FALLEN',
  characters:[character('Arthur','First World War veteran','#77764e','brodie','lee-enfield',{age:61,moustache:true,webbing:true}),character('Elsie','Railway worker','#44596a','railway-cap','sten',{age:39,scarf:'#b99863',build:'broad'}),character('Tom','Young volunteer','#897652','flat-cap','lee-enfield',{age:20,webbing:true}),character('George','Factory worker','#725347','cap','thompson',{age:46,waistcoat:true,build:'broad'})]},
- belzig:{key:'belzig',title:'BELZIG',location:'BRANDENBURG, GERMANY',year:1945,classification:'FICTIONAL RESISTANCE MISSION',loading:'GERMANY · 1945',
+ belzig:{key:'belzig',title:'BELZIG',location:'BRANDENBURG, GERMANY',year:1945,scenario:'fictional',loading:'GERMANY · 1945',
  background:['The war is ending. The Nazi regime is collapsing. But armed Nazi loyalists still control Belzig. The castle remains occupied. Patrols control the centre.','Four local resistance fighters have decided that they have waited long enough. They are not an army. Some have fought before. Some have not. Their weapons are stolen, captured, hidden or simply whatever they could find.','Their aim is simple: take their town back before the remaining Nazi forces can organise a proper defence.'],
  mission:'Move through Bahnhofstraße and clear the patrol controlling the Postdistanzsäule area. Push towards Burg Eisenhardt and remove the force occupying the castle. Then advance into the town centre. Break the remaining resistance around the Marktplatz and Rathaus. Secure the square.',
  objectives:['SECURE BAHNHOFSTRASSE','TAKE BURG EISENHARDT','LIBERATE THE MARKTPLATZ','HOLD THE RATHAUS'],final:['THIS IS YOUR TOWN.','TAKE IT BACK.'],
@@ -40,6 +41,7 @@ for(const [missionKey,mission] of Object.entries(missions))mission.characters.fo
  profile.alive=true;
 });
 for(const mission of Object.values(missions)){
+ mission.classification=scenarioLabels[mission.scenario];
  for(const [a,b,type] of [[0,1,'NEIGHBOURS'],[2,3,'FRIENDS']]){
   const left=mission.characters[a],right=mission.characters[b];
   left.relationships.push({id:right.id,type});right.relationships.push({id:left.id,type});
@@ -72,5 +74,5 @@ function modifiers(unit={}){
   suppression:(unit.trait==='STUBBORN'?.9:1)*(1-practice),aid:unit.trait==='MEDIC'?1.15:1,work:unit.trait==='MECHANIC'?1.1:1};
 }
 function skin(mission,team,index=0,periodRole){const id=get(mission),i=Math.abs(index|0);if(periodRole==='police')return character('Police','Metropolitan police','#293e50','custodian',null,{webbing:true});if(periodRole==='march')return character('Marcher','Fascist marcher','#343331','cap',null);if(team==='squad')return id.characters[i%4];if(team==='enemy')return (enemyStyles[id.key]||defenders)[i%4];return {...id.characters[i%4],weapon:null,webbing:false,hat:['flat-cap','beret','cap','headscarf'][i%4]};}
-return{missions,enemyStyles,CHARACTER_TRAITS,get,profile,runtimeCharacter,modifiers,skin,disclaimer:'This game uses real locations and historical settings. Some events are historical, while the main wartime battles and playable characters are fictional or alternate history.'};
+return{missions,scenarioLabels,enemyStyles,CHARACTER_TRAITS,get,profile,runtimeCharacter,modifiers,skin,disclaimer:'This game uses real locations and historical settings. Some events are historical, while the main wartime battles and playable characters are fictional or alternate history.'};
 });

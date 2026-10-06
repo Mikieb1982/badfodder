@@ -12,7 +12,7 @@ function campaign(){
     getItem:key=>data[key]??null,
     setItem:(key,value)=>{data[key]=String(value)}
   };
-  const scope={window:{},localStorage};
+  const scope={window:{BadFodderHistoricalMissions:require('../historical-missions')},localStorage};
   vm.runInNewContext(campaignSource,scope);
   return scope.window.BadFodderCampaign;
 }
@@ -31,12 +31,12 @@ const launch=MissionLaunch.create({storage:s,missions:c.missions,campaign:c});
 
 assert(launch.isCampaign(),'Default launch mode must be campaign');
 assert.equal(launch.currentIndex(),0);
-assert.equal(launch.current().id,1);
+assert.equal(launch.current().id,'bad-belzig');
 
 assert(launch.select(1),'Playable Wigan should be selectable directly');
 assert(launch.isSelection());
 assert.equal(launch.currentIndex(),1);
-assert.equal(launch.current().id,2);
+assert.equal(launch.current().id,'wigan');
 assert.equal(c.state.current,0,'Standalone selection must not change campaign current mission');
 assert.equal(c.state.unlocked,0,'Standalone selection must not unlock campaign missions');
 
@@ -51,9 +51,11 @@ assert.equal(launch.currentIndex(),0,'Returning to campaign must restore campaig
 c.complete(0);
 c.setCurrent(1);
 assert.equal(launch.currentIndex(),1,'Campaign should advance to Wigan after Mission 1 completion');
-assert.equal(launch.current().id,2);
+assert.equal(launch.current().id,'wigan');
 
-assert(!launch.select(2),'Placeholder Mission 3 must not be directly selectable');
+assert(launch.select(2),'Cable Street must be selectable');
+assert(launch.isHistorical());
+assert(!launch.select(3),'Future chapters must remain unavailable');
 
 assert(index.includes('id="menuMissionSelect"'),'Main menu Mission Select button missing');
 assert(!index.includes('id="menuMissionSelect" class="menu-button" type="button" disabled'),'Mission Select must be available before the current mission finishes loading');

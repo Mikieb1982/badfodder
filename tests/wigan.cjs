@@ -58,7 +58,7 @@ for(const r of map.roads.filter(r=>['King Street','King Street West','Wallgate',
  const p=r.points[Math.floor(r.points.length/2)],x=p[0]*2,y=p[1]*2;assert(!q.obstacleAt(x,y,4),'Blocked street '+r.name);const route=q.findPath(start.x,start.y,x,y);assert(route.length,'Unreachable street '+r.name);checked++;
 }
 for(const [key,z] of Object.entries(map.zones)){assert(map.pois[key].approach);assert.equal(z.x,map.pois[key].approach[0]);assert.equal(z.y,map.pois[key].approach[1]);}
-const scope={window:{},localStorage:{getItem:()=>null,setItem(){}}};
+const scope={window:{BadFodderHistoricalMissions:require('../historical-missions')},localStorage:{getItem:()=>null,setItem(){}}};
 vm.runInNewContext(fs.readFileSync(path.join(root,'campaign.js'),'utf8'),scope);
 const mission=scope.window.BadFodderCampaign.missions[1];
 assert.deepEqual(Array.from(mission.phases,p=>p.zone),['tudor','grandArcade','wallgate']);assert.equal(mission.phases.length,3);assert(mission.phases.every(p=>p.hold>0),'Wigan objectives should use short secure holds');

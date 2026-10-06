@@ -201,6 +201,16 @@ async function runLifecycle(providedBrowser, testInfo){
  expectedRuntimeLogs=3;await page.evaluate(()=>window.__testGame.fault());assert(await page.locator('#menuResume').isHidden());assert(await page.locator('#menuMissionSelect').isVisible());await page.locator('#menuRestart').click();await active();
  expectedStartupLogs=1;await page.goto(url+'?failStartup=1',{waitUntil:'domcontentloaded'});await page.locator('#menuStart').click();await page.locator('#briefingBegin').click();await page.waitForFunction(()=>document.getElementById('menuStart').textContent==='CAMPAIGN UNAVAILABLE');assert(await page.locator('#menuResume').isHidden());assert(await page.locator('#loading').isHidden());await page.evaluate(()=>history.replaceState(null,'',location.pathname));await select('#menuMissionBad');await active();
  await page.evaluate(()=>window.__testGame.main());await page.locator('#menuStart').click();await page.locator('#briefingBegin').click();await page.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen,{},{timeout:90000});assert.equal((await active()).mode,'campaign');
+ // Verify real campaign transitions retain Cable Street's specialised simulation.
+ for(const map of ['wigan','cable-street']){
+  await page.evaluate(()=>window.__testGame.complete());assert(await page.locator('#resultNext').isVisible());
+  await page.locator('#resultNext').click();assert(await page.locator('#briefingBegin').isVisible());
+  await page.locator('#briefingBegin').click();await page.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen,{},{timeout:90000});
+  assert.equal((await active()).map,map);assert.equal((await active()).mode,'campaign');
+ }
+ assert(await page.locator('#touchFire').isHidden());assert((await active()).progress);
+ await page.evaluate(()=>window.__testGame.complete());assert(await page.locator('#resultNext').isHidden());
+ assert.deepEqual(await page.evaluate(()=>JSON.parse(BadFodderStorage.local.getItem('badfodder.campaign.v1')).completedIds),['bad-belzig','wigan','cable-street']);
  const mobile=await newPage({viewport:{width:915,height:412},...(browserName!=='firefox'?{isMobile:true}:{}),hasTouch:true});mobile.on('pageerror',e=>errors.push(e.message));await mobile.goto(url,{waitUntil:'domcontentloaded'});await mobile.locator('[data-presentation-skip]').click();await mobile.waitForFunction(()=>!!window.__testGame);await mobile.locator('#menuStart').click();await mobile.locator('#briefingBegin').click();await mobile.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen);
  await casualtyCycle(mobile,true);await civilianCycle(mobile,true);await buildingCycle(mobile,true);
  // Exercise pinch through real pointer listeners in every browser engine.

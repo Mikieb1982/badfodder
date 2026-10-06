@@ -8,7 +8,7 @@ const wiganSource=fs.readFileSync(path.join(root,'wigan-map.js'),'utf8');
 const townSource=fs.readFileSync(path.join(root,'town-map.js'),'utf8');
 const badSource=fs.readFileSync(path.join(root,'bad-belzig-data.js'),'utf8');
 
-const scope={window:{},localStorage:{getItem:()=>null,setItem(){}}};
+const scope={window:{BadFodderHistoricalMissions:require('../historical-missions')},localStorage:{getItem:()=>null,setItem(){}}};
 vm.runInNewContext(campaignSource,scope);
 const [badMission,wiganMission]=scope.window.BadFodderCampaign.missions;
 assert.equal(badMission.phases.length,3);

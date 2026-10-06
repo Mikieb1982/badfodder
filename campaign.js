@@ -6,7 +6,7 @@ const KEY='badfodder.campaign.v1';
 
 const missions=[
   {
-    id:1,title:'Belzig, 1945',environment:'temperate-town',map:'bad-belzig',squadSize:4,playable:true,
+    id:'bad-belzig',chapter:1,order:1,status:'playable',scenario:'fictional',location:'Bad Belzig',country:'Germany',title:'Bad Belzig',environment:'temperate-town',map:'bad-belzig',squadSize:4,playable:true,
     phases:[
       {type:'secure-zone',zone:'post',defenderGroup:'post',hold:2.5,contestRadius:72,title:'Secure the Postdistanzsäule',brief:'Clear the Postdistanzsäule patrol, enter the checkpoint position and repel the fast frontal counterattack.',checkpoint:{style:'rush',count:3}},
       {type:'secure-zone',zone:'castle',defenderGroup:'castle',hold:2.8,contestRadius:105,title:'Secure Burg Eisenhardt',brief:'Clear the castle defenders, occupy the Burg checkpoint and hold it against a two-sided flanking counterattack.',checkpoint:{style:'pincer',count:4}},
@@ -14,232 +14,56 @@ const missions=[
     ]
   },
   {
-    id:2,title:'Wigan, 1941',environment:'wigan-town',map:'wigan',squadSize:4,playable:true,
+    id:'wigan',chapter:2,order:2,status:'playable',scenario:'fictional',location:'Wigan',country:'England',title:'Wigan',environment:'wigan-town',map:'wigan',squadSize:4,playable:true,
     phases:[
       {type:'secure-zone',zone:'tudor',defenderGroup:'tudor',hold:2.5,contestRadius:75,title:'Tudor Breakout',brief:'Clear the Tudor House defenders, enter the checkpoint building and repel the immediate frontal rush.',checkpoint:{style:'rush',count:3}},
       {type:'secure-zone',zone:'grandArcade',defenderGroup:'grandArcade',hold:2.8,contestRadius:95,title:'Town Centre Sweep',brief:'Fight through Market Place, garrison the Grand Arcade checkpoint and hold it against a pincer attack.',checkpoint:{style:'pincer',count:4}},
       {type:'eliminate-and-reach',zone:'wallgate',defenderGroup:'wallgate',hold:3.0,contestRadius:90,title:'Station Run',brief:'Defeat the station defenders, occupy the Wallgate checkpoint and break the final multi-direction counterattack. King Street supplies are optional.',checkpoint:{style:'siege',count:5}}
     ]
   },
-  {
-    id:3,title:'Cold Reception',environment:'snow-village',squadSize:4,playable:false,
-    phases:[
-      {type:'rescue',target:'hostages',title:'Rescue the villagers',brief:'Reach and release the hostages.'},
-      {type:'protect',target:'civilians',title:'Hold the village',brief:'Protect the civilian buildings during the counterattack.'}
-    ]
-  },
-  {
-    id:4,title:'Thin Ice',environment:'snow-river',squadSize:4,playable:false,
-    phases:[
-      {type:'reach',zone:'bridge',title:'Cross the frozen river',brief:'Move the squad across the exposed river crossing.'},
-      {type:'destroy',target:'bunkers',title:'Break the bunker line',brief:'Destroy the defensive bunkers covering the pass.'},
-      {type:'eliminate',title:'Clear the pass',brief:'Eliminate the remaining defenders.'}
-    ]
-  },
-  {
-    id:5,title:'Green Hell',environment:'jungle',squadSize:5,playable:false,
-    phases:[
-      {type:'reach',zone:'camp',title:'Find the camp',brief:'Move through dense jungle and locate the enemy camp.'},
-      {type:'eliminate',title:'Clear the camp',brief:'Eliminate enemy troops in the camp.'}
-    ]
-  },
-  {
-    id:6,title:'River Rats',environment:'jungle-river',squadSize:5,playable:false,
-    phases:[
-      {type:'rescue',target:'hostages',title:'Free the prisoners',brief:'Rescue prisoners held beside the river.'},
-      {type:'destroy',target:'boats',title:'Destroy the patrol boats',brief:'Destroy enemy river craft before they escape.'},
-      {type:'reach',zone:'landing',title:'Reach the landing zone',brief:'Move the squad and rescued prisoners to the landing zone.'}
-    ]
-  },
-  {
-    id:7,title:'Canopy Fire',environment:'jungle',squadSize:5,playable:false,
-    phases:[
-      {type:'protect',target:'village',title:'Protect the village',brief:'Defend civilian structures from the attack.'},
-      {type:'destroy',target:'artillery',title:'Silence the guns',brief:'Destroy the artillery position firing on the village.'}
-    ]
-  },
-  {
-    id:8,title:'Temple Run',environment:'jungle-ruins',squadSize:5,playable:false,
-    phases:[
-      {type:'reach',zone:'ruins',title:'Enter the ruins',brief:'Reach the ruined temple complex.'},
-      {type:'eliminate',title:'Clear the ruins',brief:'Eliminate defenders inside the ruins.'},
-      {type:'rescue',target:'team',title:'Recover the missing team',brief:'Find and rescue the missing reconnaissance team.'}
-    ]
-  },
-  {
-    id:9,title:'Broken Road',environment:'temperate-rural',squadSize:5,playable:false,
-    phases:[
-      {type:'protect',target:'convoy',title:'Escort the convoy',brief:'Protect the convoy along the main road.'},
-      {type:'destroy',target:'roadblock',title:'Break the roadblock',brief:'Destroy the fortified roadblock.'}
-    ]
-  },
-  {
-    id:10,title:'Town Without Pity',environment:'temperate-town',squadSize:6,playable:false,
-    phases:[
-      {type:'rescue',target:'civilians',title:'Evacuate civilians',brief:'Reach civilians trapped in the town centre.'},
-      {type:'eliminate',title:'Clear the centre',brief:'Eliminate hostile forces occupying the streets.'},
-      {type:'protect',target:'civic-building',title:'Protect the civic hall',brief:'Keep the civic building intact during the final attack.'}
-    ]
-  },
-  {
-    id:11,title:'Rail Head',environment:'industrial',squadSize:6,playable:false,
-    phases:[
-      {type:'reach',zone:'rail-yard',title:'Enter the rail yard',brief:'Break into the enemy-controlled rail yard.'},
-      {type:'destroy',target:'fuel-depot',title:'Destroy the fuel depot',brief:'Destroy the fuel storage tanks.'},
-      {type:'destroy',target:'train',title:'Stop the train',brief:'Disable the enemy supply train.'}
-    ]
-  },
-  {
-    id:12,title:'High Ground',environment:'mountain',squadSize:6,playable:false,
-    phases:[
-      {type:'reach',zone:'summit',title:'Take the summit',brief:'Fight uphill and reach the summit position.'},
-      {type:'protect',target:'radio-team',title:'Hold the summit',brief:'Protect the radio team while they transmit.'}
-    ]
-  },
-  {
-    id:13,title:'Bog Standard',environment:'marsh',squadSize:6,playable:false,
-    phases:[
-      {type:'reach',zone:'causeway',title:'Cross the marsh',brief:'Navigate the marsh and reach the raised causeway.'},
-      {type:'rescue',target:'downed-crew',title:'Recover the crew',brief:'Find and rescue the downed aircrew.'},
-      {type:'reach',zone:'extraction',title:'Extract',brief:'Escort the crew to extraction.'}
-    ]
-  },
-  {
-    id:14,title:'Stone Cold',environment:'mountain-fort',squadSize:6,playable:false,
-    phases:[
-      {type:'destroy',target:'gates',title:'Breach the gates',brief:'Destroy the fortress gates.'},
-      {type:'eliminate',title:'Clear the fortress',brief:'Eliminate defenders inside the fortress.'}
-    ]
-  },
-  {
-    id:15,title:'Night Shift',environment:'night-industrial',squadSize:6,playable:false,
-    phases:[
-      {type:'destroy',target:'generators',title:'Cut the power',brief:'Destroy the power generators.'},
-      {type:'rescue',target:'hostages',title:'Free the hostages',brief:'Rescue hostages before enemy reinforcements arrive.'},
-      {type:'reach',zone:'extraction',title:'Get out',brief:'Reach extraction with the hostages.'}
-    ]
-  },
-  {
-    id:16,title:'Dust Up',environment:'desert',squadSize:7,playable:false,
-    phases:[
-      {type:'reach',zone:'oasis',title:'Reach the oasis',brief:'Cross open ground and secure the oasis.'},
-      {type:'eliminate',title:'Clear the patrols',brief:'Eliminate mobile patrols around the oasis.'}
-    ]
-  },
-  {
-    id:17,title:'Heat Stroke',environment:'desert-town',squadSize:7,playable:false,
-    phases:[
-      {type:'protect',target:'water-plant',title:'Protect the water plant',brief:'Prevent the water plant from being destroyed.'},
-      {type:'destroy',target:'armour',title:'Destroy enemy armour',brief:'Destroy the vehicles threatening the town.'},
-      {type:'eliminate',title:'Clear the town',brief:'Eliminate remaining hostile forces.'}
-    ]
-  },
-  {
-    id:18,title:'Long Sand',environment:'desert-dunes',squadSize:7,playable:false,
-    phases:[
-      {type:'destroy',target:'communications',title:'Destroy communications',brief:'Knock out the desert communications station.'},
-      {type:'reach',zone:'rendezvous',title:'Reach rendezvous',brief:'Reach the rendezvous before enemy patrols close in.'}
-    ]
-  },
-  {
-    id:19,title:'Fortune Favours',environment:'desert-fort',squadSize:7,playable:false,
-    phases:[
-      {type:'rescue',target:'prisoners',title:'Release the prisoners',brief:'Free prisoners held inside the desert fort.'},
-      {type:'destroy',target:'armoury',title:'Destroy the armoury',brief:'Destroy the ammunition stores.'},
-      {type:'reach',zone:'escape',title:'Escape the fort',brief:'Get the squad and prisoners clear of the fort.'}
-    ]
-  },
-  {
-    id:20,title:'Black Gold',environment:'desert-industrial',squadSize:7,playable:false,
-    phases:[
-      {type:'protect',target:'civilian-site',title:'Protect the refinery workers',brief:'Keep the civilian work area intact.'},
-      {type:'destroy',target:'enemy-depot',title:'Destroy the military depot',brief:'Destroy the enemy depot without wrecking civilian structures.'}
-    ]
-  },
-  {
-    id:21,title:'Home Front',environment:'temperate-city',squadSize:8,playable:false,
-    phases:[
-      {type:'rescue',target:'civilians',title:'Rescue trapped civilians',brief:'Reach civilians trapped behind enemy lines.'},
-      {type:'protect',target:'hospital',title:'Protect the hospital',brief:'Prevent damage to the hospital during the counterattack.'},
-      {type:'eliminate',title:'Clear the district',brief:'Eliminate remaining hostile troops.'}
-    ]
-  },
-  {
-    id:22,title:'No Way Through',environment:'fortified-valley',squadSize:8,playable:false,
-    phases:[
-      {type:'destroy',target:'bunkers',title:'Destroy the bunker line',brief:'Destroy the bunker network blocking the valley.'},
-      {type:'protect',target:'engineers',title:'Protect the engineers',brief:'Keep the engineers alive while they clear the route.'}
-    ]
-  },
-  {
-    id:23,title:'Last Train Out',environment:'industrial-city',squadSize:8,playable:false,
-    phases:[
-      {type:'rescue',target:'evacuees',title:'Reach the evacuees',brief:'Reach civilians waiting at the station.'},
-      {type:'protect',target:'train',title:'Protect the evacuation train',brief:'Defend the train while evacuees board.'},
-      {type:'eliminate',title:'Hold the station',brief:'Eliminate the final attacking force.'}
-    ]
-  },
-  {
-    id:24,title:'Last Orders',environment:'command-fortress',squadSize:8,playable:false,
-    phases:[
-      {type:'destroy',target:'command-centre',title:'Destroy command',brief:'Breach and destroy the enemy command centre.'},
-      {type:'rescue',target:'prisoners',title:'Free the prisoners',brief:'Release the remaining prisoners.'},
-      {type:'eliminate-and-reach',zone:'extraction',title:'Final extraction',brief:'Eliminate resistance and get the surviving squad out.'}
-    ]
-  }
+  {...window.BadFodderHistoricalMissions.missions.find(m=>m.map==='cable-street'),id:'cable-street',legacyId:'cable-street-1936',status:'playable',campaignLinked:true,chapter:3,order:3}
 ];
 
-const defaults={current:0,unlocked:0,completed:[]};
-
-function load(){
-  try{
-    const raw=JSON.parse((typeof BadFodderStorage!=='undefined'?BadFodderStorage.local:localStorage).getItem(KEY)||'null');
-    if(!raw||typeof raw!=='object')return{...defaults,completed:[]};
-    return{
-      current:Math.max(0,Math.min(missions.length-1,Number.isInteger(raw.current)?raw.current:0)),
-      unlocked:Math.max(0,Math.min(missions.length-1,Number.isInteger(raw.unlocked)?raw.unlocked:0)),
-      completed:Array.isArray(raw.completed)?raw.completed.filter(i=>Number.isInteger(i)&&i>=0&&i<missions.length):[]
-    };
-  }catch(_){
-    return{...defaults,completed:[]};
-  }
+// Numeric fields remain available to existing runtime consumers. Persisted IDs are authoritative.
+const futureChapters=[
+ {id:'barcelona-1936',title:'Barcelona',location:'Barcelona',country:'Spain',date:'1936-07-19'},
+ {id:'naples-1943',title:'Naples',location:'Naples',country:'Italy',date:'1943-09'},
+ {id:'paris-1944',title:'Paris',location:'Paris',country:'France',date:'1944-08'},
+ {id:'munich-1945',title:'Munich',location:'Munich',country:'Germany',date:'1945-04-28'}
+].map((m,i)=>({...m,chapter:i+4,order:i+4,scenario:'historical',status:'planned',playable:false}));
+const storage=()=>typeof BadFodderStorage!=='undefined'?BadFodderStorage.local:localStorage;
+const defaults=()=>({current:0,unlocked:0,completed:[]});
+function indexOf(ref){
+ if(Number.isInteger(ref)&&ref>=0&&ref<missions.length)return ref;
+ return missions.findIndex(m=>m.id===ref||m.legacyId===ref);
 }
-
-let state=load();
-
+function migrate(raw){
+ if(!raw||typeof raw!=='object')return defaults();
+ const modern=raw.campaignSchema===2;
+ const resolve=ref=>modern?indexOf(ref):(Number.isInteger(ref)&&ref>=0&&ref<2?ref:-1);
+ const completed=[...new Set((Array.isArray(raw.completedIds)&&modern?raw.completedIds:Array.isArray(raw.completed)?raw.completed:[]).map(resolve).filter(i=>i>=0))].sort((a,b)=>a-b);
+ let unlocked=resolve(modern?(raw.unlockedId??raw.unlocked):raw.unlocked);
+ // Obsolete legacy positions imply Wigan was accessible, never that Cable Street was completed.
+ if(!modern&&Number.isInteger(raw.unlocked)&&raw.unlocked>=2)unlocked=1;
+ unlocked=Math.max(0,unlocked,...completed.map(i=>Math.min(missions.length-1,i+1)));
+ let current=resolve(modern?(raw.currentId??raw.current):raw.current);
+ if(current<0)current=unlocked;
+ return{current:Math.min(current,unlocked),unlocked,completed};
+}
+let state;
+try{state=migrate(JSON.parse(storage().getItem(KEY)||'null'))}catch(_){state=defaults()}
 function save(){
-  try{(typeof BadFodderStorage!=='undefined'?BadFodderStorage.local:localStorage).setItem(KEY,JSON.stringify(state))}catch(_){}
+ try{storage().setItem(KEY,JSON.stringify({...state,campaignSchema:2,currentId:missions[state.current].id,unlockedId:missions[state.unlocked].id,completedIds:state.completed.map(i=>missions[i].id)}))}catch(_){}
 }
-
-function mission(index=state.current){
-  return missions[Math.max(0,Math.min(missions.length-1,index))];
+function mission(ref=state.current){return missions[indexOf(ref)]||missions[0]}
+function setCurrent(ref){const index=indexOf(ref);state.current=index<0?state.unlocked:Math.min(state.unlocked,index);save();return mission()}
+function complete(ref=state.current){
+ const index=indexOf(ref);if(index<0||index>state.unlocked)return state;
+ if(!state.completed.includes(index))state.completed.push(index);
+ state.completed.sort((a,b)=>a-b);
+ state.unlocked=Math.max(state.unlocked,Math.min(missions.length-1,index+1));save();return state;
 }
-
-function setCurrent(index){
-  const next=Math.max(0,Math.min(state.unlocked,index|0));
-  state.current=next;save();return mission();
-}
-
-function complete(index=state.current){
-  if(!state.completed.includes(index))state.completed.push(index);
-  state.completed.sort((a,b)=>a-b);
-  state.unlocked=Math.max(state.unlocked,Math.min(missions.length-1,index+1));
-  save();
-  return state;
-}
-
-function resetProgress(){
-  state={...defaults,completed:[]};save();return state;
-}
-
-window.BadFodderCampaign={
-  missions,
-  get state(){return state},
-  mission,
-  current:()=>mission(state.current),
-  setCurrent,
-  complete,
-  resetProgress,
-  save
-};
+function resetProgress(){state=defaults();save();return state}
+window.BadFodderCampaign={missions,futureChapters,get state(){return state},mission,indexOf,current:()=>mission(),setCurrent,complete,resetProgress,save};
+save();
 })();

@@ -9,7 +9,7 @@ function loadCampaign(){
     getItem:key=>Object.prototype.hasOwnProperty.call(data,key)?data[key]:null,
     setItem:(key,value)=>{data[key]=String(value)}
   };
-  const scope={window:{},localStorage};
+  const scope={window:{BadFodderHistoricalMissions:require('../historical-missions')},localStorage};
   vm.runInNewContext(fs.readFileSync(path.join(root,'campaign.js'),'utf8'),scope);
   return scope.window.BadFodderCampaign;
 }
@@ -83,7 +83,7 @@ campaign.complete(0);
 assert(campaign.state.completed.includes(0));
 assert(campaign.state.unlocked>=1,'Completing Bad Belzig does not unlock Wigan');
 campaign.setCurrent(1);
-assert.equal(campaign.current().id,2,'Campaign cannot advance to Wigan');
+assert.equal(campaign.current().id,'wigan','Campaign cannot advance to Wigan');
 campaign.complete(1);
 assert(campaign.state.completed.includes(1),'Wigan completion is not stored');
 

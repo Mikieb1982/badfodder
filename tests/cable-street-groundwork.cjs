@@ -31,9 +31,9 @@ assert.equal(mission.firstImplementationSlice.backgroundMarchThreat,true);
 assert.equal(mission.combatStyle,'improvised-street-defence');
 
 const campaignSource=fs.readFileSync(path.join(root,'campaign.js'),'utf8');
-const scope={window:{},localStorage:{getItem:()=>null,setItem(){}}};
+const scope={window:{BadFodderHistoricalMissions:require('../historical-missions')},localStorage:{getItem:()=>null,setItem(){}}};
 vm.runInNewContext(campaignSource,scope);
-assert(!scope.window.BadFodderCampaign.missions.some(m=>String(m.id)==='cable-street-1936'||/Cable Street/i.test(m.title)),'Cable Street was incorrectly appended to the standard campaign');
+assert(scope.window.BadFodderCampaign.missions.some(m=>m.id==='cable-street'),'Cable Street is missing from the principal campaign');
 
 const barricade=Cable.createBarricade({id:'B',maxIntegrity:100,constructionTier:2,integrity:45,workPositions:2});
 Cable.damageBarricade(barricade,15);
@@ -147,7 +147,7 @@ assert(index.includes('id="briefingBegin"'),'Shared briefing has no Begin contro
 assert(index.includes("menu-ui.js?v=20261003-wartime-1"),'Menu controller cache version is stale');
 assert(index.includes('selectHistorical:startHistoricalMission'),'Cable Street briefing action is not supplied');
 assert(index.includes('m?.playable&&m.mapReady&&BadFodderMissionAssets.has(m.map)'),'Cable Street briefing must require a registered ready map');
-assert(menu.includes("actions.selectHistorical?.('cable-street-1936')"),'Cable Street selection does not request its mission');
+assert(menu.includes("actions.selectMission(2)"),'Cable Street selection does not request its mission');
 assert(menu.includes('leaveBriefing()'),'Shared briefing lacks Back navigation');
 assert(menu.includes("this.showPanel(this.briefingBack||'missions')"),'Briefing must return to its source panel');
 
