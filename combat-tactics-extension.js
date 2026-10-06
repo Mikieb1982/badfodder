@@ -54,7 +54,7 @@
     }
   }
   function updateTacticalState(units=[],hostiles=[],coverPolygons=[],dt=0){
-    const decay=Math.max(0,Number(dt)||0)*22;for(const u of units){if(!u)continue;if(active(u))setSuppression(u,suppressionOf(u)-decay);else if(u.alive===false)setSuppression(u,0);const s=suppressionOf(u);if(s>80){u.lowCrawl=true;u.sprint=false;if(u.state==='run')u.state='crawl'}else if(s<=70)u.lowCrawl=false}
+    const decay=Math.max(0,Number(dt)||0)*12;for(const u of units){if(!u)continue;if(active(u)){const tactical=Number.isFinite(u.tacticalSuppression)?clamp(u.tacticalSuppression-decay):0,legacy=clamp((Number(u.suppression)||0)*100);u.tacticalSuppression=tactical;u.suppression=Math.max(legacy,tactical)/100}else if(u.alive===false)setSuppression(u,0);const s=suppressionOf(u);if(s>80){u.lowCrawl=true;u.sprint=false;if(u.state==='run')u.state='crawl'}else if(s<=70)u.lowCrawl=false}
     tacticalClock-=Math.max(0,Number(dt)||0);if(tacticalClock<=0){tacticalClock=.25;updateMorale(units,coverPolygons);updateBounding(units,.25)}return units;
   }
   function notifyGrenadeDetonation(x,y,units){
