@@ -131,7 +131,7 @@ function streetSign(g,x,y,S,text){
 }
 function treeGrate(g,x,y,S){g.save();g.strokeStyle='rgba(65,70,64,.65)';g.lineWidth=S(.5);g.strokeRect(x-S(6),y-S(4),S(12),S(8));for(let i=-4;i<=4;i+=2)line(g,[[x+S(i),y-S(4)],[x+S(i),y+S(4)]],'rgba(65,70,64,.45)',S(.35));g.restore()}
 function scatter(g,x,y,S,seed){
- g.save();for(let i=0;i<7;i++){const a=hash(seed+i)*TAU,r=S(3+hash(seed+i+20)*13),px=x+Math.cos(a)*r,py=y+Math.sin(a)*r;g.translate(px,py);g.rotate(hash(seed+i+40)*TAU);g.fillStyle=i%3===0?'#8d7c63':'#b7aa8a';g.globalAlpha=.35+.18*(i%2);g.fillRect(-S(1.4),-S(.6),S(2.8),S(1.2));g.setTransform(1,0,0,1,0,0)}g.restore();
+ for(let i=0;i<7;i++){const a=hash(seed+i)*TAU,r=S(3+hash(seed+i+20)*13),px=x+Math.cos(a)*r,py=y+Math.sin(a)*r;g.save();g.translate(px,py);g.rotate(hash(seed+i+40)*TAU);g.fillStyle=i%3===0?'#8d7c63':'#b7aa8a';g.globalAlpha=.35+.18*(i%2);g.fillRect(-S(1.4),-S(.6),S(2.8),S(1.2));g.restore()}
 }
 function extraScenery(g,map,S,bounds){
  const inside=(x,y,pad=35)=>!bounds||x>=bounds.x-S(pad)&&y>=bounds.y-S(pad)&&x<=bounds.x+bounds.w+S(pad)&&y<=bounds.y+bounds.h+S(pad);
