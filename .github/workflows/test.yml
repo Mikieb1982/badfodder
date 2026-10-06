@@ -15,10 +15,10 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22'
-      - name: Provide Firebase emulator Java runtime
+      - name: Provide Firebase emulator Java runtime and Opus encoder
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends openjdk-21-jre-headless
+          sudo apt-get install -y --no-install-recommends openjdk-21-jre-headless ffmpeg
           echo "JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64" >> "$GITHUB_ENV"
           echo "/usr/lib/jvm/java-21-openjdk-amd64/bin" >> "$GITHUB_PATH"
       - run: npm ci --ignore-scripts
@@ -45,6 +45,10 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Install ${{ matrix.browser }}
         run: npx --no-install playwright install --with-deps ${{ matrix.browser }}
+      - name: Provide Opus production encoder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
       - name: Provide headless WebKit audio output
         if: matrix.browser == 'webkit'
         run: |
