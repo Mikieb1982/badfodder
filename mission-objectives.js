@@ -37,6 +37,7 @@
       const fact=(context.facts||{})[objective.id]??signals[objective.id];
       if(fact?.failed)return{failed:true,status:fact.text||objective.text};
       if(objective.meta?.legacy&&['reach','secure-zone','eliminate-and-reach','eliminate','destroy','rescue','protect'].includes(objective.legacyType))return rules.evaluatePhase({...context,phase:{...objective,type:objective.legacyType}});
+      if(objective.eventDriven)return{ready:fact===true||fact?.complete===true,complete:fact===true||fact?.complete===true,status:fact?.text||objective.text};
       const zone=marker(objective,context.zones),living=(context.living||[]).filter(s=>s.alive!==false);
       const inside=zone?living.filter(s=>rules.pointInCircle(s.x,s.y,zone)):[];
       let ready=false;

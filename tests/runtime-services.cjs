@@ -19,12 +19,12 @@ console.log('PASS: lifecycle guards, fixed steps, recovery, versioned/blocked st
 
 const fs=require('node:fs'),vm=require('node:vm'),B=require('../mission-bootstrap');
 const scope={window:{BadFodderHistoricalMissions:require('../historical-missions')},localStorage:{getItem:()=>null,setItem(){}}};vm.createContext(scope);
-for(const file of ['town-map.js','bad-belzig-data.js','wigan-map.js','cable-street-map.js','campaign.js'])vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'..',file),'utf8'),scope);
-const maps=vm.runInContext('({"bad-belzig":TOWN_MAP,wigan:WIGAN_MAP,"cable-street":window.CABLE_STREET_MAP})',scope);
+for(const file of ['town-map.js','bad-belzig-data.js','wigan-map.js','cable-street-map.js','barcelona-map.js','campaign.js'])vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'..',file),'utf8'),scope);
+const maps=vm.runInContext('({"bad-belzig":TOWN_MAP,wigan:WIGAN_MAP,"cable-street":window.CABLE_STREET_MAP,barcelona:window.BARCELONA_MAP})',scope);
 const missions=[...scope.window.BadFodderCampaign.missions.filter(m=>m.playable),...require('../historical-missions').missions];
 for(const m of missions){assert(B.validateConfiguration(m,maps[m.map]));assert.throws(()=>B.validateConfiguration({...m,squadSize:0},maps[m.map]),/squad/);}
 const first=missions[0];assert.throws(()=>B.validateConfiguration({...first,phases:[{...first.phases[0],zone:'missing'}]},maps[first.map]),/Unknown/);
-console.log('PASS: all three current mission configurations validate without map changes; malformed mission configuration fails early.');
+console.log('PASS: all four current mission configurations validate without map changes; malformed mission configuration fails early.');
 
 for(const value of [{storageSchema:1,value:7},{storageSchema:'1',value:'bad'},{storageSchema:2,value:'future'}]){raw.set('malformed',JSON.stringify(value));assert.equal(store.getItem('malformed'),null)}
 raw.set('old','{"music":false}');assert.equal(store.getItem('old'),' {"music":false}'.trim());raw.set('broken','{bad');assert.equal(store.getItem('broken'),'{bad');

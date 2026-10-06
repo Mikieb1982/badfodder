@@ -450,6 +450,7 @@
             <button id="menuMissionBad" class="menu-button" type="button"><span>Fictional Resistance Mission</span>BELZIG, 1945</button>
             <button id="menuMissionWigan" class="menu-button" type="button"><span>Alternate History</span>WIGAN, 1941</button>
             <button id="menuHistoricalCable" class="menu-button" type="button"><span>Historical Prologue</span>CABLE STREET, 1936</button>
+            <button id="menuMissionBarcelona" class="menu-button" type="button"><span>Based on real events</span>BARCELONA, 19 JULY 1936</button>
           </div>
           <button class="menu-button" data-back type="button">BACK</button>
         </div>
@@ -564,6 +565,7 @@
 <script src="garrison-control.js"></script>
 <script src="mission-stats.js"></script>
 <script src="mission-rules.js"></script>
+<script src="barricade-rules.js"></script>
 <script src="mission-objectives.js"></script>
 <script src="building-runtime.js"></script>
 <script src="civilian-runtime.js"></script>
@@ -612,6 +614,8 @@
   });
   const activeMissionIndex=missionLaunch.currentIndex();
   const initialMission=missionLaunch.current();
+  // Specialised historical components retain their original private identity.
+  const historicalControllerMission={...initialMission,id:initialMission.legacyId||initialMission.id};
   const missionIdentity=BadFodderIdentities.get(initialMission);
   art.setMissionIdentity?.(missionIdentity.key);
   let savedOptions={};try{savedOptions=JSON.parse(BadFodderStorage.local.getItem('badfodder.options.v1')||'{}')||{};if(typeof savedOptions!=='object'||Array.isArray(savedOptions))savedOptions={};}catch{}
@@ -622,7 +626,8 @@
   const mapRegistry=missionBootstrap.createMapRegistry({
     ...(typeof TOWN_MAP!=='undefined'?{'bad-belzig':TOWN_MAP}:{}),
     ...(typeof WIGAN_MAP!=='undefined'?{'wigan':WIGAN_MAP}:{}),
-    ...(window.CABLE_STREET_MAP?{'cable-street':window.CABLE_STREET_MAP}:{})
+    ...(window.CABLE_STREET_MAP?{'cable-street':window.CABLE_STREET_MAP}:{}),
+    ...(window.BARCELONA_MAP?{barcelona:window.BARCELONA_MAP}:{})
   });
   const MAP_DATA=missionBootstrap.resolveMap(initialMission,mapRegistry);
   missionBootstrap.validateConfiguration(initialMission,MAP_DATA);
@@ -715,6 +720,7 @@
   let lastHudStats='',lastRosterSignature='',hudNoticeUntil=0;
   let runtimeFaultCount=0,runtimeFaultAt=0,runtimeSafeStop=false,runtimeFaultTotal=0;
   let missionController=null,missionInteractionLayer=null,missionDirector=null,missionCrowd=null;
+  let barcelonaRuntime=null,resistanceRuntime=null;
   let missionObjectivesRuntime=null,civilianRuntime=null,buildingRuntime=null,tacticsRuntime=null,enemyBehaviour=null,opportunitiesRuntime=null;
   function currentObjectivePhase(){
     const objective=missionObjectivesRuntime?.manager.current();
@@ -745,9 +751,10 @@
       let storage=null;try{storage=BadFodderStorage.local}catch{}
       if(!adaptiveMemory)adaptiveMemory=adaptive.loadProfile(storage);
       const adapter=missionController?adaptive.createCableAdapter({controller:missionController,director:missionDirector,interactions:missionInteractionLayer,crowd:missionCrowd,scale:SCALE}):
-        (enemyCommander=adaptive.createCommander({getEnemies:()=>enemies,getSquad:()=>squad,
+        (enemyCommander=adaptive.createCommander({getEnemies:()=>enemies.filter(e=>!e.missionWithdrawn),getSquad:()=>squad,
           getPhase:()=>({...currentObjectivePhase(),index:missionStage,objective:missionObjectivesRuntime?.manager.directorContext().objective}),getZones:()=>zones,
-          roads,scale:SCALE,navigation,queuePath:queueEnemyPath,blocked:obstacleAt,getContext:()=>opportunitiesRuntime?.context()||{},opportunities:opportunitiesRuntime}));
+          roads,scale:SCALE,navigation,queuePath:queueEnemyPath,blocked:obstacleAt,getContext:()=>({...opportunitiesRuntime?.context(),...barcelonaRuntime?.directorContext()}),opportunities:opportunitiesRuntime}));
+      if(barcelonaRuntime&&enemyCommander){const valid=enemyCommander.valid.bind(enemyCommander);enemyCommander.valid=(action,...args)=>barcelonaRuntime.canDirect(action)&&valid(action,...args);}
       adaptiveDirector=adaptive.create({mission:MAP_DATA.key,adapter,memory:adaptiveMemory,storage,
         random:gameplayRng.random,debug:new URLSearchParams(location.search).get('directorDebug')==='1'});
       if(new URLSearchParams(location.search).get('directorDebug')==='1')window.BadFodderDirectorLog=adaptiveDirector.state.log;
@@ -901,8 +908,8 @@
   }
 
   function createActiveMissionController(){
-    if(!missionLaunch.isHistorical())return null;
-    if(initialMission.map==='cable-street')return cableStreetRuntime.createController({mission:initialMission});
+    if(initialMission.integration!=='historical')return null;
+    if(initialMission.map==='cable-street')return cableStreetRuntime.createController({mission:historicalControllerMission});
     throw new Error('No mission controller is registered for historical mission "'+initialMission.id+'".');
   }
 
@@ -973,6 +980,7 @@
 
   function contextAction(helper){
     if(!helper)return null;
+    const barcelonaHint=barcelonaRuntime?.hint(helper);if(barcelonaHint)return{type:'barcelona',label:barcelonaHint};
     const site=buildingRuntime?.nearest(helper),resident=civilianRuntime?.nearest(helper);
     if(site&&(helper.insideBuilding||!resident||Math.hypot(helper.x-site.door.x,helper.y-site.door.y)<Math.hypot(helper.x-resident.x,helper.y-resident.y)))return{type:'building',label:buildingRuntime.nextAction(helper,site),site};
     return resident?{type:'civilian',label:civilianRuntime.hint(helper)}:null;
@@ -1005,6 +1013,7 @@
     if(coopCommand('interact'))return true;
     const helper=selectedUnits()[0];
     const action=contextAction(helper);
+    if(action?.type==='barcelona'){const acted=barcelonaRuntime.interact(helper);updateHud(true);return acted;}
     if(action?.type==='building'){
       const acted=buildingRuntime.perform(helper,action.label,action.site);updateHud(true);return acted;
     }
@@ -1214,14 +1223,20 @@
     menu.showBriefing(BadFodderIdentities.get(mission),begin,back);syncTouchControlState();
     void BadFodderMissionAssets.load(mission.map).catch(()=>setStatus('Mission preload failed. Begin Mission retries the load.'));
   }
-  function startCampaignFromMenu(){if(commands&&commands.mode!=='local')showTitle();requestMissionBriefing(campaign.missions[campaign.state.current]||campaign.missions[0],launchCampaign,'main');}
+  function startCampaignFromMenu(){
+    if(commands&&commands.mode!=='local')showTitle();
+    let next=campaign.state.current;while(next<campaign.state.unlocked&&campaign.state.completed.includes(next))next++;
+    requestMissionBriefing(campaign.missions[next]||campaign.missions[0],()=>{campaign.setCurrent(next);launchCampaign();},'main');
+  }
   function startStandaloneMission(index){if(commands&&commands.mode!=='local')showTitle();if(campaign.missions[index]?.playable)requestMissionBriefing(campaign.missions[index],()=>launchStandalone(index));}
   function startHistoricalMission(id){if(commands&&commands.mode!=='local')showTitle();const m=historicalMissions.get(id);if(m?.playable&&m.mapReady&&BadFodderMissionAssets.has(m.map))requestMissionBriefing(m,()=>launchHistorical(id));}
   function viewMissionBriefing(){requestMissionBriefing(activeMission(),finished?beginMission:resumeMission,finished?'result':'main');}
   function showMissionResult(){
     window.BadFodderCoop?.flush();
     releaseInterruptedInput();lifecycle.transition('RESULT');mapOpen=false;
-    menu.showResult(missionIdentity,win,win&&hasPlayableNextMission());syncTouchControlState();
+    menu.showResult(missionIdentity,win,win&&hasPlayableNextMission());
+    if(barcelonaRuntime){const result=barcelonaRuntime.summary();document.getElementById('resultFlavour').textContent=result.characters.filter(s=>s.alive).length+' neighbours survived · '+result.characters.filter(s=>!s.alive).length+' casualties · '+result.characters.filter(s=>s.alive&&s.health!=='FIT').length+' hurt · '+result.alliesLost+' friendly losses · '+(result.breached?'barricade breached':'barricade standing');}
+    syncTouchControlState();
   }
 
   function launchCampaign(){
@@ -1406,6 +1421,7 @@
   function resetGame(){
     if(commands&&commands.mode!=='local'&&!commands.applying&&started){window.BadFodderCoop?.restart();return;}
     const mission=activeMission();
+    barcelonaRuntime?.dispose();barcelonaRuntime=null;resistanceRuntime=null;
     try{adaptiveDirector?.disable()}catch{}
     adaptiveDirector=null;enemyCommander=null;
     releaseInterruptedInput();
@@ -1466,7 +1482,7 @@
       missionInteractionLayer=cableStreetInteractions.create({
         controller:missionController,
         runtime:cableStreetRuntime,
-        mission,
+        mission:historicalControllerMission,
         options:{scale:SCALE,pressureControlled:true,navigation}
       });
       missionInteractionLayer.initialize({
@@ -1475,11 +1491,11 @@
       });
       missionDirector=cableStreetDirector.create({
         controller:missionController,
-        mission,
+        mission:historicalControllerMission,
         options:{regroupPoint:MAP_DATA.regroupPoint?{x:S(MAP_DATA.regroupPoint.x),y:S(MAP_DATA.regroupPoint.y)}:null,regroupRadius:S(24)}
       });
       missionCrowd=cableStreetCrowd.create({
-        mission,
+        mission:historicalControllerMission,
         controller:missionController,
         worldWidth:WORLD_W,
         worldHeight:WORLD_H,
@@ -1501,7 +1517,7 @@
       shoot:(s,e)=>{const spread=10*window.BadFodderCombatTactics.spreadScale(s);fireBullet('squad',s.x,s.y,e.x+(gameplayRng.random()-.5)*spread,e.y+(gameplayRng.random()-.5)*spread,squad.indexOf(s))}});
     civilianRuntime=null;buildingRuntime=null;tacticsRuntime=null;enemyBehaviour=null;
     if(!missionController)enemyBehaviour=window.BadFodderEnemyBehaviour.create({getEnemies:()=>enemies,getSquad:()=>squad,scale:SCALE,canSee:(e,s)=>!lineBlocked(e.x,e.y,s.x,s.y),onSurrender:()=>setStatus('An isolated enemy has surrendered.')});
-    if(!missionController)tacticsRuntime=window.BadFodderCombatTactics.create({getSquad:()=>squad,getEnemies:()=>enemies,obstacleAt,scale:SCALE,canSee:(ax,ay,bx,by)=>!lineBlocked(ax,ay,bx,by),resistance:u=>u.identityRole==='squad'?window.BadFodderIdentities.modifiers(u).suppression:1});
+    if(!missionController)tacticsRuntime=window.BadFodderCombatTactics.create({getSquad:()=>[...squad,...(resistanceRuntime?.units||[])],getEnemies:()=>enemies,obstacleAt,scale:SCALE,canSee:(ax,ay,bx,by)=>!lineBlocked(ax,ay,bx,by),resistance:u=>u.identityRole==='squad'?window.BadFodderIdentities.modifiers(u).suppression:1});
     if(!missionController){
       const rally={x:squad[0].x,y:squad[0].y,r:S(65)};
       civilianRuntime=window.BadFodderCivilians.create({getCivilians:()=>civilians,getSquad:()=>squad,getEnemies:()=>enemies,getNoise:()=>noise,
@@ -1521,6 +1537,17 @@
       for(const site of buildingRuntime.sites)site.geometry.interactive=true;
     }
     opportunitiesRuntime=missionController?null:window.BadFodderOpportunities.create({getCivilians:()=>civilians,getPickups:()=>pickups,getSquad:()=>squad,getObjectives:()=>missionObjectivesRuntime,scale:SCALE,status:setStatus});
+    if(MAP_DATA.key==='barcelona'){
+      barcelonaRuntime=window.BadFodderBarcelona.create({map:MAP_DATA,objectives:missionObjectivesRuntime,getSquad:()=>squad,getEnemies:()=>enemies,navigation,scale:SCALE,status:setStatus,
+        spawnAllowed:p=>{const visible=p.x>=camera.x-40&&p.x<=camera.x+VIEW_W/zoom+40&&p.y>=camera.y-40&&p.y<=camera.y+VIEW_H/zoom+40;return !visible||squad.filter(s=>s.alive&&!s.downed).every(s=>lineBlocked(s.x,s.y,p.x,p.y));},
+        sound:event=>{if(event==='distant')window.BadFodderSfx?.shoot('enemy');},setGrenades:n=>squadGrenades=n,
+        spawn:(group,wave)=>{const base=enemies[0];for(const [i,p]of group.positions.entries()){
+          const e={...base,x:S(p[0]),y:S(p[1]),homeX:S(p[0]),homeY:S(p[1]),hp:3,maxHp:3,alive:true,surrendered:false,surrenderPressure:0,missionDormant:false,missionWithdrawn:false,variant:i%4,combatRole:group.roles[i],groupId:'barcelona-'+wave,objectiveGroup:'barricade',commandOrder:null,path:null,pendingPath:null,pathQueued:false,pathIndex:0,repath:0,alert:true,lastSeen:{x:zones.barricade.x,y:zones.barricade.y},observedAt:adaptiveDirector?.state.time||0,hitTimer:0,flash:0,fireTimer:0,deadTimer:0,cooldown:.6,suppression:0};
+          enemies.push(e);const name=e.groupId;if(enemyCommander){if(!enemyCommander.groups.has(name))enemyCommander.groups.set(name,[]);enemyCommander.groups.get(name).push(e);}queueEnemyPath(e,zones.barricade.x,zones.barricade.y);
+        }}});
+      resistanceRuntime=window.BadFodderResistance.create({starts:MAP_DATA.resistance.starts,positions:MAP_DATA.resistance.positions,getEnemies:()=>enemies,getSquad:()=>squad,navigation:{...navigation,move:moveEntity},fire:fireBullet,scale:SCALE,canSee:(a,b)=>!lineBlocked(a.x,a.y,b.x,b.y),enabled:()=>missionObjectivesRuntime.manager.get('opening').status==='COMPLETED'});
+      barcelonaRuntime.allies.push(...resistanceRuntime.units);
+    }
     initializeAdaptiveDirector();
     missionObjectivesRuntime.manager.onChange(event=>{if(['complete','activate','discover','add'].includes(event.action))runAdaptive(()=>adaptiveDirector.notify('meaningful'))});
     finished=false;win=false;paused=false;mapOpen=false;selection='all';zoom=preferredZoom;
@@ -1720,14 +1747,16 @@
       return;
     }
     const civCounts=civilianRuntime?.counts();
-    document.getElementById('hudInstruction').hidden=!civCounts?.total;
-    if(civCounts?.total)document.getElementById('hudInstruction').textContent='CIVILIANS '+civCounts.evacuated+'/'+civCounts.total+' SAFE · '+civCounts.lost+' LOST · E / ACTION: gather or hide';
+    if(barcelonaRuntime){const totals=barcelonaRuntime.summary(),ammo=squad.reduce((n,s)=>n+(s.alive?(s.ammo||0):0),0);document.getElementById('hudInstruction').hidden=false;document.getElementById('hudInstruction').textContent='AMMO '+ammo+' · NEIGHBOURS '+totals.allies+' · BARRICADE '+totals.barrier+'/90 · E / ACTION';}
+    if(!barcelonaRuntime)document.getElementById('hudInstruction').hidden=!civCounts?.total;
+    if(civCounts?.total&&!barcelonaRuntime)document.getElementById('hudInstruction').textContent='CIVILIANS '+civCounts.evacuated+'/'+civCounts.total+' SAFE · '+civCounts.lost+' LOST · E / ACTION: gather or hide';
     hudEnemyLabel.textContent='TARGETS';
     hudGrenadeLabel.textContent='GRENADES';
 
     const phase=currentObjectivePhase();
     if(!phase)return;
     const result=missionObjectivesRuntime.evaluate(missionObjectivesRuntime.manager.current(),{living,enemies,zones,scale:S(1)});
+    if(barcelonaRuntime){hudMission.textContent=phase.title;return;}
     setStatus('Phase '+(missionStage+1)+': '+phaseStatus(phase,result));
   }
 
@@ -1746,7 +1775,7 @@
 
   function nearestLivingSquad(e){
     let unit=null,d=Infinity;
-    squad.forEach(s=>{
+    [...squad,...(resistanceRuntime?.units||[])].forEach(s=>{
       if(!s.alive||s.downed)return;
       const q=Math.hypot(e.x-s.x,e.y-s.y);
       if(q<d){d=q;unit=s}
@@ -1830,6 +1859,7 @@
 
   function fireBullet(owner,sx,sy,tx,ty,source=null){
     if(!actionAllowed('firearms'))return false;
+    if(owner==='squad'&&Number.isInteger(source)){const s=squad[source];if(s?.equipmentManaged){if(!s.weapon||s.ammo<=0)return false;s.ammo--;}}
     runAdaptive(()=>adaptiveDirector.notify(owner==='squad'?'shot':'combat'));
     const a=Math.atan2(ty-sy,tx-sx);
     window.BadFodderSfx?.shoot(owner);
@@ -1847,7 +1877,7 @@
 
     let fired=false;
     units.forEach(s=>{
-      if(s.cooldown>0||s.downed||s.carryingUnit)return;
+      if(s.cooldown>0||s.downed||s.carryingUnit||s.equipmentManaged&&(!s.weapon||s.ammo<=0))return;
 
       updateFacing(s,x-s.x,y-s.y);
       s.fireTimer=.11;s.state='fire';
@@ -1859,7 +1889,7 @@
 
       fireBullet('squad',s.x,s.y,tx,ty,squad.indexOf(s));
       s.fireHeat=Math.min(1,heat+.15);
-      s.cooldown=.085;
+      s.cooldown=s.equipmentManaged?(s.weapon==='pistol'?.55:.32):.085;
       fired=true;
     });
     return fired;
@@ -1899,7 +1929,7 @@
       if(d>=S(58))return;
       const shielded=lineBlocked(x,y,e.x,e.y);
       const damage=shielded?1:(d<S(27)?3:2);
-      applyDamage(e,damage,x,y,source);
+      e.lastHitSide='squad';applyDamage(e,damage,x,y,source);
       if(e.alive){
         const newlyAlerted=!e.alert;
         e.alert=true;e.aiState='combat';e.lastSeen={x,y};e.repath=0;
@@ -2256,6 +2286,7 @@
 
   function updateEnemies(dt){
     enemies.forEach(e=>{
+      if(e.missionDormant)return;
       if(!e.alive){
         e.state='dead';
         e.deadTimer=(e.deadTimer||0)+dt;
@@ -2428,18 +2459,19 @@
       b.life-=dt;
       if(b.life<=0)return;
 
-      const targets=b.owner==='squad'?[...enemies.filter(e=>!e.surrendered),...civilians.filter(c=>c.alive&&c.civilianState!=='EVACUATED')]:[...squad,...civilians.filter(c=>c.alive&&c.civilianState!=='EVACUATED')];
+      const targets=b.owner==='friendly'?enemies.filter(e=>!e.surrendered&&!e.missionDormant):b.owner==='squad'?[...enemies.filter(e=>!e.surrendered&&!e.missionDormant),...civilians.filter(c=>c.alive&&c.civilianState!=='EVACUATED')]:[...squad,...(resistanceRuntime?.units||[]),...civilians.filter(c=>c.alive&&c.civilianState!=='EVACUATED')];
       const characterHit=combatGeometry.nearestCharacterHit(ax,ay,bx,by,targets,14);
-      const obstacleT=combatGeometry.firstObstacleHitT(ax,ay,bx,by,obstacleAt,2,2);
+      const obstacleT=combatGeometry.firstObstacleHitT(ax,ay,bx,by,(x,y,r)=>obstacleAt(x,y,r,b.owner!=='enemy'),2,2);
       const characterT=characterHit?characterHit.t:null;
       const stop=Math.min(obstacleT??1,characterT??1);
-      tacticsRuntime?.nearShot(b.owner,ax,ay,ax+(bx-ax)*stop,ay+(by-ay)*stop,b.suppressed||(b.suppressed=new Set()));
+      tacticsRuntime?.nearShot(b.owner==='friendly'?'squad':b.owner,ax,ay,ax+(bx-ax)*stop,ay+(by-ay)*stop,b.suppressed||(b.suppressed=new Set()));
 
       // Resolve whichever collision happens first along the complete frame segment.
       if(obstacleT!==null&&(characterT===null||obstacleT<=characterT)){
         b.x=ax+(bx-ax)*obstacleT;
         b.y=ay+(by-ay)*obstacleT;
         b.life=0;
+        if(b.owner==='enemy')barcelonaRuntime?.hit(b.x,b.y,2);
         effects.push({type:'wall',x:b.x,y:b.y,life:.22});
         return;
       }
@@ -2449,9 +2481,9 @@
         b.x=ax+(bx-ax)*characterHit.t;
         b.y=ay+(by-ay)*characterHit.t;
         b.life=0;
-        applyDamage(t,1,ax,ay,b.source);
+        t.lastHitSide=b.owner;applyDamage(t,1,ax,ay,b.source);
         effects.push({type:'impact',x:t.x,y:t.y,life:.16});
-        if(b.owner==='squad'&&t.alive){
+        if((b.owner==='squad'||b.owner==='friendly')&&t.alive){
           const newlyAlerted=!t.alert;
           t.alert=true;t.aiState='combat';
           t.lastSeen={x:b.x,y:b.y};
@@ -2702,6 +2734,7 @@
 
   function drawRoad(r){
     if(r.points.length<2||!intersectsSceneryBounds(r,S(24)))return;
+    if(MAP_DATA.key==='barcelona'){window.BadFodderBarcelonaArt.road(ctx,r,S);return;}
     if(MAP_DATA.key==='cable-street'){
       cableStreetArt.drawRoad(ctx,r,S,art);
       return;
@@ -2735,6 +2768,7 @@
   }
 
   function drawBuilding(b){
+    if(MAP_DATA.key==='barcelona'){if(intersectsSceneryBounds(b,S(40)))window.BadFodderBarcelonaArt.building(ctx,b,S);return;}
     if(b.hidden||renderingStatic&&b.interactive&&!renderingOverview)return;
     const margin=S(40),vw=VIEW_W/zoom,vh=VIEW_H/zoom;
     const bounds=sceneryBounds||{x:camera.x,y:camera.y,w:vw,h:vh};
@@ -2895,13 +2929,13 @@
 
   function drawTerrain(){
     const bounds=sceneryBounds;
-    ctx.fillStyle=art.texture(ctx,(MAP_DATA.key==='wigan'||MAP_DATA.key==='cable-street')?'urban-paving':'grass');
+    ctx.fillStyle=art.texture(ctx,(MAP_DATA.key==='wigan'||MAP_DATA.key==='cable-street'||MAP_DATA.key==='barcelona')?'urban-paving':'grass');
     if(bounds)ctx.fillRect(bounds.x,bounds.y,bounds.w,bounds.h);
     else ctx.fillRect(0,0,WORLD_W,WORLD_H);
     if(MAP_DATA.key==='cable-street')cableStreetArt.drawScenery(ctx,MAP_DATA,S);
     areas.forEach(a=>{
       if(!intersectsSceneryBounds(a,S(10)))return;
-      polygon(a.points,art.texture(ctx,(MAP_DATA.key==='wigan'||MAP_DATA.key==='cable-street')
+      polygon(a.points,art.texture(ctx,(MAP_DATA.key==='wigan'||MAP_DATA.key==='cable-street'||MAP_DATA.key==='barcelona')
         ?({paving:'urban-paving',asphalt:'urban-asphalt',railbed:'urban-asphalt'}[a.type]||a.type)
         :a.type));
     });
@@ -2968,6 +3002,8 @@
     if(team==='squad'){
       ctx.strokeStyle='rgba(220,239,232,.88)';
       ctx.beginPath();ctx.moveTo(ent.x-6,ent.y+11);ctx.lineTo(ent.x,ent.y+14);ctx.lineTo(ent.x+6,ent.y+11);ctx.stroke();
+    }else if(team==='resistance'){
+      ctx.strokeStyle='#9cdde0';ctx.beginPath();ctx.moveTo(ent.x,ent.y-54);ctx.lineTo(ent.x-4,ent.y-50);ctx.lineTo(ent.x,ent.y-46);ctx.lineTo(ent.x+4,ent.y-50);ctx.closePath();ctx.stroke();
     }else if(team==='enemy'){
       ctx.strokeStyle='rgba(243,204,145,.8)';
       ctx.beginPath();ctx.moveTo(ent.x,ent.y-48);ctx.lineTo(ent.x-4,ent.y-42);ctx.lineTo(ent.x+4,ent.y-42);ctx.closePath();ctx.stroke();
@@ -3000,6 +3036,7 @@
       if(wiganDetails){
         wiganStaticObjects.forEach(o=>o.building?drawBuilding(o.building):BadFodderWiganDetails.furniture(ctx,[o.prop],sceneryBounds));
       }else [...buildings].filter(b=>!b.landmarkFootprint).sort((a,b)=>a.maxY-b.maxY).forEach(drawBuilding);
+      if(MAP_DATA.key==='barcelona')window.BadFodderBarcelonaArt.scenery(ctx,MAP_DATA,S,sceneryBounds);
       drawLandmarks();
       window.BadFodderWartimeScenery?.draw(ctx,wartimeProps,sceneryBounds);
     }finally{ctx=live;renderingStatic=false;sceneryBounds=null;}
@@ -3018,7 +3055,7 @@
         console.error('Scenery tile rendering failed; using a lightweight fallback tile.',{x,y,w,h,err});
         const g=tile.getContext('2d',{alpha:false});
         if(g){
-          g.fillStyle=(MAP_DATA.key==='wigan'||MAP_DATA.key==='cable-street')?'#77796b':'#79864f';
+          g.fillStyle=(MAP_DATA.key==='wigan'||MAP_DATA.key==='cable-street'||MAP_DATA.key==='barcelona')?'#77796b':'#79864f';
           g.fillRect(0,0,w,h);
           g.strokeStyle='rgba(255,255,255,.035)';g.lineWidth=1;
           for(let px=0;px<w;px+=64){g.beginPath();g.moveTo(px,0);g.lineTo(px,h);g.stroke()}
@@ -3193,6 +3230,7 @@
     const shake=impact?Math.sin(historicalClock*65)*1.8:0;
     ctx.save();ctx.scale(zoom,zoom);ctx.translate(-camera.x+shake,-camera.y+shake*.5);
     sceneryTiles.draw(ctx,camera.x,camera.y,VIEW_W/zoom,VIEW_H/zoom);
+    if(barcelonaRuntime)window.BadFodderBarcelonaArt.defence(ctx,barcelonaRuntime,S);
     if(buildingRuntime)for(const site of buildingRuntime.sites){
       const occupied=buildingRuntime.occupied(site);ctx.save();
       if(occupied)polygon(site.geometry.points,'#756c55','#d8d5bd',1);
@@ -3223,7 +3261,7 @@
     });
 
     // Depth order avoids a whole team painting over everyone in front of it.
-    const actors=[...civilians.filter(ent=>ent.civilianState!=='EVACUATED').map(ent=>({ent,team:'civilian'})),...enemies.map(ent=>({ent,team:'enemy'})),...squad.map(ent=>({ent,team:'squad'}))];
+    const actors=[...civilians.filter(ent=>ent.civilianState!=='EVACUATED').map(ent=>({ent,team:'civilian'})),...enemies.filter(ent=>!ent.missionDormant).map(ent=>({ent,team:'enemy'})),...(resistanceRuntime?.units||[]).map(ent=>({ent,team:'resistance'})),...squad.map(ent=>({ent,team:'squad'}))];
     actors.sort((a,b)=>a.ent.y-b.ent.y);
     actors.forEach(({ent,team})=>{
       if(ent.x<camera.x-60||ent.y<camera.y-60||ent.x>camera.x+VIEW_W/zoom+60||ent.y>camera.y+VIEW_H/zoom+60)return;
@@ -3788,6 +3826,8 @@
     updateEnemies(dt);
     updateCivilians(dt);
     updateProjectiles(dt);
+    resistanceRuntime?.update(dt);resistanceRuntime?.units.forEach(ent=>art.animate(ent,dt));
+    barcelonaRuntime?.update(dt);
     opportunitiesRuntime?.fixedUpdate(dt);
     squad.forEach(ent=>art.animate(ent,dt));
     enemies.forEach(ent=>art.animate(ent,dt));
@@ -3919,6 +3959,7 @@
       missionLaunch.select(index);location.reload();return false;
     },
     async start(mode){
+      if(activeMission().coop===false)throw new Error('Barcelona is single-player in this slice. Select Bad Belzig or Wigan for co-op.');
       commands.configure(mode,window.BadFodderCoop.command);
       if(!started)await startGame();
       if(!started)throw new Error('Mission could not load');

@@ -114,6 +114,7 @@
         id:input.id.trim(),
         kind:typeof input.kind==='string'&&input.kind?input.kind:'dynamic',
         solid:input.solid!==false,
+        lowCover:input.lowCover===true,
         points,
         ...obstacleBounds(points)
       };
@@ -235,7 +236,7 @@
       return out;
     }
 
-    function solidPoint(x,y){
+    function solidPoint(x,y,ignoreLowCover=false){
       const list=nearbyBuildings(x,y,2);
       for(const b of list){
         if(x<b.minX||x>b.maxX||y<b.minY||y>b.maxY)continue;
@@ -243,16 +244,17 @@
       }
       const dynamic=nearbyDynamicObstacles(x,y,2);
       for(const obstacle of dynamic){
+        if(ignoreLowCover&&obstacle.lowCover)continue;
         if(x<obstacle.minX||x>obstacle.maxX||y<obstacle.minY||y>obstacle.maxY)continue;
         if(pointInPoly(x,y,obstacle.points))return true;
       }
       return false;
     }
 
-    function obstacleAt(x,y,r=8){
-      if(solidPoint(x,y))return true;
+    function obstacleAt(x,y,r=8,ignoreLowCover=false){
+      if(solidPoint(x,y,ignoreLowCover))return true;
       if(r<=1)return false;
-      return solidPoint(x+r,y)||solidPoint(x-r,y)||solidPoint(x,y+r)||solidPoint(x,y-r);
+      return solidPoint(x+r,y,ignoreLowCover)||solidPoint(x-r,y,ignoreLowCover)||solidPoint(x,y+r,ignoreLowCover)||solidPoint(x,y-r,ignoreLowCover);
     }
 
     function lineBlocked(x1,y1,x2,y2){
@@ -260,7 +262,7 @@
       const steps=Math.ceil(d/22);
       for(let i=1;i<steps;i++){
         const t=i/steps;
-        if(obstacleAt(x1+(x2-x1)*t,y1+(y2-y1)*t,2))return true;
+        if(obstacleAt(x1+(x2-x1)*t,y1+(y2-y1)*t,2,true))return true;
       }
       return false;
     }

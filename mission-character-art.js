@@ -23,7 +23,7 @@ function hat(g,s,x,y,scale=1){g.save();g.translate(x,y);g.scale(scale,scale);con
  g.restore();}
 function weapon(g,type,x,y,angle){
  if(!type)return;g.save();g.translate(x,y);g.rotate(angle);
- const rifle=/enfield|kar98/.test(type),heavy=type==='mg34',pistol=type==='pistol',end=heavy?21:rifle?17:pistol?6:11;
+ const rifle=/enfield|kar98|mauser/.test(type),heavy=type==='mg34'||type==='hotchkiss',pistol=type==='pistol',end=heavy?21:rifle?17:pistol?6:11;
  g.lineCap='round';g.strokeStyle='#222b2c';g.lineWidth=heavy?3:2;g.beginPath();g.moveTo(-5,0);g.lineTo(end,0);g.stroke();
  g.strokeStyle='#a17a50';g.lineWidth=3.3;g.beginPath();g.moveTo(pistol?-2:-8,0);g.lineTo(rifle?7:heavy?-3:0,0);g.stroke();
  g.fillStyle='#596663';g.fillRect(pistol?0:2,-1.8,pistol?5:6,1);
@@ -70,7 +70,7 @@ function body(g,s,dir,phase,portrait=false){
  if(!portrait)weapon(g,s.weapon,side*4,-19,Math.sin(facing)*.55+(side<0?Math.PI:0));
  g.restore();
 }
-function descriptor(ent,team){return identities.skin(mission,ent.identityRole||team,ent.variant||0,ent.periodRole);}
+function descriptor(ent,team){const base=identities.skin(mission,ent.identityRole||team,ent.variant||0,ent.periodRole);return ent.equipmentManaged?{...base,weapon:ent.weapon}:base;}
 function sprite(s,dir,step){const key=JSON.stringify(s)+'/'+dir+'/'+step;if(cache.has(key))return cache.get(key);const c=canvas(128,160),g=c.getContext('2d');g.scale(3,3);g.translate(21.3,48);body(g,s,dir,step*Math.PI/4);cache.set(key,c);return c;}
 art.setMissionIdentity=key=>{mission=identities.get(key).key;};
 art.missionAssetSets=sets;

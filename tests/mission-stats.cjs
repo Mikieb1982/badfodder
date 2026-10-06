@@ -22,6 +22,7 @@ let stats=scope.BadFodderMissionStats.snapshot();
 assert.equal(stats.length,4,'Squad report is not four-person');
 assert.equal(stats[0].kills,1,'Final shooter did not receive kill credit');
 assert.equal(stats[1].assists,1,'Earlier damage contributor did not receive assist credit');
+enemies.push({x:20,y:20,alive:true,lastHitSide:'friendly'});commander.maintain(1.5);enemies[1].alive=false;commander.maintain(1.6);assert.equal(scope.BadFodderMissionStats.snapshot().reduce((n,r)=>n+r.kills,0),1,'Autonomous ally kills must not be credited to the player');
 squad[2].alive=false;commander.maintain(2);stats=scope.BadFodderMissionStats.snapshot();
 assert.equal(stats[2].alive,false,'Squad casualty not retained in report');
 class Menu{showResult(identity,won,next){this.called=true;this.won=won;this.next=next}}

@@ -62,6 +62,7 @@
 
   const normalizeMission=key=>{
     key=String(key||'').toLowerCase();
+    if(key.includes('barcelona'))return'barcelona';
     if(key.includes('cable'))return'cable-street';
     if(key.includes('wigan'))return'wigan';
     return'belzig';
@@ -141,7 +142,7 @@
   function briefingRequest(identity){
     const key=normalizeMission(identity?.key),text=briefingText(identity);if(!text)return null;
     return{team:'narrator',event:'briefing',priority:1000,text,caption:'Mission briefing',lang:'en-GB',
-      url:`${BASE}/briefings/${key}.mp3`,voiceSlot:0,identity};
+      url:key==='barcelona'?null:`${BASE}/briefings/${key}.mp3`,voiceSlot:0,identity};
   }
 
   function showCaption(req){

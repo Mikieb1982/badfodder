@@ -21,3 +21,5 @@ const text=voices.briefingText({title:'TEST',location:'HERE',year:1945,backgroun
 assert(text.includes('Background.')&&text.includes('Your mission: Do the thing')&&text.includes('Objectives: ONE. TWO.')&&text.includes('GO.'),'Briefing narration text is incomplete');
 
 console.log('PASS: voice defaults, dialogue mappings, briefing narration and required asset manifest');
+
+let barcelonaAudio=0;const previousAudio=global.Audio;global.Audio=class{constructor(){barcelonaAudio++}};voices.narrateBriefing(require('../mission-identities').get('barcelona'));assert.equal(voices._runtime.missionKey,'barcelona');assert.equal(barcelonaAudio,0,'Unrecorded Barcelona briefing must never play Belzig narration');global.Audio=previousAudio;voices.stopNarration();

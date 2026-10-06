@@ -28,10 +28,11 @@
   }
   function recordContributor(enemy){if(!Number.isInteger(enemy?.lastHitBy)||enemy.lastHitBy<0||enemy.lastHitBy>=squad.length)return;let set=contributors.get(enemy);if(!set){set=new Set();contributors.set(enemy,set)}set.add(enemy.lastHitBy)}
   function creditKill(enemy){
+    if(enemy.lastHitSide==='friendly')return;
     recordContributor(enemy);const killer=root.BadFodderCommands?.mode==='host'&&Number.isInteger(enemy.lastHitBy)?squad[enemy.lastHitBy]:candidateKiller(enemy);const rec=records.find(r=>r.unit===killer);if(rec)rec.kills++;
     const killerIndex=rec?.index;for(const index of contributors.get(enemy)||[]){if(index===killerIndex)continue;const helper=records[index];if(helper)helper.assists++}
   }
-  function currentMissionKey(){const title=root.document?.querySelector('#resultLocation,#briefingTitle')?.textContent||'';if(/wigan/i.test(title))return'wigan';if(/cable/i.test(title))return'cable-street-1936';return'bad-belzig'}
+  function currentMissionKey(){const title=root.document?.querySelector('#resultLocation,#briefingTitle')?.textContent||'';if(/barcelona/i.test(title))return'barcelona';if(/wigan/i.test(title))return'wigan';if(/cable/i.test(title))return'cable-street-1936';return'bad-belzig'}
 
   function paintRealPortrait(canvas,key,index,state='idle'){
     if(!canvas)return Promise.resolve(false);

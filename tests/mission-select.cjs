@@ -55,7 +55,8 @@ assert.equal(launch.current().id,'wigan');
 
 assert(launch.select(2),'Cable Street must be selectable');
 assert(launch.isHistorical());
-assert(!launch.select(3),'Future chapters must remain unavailable');
+assert(launch.select(3),'Barcelona must be selectable');
+assert(!launch.select(4),'Future chapters must remain unavailable');
 
 assert(index.includes('id="menuMissionSelect"'),'Main menu Mission Select button missing');
 assert(!index.includes('id="menuMissionSelect" class="menu-button" type="button" disabled'),'Mission Select must be available before the current mission finishes loading');

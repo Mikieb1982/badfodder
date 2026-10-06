@@ -4,6 +4,11 @@
 const scenarioLabels=Object.freeze({fictional:'FICTIONAL SCENARIO',historical:'BASED ON REAL EVENTS'});
 const character=(name,role,coat,hat,weapon,extra={})=>({name,role,coat,hat,weapon,...extra});
 const missions={
+ barcelona:{key:'barcelona',title:'BARCELONA',location:'CATALUNYA / LA RAMBLA, SPAIN',year:1936,date:'1936-07-19',scenario:'historical',loading:'BARCELONA · 19 JULY 1936',
+ background:['19 July 1936. Rebel army units have entered Barcelona. Workers and forces loyal to the Republic resist the uprising. Fighting reaches Plaça de Catalunya.', 'Four fictional neighbours meet on the upper Rambla. They are one small group in a much larger struggle. The streets, characters and barricade are compressed for play.'],
+ mission:'Reach the junction. Get past the patrol, acquire rifles from a local contact and reinforce the barricade. Help your neighbours hold the Rambla approach. Keep the route behind you open.',
+ objectives:['REACH THE JUNCTION','ACQUIRE RIFLES','REINFORCE THE BARRICADE','HOLD THE APPROACH'],final:['STAY TOGETHER.','HELP THE PEOPLE BESIDE YOU.'],victory:['THE POSITION IS HOLDING','Across Barcelona, fighting continues.'],failure:'THE APPROACH HAS BEEN LOST',
+ characters:[character('Joan','Tram worker','#557a83','flat-cap','pistol',{age:37}),character('Mercè','Textile worker','#866b75','headscarf',null,{age:29,scarf:'#b6aa81'}),character('Antoni','Mechanic','#687f87','cap',null,{age:41,build:'broad'}),character('Isabel','Printer','#b08c63','beret',null,{age:24,waistcoat:true})]},
  'cable-street':{key:'cable-street',title:'CABLE STREET',location:'LONDON',year:1936,scenario:'historical',date:'1936-10-04',loading:'LONDON · 1936',
  background:["Europe has not yet gone to war, but the political conflict that will shape the coming years is already visible on the streets. The British Union of Fascists intends to march through London's East End.","Local residents and anti-fascist demonstrators have gathered in large numbers to stop them. Barricades are appearing across the streets. Police have been ordered to clear a route.","The player controls four fictional residents inside the wider confrontation. There are no soldiers coming to help. There are no rifles or grenades. There is only the street, the crowd and whatever can be used to keep the route closed."],
  mission:'Reach the main barricade. Gather materials and strengthen the defences before the police advance reaches them. When the push begins, hold the line. Repair damaged barricades. Assist people caught in the confrontation. Regroup when necessary. Keep the route closed.',
@@ -25,6 +30,7 @@ const missions={
 };
 const CHARACTER_TRAITS=Object.freeze(['RUNNER','STEADY','MEDIC','MECHANIC','LOCAL','ORGANISER','STUBBORN']);
 const missionTraits={
+ barcelona:['LOCAL','MEDIC','MECHANIC','RUNNER'],
  'cable-street':['STUBBORN','ORGANISER','RUNNER','MEDIC'],
  wigan:['STEADY','LOCAL','RUNNER','STUBBORN'],
  belzig:['STEADY','MECHANIC','RUNNER','ORGANISER']
@@ -48,6 +54,7 @@ for(const mission of Object.values(missions)){
  }
 }
 const enemyStyles={
+ barcelona:[character('Army rifleman','Rebel army','#8a8164','field-cap','mauser',{enemyDetail:true,webbing:true,trousers:'#736f59'}),character('Army patrol','Rebel army','#88836a','cap','mauser',{enemyDetail:true,trousers:'#736951'}),character('Army officer','Rebel army officer','#80745b','officer-cap','pistol',{enemyDetail:true,webbing:true}),character('Support gunner','Rebel army support','#787860','field-cap','hotchkiss',{enemyDetail:true,webbing:true,build:'broad'})],
  belzig:[
   character('Rifleman','Infantry','#606851','stahlhelm','kar98',{webbing:true,enemyDetail:true,trousers:'#51584c',gear:'ammo',age:30}),
   character('SMG trooper','Assault infantry','#555f54','field-cap','mp40',{webbing:true,enemyDetail:true,trousers:'#484e47',gear:'magazines',age:24}),
@@ -62,7 +69,7 @@ const enemyStyles={
  ]
 };
 const defenders=enemyStyles.belzig;
-function get(mission){const key=typeof mission==='string'?mission:mission?.map||(mission?.id===1?'bad-belzig':mission?.id===2?'wigan':mission?.id);return missions[key==='bad-belzig'?'belzig':key==='cable-street-1936'?'cable-street':key]||missions.belzig;}
+function get(mission){const key=typeof mission==='string'?mission:mission?.map||(mission?.id===1?'bad-belzig':mission?.id===2?'wigan':mission?.id);return missions[key==='bad-belzig'?'belzig':key==='cable-street-1936'?'cable-street':key==='barcelona-1936'?'barcelona':key]||missions.belzig;}
 function profile(mission,index=0){const roster=get(mission).characters;return roster[Math.abs(index|0)%roster.length];}
 function runtimeCharacter(mission,index=0,state={}){
  const base=profile(mission,index),alive=state.alive===undefined?base.alive:state.alive!==false;
@@ -73,6 +80,6 @@ function modifiers(unit={}){
  return{movement:(unit.trait==='RUNNER'?1.06:1)*(1+practice),spread:(unit.trait==='STEADY'?.92:1)*(1-practice),
   suppression:(unit.trait==='STUBBORN'?.9:1)*(1-practice),aid:unit.trait==='MEDIC'?1.15:1,work:unit.trait==='MECHANIC'?1.1:1};
 }
-function skin(mission,team,index=0,periodRole){const id=get(mission),i=Math.abs(index|0);if(periodRole==='police')return character('Police','Metropolitan police','#293e50','custodian',null,{webbing:true});if(periodRole==='march')return character('Marcher','Fascist marcher','#343331','cap',null);if(team==='squad')return id.characters[i%4];if(team==='enemy')return (enemyStyles[id.key]||defenders)[i%4];return {...id.characters[i%4],weapon:null,webbing:false,hat:['flat-cap','beret','cap','headscarf'][i%4]};}
+function skin(mission,team,index=0,periodRole){const id=get(mission),i=Math.abs(index|0);if(periodRole==='police')return character('Police','Metropolitan police','#293e50','custodian',null,{webbing:true});if(periodRole==='march')return character('Marcher','Fascist marcher','#343331','cap',null);if(team==='squad')return id.characters[i%4];if(team==='resistance')return {...id.characters[i%4],weapon:'mauser'};if(team==='enemy')return (enemyStyles[id.key]||defenders)[i%4];return {...id.characters[i%4],weapon:null,webbing:false,hat:['flat-cap','beret','cap','headscarf'][i%4]};}
 return{missions,scenarioLabels,enemyStyles,CHARACTER_TRAITS,get,profile,runtimeCharacter,modifiers,skin,disclaimer:'This game uses real locations and historical settings. Some events are historical, while the main wartime battles and playable characters are fictional or alternate history.'};
 });

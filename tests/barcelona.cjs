@@ -1,0 +1,55 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const Map=require('../barcelona-map'),Objectives=require('../mission-objectives'),Runtime=require('../barcelona-runtime'),Resistance=require('../friendly-resistance'),Navigation=require('../navigation'),Bootstrap=require('../mission-bootstrap'),Identities=require('../mission-identities'),Launch=require('../mission-launch'),Lifecycle=require('../game-lifecycle'),Services=require('../runtime-services');
+const saved={campaignSchema:2,currentId:'cable-street',unlockedId:'cable-street',completedIds:['bad-belzig','wigan','cable-street'],current:2,unlocked:2,completed:[0,1,2]};
+const storage={getItem:()=>JSON.stringify(saved),setItem(){}};
+const scope={window:{BadFodderHistoricalMissions:require('../historical-missions')},localStorage:storage};vm.runInNewContext(fs.readFileSync(require.resolve('../campaign'),'utf8'),scope);
+const campaign=scope.window.BadFodderCampaign,mission=campaign.missions.find(m=>m.id==='barcelona-1936');
+assert.equal(campaign.state.unlocked,3,'A migrated Cable Street completion unlocks Barcelona');
+assert.equal(mission.scenario,'historical');assert.equal(mission.date,'1936-07-19');assert.equal(mission.coop,false);assert.equal(mission.chapter,4);assert(Bootstrap.validateConfiguration(mission,Map));
+const session={getItem:()=>null,setItem(){},removeItem(){}};
+const launch=Launch.create({storage:session,missions:campaign.missions,campaign});assert(launch.select(mission.id));assert.equal(launch.current().map,'barcelona');assert.equal(launch.currentId(),mission.id);
+const identity=Identities.get(mission);assert.equal(identity.classification,'BASED ON REAL EVENTS');assert.equal(identity.characters.length,4);assert.equal(new Set(identity.characters.map(c=>c.name)).size,4);assert(identity.characters.every(c=>Identities.CHARACTER_TRAITS.includes(c.trait)&&c.occupation));assert.equal(identity.characters.filter(c=>c.weapon).length,1);
+function fixture(){
+ const scale=2,buildings=Map.buildings.map((b,i)=>{const points=b.points.map(p=>p.map(v=>v*scale));return{...b,i,points,minX:Math.min(...points.map(p=>p[0])),maxX:Math.max(...points.map(p=>p[0])),minY:Math.min(...points.map(p=>p[1])),maxY:Math.max(...points.map(p=>p[1]))}});
+ let navigation;const moveEntity=(u,dx,dy,r=6)=>{if(!navigation.obstacleAt(u.x+dx,u.y,r))u.x+=dx;if(!navigation.obstacleAt(u.x,u.y+dy,r))u.y+=dy};
+ navigation=Navigation.create({worldWidth:Map.width*scale,worldHeight:Map.height*scale,buildings,mapKey:Map.key,moveEntity,updateFacing(u,dx,dy){u.dir=Math.atan2(dy,dx)}});
+ const squad=Map.spawns.squad.map((p,i)=>Identities.runtimeCharacter(mission,i,{x:p[0]*scale,y:p[1]*scale,hp:8,maxHp:8,alive:true,selected:i<2,manualGarrison:i===1}));
+ const enemies=Map.spawns.enemies.map(p=>({x:p[0]*scale,y:p[1]*scale,alive:true,hp:3,maxHp:3,objectiveGroup:'patrol'}));
+ const objectives=Objectives.create(mission),zones=Object.fromEntries(Object.entries(Map.zones).map(([id,z])=>[id,{x:z.x*scale,y:z.y*scale,r:z.r*scale}]));
+ let grenades=99,allowed=true;const arrivals=[];
+ const runtime=Runtime.create({map:Map,objectives,getSquad:()=>squad,getEnemies:()=>enemies,navigation,scale,spawnAllowed:()=>allowed,setGrenades:n=>grenades=n,spawn(group,wave){arrivals.push(wave);enemies.push(...group.positions.map((p,i)=>({x:p[0]*scale,y:p[1]*scale,alive:true,surrendered:false,combatRole:group.roles[i]})))}});
+ const tick=dt=>{runtime.update(dt);return objectives.update(dt,{living:squad.filter(s=>s.alive&&!s.downed),enemies,zones})};
+ const at=(p,i=0)=>Object.assign(squad[i],{x:p.x*scale,y:p.y*scale});
+ return{scale,navigation,squad,enemies,objectives,zones,runtime,tick,at,arrivals,get grenades(){return grenades},set allowed(value){allowed=value}};
+}
+const f=fixture();
+for(const p of [...Object.values(Map.zones),...Map.barricade.materials,...Map.spawns.squad.map(([x,y])=>({x,y})),...Map.spawns.enemies.map(([x,y])=>({x,y})),...Map.resistance.starts.map(([x,y])=>({x,y})),...Map.resistance.positions.map(([x,y])=>({x,y})),...Map.assaultGroups.flatMap(g=>g.positions.map(([x,y])=>({x,y})))]){
+ assert(!f.navigation.obstacleAt(p.x*2,p.y*2,6),'Authored position must be walkable: '+JSON.stringify(p));
+ const start=f.squad[0],route=f.navigation.findPath(start.x,start.y,p.x*2,p.y*2);assert(route.length,'Authored position unreachable: '+JSON.stringify(p));
+ const actor={x:start.x,y:start.y};assert(f.navigation.assignPath(actor,p.x*2,p.y*2));for(let i=0;i<2500&&actor.path;i++)f.navigation.followPath(actor,185,1/30);assert(!actor.path,'Path remains stuck');assert(Math.hypot(actor.x-p.x*2,actor.y-p.y*2)<35,'Route ends too far away');
+}
+assert.equal(f.grenades,0);assert.deepEqual(f.squad.map(s=>s.weapon),['pistol',null,null,null]);assert.deepEqual(f.squad.map(s=>s.ammo),[18,0,0,0]);assert(f.enemies.every(e=>e.missionDormant));
+assert.equal(f.objectives.manager.current().id,'opening');f.at(Map.zones.junction);f.tick(29);assert.equal(f.objectives.manager.current().id,'opening');f.tick(1);assert.equal(f.objectives.manager.current().id,'patrol');f.tick(.1);assert(f.enemies.every(e=>!e.missionDormant));
+f.enemies[0].alive=false;f.enemies[1].surrendered=true;f.tick(.1);assert.equal(f.objectives.manager.current().id,'acquire-weapons','Surrender blocks neither patrol nor defence');
+f.at(Map.zones.contact);assert.equal(f.runtime.hint(f.squad[0]),'TAKE RIFLES');assert(f.runtime.interact(f.squad[0]));f.tick(1);assert(f.squad.every(s=>s.weapon==='mauser'&&s.ammo===60));assert.equal(f.grenades,2);assert.equal(f.objectives.manager.current().id,'reach-barricade');
+f.at(Map.zones.barricade);f.tick(.1);assert.equal(f.objectives.manager.current().id,'build-barricade');
+for(let i=0;i<2;i++){f.at(Map.barricade.materials[0]);assert(f.runtime.interact(f.squad[0]));f.tick(.4);f.at(Map.barricade);assert.equal(f.runtime.hint(f.squad[0]),'REINFORCE');assert(f.runtime.interact(f.squad[0]));f.tick(.4)}
+assert.equal(f.objectives.manager.current().id,'hold-barricade');assert.equal(f.runtime.barrier.integrity,60);assert(f.navigation.obstacleAt(690,1256,6));assert(!f.navigation.obstacleAt(690,1256,6,true),'Friendly fire passes above low cover');assert(!f.navigation.lineBlocked(690,1200,690,1320),'Low cover permits sight');assert(!f.navigation.routeClear(690,1200,690,1320,6),'Low cover still blocks movement');
+assert.equal(f.squad[1].manualGarrison,true);assert.equal(f.squad[1].selected,true,'Objective transitions preserve split selection');
+f.at(Map.zones.barricade);f.allowed=false;f.tick(6);assert.equal(f.arrivals.length,0,'Visible approaches defer arrivals');f.allowed=true;f.tick(.1);assert.deepEqual(f.arrivals,[0]);
+f.runtime.damage(100);assert(f.runtime.barrier.breached);assert(!f.objectives.manager.missionState().failed,'A breach alone must never fail');assert(!f.navigation.getDynamicObstacle('barcelona-barricade'));
+f.squad[3].downed=true;f.squad[3].healthState='DOWN';f.enemies.forEach(e=>e.surrendered=true);f.tick(30);assert.equal(f.arrivals.length,1,'Casualties create a recovery window');assert(f.runtime.canDirect('DO_NOTHING'));assert(!f.runtime.canDirect('MAJOR_PUSH'));
+f.squad[3].stabilised=true;f.squad[2].hp=5;f.squad[2].healthState='WOUNDED';f.tick(7);assert.equal(f.arrivals.length,2);f.enemies.forEach(e=>e.surrendered=true);f.tick(21);assert.equal(f.arrivals.length,3);assert.equal(f.runtime.directorContext().climax,true);
+f.enemies.forEach(e=>e.surrendered=true);const withdrawing=f.enemies.at(-1);Object.assign(withdrawing,{surrendered:false,x:620,y:598,commandOrder:{type:'RETREAT',point:{x:620,y:598}}});f.squad[3].downed=true;f.squad[3].healthState='DOWN';f.tick(7);assert(f.objectives.manager.missionState().complete,'Wounded and downed living survivors may finish with defenders holding');assert.equal(f.runtime.summary().characters.filter(s=>s.alive).length,4);assert.equal(f.runtime.summary().waves,3);assert.equal(withdrawing.missionWithdrawn,true,'A completed withdrawal must not require hunting down troops');f.tick(100);assert.equal(f.arrivals.length,3,'Defence is finite');f.runtime.dispose();assert(!f.navigation.getDynamicObstacle('barcelona-barricade'));
+const restart=fixture();assert.equal(restart.runtime.stage.wave,0);assert.equal(restart.objectives.manager.current().id,'opening');assert.equal(restart.squad[0].ammo,18);assert.equal(restart.runtime.barrier.integrity,0);
+// Actual route loss, not one broken barricade, is the defensive failure condition.
+const lost=fixture();lost.objectives.syncPhase(5);lost.runtime.damage(90);lost.enemies.forEach(e=>e.alive=false);lost.enemies.push({x:620,y:1530,alive:true});lost.squad.forEach(s=>{s.x=600;s.y=700});lost.tick(21);assert(lost.objectives.manager.missionState().failed);
+const allyFixture=fixture(),shots=[];let awake=false;
+const allies=Resistance.create({starts:Map.resistance.starts,positions:Map.resistance.positions,getEnemies:()=>allyFixture.enemies,getSquad:()=>allyFixture.squad,navigation:allyFixture.navigation,scale:2,fire:(...args)=>shots.push(args),enabled:()=>awake,canSee:()=>true});
+assert.equal(allies.units.length,3);allyFixture.runtime.allies.push(...allies.units);allies.update(2);assert.equal(shots.length,0);awake=true;
+const ally=allies.units[0];assert.equal(allies.target(ally),null,'Dormant and surrendered troops are not targets');Object.assign(allyFixture.enemies[0],{x:ally.x+40,y:ally.y,missionDormant:false});assert.equal(allies.target(ally),allyFixture.enemies[0]);allies.update(2);assert(shots.every(s=>s[0]==='friendly'));assert(shots.length);allyFixture.enemies[0].surrendered=true;assert.equal(allies.target(ally),null);ally.hp=2;allies.update(.1);assert.equal(allies.counts().wounded,1);ally.alive=false;allies.update(.1);assert.equal(allies.counts().lost,1);assert.equal(allyFixture.runtime.summary().alliesLost,1);assert(allyFixture.runtime.directorContext().strength<1,'Friendly wounds/losses feed the Director strength input');
+// The shared lifecycle gates simulation, so pause/menu do not advance defence or ammunition.
+let flags={started:true,finished:false,runtimeSafeStop:false,paused:false,menuOpen:false};const life=Lifecycle.create({read:()=>flags,apply:n=>Object.assign(flags,n)});life.transition('PLAYING');life.transition('PAUSED');const clock=restart.runtime.stage.clock;Services.fixedFrame({dt:1,accumulator:0,active:!flags.paused&&!flags.menuOpen,simulate:()=>restart.tick(1/60)});assert.equal(restart.runtime.stage.clock,clock);life.transition('PLAYING');Services.fixedFrame({dt:.05,accumulator:0,active:!flags.paused&&!flags.menuOpen,simulate:()=>restart.tick(1/60)});assert(restart.runtime.stage.clock>clock);life.transition('TITLE');assert(flags.menuOpen&&flags.paused);
+const html=fs.readFileSync(require.resolve('../index.html'),'utf8');for(const script of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))new Function(script[1]);
+console.log('PASS: Barcelona registration/unlock, four identities, walkable approaches, full objective sequence, equipment, contextual barricade, low cover, finite attacks, recovery/breach/defeat, surrender, wounded completion, friendly targeting, lifecycle and restart.');

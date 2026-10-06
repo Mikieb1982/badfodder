@@ -114,8 +114,8 @@ const staleCampaign=MissionLaunch.create({
   campaign,
   historicalMissions:[]
 });
-assert.equal(staleCampaign.currentIndex(),2,'Unavailable future campaign position should resolve to nearest playable mission');
-assert.equal(staleCampaign.current().id,'cable-street');
+assert.equal(staleCampaign.currentIndex(),3,'Unavailable future campaign position should resolve to nearest playable mission');
+assert.equal(staleCampaign.current().id,'barcelona-1936');
 
 const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
 assert(index.includes('BadFodderMissionBootstrap'),'Live bootstrap does not use explicit mission resolver');

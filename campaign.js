@@ -21,16 +21,24 @@ const missions=[
       {type:'eliminate-and-reach',zone:'wallgate',defenderGroup:'wallgate',hold:3.0,contestRadius:90,title:'Station Run',brief:'Defeat the station defenders, occupy the Wallgate checkpoint and break the final multi-direction counterattack. King Street supplies are optional.',checkpoint:{style:'siege',count:5}}
     ]
   },
-  {...window.BadFodderHistoricalMissions.missions.find(m=>m.map==='cable-street'),id:'cable-street',legacyId:'cable-street-1936',status:'playable',campaignLinked:true,chapter:3,order:3}
+  {...window.BadFodderHistoricalMissions.missions.find(m=>m.map==='cable-street'),id:'cable-street',legacyId:'cable-street-1936',status:'playable',campaignLinked:true,chapter:3,order:3},
+  {id:'barcelona-1936',title:'Barcelona',location:'Barcelona',country:'Spain',date:'1936-07-19',scenario:'historical',status:'playable',map:'barcelona',squadSize:4,playable:true,chapter:4,order:4,coop:false,actionProfile:{firearms:true,grenades:true,contextualActions:[]},
+   phases:[
+    {id:'opening',type:'REACH',zone:'junction',eventDriven:true,title:'REACH THE RAMBLA JUNCTION',brief:'Meet your neighbours at the Catalunya approach. Gunfire carries across the city.'},
+    {id:'patrol',type:'CLEAR',zone:'patrol',defenderGroup:'patrol',title:'GET THROUGH THE PATROL',brief:'Keep to cover. Your neighbours are helping. Reach the printer for rifles.'},
+    {id:'acquire-weapons',type:'INTERACT',zone:'contact',title:'ACQUIRE RIFLES',brief:'Meet the resistance contact outside the printer. E / ACTION: take rifles.'},
+    {id:'reach-barricade',type:'REACH',zone:'barricade',title:'REACH THE BARRICADE',brief:'Return to the Rambla approach and cover the side passages.'},
+    {id:'build-barricade',type:'INTERACT',zone:'barricade',title:'REINFORCE THE BARRICADE',brief:'Take two loads from nearby material piles. E / ACTION: carry, then reinforce.'},
+    {id:'hold-barricade',type:'DEFEND',zone:'barricade',title:'HOLD THE BARRICADE',brief:'Defend alongside your neighbours. Repair breaches and keep the route behind you open.',eventDriven:true}
+   ].map(p=>({...p,text:p.title}))}
 ];
 
 // Numeric fields remain available to existing runtime consumers. Persisted IDs are authoritative.
 const futureChapters=[
- {id:'barcelona-1936',title:'Barcelona',location:'Barcelona',country:'Spain',date:'1936-07-19'},
  {id:'naples-1943',title:'Naples',location:'Naples',country:'Italy',date:'1943-09'},
  {id:'paris-1944',title:'Paris',location:'Paris',country:'France',date:'1944-08'},
  {id:'munich-1945',title:'Munich',location:'Munich',country:'Germany',date:'1945-04-28'}
-].map((m,i)=>({...m,chapter:i+4,order:i+4,scenario:'historical',status:'planned',playable:false}));
+].map((m,i)=>({...m,chapter:i+5,order:i+5,scenario:'historical',status:'planned',playable:false}));
 const storage=()=>typeof BadFodderStorage!=='undefined'?BadFodderStorage.local:localStorage;
 const defaults=()=>({current:0,unlocked:0,completed:[]});
 function indexOf(ref){

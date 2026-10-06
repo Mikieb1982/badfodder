@@ -140,6 +140,7 @@ window.BadFodderMenu=class{
     this.get=id=>this.screen.querySelector('#'+id);
     for(const [id,action] of [['menuStart','start'],['menuResume','resume'],['menuRestart','restart'],['menuMain','main']])this.get(id).addEventListener('click',()=>actions[action]());
     this.get('menuMissionSelect').addEventListener('click',()=>this.showPanel('missions'));
+    this.get('menuMissionBarcelona')?.addEventListener('click',()=>actions.selectMission(3));
     this.get('menuHistoricalCable').addEventListener('click',()=>actions.selectMission(2));
     this.get('menuMissionBad').addEventListener('click',()=>actions.selectMission(0));
     this.get('menuMissionWigan').addEventListener('click',()=>actions.selectMission(1));
