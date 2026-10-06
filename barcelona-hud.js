@@ -2,13 +2,16 @@
 (function(root){
 'use strict';
 function install(){
- const canvas=document.getElementById('game'),viewport=canvas&&canvas.parentElement,panel=document.querySelector('.hud-mission');
- if(!viewport||!panel)return false;
+ const canvas=document.getElementById('game'),viewport=canvas&&canvas.parentElement,panel=document.querySelector('.hud-mission'),notice=document.getElementById('hudNotice');
+ if(!viewport||!panel||!notice)return false;
  let queued=false;
  const sync=()=>{
   queued=false;
   const p=panel.getBoundingClientRect(),v=viewport.getBoundingClientRect();
-  viewport.style.setProperty('--barcelona-notice-top',Math.ceil(p.bottom-v.top+6)+'px');
+  // Base notice animation starts 6px above its CSS top. Keep a full visible gap in both states.
+  const top=Math.ceil(p.bottom-v.top+12)+'px';
+  viewport.style.setProperty('--barcelona-notice-top',top);
+  notice.style.top=top;
  };
  const requestSync=()=>{
   if(queued)return;
