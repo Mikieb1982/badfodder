@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('node:fs'),http=require('node:http'),path=require('node:path');
 const root=path.resolve(__dirname,'../../dist'),port=Number(process.env.PORT||4173);
-const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.webp':'image/webp','.mp3':'audio/mpeg','.json':'application/json','.webmanifest':'application/manifest+json','.ico':'image/x-icon'};
+const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.webp':'image/webp','.mp3':'audio/mpeg','.webm':'audio/webm','.json':'application/json','.webmanifest':'application/manifest+json','.ico':'image/x-icon'};
 const injection=`window.__visual={freeze:()=>{resetGame();BadFodderRuntime.fixedFrame=()=>0;paused=false;menuOpen=false;menu.close();syncTouchControlState();updateHud(true);drawWorld();},state:()=>({started,menuOpen,map:MAP_DATA.key,faults:runtimeFaultCount,actors:squad.length})};`;
 http.createServer((req,res)=>{try{const name=new URL(req.url,'http://local').pathname,file=path.resolve(root,'.'+(name==='/'?'/index.html':decodeURIComponent(name)));if(!file.startsWith(root+path.sep))throw Error('path');let data=fs.readFileSync(file);if(process.env.BADFODDER_VISUAL==='1'&&file.endsWith('index.html'))data=Buffer.from(data.toString().replace('  // BOOT_MISSION:',injection+'\n  // BOOT_MISSION:'));res.setHeader('Content-Type',mime[path.extname(file)]||'application/octet-stream');res.end(data)}catch{res.writeHead(404);res.end();}}).listen(port,'127.0.0.1');

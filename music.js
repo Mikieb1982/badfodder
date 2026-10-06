@@ -1,10 +1,25 @@
 /* Ambient music follows Sagenhaft's looping, volume and fade behaviour. */
 (function(){
 'use strict';
-const HOME_SOURCE='assets/audio/bad_fodder.mp3';
-const MISSION_SOURCE='assets/audio/mission.mp3';
-const CABLE_STREET_SOURCE='assets/audio/cable_street.mp3';
-const BARCELONA_SOURCE='assets/audio/barcelonamission.mp3';
+const TRACKS={
+  home:['assets/audio/bad_fodder.webm','assets/audio/bad_fodder.mp3'],
+  mission:['assets/audio/mission.webm','assets/audio/mission.mp3'],
+  cable:['assets/audio/cable_street.webm','assets/audio/cable_street.mp3'],
+  barcelona:['assets/audio/barcelonamission.webm','assets/audio/barcelonamission.mp3']
+};
+function canPlayOpus(){
+  try{
+    const probe=document.createElement('audio');
+    return !!probe.canPlayType&&probe.canPlayType('audio/webm; codecs="opus"').replace(/no/i,'')!=='';
+  }catch(e){return false}
+}
+const PREFER_OPUS=canPlayOpus();
+function preferred(track){return track[PREFER_OPUS?0:1]}
+function mp3Fallback(path){for(const track of Object.values(TRACKS))if(track[0]===path)return track[1];return null}
+const HOME_SOURCE=preferred(TRACKS.home);
+const MISSION_SOURCE=preferred(TRACKS.mission);
+const CABLE_STREET_SOURCE=preferred(TRACKS.cable);
+const BARCELONA_SOURCE=preferred(TRACKS.barcelona);
 const LAUNCH_KEY='badfodder.launch.v1';
 const AUTO_KEY='badfodder.launch.autostart.v1';
 
@@ -172,7 +187,11 @@ document.addEventListener('visibilitychange',()=>{
 // Safari can restore pages from the back-forward cache without a normal reload.
 addEventListener('pagehide',pauseForBackground);
 addEventListener('pageshow',()=>{if(enabled&&started)start()});
-audio.addEventListener('error',()=>{loadError=true;started=false;render()});
+audio.addEventListener('error',()=>{
+  const fallback=mp3Fallback(source);
+  if(fallback&&fallback!==source){switchSource(fallback,{autoplay:enabled&&!document.hidden});return}
+  loadError=true;started=false;render();
+});
 audio.addEventListener('canplay',render);
 window.BadFodderMusic={
   toggle,setEnabled,setVolume,start,switchSource,playHome,playMission,audio,

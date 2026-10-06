@@ -33,7 +33,9 @@ assert(html.includes('const FIXED_DT=1/60,MAX_CATCHUP_STEPS=5'),'Fixed-step simu
 assert(html.includes('BadFodderRuntime.fixedFrame'),'Bounded simulation catch-up missing');
 assert(html.includes('simulationAccumulator=0'),'Simulation accumulator reset missing');
 
-assert(css.includes('touch-action:none'),'Touch canvas/controls must suppress browser gestures during play');
+assert(/\.viewport\{[^}]*touch-action:none/.test(css),'Gameplay viewport must suppress browser gestures during play');
+assert(/#game\{[^}]*touch-action:none/.test(css),'Gameplay canvas must suppress browser gestures during play');
+assert(/\.touch-controls\{[^}]*touch-action:none/.test(css),'Touch overlay must suppress browser gestures during play');
 assert(css.includes('.viewport.full-window'),'Fullscreen fallback styling missing');
 assert(html.includes("requestFullscreen({navigationUI:'hide'})"),'Native fullscreen path missing');
 assert(html.includes("mobile-fullscreen-fallback"),'iOS/browser fullscreen fallback missing');

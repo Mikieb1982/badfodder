@@ -2,13 +2,13 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const source=fs.readFileSync(require('node:path').join(__dirname,'../music.js'),'utf8');
-function setup(saved,savedVolume,session={}){
+function setup(saved,savedVolume,session={},opus=false){
   const listeners={},audioListeners={},buttonListeners={},storage=new Map(),sessionData=new Map(Object.entries(session));
   if(saved!==undefined)storage.set('badfodder.music.v1',saved);
   if(savedVolume!==undefined)storage.set('badfodder.music.volume.v1',savedVolume);
   let time=0,next=0,blocked=false,plays=0,appended=0,loads=0;
   const frames=new Map(),button={setAttribute(key,value){this[key]=value},addEventListener(key,fn){buttonListeners[key]=fn}};
-  const audio={volume:1,paused:true,muted:false,src:'',setAttribute(){},addEventListener(key,fn){audioListeners[key]=fn},pause(){this.paused=true},load(){loads++},async play(){plays++;if(blocked)throw Error('Autoplay blocked');this.paused=false}};
+  const audio={volume:1,paused:true,muted:false,src:'',canPlayType:type=>opus&&/audio\/webm/.test(type)?'probably':'',setAttribute(){},addEventListener(key,fn){audioListeners[key]=fn},pause(){this.paused=true},load(){loads++},async play(){plays++;if(blocked)throw Error('Autoplay blocked');this.paused=false}};
   let mediaVolume=audio.volume;Object.defineProperty(audio,'volume',{get:()=>mediaVolume,set:value=>{assert(value>=0&&value<=1,'HTMLMediaElement volume out of range');mediaVolume=value}});
   const document={hidden:false,createElement(){return audio},getElementById(id){return id==='menuMusic'?button:null},body:{appendChild(){appended++}},addEventListener(key,fn){listeners[key]=fn}};
   const window={};
@@ -20,7 +20,12 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
 (async()=>{
   const skew=setup();skew.event('pointerdown');await settle();skew.step(-.01);assert.equal(skew.audio.volume,0,'Older frame timestamp creates negative volume');skew.step(1200.01);assert.equal(skew.audio.volume,.04);
   const t=setup();assert.equal(t.appended,1);assert(t.audio.loop);assert.equal(t.audio.volume,0);assert.equal(t.plays,0);
-  assert.equal(t.api.source,'assets/audio/bad_fodder.mp3','Normal homepage load keeps the title music');
+  assert.equal(t.api.source,'assets/audio/bad_fodder.mp3','Browsers without Opus keep the MP3 title music');
+  const modern=setup(undefined,undefined,{},true);
+  assert.equal(modern.api.source,'assets/audio/bad_fodder.webm','Opus-capable browsers prefer WebM music');
+  modern.event('pointerdown');await settle();modern.error();await settle();
+  assert.equal(modern.api.source,'assets/audio/bad_fodder.mp3','A failed WebM request falls back to MP3 automatically');
+  assert.equal(modern.audio.src,'assets/audio/bad_fodder.mp3','MP3 fallback is loaded into the media element');
   assert.equal(t.api.volume,.04,'No saved slider setting uses the quieter four percent default');
   assert.equal(t.storage.get('badfodder.music.mix.v2'),'1','New quieter mix migration is recorded');
   assert.equal(setup(undefined,'0').api.volume,0,'A saved zero volume stays zero');
@@ -67,5 +72,5 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   assert.equal(switcher.api.source,'assets/audio/bad_fodder.mp3');
 
   const race=setup();race.event('pointerdown');race.api.setEnabled(false);await settle();race.step(1200);assert(race.audio.muted);assert.equal(race.audio.volume,0,'An in-flight play must respect mute');
-  console.log('PASS: quiet title/mission/Cable Street/Barcelona mix, briefing routing, mission autostart, runtime switching, gesture unlock/retry, fades, saved mute and visibility handling.');
+  console.log('PASS: Opus preference with MP3 fallback, quiet title/mission/Cable Street/Barcelona mix, briefing routing, runtime switching, fades and visibility handling.');
 })().catch(error=>{console.error(error);process.exitCode=1});
