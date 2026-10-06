@@ -1,0 +1,193 @@
+name: Implement touch and Opus audio upgrade
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/implement-touch-opus.yml
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+      - name: Ensure Opus encoder is available
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends ffmpeg
+          fi
+          ffmpeg -version | head -n 1
+      - name: Apply focused controls and audio changes
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p=Path(path)
+              text=p.read_text()
+              if new in text:
+                  return
+              if old not in text:
+                  raise SystemExit(f'Expected text not found in {path}: {old[:80]!r}')
+              p.write_text(text.replace(old,new,1))
+
+          # Uniform browser gesture suppression across the gameplay viewport, canvas and touch overlay.
+          replace_once('game-ui.css',
+              '.viewport{padding:0;border:1px solid #5c694f;',
+              '.viewport{padding:0;touch-action:none;border:1px solid #5c694f;')
+          replace_once('game-ui.css',
+              '.touch-controls{inset:0}',
+              '.touch-controls{inset:0;touch-action:none}')
+
+          # Prefer Opus/WebM for long music tracks while retaining MP3 as a runtime fallback.
+          replace_once('music.js',
+          "const HOME_SOURCE='assets/audio/bad_fodder.mp3';\nconst MISSION_SOURCE='assets/audio/mission.mp3';\nconst CABLE_STREET_SOURCE='assets/audio/cable_street.mp3';\nconst BARCELONA_SOURCE='assets/audio/barcelonamission.mp3';",
+          """const TRACKS={
+  home:['assets/audio/bad_fodder.webm','assets/audio/bad_fodder.mp3'],
+  mission:['assets/audio/mission.webm','assets/audio/mission.mp3'],
+  cable:['assets/audio/cable_street.webm','assets/audio/cable_street.mp3'],
+  barcelona:['assets/audio/barcelonamission.webm','assets/audio/barcelonamission.mp3']
+};
+function canPlayOpus(){
+  try{
+    const probe=document.createElement('audio');
+    return !!probe.canPlayType&&probe.canPlayType('audio/webm; codecs=\"opus\"').replace(/no/i,'')!=='';
+  }catch(e){return false}
+}
+const PREFER_OPUS=canPlayOpus();
+function preferred(track){return track[PREFER_OPUS?0:1]}
+function mp3Fallback(path){for(const track of Object.values(TRACKS))if(track[0]===path)return track[1];return null}
+const HOME_SOURCE=preferred(TRACKS.home);
+const MISSION_SOURCE=preferred(TRACKS.mission);
+const CABLE_STREET_SOURCE=preferred(TRACKS.cable);
+const BARCELONA_SOURCE=preferred(TRACKS.barcelona);""")
+          replace_once('music.js',
+              "audio.addEventListener('error',()=>{loadError=true;started=false;render()});",
+              """audio.addEventListener('error',()=>{
+  const fallback=mp3Fallback(source);
+  if(fallback&&fallback!==source){switchSource(fallback,{autoplay:enabled&&!document.hidden});return}
+  loadError=true;started=false;render();
+});""")
+
+          # Build WebM/Opus versions into dist from the existing MP3 masters. This avoids duplicating
+          # the large music library in Git while still shipping smaller modern assets to browsers.
+          replace_once('tools/runtime/build.cjs',
+              "const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');",
+              "const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),cp=require('node:child_process');")
+          replace_once('tools/runtime/build.cjs',
+              r"/\.(png|webp|mp3|ico|json)$/",
+              r"/\.(png|webp|mp3|webm|ico|json)$/")
+          replace_once('tools/runtime/build.cjs',
+              r"/\.(js|css|png|webp|mp3|ico)$/",
+              r"/\.(js|css|png|webp|mp3|webm|ico)$/")
+          replace_once('tools/runtime/build.cjs',
+              "function publicUrl(n){return hashes.has(n)&&n!=='favicon.ico'?'./'+prefix+n:'./'+n}\nfor(const n of allowed){",
+              """function publicUrl(n){return hashes.has(n)&&n!=='favicon.ico'?'./'+prefix+n:'./'+n}
+const generatedAudio=[];
+function transcodeMusic(){
+ const probe=cp.spawnSync('ffmpeg',['-version'],{stdio:'ignore'});
+ if(probe.status!==0){console.warn('ffmpeg unavailable; WebM/Opus music omitted and MP3 fallback retained.');return}
+ for(const mp3 of files('assets/audio').filter(n=>/\\.mp3$/i.test(n))){
+  const webm=mp3.replace(/\\.mp3$/i,'.webm');
+  if(fs.existsSync(path.join(root,webm)))continue;
+  const target=path.join(out,webm);fs.mkdirSync(path.dirname(target),{recursive:true});
+  const run=cp.spawnSync('ffmpeg',['-y','-loglevel','error','-i',path.join(root,mp3),'-vn','-c:a','libopus','-b:a','72k','-vbr','on','-compression_level','5',target],{stdio:'inherit'});
+  if(run.status!==0){fs.rmSync(target,{force:true});console.warn('Could not create '+webm+'; MP3 fallback retained.');continue}
+  generatedAudio.push(webm);
+ }
+}
+transcodeMusic();
+for(const n of allowed){""")
+          replace_once('tools/runtime/build.cjs',
+              "const offlineAssets=[...new Set(['./','./index.html','./manifest.webmanifest',...allowed.map(publicUrl)])];",
+              "const offlineAssets=[...new Set(['./','./index.html','./manifest.webmanifest',...allowed.map(publicUrl),...generatedAudio.map(n=>'./'+n)])];")
+
+          # Test/dev HTTP servers must serve WebM with the correct MIME type.
+          candidates=[Path('tools/runtime/serve.cjs'),*Path('tests').glob('*.cjs')]
+          for p in candidates:
+              text=p.read_text()
+              if "'.mp3':'audio/mpeg'" in text and "'.webm':'audio/webm'" not in text:
+                  p.write_text(text.replace("'.mp3':'audio/mpeg'","'.mp3':'audio/mpeg','.webm':'audio/webm'"))
+
+          # Make the touch contract specific enough to prevent regressions on wrapper elements.
+          replace_once('tests/browser-contract.cjs',
+              "assert(css.includes('touch-action:none'),'Touch canvas/controls must suppress browser gestures during play');",
+              """assert(/\\.viewport\\{[^}]*touch-action:none/.test(css),'Gameplay viewport must suppress browser gestures during play');
+assert(/#game\\{[^}]*touch-action:none/.test(css),'Gameplay canvas must suppress browser gestures during play');
+assert(/\\.touch-controls\\{[^}]*touch-action:none/.test(css),'Touch overlay must suppress browser gestures during play');""")
+
+          # Exercise both codec selection and automatic MP3 recovery.
+          replace_once('tests/music.cjs',
+              'function setup(saved,savedVolume,session={}){',
+              'function setup(saved,savedVolume,session={},opus=false){')
+          replace_once('tests/music.cjs',
+              "const audio={volume:1,paused:true,muted:false,src:'',setAttribute(){},addEventListener(key,fn){audioListeners[key]=fn},pause(){this.paused=true},load(){loads++},async play(){plays++;if(blocked)throw Error('Autoplay blocked');this.paused=false}};",
+              "const audio={volume:1,paused:true,muted:false,src:'',canPlayType:type=>opus&&/audio\\/webm/.test(type)?'probably':'',setAttribute(){},addEventListener(key,fn){audioListeners[key]=fn},pause(){this.paused=true},load(){loads++},async play(){plays++;if(blocked)throw Error('Autoplay blocked');this.paused=false}};")
+          replace_once('tests/music.cjs',
+              "  assert.equal(t.api.source,'assets/audio/bad_fodder.mp3','Normal homepage load keeps the title music');",
+              """  assert.equal(t.api.source,'assets/audio/bad_fodder.mp3','Browsers without Opus keep the MP3 title music');
+  const modern=setup(undefined,undefined,{},true);
+  assert.equal(modern.api.source,'assets/audio/bad_fodder.webm','Opus-capable browsers prefer WebM music');
+  modern.event('pointerdown');await settle();modern.error();await settle();
+  assert.equal(modern.api.source,'assets/audio/bad_fodder.mp3','A failed WebM request falls back to MP3 automatically');
+  assert.equal(modern.audio.src,'assets/audio/bad_fodder.mp3','MP3 fallback is loaded into the media element');""")
+          replace_once('tests/music.cjs',
+              "console.log('PASS: quiet title/mission/Cable Street/Barcelona mix, briefing routing, mission autostart, runtime switching, gesture unlock/retry, fades, saved mute and visibility handling.');",
+              "console.log('PASS: Opus preference with MP3 fallback, quiet title/mission/Cable Street/Barcelona mix, briefing routing, runtime switching, fades and visibility handling.');")
+
+          # Verify production builds actually contain the generated modern tracks and cache them offline.
+          replace_once('tests/production-build.cjs',
+              "const root=path.resolve(__dirname,'../dist'),config=require('../firebase.json');",
+              "const sourceRoot=path.resolve(__dirname,'..'),root=path.resolve(sourceRoot,'dist'),config=require('../firebase.json');")
+          replace_once('tests/production-build.cjs',
+              "console.log('PASS: curated production output, authoritative manifest, versioned asset closure, all briefing audio and cache policy.');",
+              """const ffmpegAvailable=require('node:child_process').spawnSync('ffmpeg',['-version'],{stdio:'ignore'}).status===0;
+if(ffmpegAvailable){
+ const offline=JSON.parse(fs.readFileSync(path.join(root,'offline-assets.json'),'utf8'));
+ for(const name of ['bad_fodder','mission','cable_street','barcelonamission']){
+  const modern=path.join(root,'assets/audio',name+'.webm'),fallback=path.join(sourceRoot,'assets/audio',name+'.mp3');
+  assert(fs.existsSync(modern),'Missing generated Opus/WebM track: '+name);
+  assert(fs.statSync(modern).size<fs.statSync(fallback).size,'Modern audio is not smaller than MP3 fallback: '+name);
+  assert(offline.includes('./assets/audio/'+name+'.webm'),'Modern audio missing from offline cache manifest: '+name);
+ }
+}
+console.log('PASS: curated production output, generated Opus music with MP3 fallbacks, authoritative manifest, briefing audio and cache policy.');""")
+          PY
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Run focused controls and music tests
+        run: |
+          node tests/music.cjs
+          node tests/browser-contract.cjs
+          npm run test:build
+      - name: Run regression suite
+        run: npm test
+      - name: Show generated audio savings
+        run: |
+          for f in assets/audio/*.mp3; do
+            b="$(basename "$f" .mp3)"
+            if [ -f "dist/assets/audio/$b.webm" ]; then
+              printf '%s: MP3 %s bytes -> Opus/WebM %s bytes\n' "$b" "$(stat -c%s "$f")" "$(stat -c%s "dist/assets/audio/$b.webm")"
+            fi
+          done
+      - name: Commit implementation to main
+        run: |
+          rm .github/workflows/implement-touch-opus.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Harden touch input and add Opus music delivery"
+          git pull --rebase origin main
+          git push origin HEAD:main
