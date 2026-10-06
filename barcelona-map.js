@@ -33,8 +33,8 @@ return{key:'barcelona',title:'Barcelona · 19 July 1936',width:1000,height:900,b
  resistance:{starts:[[209,544],[230,570],[218,594]],positions:[[271,642],[416,642],[362,653]],eastern:[[271,642],[571,704],[607,692]],advance:[[271,642],[737,499],[795,520]]},
  barricade:{x:345,y:628,points:rect(289,621,108,14),materials:[{x:245,y:625},{x:421,y:702}]},
  assaultGroups:[
- {label:'PROBE',delay:5,positions:[[310,340],[347,358],[306,368]],roles:['PATROL','RIFLEMAN','RIFLEMAN']},
- {label:'FRONTAL PRESSURE',delay:22,positions:[[310,320],[347,300],[415,363]],roles:['RIFLEMAN','AGGRESSOR','SUPPRESSOR']},
+ {label:'PROBE',delay:5,positions:[[310,340],[347,358],[306,368]],alternatePositions:[[310,160],[335,175],[310,195]],roles:['PATROL','RIFLEMAN','RIFLEMAN']},
+ {label:'FRONTAL PRESSURE',delay:22,positions:[[310,320],[347,300],[415,363]],alternatePositions:[[685,160],[660,180],[685,200]],roles:['RIFLEMAN','AGGRESSOR','SUPPRESSOR']},
  ],
  rescuePressure:{label:'PATROL AT THE CROSSING',delay:10,target:'residents',positions:[[744,410],[830,410]],roles:['PATROL','RIFLEMAN']},
  easternGroups:[

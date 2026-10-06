@@ -24,7 +24,7 @@ function create({map,objectives,getSquad,getEnemies,navigation,spawn,scale=1,spa
   if((id==='acquire-weapons'||armed&&supplyLoads>0&&getSquad().some(s=>s.alive&&(s.ammo||0)<45))&&near(unit,contact,50))return armed?'RESUPPLY':'TAKE RIFLES';
   if(['build-barricade','hold-barricade','recovery','reach-civilians','escort-civilians','second-route','hold-east'].includes(id)){
    if(near(unit,barrier,68)&&carry===getSquad().indexOf(unit)&&barrier.integrity<barrier.maxIntegrity)return'REINFORCE';
-   if(near(unit,barrier,68)&&carry!==null)return'MATERIALS WITH '+getSquad()[carry]?.name;
+   if(near(unit,barrier,68)&&carry!==null&&carry!==getSquad().indexOf(unit))return'MATERIALS WITH '+getSquad()[carry]?.name;
    if(carry===getSquad().indexOf(unit))return'DROP MATERIAL';
    if(carry===null&&materialPoints.some(p=>p.supplies>0&&near(unit,p,45)))return'TAKE MATERIAL';
   }
@@ -44,7 +44,7 @@ function create({map,objectives,getSquad,getEnemies,navigation,spawn,scale=1,spa
  function damage(amount){const before=barrier.breached;B.damageBarricade(barrier,amount);geometry();if(!before&&barrier.breached){status('BARRICADE BREACHED. Repair it or hold the street behind it.');recovery=8}return barrier.integrity}
  function hit(x,y,amount=2){const obstacle=navigation.getDynamicObstacle(barrier.id);if(obstacle&&x>=obstacle.minX-4&&x<=obstacle.maxX+4&&y>=obstacle.minY-4&&y<=obstacle.maxY+4){damage(amount);return true}return false}
  function enter(id){
-  timer=0;secure=0;previous=id;status(active()?.text||active()?.title||'');
+  timer=0;secure=0;previous=id;status(active()?.brief||active()?.text||active()?.title||'');
   if(id==='hold-barricade')nextArrival=delay(map.assaultGroups[wave]);
   if(id==='hold-east')nextArrival=delay(map.easternGroups[eastWave]);
   if(id==='patrol'){getEnemies().forEach(e=>{e.missionDormant=false});sound('distant');status('Joan: Army troops at the square. Keep to cover.')}
@@ -68,8 +68,8 @@ function create({map,objectives,getSquad,getEnemies,navigation,spawn,scale=1,spa
   if(armed){const level=ammoStatus().level;if(level!==ammoFeedback&&['LOW','CRITICAL','EMPTY'].includes(level))status(level+' AMMUNITION. '+(supplyLoads?'One reserve remains at the printer.':'Choose shots carefully; the reserve is spent.'));ammoFeedback=level;}
   if(!id)return;
   timer+=dt;
-  if(id==='opening'&&openingShots<2&&clock>=(openingShots+1)*12){openingShots++;sound('distant');status(openingShots===1?'Joan: Shots from the square. Stay close to the others.':'Isabel: Troops are moving down from Catalunya. Find cover.')}
-  if(id==='opening'&&clock>=30&&living.some(s=>near(s,point(map.zones.junction),map.zones.junction.r)))objectives.signal('opening');
+  if(id==='opening'&&openingShots<2&&clock>=(openingShots+1)*4){openingShots++;sound('distant');status(openingShots===1?'Joan: Shots from the square. Stay close to the others.':'Isabel: Troops are moving down from Catalunya. Find cover.')}
+  if(id==='opening'&&clock>=12&&living.some(s=>near(s,point(map.zones.junction),map.zones.junction.r)))objectives.signal('opening');
   if(id==='acquire-weapons'&&getEnemies().filter(hostile).length===0)recovery=Math.max(recovery,2);
   if(id==='build-barricade'&&builds>=2&&barrier.integrity>=60)objectives.signal('build-barricade');
   // A completed withdrawal is a valid outcome, not a hidden kill requirement.
