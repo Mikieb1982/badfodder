@@ -206,7 +206,7 @@ async function runLifecycle(providedBrowser, testInfo){
  }
  if(process.env.BADFODDER_BARCELONA_ONLY){
   await select('#menuMissionBarcelona');assert.equal((await active()).map,'barcelona');await barcelonaCycle(page);await controllerSelection();await casualtyCycle(page);await pauseMenuResume();
-  await page.setViewportSize({width:915,height:412});await militaryLayout(page);await barcelonaCycle(page,true);await page.evaluate(()=>window.__testGame.main());assert((await page.evaluate(()=>BadFodderMusic.source)).endsWith('assets/audio/bad_fodder.mp3'));assert.deepEqual(errors,[]);console.log('PASS: Barcelona desktop/touch launch, equipment, objectives, contextual materials/reinforcement, friendly defence, finite completion, controller selection, casualty aid, pause/resume, restart and menu audio.');return;
+  await page.setViewportSize({width:915,height:412});await militaryLayout(page);await barcelonaCycle(page,true);await page.evaluate(()=>window.__testGame.main());assert(/assets\/audio\/bad_fodder\.(?:webm|mp3)$/.test(await page.evaluate(()=>BadFodderMusic.source)));assert.deepEqual(errors,[]);console.log('PASS: Barcelona desktop/touch launch, equipment, objectives, contextual materials/reinforcement, friendly defence, finite completion, controller selection, casualty aid, pause/resume, restart and menu audio.');return;
  }
  for(const [button,map] of [['#menuMissionBad','bad-belzig'],['#menuMissionWigan','wigan']]){
   await page.locator('#menuMissionSelect').click();await page.locator(button).click();assert.equal((await page.evaluate(()=>window.__testGame.state())).menuOpen,true);assert(await page.locator('#briefingStory').isVisible());assert.equal(await page.locator('#briefingCharacters canvas').count(),4);await page.evaluate(()=>BadFodderArt.preloadMissionArt(document.getElementById('briefingTitle').textContent.toLowerCase()));if(process.env.BADFODDER_SCREENSHOTS)await page.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp',map+'-briefing.png')});await page.locator('#briefingBack').click();assert(await page.locator(button).isVisible());await page.locator('[data-view="missions"] [data-back]').click();
@@ -245,7 +245,7 @@ async function runLifecycle(providedBrowser, testInfo){
   if(process.env.BADFODDER_SCREENSHOTS)await page.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp',map+'-upgrade.png')});
   await resultCycle(page,map);
   await page.evaluate(()=>window.__testGame.main());
-  assert((await page.evaluate(()=>BadFodderMusic.source)).endsWith('assets/audio/bad_fodder.mp3'));
+  assert(/assets\/audio\/bad_fodder\.(?:webm|mp3)$/.test(await page.evaluate(()=>BadFodderMusic.source)));
  }
  assert.equal(await page.evaluate(()=>localStorage.getItem('badfodder.campaign.v1')),campaignBefore,'Direct selection changed campaign');
  await page.locator('#menuMissionSelect').click();await page.locator('#menuHistoricalCable').click();await page.locator('#briefingBegin').click();
@@ -260,7 +260,7 @@ async function runLifecycle(providedBrowser, testInfo){
  assert((await page.evaluate(()=>window.__testGame.adaptive())).enabled);assert.equal((await page.evaluate(()=>window.__testGame.adaptive())).militaryEnemies,0);assert(!(await page.evaluate(()=>window.__testGame.adaptive())).commander);
  await page.evaluate(()=>window.__testGame.directorFault());await active();
  await resultCycle(page,'cable-street');
- assert((await page.evaluate(()=>BadFodderMusic.source)).endsWith('assets/audio/cable_street.mp3'));
+ assert(/assets\/audio\/cable_street\.(?:webm|mp3)$/.test(await page.evaluate(()=>BadFodderMusic.source)));
  await pauseMenuResume();await page.evaluate(()=>window.__testGame.pause());await page.locator('#menuRestart').click();await active();
  await page.evaluate(()=>window.__testGame.main());await page.locator('#menuMissionSelect').click();await page.locator('#menuHistoricalCable').click();await page.locator('#briefingBegin').click();await page.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen,{},{timeout:90000});await active();
  expectedRuntimeLogs=3;await page.evaluate(()=>window.__testGame.fault());assert(await page.locator('#menuResume').isHidden());assert(await page.locator('#menuMissionSelect').isVisible());await page.locator('#menuRestart').click();await active();
@@ -277,7 +277,7 @@ async function runLifecycle(providedBrowser, testInfo){
  await page.evaluate(()=>window.__testGame.complete());assert(await page.locator('#resultNext').isVisible());
  assert.deepEqual(await page.evaluate(()=>JSON.parse(BadFodderStorage.local.getItem('badfodder.campaign.v1')).completedIds),['bad-belzig','wigan','cable-street']);
  await page.locator('#resultNext').click();await page.locator('#briefingBegin').click();await page.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen,{},{timeout:90000});assert.equal((await active()).map,'barcelona');
- await barcelonaCycle(page);await controllerSelection();await pauseMenuResume();await page.evaluate(()=>window.__testGame.main());assert((await page.evaluate(()=>BadFodderMusic.source)).endsWith('assets/audio/bad_fodder.mp3'));
+ await barcelonaCycle(page);await controllerSelection();await pauseMenuResume();await page.evaluate(()=>window.__testGame.main());assert(/assets\/audio\/bad_fodder\.(?:webm|mp3)$/.test(await page.evaluate(()=>BadFodderMusic.source)));
 
  const mobile=await newPage({viewport:{width:915,height:412},...(browserName!=='firefox'?{isMobile:true}:{}),hasTouch:true});mobile.on('pageerror',e=>errors.push(e.message));await mobile.goto(url,{waitUntil:'domcontentloaded'});await mobile.locator('[data-presentation-skip]').click();await mobile.waitForFunction(()=>!!window.__testGame);await mobile.locator('#menuStart').click();await mobile.locator('#briefingBegin').click();await mobile.waitForFunction(()=>window.__testGame?.state().started&&!window.__testGame.state().menuOpen);
  await casualtyCycle(mobile,true);await civilianCycle(mobile,true);await buildingCycle(mobile,true);
