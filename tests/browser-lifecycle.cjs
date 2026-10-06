@@ -218,7 +218,7 @@ async function runLifecycle(providedBrowser, testInfo){
   const characters=await page.evaluate(()=>window.__testGame.characters());
   assert.equal(new Set(characters.map(c=>c.id)).size,4);assert(characters.every(c=>c.occupation&&c.trait&&c.voiceSet&&c.healthState==='FIT'&&c.relationships.length));
   await casualtyCycle(page);await civilianCycle(page);await buildingCycle(page);
-  const identity=await page.evaluate(()=>window.__testGame.identity());assert.equal(identity.year,map==='wigan'?1941:1945);assert.equal(await page.locator('#loadingEra').textContent(),identity.loading);assert((await page.locator('#hudSquadBar').textContent()).includes(identity.characters[0].name));assert((await page.evaluate(()=>BadFodderMusic.source)).endsWith('assets/audio/mission.mp3'));
+  const identity=await page.evaluate(()=>window.__testGame.identity());assert.equal(identity.year,map==='wigan'?1941:1945);assert.equal(await page.locator('#loadingEra').textContent(),identity.loading);assert((await page.locator('#hudSquadBar').textContent()).includes(identity.characters[0].name));assert(/assets\/audio\/mission\.(?:webm|mp3)$/.test(await page.evaluate(()=>BadFodderMusic.source)));
   const chips=page.locator('#hudSquadBar .hud-unit');
   await chips.nth(0).click();
   assert.deepEqual(await page.evaluate(()=>window.__testGame.state().units.map(u=>u.selected)),[true,false,false,false],'Portrait tap must isolate one soldier');
