@@ -1,0 +1,44 @@
+name: Import Barcelona character reference
+
+on:
+  push:
+    branches: [chatgpt-import-barcelona-reference]
+
+permissions:
+  contents: write
+
+jobs:
+  import-reference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out staging branch
+        uses: actions/checkout@v4
+        with:
+          ref: chatgpt-import-barcelona-reference
+          fetch-depth: 0
+
+      - name: Rebuild and validate reference image
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat tmp/barcelona-reference-webp/part*.b64 > /tmp/barcelona.b64
+          base64 -d /tmp/barcelona.b64 > /tmp/barcelona.webp
+          test "$(stat -c%s /tmp/barcelona.webp)" -eq 71948
+          test "$(sha256sum /tmp/barcelona.webp | cut -d' ' -f1)" = "d4af9b7331b2a8c0e4edb314a398111fa31133554593a237bb9a18582797e965"
+          file /tmp/barcelona.webp | grep -q 'Web/P image'
+
+      - name: Commit image to current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git checkout -B main origin/main
+          mkdir -p assets/characters
+          cp /tmp/barcelona.webp assets/characters/barcelona.webp
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/characters/barcelona.webp
+          git diff --cached --quiet && exit 0
+          git commit -m 'Add full Barcelona character reference guide'
+          git push origin HEAD:main
