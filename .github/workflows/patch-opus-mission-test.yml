@@ -1,0 +1,39 @@
+name: Patch remaining Opus mission assertion
+
+on:
+  push:
+    branches: [fix/opus-ci-delivery]
+    paths:
+      - .github/workflows/patch-opus-mission-test.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - name: Accept negotiated mission music format
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('tests/browser-lifecycle.cjs')
+          text=p.read_text()
+          old="assert((await page.evaluate(()=>BadFodderMusic.source)).endsWith('assets/audio/mission.mp3'));"
+          new="assert(/assets\\/audio\\/mission\\.(?:webm|mp3)$/.test(await page.evaluate(()=>BadFodderMusic.source)));"
+          if old not in text:
+              raise SystemExit('Legacy mission MP3 assertion not found')
+          p.write_text(text.replace(old,new))
+          PY
+      - name: Commit patch to feature branch
+        run: |
+          rm .github/workflows/patch-opus-mission-test.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Accept negotiated mission music format"
+          git pull --rebase origin fix/opus-ci-delivery
+          git push origin HEAD:fix/opus-ci-delivery
