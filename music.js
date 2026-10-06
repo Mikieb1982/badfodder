@@ -4,6 +4,7 @@
 const HOME_SOURCE='assets/audio/bad_fodder.mp3';
 const MISSION_SOURCE='assets/audio/mission.mp3';
 const CABLE_STREET_SOURCE='assets/audio/cable_street.mp3';
+const BARCELONA_SOURCE='assets/audio/barcelonamission.mp3';
 const LAUNCH_KEY='badfodder.launch.v1';
 const AUTO_KEY='badfodder.launch.autostart.v1';
 
@@ -17,10 +18,12 @@ function sourceForBoot(){
   if(!autoStartPending())return HOME_SOURCE;
   const launch=readLaunch();
   if(launch&&launch.mode==='historical'&&launch.id==='cable-street-1936')return CABLE_STREET_SOURCE;
+  if(launch&&(launch.id==='barcelona-1936'||launch.map==='barcelona'))return BARCELONA_SOURCE;
   return MISSION_SOURCE;
 }
 function sourceForMission(mission){
   if(mission&&(mission.id==='cable-street-1936'||mission.map==='cable-street'))return CABLE_STREET_SOURCE;
+  if(mission&&(mission.id==='barcelona-1936'||mission.map==='barcelona'))return BARCELONA_SOURCE;
   return MISSION_SOURCE;
 }
 
