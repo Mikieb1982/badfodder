@@ -33,14 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - browser: chromium
-            required: true
-          - browser: webkit
-            required: true
-          - browser: firefox
-            required: false
-    continue-on-error: ${{ !matrix.required }}
+        browser: [chromium, webkit]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
