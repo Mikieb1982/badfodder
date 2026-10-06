@@ -59,11 +59,13 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   const switcher=setup();
   switcher.api.playMission({id:'bad-belzig'});await settle();
   assert.equal(switcher.api.source,'assets/audio/mission.mp3');assert.equal(switcher.audio.src,'assets/audio/mission.mp3');
-  switcher.api.playMission({id:'barcelona-1936',map:'barcelona'});await settle();
-  assert.equal(switcher.api.source,'assets/audio/barcelonamission.mp3');assert.equal(switcher.audio.src,'assets/audio/barcelonamission.mp3');
+  switcher.api.playMission({key:'cable-street'});await settle();
+  assert.equal(switcher.api.source,'assets/audio/cable_street.mp3','Briefing identity routes Cable Street music');
+  switcher.api.playMission({key:'barcelona'});await settle();
+  assert.equal(switcher.api.source,'assets/audio/barcelonamission.mp3','Briefing identity routes Barcelona music');
   switcher.api.playHome();await settle();
   assert.equal(switcher.api.source,'assets/audio/bad_fodder.mp3');
 
   const race=setup();race.event('pointerdown');race.api.setEnabled(false);await settle();race.step(1200);assert(race.audio.muted);assert.equal(race.audio.volume,0,'An in-flight play must respect mute');
-  console.log('PASS: quiet title/mission/Cable Street/Barcelona mix, routing, mission autostart, runtime switching, gesture unlock/retry, fades, saved mute and visibility handling.');
+  console.log('PASS: quiet title/mission/Cable Street/Barcelona mix, briefing routing, mission autostart, runtime switching, gesture unlock/retry, fades, saved mute and visibility handling.');
 })().catch(error=>{console.error(error);process.exitCode=1});
