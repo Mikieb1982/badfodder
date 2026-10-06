@@ -38,6 +38,14 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   await settle();
   assert.equal(cable.api.source,'assets/audio/cable_street.mp3','Cable Street keeps its dedicated music');
 
+  const barcelona=setup(undefined,undefined,{
+    'badfodder.launch.autostart.v1':'1',
+    'badfodder.launch.v1':JSON.stringify({mode:'historical',id:'barcelona-1936',map:'barcelona'})
+  });
+  await settle();
+  assert.equal(barcelona.api.source,'assets/audio/barcelonamission.mp3','Barcelona uses its dedicated mission music after reload');
+  assert.equal(barcelona.plays,1,'Barcelona launch attempts to start its mission music immediately after reload');
+
   t.block(true);t.event('pointerdown');await settle();assert.equal(t.button.textContent,'MUSIC: ON');assert(t.audio.paused);
   t.block(false);t.event('keydown');await settle();t.step(600);assert.equal(t.audio.volume,.02);t.step(600);assert.equal(t.audio.volume,.04);
   const plays=t.plays;t.event('pointerdown');await settle();assert.equal(t.plays,plays,'Gestures must not restart a playing track');
@@ -51,9 +59,11 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   const switcher=setup();
   switcher.api.playMission({id:'bad-belzig'});await settle();
   assert.equal(switcher.api.source,'assets/audio/mission.mp3');assert.equal(switcher.audio.src,'assets/audio/mission.mp3');
+  switcher.api.playMission({id:'barcelona-1936',map:'barcelona'});await settle();
+  assert.equal(switcher.api.source,'assets/audio/barcelonamission.mp3');assert.equal(switcher.audio.src,'assets/audio/barcelonamission.mp3');
   switcher.api.playHome();await settle();
   assert.equal(switcher.api.source,'assets/audio/bad_fodder.mp3');
 
   const race=setup();race.event('pointerdown');race.api.setEnabled(false);await settle();race.step(1200);assert(race.audio.muted);assert.equal(race.audio.volume,0,'An in-flight play must respect mute');
-  console.log('PASS: quiet title/mission/Cable Street mix, routing, mission autostart, runtime switching, gesture unlock/retry, fades, saved mute and visibility handling.');
+  console.log('PASS: quiet title/mission/Cable Street/Barcelona mix, routing, mission autostart, runtime switching, gesture unlock/retry, fades, saved mute and visibility handling.');
 })().catch(error=>{console.error(error);process.exitCode=1});
