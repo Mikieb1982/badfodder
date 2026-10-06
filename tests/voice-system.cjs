@@ -1,6 +1,7 @@
 const assert=require('assert');
 const voices=require('../voice-system.js');
 
+// Barcelona uses the same recorded briefing narration path as the other missions.
 assert.equal(typeof voices.assetRequirements,'function','Voice asset manifest is missing');
 assert.equal(voices.volume,1,'Narration should default to 100% when no saved preference exists');
 assert.equal(voices.actionEvent('FLANK_LEFT'),'flankLeft');
