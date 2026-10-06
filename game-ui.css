@@ -219,4 +219,4 @@ h1{font:800 27px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppe
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
 
 /* Barcelona notices stay below the longer rescue/ammunition objective panel. */
-.barcelona-mission .hud-notice{top:var(--barcelona-notice-top,106px)}
+.barcelona-mission .hud-notice{top:max(var(--barcelona-notice-top,106px),132px)}
