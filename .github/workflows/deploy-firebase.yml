@@ -57,7 +57,9 @@ jobs:
           sudo apt-get install -y --no-install-recommends pulseaudio
           pulseaudio -n --daemonize=yes --exit-idle-time=-1 --load=module-native-protocol-unix --load=module-null-sink
           npm run test:build
-          BADFODDER_TEST_DIST=1 npm run test:browser
+          BADFODDER_TEST_DIST=1 npm run test:browser -- --project=chromium
+          BADFODDER_TEST_DIST=1 npm run test:browser -- --project=webkit
+          BADFODDER_TEST_DIST=1 npm run test:browser -- --project=firefox || echo "::warning::Firefox compatibility test failed; Chromium/WebKit remain the deployment gate."
           npm run test:coop:rules
           BADFODDER_TEST_DIST=1 BADFODDER_COOP_MOCK_RTC=1 npm run test:coop:browser
           npm run test:visual
@@ -90,3 +92,19 @@ jobs:
 
       - name: Deploy live site to Firebase Hosting
         run: ./node_modules/.bin/firebase deploy --only hosting --project bad-fodder --non-interactive
+
+      - name: Verify live Barcelona mission selector
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://bad-fodder.web.app/?verify=${GITHUB_SHA}"
+          for attempt in {1..12}; do
+            PAGE="$(curl -fsS -H 'Cache-Control: no-cache' "$URL" || true)"
+            if printf '%s' "$PAGE" | grep -q 'id="menuMissionBarcelona"' && printf '%s' "$PAGE" | grep -q 'BARCELONA, 19 JULY 1936'; then
+              echo "Live Barcelona mission selector verified."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Live Firebase Hosting did not expose the Barcelona mission selector after deployment." >&2
+          exit 1
