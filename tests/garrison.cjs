@@ -87,4 +87,6 @@ visible=true;commander.maintain(101);assert.equal(shots,1,'Live garrisons must u
 assert(scope.BadFodderGarrison.regroup());assert.equal(selectionCommand,'all');assert(!soldier.manualGarrison);
 assert.equal(scope.BadFodderGarrison.selectedOne(),null,'A subgroup cannot silently garrison its first member');
 liveActive=false;assert(!scope.BadFodderGarrison.regroup());assert(!scope.BadFodderGarrison.toggleGarrison(soldier));
+// Unactivated Barcelona patrols cannot waste a garrison's limited ammunition.
+liveActive=true;const shotsBeforeDormant=shots;enemy.alive=true;enemy.surrendered=false;enemy.missionDormant=true;enemy.hp=3;runtimeSquad=[soldier];soldier.alive=true;soldier.downed=false;soldier.manualGarrison=true;soldier.garrisonNextFire=0;commander.maintain(100);assert.equal(soldier.garrisonTarget,null);assert.equal(enemy.hp,3);assert.equal(shots,shotsBeforeDormant);enemy.missionDormant=false;
 console.log('PASS: explicit live squad callbacks, normal garrison shots, line-of-sight, group selection and paused command guards.');

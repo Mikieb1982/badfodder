@@ -1,0 +1,10 @@
+'use strict';
+const assert=require('node:assert/strict'),Resistance=require('../friendly-resistance'),Rng=require('../game-rng');
+const enemies=[{x:250,y:0,alive:true,surrendered:false}],shots=[];let queries=0,paths=0;
+const navigation={obstacleAt(){queries++;return false},assignPath(u,x,y){paths++;u.path=[{x,y}]},followPath(u,speed,dt){const p=u.path[0],d=Math.hypot(p.x-u.x,p.y-u.y);if(d<speed*dt){Object.assign(u,p);u.path=null;return false}u.x+=(p.x-u.x)/d*speed*dt;u.y+=(p.y-u.y)/d*speed*dt;return true}};
+const fighters=Resistance.create({starts:[[0,0],[0,40],[0,80]],positions:[[50,0],[50,40],[50,80]],getEnemies:()=>enemies,navigation,fire:(...args)=>shots.push(args),random:Rng.create('resistance').random,canSee:u=>u.variant===1});
+fighters.units[0].alive=false;fighters.units[1].hp=2;fighters.reposition([[100,0],[100,40],[100,80]]);
+for(let i=0;i<900;i++)fighters.update(1/30);
+assert.equal(fighters.units[0].alive,false);for(const u of fighters.units.slice(1))assert(Math.abs(u.x-100)<20,'A dead first slot must not stall later assignments');assert.equal(fighters.units[1].hp,2);assert(paths<=55,'Only one staggered path query is allowed per refresh');assert(queries<2200,'Cover sampling is bounded rather than repeated every frame');assert(shots.length>0&&shots.length<22,'Wounded allies fire useful but limited support');assert(shots.every(s=>s[0]==='friendly'));assert(shots.some(s=>s[3]!==250||s[4]!==0),'Resistance accuracy is imperfect');
+enemies[0].surrendered=true;assert.equal(fighters.target(fighters.units[1]),null);enemies[0].surrendered=false;enemies[0].missionDormant=true;assert.equal(fighters.target(fighters.units[1]),null);
+console.log('PASS: resistance repositions after a dead scheduling slot, preserves wounds, respects sight/surrender/dormancy and bounds fire/cover/path work.');

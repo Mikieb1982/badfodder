@@ -11,9 +11,9 @@
   if(['RESCUE','SEARCH','SABOTAGE'].includes(type)&&Math.hypot(e.x-zone.x,e.y-zone.y)<zone.r*2)return zone;
   return target;
  }
- function create({getEnemies=()=>[],getSquad=()=>[],scale=1,canSee=()=>true,onSurrender=()=>{}}={}){
+ function create({getEnemies=()=>[],getSquad=()=>[],scale=1,canSee=()=>true,onSurrender=()=>{},autoCommanders=true}={}){
   let timer=0;
-  function assign(){const groups=new Map();getEnemies().forEach((e,i)=>{if(!e.combatRole)e.combatRole=ROLES[i%5];if(!groups.has(e.groupId))groups.set(e.groupId,[]);groups.get(e.groupId).push(e)});for(const group of groups.values())if(group.length>=3&&!group.some(e=>e.combatRole==='COMMANDER'))group[0].combatRole='COMMANDER';}
+  function assign(){const groups=new Map();getEnemies().forEach((e,i)=>{if(!e.combatRole)e.combatRole=ROLES[i%5];if(!groups.has(e.groupId))groups.set(e.groupId,[]);groups.get(e.groupId).push(e)});for(const group of groups.values())if(autoCommanders&&group.length>=3&&!group.some(e=>e.combatRole==='COMMANDER'))group[0].combatRole='COMMANDER';}
   assign();
   function fixedUpdate(dt){
    timer-=dt;if(timer>0)return;const elapsed=.5;timer=.5;assign();

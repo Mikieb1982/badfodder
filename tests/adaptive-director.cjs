@@ -129,4 +129,7 @@ const hpBefore=[...controller.state.formations.values()].map(f=>f.damageRate);
 adapter.execute('PRESSURE_SIDE',adapter.sample(),20);
 assert.deepEqual([...controller.state.formations.values()].map(f=>f.damageRate),hpBefore,'Adaptive tactics must not increase police damage');
 adapter.release();assert([...controller.state.formations.values()].every(f=>!f.adaptiveRepeatAfter));
+// Dormant/withdrawn Barcelona actors cannot form phantom Commander groups or knowledge.
+const inactive={alive:true,missionDormant:true,hp:3,maxHp:3,groupId:'withdrawn',x:0,y:0,lastSeen:{x:20,y:20},observedAt:0};
+const phantom=Adaptive.createCommander({getEnemies:()=>[inactive],getSquad:()=>[{x:20,y:20,alive:true,hp:8,maxHp:8}],getPhase:()=>({index:0,zone:'site'}),getZones:()=>({site:{x:20,y:20,r:30}}),roads:[],navigation:{},queuePath:()=>{},blocked:()=>false});assert.equal(phantom.sample(1).enemies,0);assert.equal(phantom.knowledge(),null);assert.equal(phantom.valid('MAJOR_PUSH',{},1),false);assert.equal(phantom.execute('PRESSURE',{},1),false);
 console.log('PASS: bounded utility decisions, cooldowns, repetition, tension/profile, real Belzig/Wigan routes/orders, historical adaptive pressure/events, and Director faults cannot stop the actual simulation.');

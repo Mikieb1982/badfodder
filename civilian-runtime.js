@@ -2,7 +2,7 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.BadFodderCivilians=api;})(typeof window!=='undefined'?window:globalThis,function(){
  'use strict';
  const STATES=Object.freeze(['CALM','FRIGHTENED','HIDING','FOLLOWING','FLEEING','EVACUATED','WOUNDED','DOWN','DEAD']);
- function create({getCivilians,getSquad,getEnemies=()=>[],getNoise=()=>[],zones=[],move,path,follow,face,onEvent=()=>{},scale=1}={}){
+ function create({getCivilians,getSquad,getEnemies=()=>[],getNoise=()=>[],zones=[],move,path,follow,face,onEvent=()=>{},canOccupy=()=>true,scale=1}={}){
   let clock=0;
   const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   const stop=c=>{c.path=null;c.target=null;c.navDestination=null;c.state=c.alive?'idle':'dead'};
@@ -31,24 +31,46 @@
   }
   function update(dt){
    clock+=dt;let pathBudget=2;
-   const enemies=getEnemies().filter(e=>(e.alive&&!e.surrendered&&!e.missionDormant)),noise=getNoise(),squad=getSquad();
-   for(const [i,c] of getCivilians().entries()){
+   const enemies=getEnemies().filter(e=>(e.alive&&!e.surrendered&&!e.missionDormant)),noise=getNoise(),squad=getSquad(),residents=getCivilians(),neighbours=[...residents,...squad];
+   for(const [i,c] of residents.entries()){
     if(!c.alive||c.civilianState==='EVACUATED')continue;
     if(c.civilianState==='DOWN'){if(clock>=c.downUntil)damage(c,1);continue}
+    c.flash=Math.max(0,(c.flash||0)-dt);
     c.repath=Math.max(0,(c.repath||0)-dt);c.panic=Math.max(0,(c.panic||0)-dt);
     const threat=enemies.find(e=>distance(c,e)<170*scale)||noise.find(n=>distance(c,n)<(n.r||130*scale));
     const leader=Number.isInteger(c.leaderIndex)?squad[c.leaderIndex]:null;
     if(leader&&(!leader.alive||leader.downed||distance(c,leader)>420*scale)){c.leaderIndex=null;c.civilianState='HIDING';stop(c);onEvent('separated',c)}
     if(threat)c.panic=3;
-    const zone=zones.find(z=>distance(c,z)<=z.r&&!enemies.some(e=>distance(e,z)<z.r+60*scale));
+    const safe=z=>!enemies.some(e=>distance(e,z)<z.r+60*scale);
+    const zone=zones.find(z=>distance(c,z)<=z.r&&safe(z));
     if(zone&&c.leaderIndex!==null){c.civilianState='EVACUATED';c.leaderIndex=null;stop(c);onEvent('evacuated',c);continue}
     let target=null,speed=(c.speed||40)*1.7;
-    if(c.leaderIndex!==null){c.civilianState=c.hp<2?'WOUNDED':'FOLLOWING';target={x:leader.x+Math.cos(i*2.4)*30*scale,y:leader.y+Math.sin(i*2.4)*30*scale};if(distance(c,target)<24*scale)target=null}
+    if(c.leaderIndex!==null){
+     c.civilianState=c.hp<2?'WOUNDED':'FOLLOWING';
+     // Once the guide reaches shelter, followers aim inside it, including at the rim.
+     const shelter=zones.find(z=>distance(leader,z)<=z.r&&safe(z)),radius=shelter?Math.min(18*scale,shelter.r*.3):(22+i%3*4)*scale;
+     const centre=shelter||leader;
+     target={x:centre.x+Math.cos(i*2.4)*radius,y:centre.y+Math.sin(i*2.4)*radius};
+     if(!canOccupy(target.x,target.y))target={x:centre.x,y:centre.y};
+     const incoming=noise.filter(n=>n.owner!=='squad'&&n.owner!=='friendly'&&distance(c,n)<75*scale).length;
+     if(incoming>=3&&clock>=(c.nextHesitate||0)){c.hesitateUntil=clock+.7;c.nextHesitate=clock+4}
+     if(clock<(c.hesitateUntil||0)){c.civilianState=c.hp<2?'WOUNDED':'HIDING';stop(c);continue}
+     if(distance(c,target)<(shelter?8:18)*scale)target=null;
+    }
     else if(threat&&c.civilianState!=='HIDING'){c.civilianState='FLEEING';const d=distance(c,threat)||1;target={x:c.x+(c.x-threat.x)/d*75*scale,y:c.y+(c.y-threat.y)/d*75*scale};speed*=1.5}
     else if(c.panic>0){c.civilianState=c.civilianState==='HIDING'?'HIDING':'FRIGHTENED'}
     else if(!['HIDING','WOUNDED'].includes(c.civilianState)){c.civilianState='CALM';c.phase+=dt*.5;target={x:c.homeX+Math.cos(c.phase)*32*scale,y:c.homeY+Math.sin(c.phase*.8)*24*scale};speed=c.speed}
     if(c.hp<2)speed*=.65;
+    if(c.leaderIndex!==null&&distance(c,leader)>140*scale)speed*=1.25;
     if(target){
+     // Soft separation is bounded and uses the existing collision-aware movement.
+     if(c.leaderIndex!==null&&move){
+      let dx=0,dy=0;for(const other of neighbours){
+       if(other===c||!other.alive||other.downed||['DOWN','EVACUATED'].includes(other.civilianState))continue;
+       const d=distance(c,other),r=9*scale;if(d<r){const a=d>0?Math.atan2(c.y-other.y,c.x-other.x):i*2.4;dx+=Math.cos(a)*(1-d/r);dy+=Math.sin(a)*(1-d/r)}
+      }
+      const d=Math.hypot(dx,dy);if(d>0)move(c,dx/Math.max(1,d)*16*scale*dt,dy/Math.max(1,d)*16*scale*dt,6);
+     }
      if(path&&follow){if(c.repath<=0&&pathBudget>0){path(c,target.x,target.y);c.repath=1.2;pathBudget--}const next=c.path?.[c.pathIndex||0],ahead=next?(Array.isArray(next)?{x:next[0],y:next[1]}:next):target;
       const blocked=c.leaderIndex!==null&&enemies.some(e=>distance(e,ahead)<70*scale&&distance(e,ahead)+15*scale<distance(e,c));
       if(blocked){c.state='idle';c.civilianState='HIDING';c.panic=3}else c.state=follow(c,speed,dt)?'walk':'idle'}
