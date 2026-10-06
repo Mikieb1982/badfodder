@@ -11,7 +11,7 @@
   const frameUnits=[];
   const active=u=>u&&u.alive!==false&&!u.surrendered&&!u.downed&&!u.insideBuilding;
   const keyFor=u=>String(u?.groupId??u?.team??u?.side??u?._tacticalSide??'squad');
-  function suppressionOf(u){if(!u)return 0;if(Number.isFinite(u.tacticalSuppression))return clamp(u.tacticalSuppression);return clamp((Number(u.suppression)||0)*100)}
+  function suppressionOf(u){if(!u)return 0;const legacy=clamp((Number(u.suppression)||0)*100);if(Number.isFinite(u.tacticalSuppression)){const tactical=clamp(u.tacticalSuppression);return legacy>tactical+10?legacy:tactical}return legacy}
   function setSuppression(u,value){const v=clamp(value);u.tacticalSuppression=v;u.suppression=v/100;return v}
   function applyNearMissSuppression(unit,projectile){if(!unit||unit.alive===false)return 0;return setSuppression(unit,suppressionOf(unit)+8)}
   function applyDirectHitSuppression(unit){if(!unit||unit.alive===false)return 0;return setSuppression(unit,suppressionOf(unit)+25)}
