@@ -2,42 +2,38 @@
    Browser: window.BadFodderMissionBootstrap
    Node: require('./mission-bootstrap.js') */
 (function(root,factory){
-  const api=factory();
+  const api=factory(root);
   if(typeof module==='object'&&module.exports)module.exports=api;
   if(root)root.BadFodderMissionBootstrap=api;
-})(typeof window!=='undefined'?window:globalThis,function(){
+})(typeof window!=='undefined'?window:globalThis,function(root){
   'use strict';
 
-  const DEFAULT_ACTION_PROFILE=Object.freeze({
-    firearms:true,
-    grenades:true,
-    contextualActions:[]
-  });
-  const UNIVERSAL_OBJECTIVE_TYPES=new Set([
-    'REACH','CLEAR','HOLD','CAPTURE','FIND','SEARCH','RESCUE','ESCORT','EVACUATE',
-    'GARRISON','INTERACT','SABOTAGE','DESTROY','DEFEND','ESCAPE','SURVIVE','OPTIONAL'
-  ]);
-  const LEGACY_OBJECTIVE_TYPES=new Set([
-    'reach','secure-zone','eliminate-and-reach','eliminate','destroy','rescue','protect',
-    'clear','hold','capture','find','search','escort','evacuate','garrison','interact',
-    'sabotage','defend','escape','survive','optional'
-  ]);
+  const DEFAULT_ACTION_PROFILE=Object.freeze({firearms:true,grenades:true,contextualActions:[]});
+  const UNIVERSAL_OBJECTIVE_TYPES=new Set(['REACH','CLEAR','HOLD','CAPTURE','FIND','SEARCH','RESCUE','ESCORT','EVACUATE','GARRISON','INTERACT','SABOTAGE','DESTROY','DEFEND','ESCAPE','SURVIVE','OPTIONAL']);
+  const LEGACY_OBJECTIVE_TYPES=new Set(['reach','secure-zone','eliminate-and-reach','eliminate','destroy','rescue','protect','clear','hold','capture','find','search','escort','evacuate','garrison','interact','sabotage','defend','escape','survive','optional']);
+  const registryNow=explicit=>explicit||root?.BadFodderMissionRegistry||null;
 
-  function createMapRegistry(entries){
+  function definitionFor(mission,registry){return registryNow(registry)?.get?.(mission)||null}
+  function integrationFor(mission,registry){return definitionFor(mission,registry)}
+  function runtimeFor(mission,registry){return definitionFor(mission,registry)?.runtime||null}
+
+  function createMapRegistry(entries,options={}){
     const registry=new Map();
-    for(const [key,value] of Object.entries(entries||{})){
-      if(!key||!value)continue;
-      registry.set(key,value);
-    }
+    for(const [key,value] of Object.entries(entries||{}))if(key&&value)registry.set(key,value);
+    const definitions=registryNow(options.registry);
+    const shared=definitions?.mapEntries?.(root)||{};
+    for(const [key,value] of Object.entries(shared))if(key&&value&&!registry.has(key))registry.set(key,value);
     return registry;
   }
 
   function resolveMap(mission,registry){
     if(!mission)throw new Error('Cannot resolve a map without a mission definition.');
-    if(!mission.map)throw new Error('Mission "'+(mission.title||mission.id||'unknown')+'" does not define a map key.');
+    const definition=definitionFor(mission);
+    const mapKey=mission.map||definition?.map?.key;
+    if(!mapKey)throw new Error('Mission "'+(mission.title||mission.id||'unknown')+'" does not define a map key.');
     if(!(registry instanceof Map))throw new Error('Mission map registry is unavailable.');
-    const map=registry.get(mission.map);
-    if(!map)throw new Error('Unknown mission map "'+mission.map+'" for '+(mission.title||mission.id||'mission')+'.');
+    const map=registry.get(mapKey);
+    if(!map)throw new Error('Unknown mission map "'+mapKey+'" for '+(mission.title||mission.id||'mission')+'.');
     return map;
   }
 
@@ -45,35 +41,18 @@
     if(Array.isArray(mission?.objectives)&&mission.objectives.length)return mission.objectives;
     return Array.isArray(mission?.phases)?mission.phases:[];
   }
-
-  function validObjectiveType(type){
-    if(typeof type!=='string'||!type)return false;
-    return UNIVERSAL_OBJECTIVE_TYPES.has(type.toUpperCase())||LEGACY_OBJECTIVE_TYPES.has(type.toLowerCase());
-  }
-
+  function validObjectiveType(type){if(typeof type!=='string'||!type)return false;return UNIVERSAL_OBJECTIVE_TYPES.has(type.toUpperCase())||LEGACY_OBJECTIVE_TYPES.has(type.toLowerCase())}
   function validateObjectiveGraph(objectives){
     const ids=new Set();
-    for(const objective of objectives){
-      if(objective.id==null)continue;
-      if(typeof objective.id!=='string'||!objective.id.trim())throw new Error('Invalid mission objective id');
-      if(ids.has(objective.id))throw new Error('Duplicate mission objective id: '+objective.id);
-      ids.add(objective.id);
-    }
+    for(const objective of objectives){if(objective.id==null)continue;if(typeof objective.id!=='string'||!objective.id.trim())throw new Error('Invalid mission objective id');if(ids.has(objective.id))throw new Error('Duplicate mission objective id: '+objective.id);ids.add(objective.id)}
     const refs=value=>value==null?[]:(Array.isArray(value)?value:[value]);
-    for(const objective of objectives){
-      for(const ref of [...refs(objective.requires),...refs(objective.next)]){
-        if(typeof ref!=='string'||!ref.trim())throw new Error('Invalid mission objective reference');
-        if(ids.size&&!ids.has(ref))throw new Error('Unknown mission objective reference: '+ref);
-      }
-    }
+    for(const objective of objectives)for(const ref of [...refs(objective.requires),...refs(objective.next)]){if(typeof ref!=='string'||!ref.trim())throw new Error('Invalid mission objective reference');if(ids.size&&!ids.has(ref))throw new Error('Unknown mission objective reference: '+ref)}
   }
-
   function validateConfiguration(mission,map){
     if(!Number.isFinite(map.width)||!Number.isFinite(map.height)||map.width<=0||map.height<=0)throw new Error('Invalid mission map dimensions');
     if(!Number.isInteger(mission.squadSize)||mission.squadSize<1||mission.squadSize>8)throw new Error('Invalid mission squad size');
     if(typeof mission.title!=='string'||!mission.title)throw new Error('Missing mission title');
-    const objectives=objectivesForMission(mission);
-    if(!objectives.length)throw new Error('Missing mission objectives');
+    const objectives=objectivesForMission(mission);if(!objectives.length)throw new Error('Missing mission objectives');
     const zones=map.zones||(map.key==='bad-belzig'?{post:map.pois?.postcolumn,castle:map.pois?.castle,market:map.pois?.market}:{});
     for(const objective of objectives){
       const cableLegacy=map.key==='cable-street'&&!mission.objectives&&typeof objective.id==='string'&&Array.isArray(objective.tasks);
@@ -86,24 +65,11 @@
       if(objective.director!=null&&(typeof objective.director!=='object'||Array.isArray(objective.director)))throw new Error('Invalid mission objective director configuration');
     }
     validateObjectiveGraph(objectives);
-    for(const [kind,positions] of Object.entries(map.spawns||{})){
-      if(!Array.isArray(positions)||positions.some(p=>kind==='pickups'?(!p||!Number.isFinite(p.x)||!Number.isFinite(p.y)||!['med','grenade'].includes(p.type)):(!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite))))throw new Error('Invalid '+kind+' spawn configuration');
-    }
+    for(const [kind,positions] of Object.entries(map.spawns||{}))if(!Array.isArray(positions)||positions.some(p=>kind==='pickups'?(!p||!Number.isFinite(p.x)||!Number.isFinite(p.y)||!['med','grenade'].includes(p.type)):(!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite))))throw new Error('Invalid '+kind+' spawn configuration');
     return true;
   }
-  function actionProfile(mission){
-    const profile=mission&&mission.actionProfile||{};
-    return{
-      firearms:profile.firearms!==false,
-      grenades:profile.grenades!==false,
-      contextualActions:Array.isArray(profile.contextualActions)?[...profile.contextualActions]:[]
-    };
-  }
+  function actionProfile(mission){const profile=mission&&mission.actionProfile||{};return{firearms:profile.firearms!==false,grenades:profile.grenades!==false,contextualActions:Array.isArray(profile.contextualActions)?[...profile.contextualActions]:[]}}
+  function allows(profile,action){if(action==='firearms'||action==='grenades')return profile&&profile[action]!==false;return !!(profile&&Array.isArray(profile.contextualActions)&&profile.contextualActions.includes(action))}
 
-  function allows(profile,action){
-    if(action==='firearms'||action==='grenades')return profile&&profile[action]!==false;
-    return !!(profile&&Array.isArray(profile.contextualActions)&&profile.contextualActions.includes(action));
-  }
-
-  return{validateConfiguration,objectivesForMission,validObjectiveType,DEFAULT_ACTION_PROFILE,createMapRegistry,resolveMap,actionProfile,allows};
+  return{validateConfiguration,objectivesForMission,validObjectiveType,DEFAULT_ACTION_PROFILE,createMapRegistry,resolveMap,actionProfile,allows,definitionFor,integrationFor,runtimeFor};
 });
