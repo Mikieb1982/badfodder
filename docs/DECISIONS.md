@@ -153,7 +153,7 @@ Status: ACTIVE
 ## 7 October 2026 - Barcelona mechanical identity
 
 Decision:
-Barcelona should focus on four individuals learning to cooperate and choosing to continue despite having an opportunity to leave danger.
+Barcelona should focus on four individuals learning to cooperate and choosing to continue despite having an opportunity to remain in relative safety.
 
 Core feeling:
 These people are learning to act together.
@@ -223,7 +223,7 @@ Status: ACTIVE
 ## 7 October 2026 - Do not add another Utility AI framework
 
 Decision:
-Extend the existing adaptive/utility systems instead of importing another Utility AI library.
+Extend the existing adaptive / utility systems instead of importing another Utility AI library.
 
 Reason:
 The game already has this architecture and duplication would increase complexity without adding identity.
@@ -238,7 +238,7 @@ Decision:
 The strongest concepts worth evaluating are:
 
 1. Elastic formation movement
-2. Local arrive/separation/obstacle steering
+2. Local arrive / separation / obstacle steering
 3. Flow-field movement for groups sharing destinations
 4. Reachability checks when barricades or routes change
 5. Contextual NPC decisions implemented through existing systems
@@ -459,8 +459,8 @@ Retain Jack, Rose, Sam and Ada, the non-firearm action profile and the existing 
 
 The playable structure is:
 
-1. Join a street already preparing and contribute material/assistance to the main defence.
-2. Withstand the first police push through hold/fight-back and crowd support.
+1. Join a street already preparing and contribute material / assistance to the main defence.
+2. Withstand the first police push through hold / fight-back and crowd support.
 3. Regroup, repair and help injured residents.
 4. Respond as pressure shifts between the Christian Street main defence and the fictional Berner Street side defence.
 5. Move through a street where helpers and residents continue acting without direct player control.
@@ -480,7 +480,7 @@ Status: ACTIVE
 Decision:
 Barricade, police-pressure, helper and critical civilian state continues when the player moves away from a position.
 
-Off-screen pressure must be bounded and communicated through visible/audible warnings before a healthy position becomes critical. Full rendering may be camera-limited, but authoritative state must not depend on whether the player is looking at it.
+Off-screen pressure must be bounded and communicated through visible / audible warnings before a healthy position becomes critical. Full rendering may be camera-limited, but authoritative state must not depend on whether the player is looking at it.
 
 Reason:
 The mission's theme depends on the neighbourhood continuing to act beyond the playable squad. Freezing off-screen positions would make the player the centre of the entire historical event.
@@ -512,5 +512,116 @@ Failure wording describes the player's local defence breaking. It must not rewri
 
 Reason:
 The mission needs meaningful gameplay failure while remaining responsible about a fixed real-world historical outcome.
+
+Status: ACTIVE
+
+---
+
+## 7 October 2026 - Barcelona historical boundary
+
+Decision:
+Use `docs/barcelona-sources.md` as the historical basis for the current slice.
+
+The mission is set on 19 July 1936 around the compressed Catalunya / upper Rambla area. The wider uprising, resistance by workers/civilians/loyal forces and fighting around Plaça de Catalunya are historical context.
+
+Joan, Mercè, Antoni, Isabel, the printer contact, exact rifle distribution, local patrol, barricade footprint, Santa Anna families, attack timings and the final Portal junction action are fictional or compressed gameplay adaptations.
+
+Reason:
+Barcelona is based on real events, so the mission must clearly distinguish historical setting from invented local story.
+
+Status: ACTIVE
+
+---
+
+## 7 October 2026 - Barcelona detailed playable structure
+
+Decision:
+Retain Joan, Mercè, Antoni and Isabel and preserve the existing printer, patrol, Rambla barricade, Santa Anna civilian extraction, eastern defence and Portal-junction anchors.
+
+The playable structure is:
+
+1. Begin as two nearby relationship pairs rather than an already polished four-person squad.
+2. Converge around the Catalunya approach and fictional printer contact.
+3. Deal with the first patrol and become an improvised group.
+4. Build and defend the Rambla barricade as the first shared practical task.
+5. Leave the defensive line to find and evacuate families near Santa Anna.
+6. Reach the western shelter and create a genuine relative-safety pause.
+7. Receive word that the eastern / Portal de l'Àngel route is threatened.
+8. Require deliberate player movement out of the shelter to express commitment.
+9. Return to danger with improved group coordination and hold the eastern route.
+10. Secure the nearby Portal junction alongside the wider local resistance.
+11. End with an aftermath that makes clear the larger Barcelona fighting continues.
+
+Reason:
+This makes commitment a gameplay progression rather than dialogue around the existing objective chain.
+
+Status: ACTIVE
+
+---
+
+## 7 October 2026 - Barcelona cooperation progression
+
+Decision:
+Use a hidden authored cooperation state:
+
+PAIRS -> IMPROVISED -> COOPERATING -> COMMITTED
+
+The state improves coordination behaviours such as spacing, regrouping, covering interactions and casualty assistance.
+
+It must not increase weapon damage, health or turn the four civilians into elite soldiers.
+
+Reason:
+Barcelona's mechanical identity is learning to work together. Progress must be felt through control and behaviour rather than an RPG friendship meter.
+
+Status: ACTIVE
+
+---
+
+## 7 October 2026 - Barcelona commitment point
+
+Decision:
+Place the defining commitment beat at the western shelter after the Santa Anna residents have been moved to relative safety.
+
+The game pauses immediate pressure, reports the threatened eastern route, and waits for the player to deliberately move the surviving group back out of safety.
+
+Do not use a dialogue-choice menu or automatically march the squad to the next objective.
+
+Reason:
+The mission needs a moment where returning to danger feels chosen rather than inevitable.
+
+Status: ACTIVE
+
+---
+
+## 7 October 2026 - Barcelona finale remains local
+
+Decision:
+The final objective is to help secure the nearby Portal junction alongside local resistance NPCs.
+
+Hotel Colón and the wider Plaça de Catalunya fighting remain historical context, not a boss encounter. Completion must state or show that fighting continues elsewhere across Barcelona.
+
+Reason:
+The four fictional protagonists should have a meaningful local victory without being credited with defeating the historical uprising themselves.
+
+Status: ACTIVE
+
+---
+
+## 7 October 2026 - Four detailed mission designs complete
+
+Decision:
+The first design phase is complete for all four active missions:
+
+- Bad Belzig
+- Wigan
+- Cable Street
+- Barcelona
+
+The next approved planning task is cross-mission mechanics consolidation before broad implementation begins.
+
+That evaluation must decide which proposed mechanics are genuinely shared, which stay mission-specific, what existing engine code already solves, and the smallest implementation order.
+
+Reason:
+Now that all four missions are designed, shared systems can be chosen from demonstrated needs rather than speculation.
 
 Status: ACTIVE
