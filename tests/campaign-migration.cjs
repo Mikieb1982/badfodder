@@ -30,7 +30,7 @@ const launch=Launch.create({storage:f.storage,missions:c.missions,campaign:c,his
 for(const [i,id] of ids.entries()){
  assert(launch.select(id));assert.equal(launch.currentIndex(),i);assert.equal(launch.currentId(),id);assert.equal(c.state.unlocked,0);
  assert.equal(launch.isHistorical(),i>=2);assert.equal(Bootstrap.actionProfile(launch.current()).firearms,i!==2);
- assert.equal(Identities.get(launch.current()).classification,i>=2?'BASED ON REAL EVENTS':'FICTIONAL SCENARIO');
+ assert.equal(Identities.get(launch.current()).classification,i>=2?'BASED ON REAL EVENTS':'FICTIONAL MISSION');
  const restored=Launch.create({storage:f.storage,missions:c.missions,campaign:c,historicalMissions:Historical.missions});assert.equal(restored.currentId(),id);
 }
 const reordered=Launch.create({storage:f.storage,missions:[c.missions[3],c.missions[2],c.missions[0],c.missions[1]],campaign:c});assert.equal(reordered.currentId(),'barcelona-1936');assert.equal(reordered.currentIndex(),0);
