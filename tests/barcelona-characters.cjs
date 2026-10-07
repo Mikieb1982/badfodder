@@ -11,6 +11,7 @@ const window={BadFodderArt:art,BadFodderIdentities:identities};
 vm.runInNewContext(fs.readFileSync(require.resolve('../mission-character-art'),'utf8'),{window,document:{createElement(){allocations++;return{width:0,height:0,getContext:()=>ctx}}},Image,setTimeout,clearTimeout});
 (async()=>{
  art.setMissionIdentity('barcelona');await art.preloadMissionArt('barcelona');assert(cleared);
+ const portraitBefore=draws,portrait=art.missionPortrait('barcelona',0,'idle');assert.equal(portrait.width,144);assert.equal(portrait.height,144);assert(draws>portraitBefore,'Barcelona HUD portrait should reuse the authored player atlas');
  const before=allocations;
  for(let variant=0;variant<4;variant++)for(let dir=0;dir<8;dir++)for(const state of ['idle','walk','run','aim','fire','hurt','dead'])for(const weapon of [null,'pistol','mauser']){
   const ent=identities.runtimeCharacter('barcelona',variant,{variant,dir,state,weapon,equipmentManaged:true,x:100,y:120});art.drawActor(ctx,ent,'squad');
@@ -18,5 +19,5 @@ vm.runInNewContext(fs.readFileSync(require.resolve('../mission-character-art'),'
  art.drawActor(ctx,{variant:0,dir:2,state:'idle',downed:true,equipmentManaged:true,x:0,y:0},'squad');assert(rotations.includes(1.45));assert.equal(allocations,before,'Live character animation allocates no canvases');assert(draws>2000);
  // Allies continue using the established costume renderer rather than player atlases.
  art.drawActor(ctx,{variant:0,dir:2,state:'idle',x:0,y:0},'resistance');
- console.log('PASS: four Barcelona sprites, eight facings, idle/walk/run/aim/fire/hurt/down/dead, weapon acquisition, atlas bounds, transparent backdrop and allocation-free player rendering.');
+ console.log('PASS: four Barcelona sprites, authored HUD portraits, eight facings, idle/walk/run/aim/fire/hurt/down/dead, weapon acquisition, atlas bounds, transparent backdrop and allocation-free player rendering.');
 })().catch(e=>{console.error(e);process.exitCode=1});
