@@ -2,7 +2,7 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.BadFodderCoopProtocol=api;})(typeof window!=='undefined'?window:globalThis,function(){
  'use strict';
  const VERSION=1,MAX_BYTES=65536,SNAPSHOT_BYTES=60*1024,TYPES=new Set(['move','fire','grenade','garrison','release','select','stick','aid','interact']);
- const actorKeys=['x','y','hp','maxHp','alive','dir','state','variant','anim','objectiveGroup','groupId','fireTimer','hitTimer','throwTimer','deadTimer','deathAngle','flash','aiming','manualGarrison','garrisonAnchorX','garrisonAnchorY','checkpointCover','checkpointGarrison','checkpointHeld','checkpointFortified','checkpointFacing','checkpointCenterX','checkpointCenterY','checkpointSandbagRadius','checkpointFortificationPhase','checkpointFortificationLead','checkpointFortificationRearLead','checkpointFortificationFrontLead'];
+ const actorKeys=['x','y','hp','maxHp','alive','dir','state','variant','anim','objectiveGroup','groupId','fireTimer','hitTimer','throwTimer','deadTimer','deathAngle','flash','aiming','manualGarrison','garrisonAnchorX','garrisonAnchorY','checkpointCover','checkpointGarrison','checkpointHeld','checkpointExitPhase','checkpointFortified','checkpointFacing','checkpointCenterX','checkpointCenterY','checkpointSandbagRadius','checkpointFortificationPhase','checkpointFortificationLead','checkpointFortificationRearLead','checkpointFortificationFrontLead'];
  const itemKeys=['x','y','vx','vy','life','owner','type','active','optional','amount','startX','startY','tx','ty','t','flight','fuse','z','landed','angle'];
  const primitive=v=>v===null||typeof v==='boolean'||typeof v==='string'&&v.length<=80||typeof v==='number'&&Number.isFinite(v)&&Math.abs(v)<1e8;
  const pack=(obj,keys)=>keys.map(k=>primitive(obj[k])?obj[k]:null);
@@ -14,6 +14,7 @@
   if(!active||!c||!TYPES.has(c.type)||!Array.isArray(c.units)||c.units.length<1||c.units.length>2||new Set(c.units).size!==c.units.length)return false;
   if(!c.units.every(i=>Number.isInteger(i)&&i>=player*2&&i<player*2+2&&squad[i]?.alive&&!squad[i]?.downed))return false;
   if(['move','fire','grenade'].includes(c.type)&&(!Number.isFinite(c.x)||!Number.isFinite(c.y)||c.x<0||c.y<0||c.x>w||c.y>h))return false;
+  if(c.type==='move'&&c.exitCheckpoint!==undefined&&typeof c.exitCheckpoint!=='boolean')return false;
   if(c.type==='stick'&&(!Number.isFinite(c.x)||!Number.isFinite(c.y)||Math.abs(c.x)>1||Math.abs(c.y)>1))return false;
   return !['garrison','release'].includes(c.type)||c.units.length===1;
  }

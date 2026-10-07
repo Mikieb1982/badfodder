@@ -206,8 +206,8 @@
       }
       return null;
     }
-    function garrisonSquad(zone,phaseIndex){
-      const living=getSquad().filter(s=>s.alive&&!s.downed&&dist(s,zone)<=zone.r*1.15);
+    function garrisonSquad(zone,phaseIndex,completed=false){
+      const living=getSquad().filter(s=>s.alive&&!s.downed&&dist(s,zone)<=zone.r&&s.checkpointExitPhase!==phaseIndex&&(!completed||s.checkpointGarrison!==phaseIndex));
       if(!living.length)return;
       const radius=Math.min(zone.r*.34,scale*22);
       living.forEach((s,i)=>{
@@ -284,11 +284,14 @@
       const phase=getPhase(),state=checkpointState(phase);if(!state)return;
       const zone=getZones()[phase.zone];if(!zone)return;
       const living=getSquad().filter(s=>s.alive),inside=living.some(s=>dist(s,zone)<=zone.r);
+      for(const s of living)if(s.checkpointExitPhase!==phase.index||dist(s,zone)>zone.r)s.checkpointExitPhase=null;
       const original=getEnemies().filter(e=>(e.alive&&!e.surrendered&&!e.missionDormant)&&!e.checkpointWave&&e.objectiveGroup===phase.defenderGroup);
       if(!state.started&&inside&&original.length===0)startCheckpointWave(phase,zone,state);
       if(!state.started)return;
       const wave=getEnemies().filter(e=>(e.alive&&!e.surrendered&&!e.missionDormant)&&e.checkpointWave&&e.checkpointPhase===phase.index);
-      if(wave.length){garrisonSquad(zone,phase.index);return}
+      garrisonSquad(zone,phase.index,state.cleared);
+      if(wave.length)return;
+      if(state.cleared)for(const s of living)if(s.checkpointGarrison===phase.index){s.checkpointCover=false;s.checkpointHeld=phase.index}
       if(!state.cleared){state.cleared=true;for(const s of living)if(s.checkpointGarrison===phase.index){s.checkpointCover=false;s.checkpointHeld=phase.index}}
     }
     function release(){

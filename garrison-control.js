@@ -58,6 +58,16 @@
     unit.garrisonTracerFrames=0;unit.garrisonTracerX=null;unit.garrisonTracerY=null;
     return true;
   }
+  function releaseCheckpoint(unit){
+    if(!unit||!Number.isFinite(unit.checkpointGarrison))return false;
+    unit.checkpointExitPhase=unit.checkpointGarrison;
+    unit.checkpointCover=false;unit.checkpointGarrison=null;unit.checkpointHeld=null;
+    unit.checkpointAnchorPhase=null;unit.checkpointAnchorX=null;unit.checkpointAnchorY=null;
+    unit.checkpointFortified=false;unit.checkpointFacing=null;unit.checkpointFortificationPhase=null;
+    unit.checkpointFortificationLead=false;unit.checkpointFortificationRearLead=false;unit.checkpointFortificationFrontLead=false;
+    unit.checkpointCenterX=null;unit.checkpointCenterY=null;unit.checkpointSandbagRadius=null;
+    release(unit);return true;
+  }
   function releaseForMovement(){
     if(root.BadFodderCommands?.mode==='client')return false;
     let changed=false;
@@ -250,7 +260,7 @@
   }
   function install(){installButtons();installKeyboard();installMovementRelease();installCheckpointLock();patchArt();patchAdaptive()}
 
-  root.BadFodderGarrison={bindRuntime,toggleGarrison,regroup,release,releaseForMovement,selectedOne,selectedForMovement,lockCheckpointGarrisons,drawPersonalSandbags,patchArt,patchAdaptive,install};
+  root.BadFodderGarrison={bindRuntime,toggleGarrison,regroup,release,releaseCheckpoint,releaseForMovement,selectedOne,selectedForMovement,lockCheckpointGarrisons,drawPersonalSandbags,patchArt,patchAdaptive,install};
   chainProperty('BadFodderArt',patchArt);chainProperty('BadFodderAdaptive',patchAdaptive);
   if(root.document){if(root.document.readyState==='loading')root.document.addEventListener('DOMContentLoaded',install,{once:true});else install()}
 })(typeof window!=='undefined'?window:globalThis);
