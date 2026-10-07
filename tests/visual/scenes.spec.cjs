@@ -8,3 +8,12 @@ for(const [key,button] of [['bad-belzig','#menuMissionBad'],['wigan','#menuMissi
 });
 test('barcelona scenery actors and roster',async({page})=>{await prepare(page);await choose(page,'#menuMissionBarcelona');await page.locator('#briefingBegin').click();await page.waitForFunction(()=>window.__visual?.state().started&&!window.__visual.state().menuOpen&&window.__visual.state().actors===4);await page.evaluate(()=>window.__visual.freeze());expect(await page.evaluate(()=>window.__visual.state().faults)).toBe(0);await expect(page.locator('.viewport')).toHaveClass(/barcelona-mission/);await expect(page.locator('.hud-unit')).toHaveCount(4);});
 test('mobile HUD',async({browser})=>{const context=await browser.newContext({viewport:{width:915,height:412},hasTouch:true,isMobile:true,reducedMotion:'reduce',locale:'en-GB',colorScheme:'dark'});const page=await context.newPage();await prepare(page);await choose(page,'#menuMissionBad');await page.locator('#briefingBegin').click();await page.waitForFunction(()=>window.__visual?.state().started&&!window.__visual.state().menuOpen&&window.__visual.state().actors===4);await page.evaluate(()=>window.__visual.freeze());await expect(page.locator('.viewport')).toHaveScreenshot('mobile-hud.png');await context.close();});
+test('double-click releases selected checkpoint defenders',async({page})=>{
+ await prepare(page);await choose(page,'#menuMissionBad');await page.locator('#briefingBegin').click();
+ await page.waitForFunction(()=>window.__visual?.state().started&&!window.__visual.state().menuOpen);
+ await page.evaluate(()=>{window.__visual.freeze();for(const u of BadFodderCoopBridge.squad()){u.checkpointGarrison=0;u.checkpointCover=true;u.checkpointHeld=0;u.checkpointFortified=true;u.checkpointAnchorX=u.x;u.checkpointAnchorY=u.y;}});
+ const canvas=page.locator('#game');const box=await canvas.boundingBox();
+ await page.mouse.dblclick(box.x+box.width*.7,box.y+box.height*.7);
+ const released=await page.evaluate(()=>BadFodderCoopBridge.squad().map(u=>({cover:u.checkpointCover,phase:u.checkpointGarrison,held:u.checkpointHeld,fortified:u.checkpointFortified,exit:u.checkpointExitPhase,anchor:u.checkpointAnchorX})));
+ for(const unit of released)expect(unit).toEqual({cover:false,phase:null,held:null,fortified:false,exit:0,anchor:null});
+});

@@ -33,3 +33,11 @@ for(const name of ['bad-belzig','wigan','cable-street','barcelona']){
 const credits=JSON.parse(fs.readFileSync(path.join(root,'assets/audio/ambience/sources.json'),'utf8'));
 for(const key of ['wind','crowd','shot','boom'])assert.equal(credits[key].license,'CC0-1.0');
 console.log('PASS: all four mission ambience tracks, both codecs, offline packaging and source licences.');
+for(const name of ['occupation','barcelona','cable-street']){
+ const suffix='/assets/characters/enemies/'+name+'.webp';
+ const url=offlineAmbience.find(n=>n.endsWith(suffix));
+ assert(url,'Enemy atlas missing from offline production assets: '+name);
+ assert(fs.statSync(path.join(root,url)).size>50000,'Invalid enemy atlas: '+name);
+}
+assert(html.includes('/enemy-character-art.js'),'Enemy renderer is missing from the production page');
+console.log('PASS: painted enemy atlases and renderer packaged for offline play.');

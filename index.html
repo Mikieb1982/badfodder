@@ -554,6 +554,7 @@
 <script src="mission-identities.js?v=20261003-wartime-1"></script>
 <script src="painted-art.js?v=20261003-visual-2"></script>
 <script src="mission-character-art.js?v=20261003-visual-2"></script>
+<script src="enemy-character-art.js"></script>
 <script src="wartime-scenery.js?v=20261003-wartime-1"></script>
 <script src="building-art.js"></script>
 <script src="scenery-cache.js"></script>
@@ -2457,6 +2458,7 @@
     if(coopCommand('move',p))return;
     const units=selectedUnits();
     if(!units.length)return;
+    if(p.exitCheckpoint)units.forEach(u=>window.BadFodderGarrison?.releaseCheckpoint(u));
     units.forEach(u=>buildingRuntime?.exit(u));
 
     if(typeof missionInteractionLayer!=='undefined'&&missionInteractionLayer)units.forEach(s=>missionInteractionLayer.cancelJob('player-'+squad.indexOf(s)));
@@ -3514,6 +3516,14 @@
     }
   });
 
+  canvas.addEventListener('dblclick',evt=>{
+    if(evt.button!==0||evt.shiftKey||evt.altKey||evt.ctrlKey||evt.metaKey||!started||menuOpen||paused||mapOpen||finished)return;
+    evt.preventDefault();
+    const p=pointerWorld(evt);
+    setMoveTargets({...p,exitCheckpoint:true});
+    setStatus('Checkpoint released. Leave the circle to re-arm automatic sandbag defence.');
+  });
+
   canvas.addEventListener('pointerup',evt=>{
     if(evt.pointerType==='touch'){
       evt.preventDefault();
@@ -3775,6 +3785,7 @@
       return commands.apply(c.units,()=>{
         const units=selectedUnits();
         if(c.type==='move'){
+          if(c.exitCheckpoint)units.forEach(u=>window.BadFodderGarrison?.releaseCheckpoint(u));
           units.forEach((u,i)=>{window.BadFodderGarrison?.release(u);buildingRuntime?.exit(u);u.isFormationLeader=false;assignPath(u,Math.max(16,Math.min(WORLD_W-16,c.x+i*18)),Math.max(16,Math.min(WORLD_H-16,c.y+i*18)));});return true;
         }
         if(c.type==='fire')return squadFireAt(c.x,c.y);

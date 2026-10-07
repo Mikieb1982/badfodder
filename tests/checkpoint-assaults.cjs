@@ -95,3 +95,25 @@ baseScenario('rush',3,0);baseScenario('pincer',4,1);baseScenario('siege',5,2);
 }
 
 console.log('PASS: detailed three-row sandbags, tight outward defence, heavier aggressive checkpoint reinforcements and escalating final stand.');
+// A released defender stays free through repeated updates and reinforcement spawns.
+{
+  const fs=require('node:fs'),vm=require('node:vm');
+  const scope={setTimeout,clearTimeout,setInterval,clearInterval};scope.window=scope;
+  vm.runInNewContext(fs.readFileSync(require.resolve('../garrison-control.js'),'utf8'),scope);
+  const f=fixture({style:'rush',count:3,waves:[{style:'siege',count:6}],intermission:.3});
+  f.commander.maintain(1);const unit=f.squad[0],other=f.squad[1];
+  assert(scope.BadFodderGarrison.releaseCheckpoint(unit));
+  unit.path=[{x:650,y:500}];unit.target={x:650,y:500};
+  f.commander.maintain(1.1);f.commander.maintain(1.2);
+  assert.equal(unit.checkpointCover,false);assert.equal(unit.checkpointFortified,false);
+  assert(unit.path&&unit.target,'Released defender movement was cleared inside the circle');
+  assert(other.checkpointCover,'Releasing one defender released an unselected soldier');
+  f.enemies.forEach(e=>e.alive=false);f.commander.maintain(2);f.commander.maintain(3);
+  assert.equal(unit.checkpointGarrison,null,'Reinforcements recaptured a released defender');
+  unit.x=f.zone.x+f.zone.r+10;unit.y=f.zone.y;f.commander.maintain(3.1);
+  assert.equal(unit.checkpointExitPhase,null,'Leaving the circle did not re-arm entry');
+  assert.equal(unit.checkpointGarrison,null,'Defender outside the circle was captured');
+  unit.x=f.zone.x;f.commander.maintain(3.2);
+  assert.equal(unit.checkpointGarrison,f.phase.index);assert(unit.checkpointFortified,'Returning defender did not enter sandbags');
+}
+console.log('PASS: checkpoint release persists inside the circle and through reinforcements, then re-arms after exit and return.');

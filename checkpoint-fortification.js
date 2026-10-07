@@ -243,7 +243,7 @@
         if(group.length){commander.groups?.set(groupId,group);const target={x:zone.x+Math.cos(spec.targetAngle||0)*(spec.targetOffset||0),y:zone.y+Math.sin(spec.targetAngle||0)*(spec.targetOffset||0)};issue(group,spec.type||'PRESSURE',target,time,spec.delay||0)}
       });
       if(spawned){
-        for(const s of living)if(s.checkpointGarrison===phase.index||dist(s,zone)<=zone.r*1.2){s.checkpointGarrison=phase.index;s.checkpointCover=true}
+        for(const s of living)if(s.checkpointExitPhase!==phase.index&&(s.checkpointGarrison===phase.index||dist(s,zone)<=zone.r)){s.checkpointGarrison=phase.index;s.checkpointCover=true}
       }
       return spawned;
     }
