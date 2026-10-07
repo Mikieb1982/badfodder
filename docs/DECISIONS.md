@@ -358,3 +358,78 @@ Reason:
 The civilian side of the mission needs at least one recognisable person so losses and successful protection are not represented only by counters.
 
 Status: ACTIVE
+
+---
+
+## 7 October 2026 - Wigan detailed playable structure
+
+Decision:
+Retain Arthur, Elsie, Tom and George and preserve the existing Tudor House, Grand Arcade and Wallgate combat anchors.
+
+The playable structure is:
+
+1. Break the Tudor / New Market Street position and connect the first local group.
+2. Reach the Bus Station and Market Place groups in flexible order.
+3. Establish Grand Arcade as the central rally point and survive the existing pincer attack.
+4. Respond when the enemy cuts the newly formed network.
+5. Optionally connect King Street and its existing supply cache while reopening the centre.
+6. Use the connected groups in supporting roles during a coordinated advance.
+7. Break the Wallgate / North Western barrier and reconnect the isolated railway group.
+8. End with an aftermath showing formerly separated groups in physical contact.
+
+Reason:
+This converts the current three-point combat progression into a story about building solidarity while preserving the existing town map and successful combat work.
+
+Status: ACTIVE
+
+---
+
+## 7 October 2026 - Wigan connections provide capabilities
+
+Decision:
+Connected groups do not award abstract solidarity points.
+
+Their practical contributions are:
+
+- Tudor / New Market Street: first rally and rear route
+- Bus Station: civilian movement and route support
+- Market Place: lookouts and attack-direction information
+- King Street: existing supplies and limited volunteer support
+- Railway group: final connection and mission payoff
+
+Reason:
+The player should experience solidarity through useful people doing useful things, not through a visible faction meter.
+
+Status: ACTIVE
+
+---
+
+## 7 October 2026 - Wigan network disruption and split squad
+
+Decision:
+After the Grand Arcade connection, the enemy attempts to cut the local network. The player can reopen the route and optionally connect King Street.
+
+Split-squad play is encouraged where useful but is never mandatory. A single-player squad must be able to solve the same problems sequentially without an unfair hidden timer.
+
+Losing or disrupting a connection changes support rather than automatically failing the mission.
+
+Reason:
+Wigan's dramatic question is whether separated people can reconnect and remain coordinated. The setback should attack that network directly.
+
+Status: ACTIVE
+
+---
+
+## 7 October 2026 - Wigan final operation
+
+Decision:
+The Wallgate / North Western finale is a coordinated local operation to reopen the final physical break in the resistance network and reach the isolated railway workers.
+
+Connected groups automatically perform supporting jobs while the playable squad remains the mobile element. The player does not gain RTS-style control over a local army.
+
+Earlier group connections alter information, civilian routing, supplies and limited support rather than enemy hit points.
+
+Reason:
+The ending should pay off the mission's solidarity theme and show that the four playable characters enabled collective action rather than winning the town alone.
+
+Status: ACTIVE
