@@ -168,7 +168,7 @@
       return;
     }
     const civCounts=env.civilianRuntime?.counts();
-    if(env.barcelonaRuntime){const totals=env.barcelonaRuntime.summary(),ammo=env.barcelonaRuntime.ammoStatus(env.selectedUnits());document.getElementById('hudInstruction').hidden=false;document.getElementById('hudInstruction').textContent='AMMO '+ammo.total+(ammo.level==='READY'?'':' · '+ammo.level)+' · ALLIES '+totals.allies+(totals.civiliansFound?' · SAFE '+totals.civiliansRescued+'/'+totals.civiliansFound+' · LOST '+totals.civiliansLost:'')+' · BARRICADE '+totals.barrier+'/90 · E / ACTION';}
+    if(env.barcelonaRuntime){const instruction=document.getElementById('hudInstruction');instruction.hidden=false;const ammo=env.barcelonaRuntime.ammoStatus(env.selectedUnits());instruction.textContent=env.barcelonaRuntime.guidance().text+(['LOW','CRITICAL','EMPTY'].includes(ammo.level)?' '+ammo.level+' AMMO: '+ammo.total+'.':'');}
     if(!env.barcelonaRuntime)document.getElementById('hudInstruction').hidden=!civCounts?.total;
     if(civCounts?.total&&!env.barcelonaRuntime)document.getElementById('hudInstruction').textContent='CIVILIANS '+civCounts.evacuated+'/'+civCounts.total+' SAFE · '+civCounts.lost+' LOST · E / ACTION: gather or hide';
     env.hudEnemyLabel.textContent='TARGETS';

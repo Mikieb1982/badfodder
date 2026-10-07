@@ -25,7 +25,7 @@ const missions=[
   {id:'barcelona-1936',title:'Barcelona',location:'Barcelona',country:'Spain',date:'1936-07-19',scenario:'historical',status:'playable',map:'barcelona',squadSize:4,playable:true,chapter:4,order:4,coop:false,actionProfile:{firearms:true,grenades:true,contextualActions:[]},
    phases:[
     {id:'opening',type:'REACH',zone:'junction',eventDriven:true,title:'REACH THE RAMBLA JUNCTION',brief:'Meet your neighbours at the Catalunya approach. Gunfire carries across the city.'},
-    {id:'patrol',type:'CLEAR',zone:'patrol',defenderGroup:'patrol',title:'GET THROUGH THE PATROL',brief:'Keep to cover. Your neighbours are helping. Reach the printer for rifles.'},
+    {id:'patrol',type:'CLEAR',zone:'patrol',defenderGroup:'patrol',title:'GET RIFLES AND STOP THE PATROL',brief:'Follow NEXT to the printer on the left. E / ACTION equips all four. Then right-click / FIRE to stop the two troops.'},
     {id:'acquire-weapons',type:'INTERACT',zone:'contact',title:'ACQUIRE RIFLES',brief:'Meet the resistance contact outside the printer. E / ACTION: take rifles.'},
     {id:'reach-barricade',type:'REACH',zone:'barricade',title:'REACH THE BARRICADE',brief:'Return to the Rambla approach and cover the side passages.'},
     {id:'build-barricade',type:'INTERACT',zone:'barricade',title:'REINFORCE THE BARRICADE',brief:'Take two loads from nearby material piles. E / ACTION: carry, then reinforce.'},

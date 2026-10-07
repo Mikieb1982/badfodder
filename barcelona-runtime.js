@@ -21,7 +21,7 @@ function create({map,objectives,getSquad,getEnemies,navigation,spawn,scale=1,spa
  function hint(unit){
   if(!unit?.alive||unit.downed)return'';
   const id=active()?.id,contact=point(map.zones.contact);
-  if((id==='acquire-weapons'||armed&&supplyLoads>0&&getSquad().some(s=>s.alive&&(s.ammo||0)<45))&&near(unit,contact,50))return armed?'RESUPPLY':'TAKE RIFLES';
+  if((['patrol','acquire-weapons'].includes(id)&&!armed||armed&&supplyLoads>0&&getSquad().some(s=>s.alive&&(s.ammo||0)<45))&&near(unit,contact,50))return armed?'RESUPPLY':'TAKE RIFLES';
   if(['build-barricade','hold-barricade','recovery','reach-civilians','escort-civilians','second-route','hold-east'].includes(id)){
    if(near(unit,barrier,68)&&carry===getSquad().indexOf(unit)&&barrier.integrity<barrier.maxIntegrity)return'REINFORCE';
    if(near(unit,barrier,68)&&carry!==null&&carry!==getSquad().indexOf(unit))return'MATERIALS WITH '+getSquad()[carry]?.name;
@@ -36,9 +36,9 @@ function create({map,objectives,getSquad,getEnemies,navigation,spawn,scale=1,spa
    getSquad().filter(s=>s.alive).forEach(s=>{s.weapon='mauser';s.ammo=armed?Math.min(90,(s.ammo||0)+45):Math.max(s.ammo||0,60);s.equipmentManaged=true});
    if(armed){supplyLoads--;status('Printer: These are the last spare cartridges. Make them count.')}else{armed=true;setGrenades(2);objectives.signal('acquire-weapons');status('Neighbour: Rifles are here. Help us hold the Rambla approach.')}cooldown=.8;return true;
   }
-  if(action==='TAKE MATERIAL'){const p=materialPoints.find(p=>p.supplies>0&&near(unit,p,45));p.supplies--;carry=index;cooldown=.35;status('Carry the timber and sacks to the barricade.');return true}
+  if(action==='TAKE MATERIAL'){const p=materialPoints.find(p=>p.supplies>0&&near(unit,p,45));p.supplies--;carry=index;cooldown=.35;status('Material collected. Follow NEXT to the barricade and press E / ACTION to build.');return true}
   if(action==='DROP MATERIAL'){carry=null;const p=materialPoints.find(p=>near(unit,p,45))||materialPoints[0];p.supplies++;return true}
-  if(action==='REINFORCE'){B.reinforceBarricade(barrier,30,{tierIncrease:1});carry=null;builds++;geometry();cooldown=.35;sound('build');status('Barricade reinforced. Use the side passages and garrison to cover both approaches.');return true}
+  if(action==='REINFORCE'){B.reinforceBarricade(barrier,30,{tierIncrease:1});carry=null;builds++;geometry();cooldown=.35;sound('build');status('Barricade built: '+Math.min(2,builds)+'/2 loads. '+(builds<2?'Collect one more load.':'Ready. Stay behind it and cover the approach.'));return true}
   return false;
  }
  function damage(amount){const before=barrier.breached;B.damageBarricade(barrier,amount);geometry();if(!before&&barrier.breached){status('BARRICADE BREACHED. Repair it or hold the street behind it.');recovery=8}return barrier.integrity}
@@ -47,7 +47,7 @@ function create({map,objectives,getSquad,getEnemies,navigation,spawn,scale=1,spa
   timer=0;secure=0;previous=id;status(active()?.brief||active()?.text||active()?.title||'');
   if(id==='hold-barricade')nextArrival=delay(map.assaultGroups[wave]);
   if(id==='hold-east')nextArrival=delay(map.easternGroups[eastWave]);
-  if(id==='patrol'){getEnemies().forEach(e=>{e.missionDormant=false});sound('distant');status('Joan: Army troops at the square. Keep to cover.')}
+  if(id==='patrol'){getEnemies().forEach(e=>{e.missionDormant=false});sound('distant');status('Rifles first: move to the printer on the left and press E / ACTION. Your neighbours cover you.')}
   if(id==='recovery'){firstRouteHeld=true;recovery=16;status('The first column has pulled back. Help the wounded. '+(supplyLoads?'Spare cartridges remain at the printer.':'The reserve is spent; conserve cartridges.'))}
   if(id==='reach-civilians'&&!residentsFound){spawnResidents();residentsFound=true;objectives.manager.activate('evacuate-residents');status('Isabel: Families are trapped beside Santa Anna. Get them to the western shelter.')}
   if(id==='second-route'){recovery=Math.max(recovery,8);reposition(map.resistance.eastern);status('SECOND COLUMN APPROACHING from Portal de l’Àngel. Cover the eastern crossing.')}
@@ -69,7 +69,8 @@ function create({map,objectives,getSquad,getEnemies,navigation,spawn,scale=1,spa
   if(!id)return;
   timer+=dt;
   if(id==='opening'&&openingShots<2&&clock>=(openingShots+1)*4){openingShots++;sound('distant');status(openingShots===1?'Joan: Shots from the square. Stay close to the others.':'Isabel: Troops are moving down from Catalunya. Find cover.')}
-  if(id==='opening'&&clock>=12&&living.some(s=>near(s,point(map.zones.junction),map.zones.junction.r)))objectives.signal('opening');
+  if(id==='opening'&&living.some(s=>near(s,point(map.zones.junction),map.zones.junction.r)))objectives.signal('opening');
+  if(id==='acquire-weapons'&&armed)objectives.signal(id);
   if(id==='acquire-weapons'&&getEnemies().filter(hostile).length===0)recovery=Math.max(recovery,2);
   if(id==='build-barricade'&&builds>=2&&barrier.integrity>=60)objectives.signal('build-barricade');
   // A completed withdrawal is a valid outcome, not a hidden kill requirement.
@@ -105,6 +106,37 @@ function create({map,objectives,getSquad,getEnemies,navigation,spawn,scale=1,spa
   secure=(east?eastWave:wave)===groups.length&&remaining.length===0&&holding?secure+dt:0;
   if(secure>=6)objectives.signal(id);
  }
+ function guidance(){
+  const id=active()?.id,living=getSquad().filter(s=>s.alive&&!s.downed),leader=living[0];
+  const zone=name=>({...point(map.zones[name]),r:map.zones[name].r*scale});
+  const patrol=getEnemies().filter(e=>hostile(e)&&e.objectiveGroup==='patrol');
+  const residents=getResidents(),safe=residents.filter(c=>c.civilianState==='EVACUATED').length;
+  const actions=living.map(u=>hint(u)),available=actions.find(a=>['TAKE RIFLES','TAKE MATERIAL','REINFORCE'].includes(a));
+  let target=null,text='',label='NEXT';
+  switch(id){
+   case 'opening':target=zone('junction');text='Move north to NEXT. Click / tap the street to move all four neighbours.';break;
+   case 'patrol':
+    if(!armed){target=zone('contact');label='RIFLES';text='Get rifles first: follow NEXT to the printer on the left. Press E / ACTION.';}
+    else{target=patrol[0]||zone('patrol');label='PATROL';text='Stop the patrol: '+patrol.length+' left. Right-click / FIRE to shoot. Your neighbours help.';}break;
+   case 'acquire-weapons':target=zone('contact');label='RIFLES';text='Move to the printer contact. Press E / ACTION to equip everyone with rifles.';break;
+   case 'reach-barricade':target=zone('barricade');label='BARRICADE';text='Follow NEXT south to the barricade site. Keep the squad together.';break;
+   case 'build-barricade':{
+    if(carry!==null){target={...barrier,r:68*scale};label='BUILD';text=getSquad()[carry]?.name+' carries a load. Move to NEXT, then E / ACTION to build. '+Math.min(2,builds)+'/2 built.';}
+    else{const piles=materialPoints.filter(p=>p.supplies>0);target=piles.reduce((best,p)=>!best||leader&&Math.hypot(p.x-leader.x,p.y-leader.y)<Math.hypot(best.x-leader.x,best.y-leader.y)?p:best,null);label='MATERIAL';text='Build '+Math.min(2,builds)+'/2: follow NEXT to a material pile. E / ACTION to pick up.';}break;}
+   case 'hold-barricade':case 'hold-east':{
+    const east=id==='hold-east',count=east?eastWave:wave,total=(east?map.easternGroups:map.assaultGroups).length;
+    target=east?zone('eastern'):{...barrier,r:90*scale};label='HOLD';text='Stay near NEXT and shoot attackers. Wave '+Math.min(total,count+1)+'/'+total+' · '+getEnemies().filter(hostile).length+' attackers left.';if(count===total&&!getEnemies().some(hostile))text='Attack stopped. Hold this position: '+Math.max(0,Math.ceil(6-secure))+' seconds.';break;}
+   case 'recovery':target={...barrier,r:90*scale};label='REGROUP';text='Breather: '+Math.max(0,Math.ceil(recovery))+' seconds. Help wounded with E / ACTION; spare ammo at the printer.';break;
+   case 'reach-civilians':target=zone('residents');label='FAMILIES';text='Follow NEXT east to the families. Press E / ACTION beside them to gather the group.';break;
+   case 'escort-civilians':{
+    const waiting=residents.find(c=>c.alive&&c.civilianState!=='EVACUATED'&&c.civilianState!=='FOLLOWING');
+    target=waiting||zone('safe');label=waiting?'GATHER':'SHELTER';text=waiting?'Return to NEXT and E / ACTION to gather residents. '+safe+'/'+residents.length+' safe.':'Lead the families to NEXT at the western shelter. Walk together; wait if they fall behind. '+safe+'/'+residents.length+' safe.';break;}
+   case 'second-route':target=zone('eastern');label='EAST CROSSING';text='Follow NEXT to the eastern crossing. The resistance is moving there to help.';break;
+   case 'counterattack':target=zone('advance');label='FINAL JUNCTION';text='Follow NEXT north to the final junction. Clear nearby troops, then hold for '+Math.max(0,Math.ceil(6-secure))+' seconds.';break;
+  }
+  if(available)text='E / ACTION: '+available+'. '+text;
+  return{target:target?{...target,r:target.r||28*scale}:null,text,label};
+ }
  function directorContext(){const squad=getSquad(),playerStrength=squad.reduce((n,s)=>n+(s.alive?Math.max(0,s.hp)/s.maxHp:0),0)/Math.max(1,squad.length),friendlyStrength=allies.reduce((n,u)=>n+(u.alive?Math.max(0,u.hp)/u.maxHp:0),0)/Math.max(1,allies.length);return{strength:.85*playerStrength+.15*friendlyStrength,ammo:Math.min(1,getSquad().reduce((n,s)=>n+(s.alive&&!s.downed?(s.ammo||0):0),0)/Math.max(1,getSquad().filter(s=>s.alive&&!s.downed).length*45)),barricadeRatio:barrier.integrity/barrier.maxIntegrity,breach:barrier.breached&&['hold-barricade','hold-east'].includes(active()?.id),friendlyStrength,civilianDanger:getResidents().filter(c=>c.alive&&c.civilianState!=='EVACUATED').length/6,objectiveProgress:secondRouteHeld?1:firstRouteHeld ? .5 : 0,climax:active()?.id==='hold-east'&&eastWave>=1}}
  function ammoStatus(units=getSquad()){
   const available=units.filter(s=>s.alive&&!s.downed&&s.weapon),total=getSquad().reduce((n,s)=>n+(s.alive?(s.ammo||0):0),0);
@@ -123,7 +155,7 @@ function create({map,objectives,getSquad,getEnemies,navigation,spawn,scale=1,spa
  function dispose(){navigation.removeDynamicObstacle(barrier.id)}
  getSquad().forEach((s,i)=>{s.weapon=i===0?'pistol':null;s.ammo=i===0?18:0;s.equipmentManaged=true});
  getEnemies().forEach(e=>{e.missionDormant=true});setGrenades(0);
- return{barrier,materialPoints,allies,ammoStatus,onDirectorDecision,hint,interact,update,damage,hit,directorContext,canDirect,summary,dispose,get carrying(){return carry},get armed(){return armed},get stage(){return{wave,eastWave,clock,recovery,breachTime,rescueAttack,rearguard,nextArrival}}};
+ return{barrier,materialPoints,allies,guidance,ammoStatus,onDirectorDecision,hint,interact,update,damage,hit,directorContext,canDirect,summary,dispose,get carrying(){return carry},get armed(){return armed},get stage(){return{wave,eastWave,clock,recovery,breachTime,rescueAttack,rearguard,nextArrival}}};
 }
 return{create};
 });

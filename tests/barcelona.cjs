@@ -32,7 +32,7 @@ for(const p of [...Object.values(Map.zones),...Map.barricade.materials,...Map.sp
  const actor={x:start.x,y:start.y};assert(f.navigation.assignPath(actor,p.x*2,p.y*2));for(let i=0;i<2500&&actor.path;i++)f.navigation.followPath(actor,185,1/30);assert(!actor.path,'Path remains stuck');assert(Math.hypot(actor.x-p.x*2,actor.y-p.y*2)<35,'Route ends too far away');
 }
 assert.equal(f.grenades,0);assert.deepEqual(f.squad.map(s=>s.weapon),['pistol',null,null,null]);assert.deepEqual(f.squad.map(s=>s.ammo),[18,0,0,0]);assert(f.enemies.every(e=>e.missionDormant));
-assert.equal(f.objectives.manager.current().id,'opening');f.at(Map.zones.junction);f.tick(11);assert.equal(f.objectives.manager.current().id,'opening');f.tick(1);assert.equal(f.objectives.manager.current().id,'patrol');f.tick(.1);assert(f.enemies.every(e=>!e.missionDormant));
+assert.equal(f.objectives.manager.current().id,'opening');f.at(Map.zones.junction);f.tick(.1);assert.equal(f.objectives.manager.current().id,'patrol');f.tick(.1);assert(f.enemies.every(e=>!e.missionDormant));
 f.enemies[0].alive=false;f.enemies[1].surrendered=true;f.tick(.1);assert.equal(f.objectives.manager.current().id,'acquire-weapons','Surrender blocks neither patrol nor defence');
 f.at(Map.zones.contact);assert.equal(f.runtime.hint(f.squad[0]),'TAKE RIFLES');assert(f.runtime.interact(f.squad[0]));f.tick(1);assert(f.squad.every(s=>s.weapon==='mauser'&&s.ammo===60));assert.equal(f.grenades,2);assert.equal(f.objectives.manager.current().id,'reach-barricade');
 f.at(Map.zones.barricade);f.tick(.1);assert.equal(f.objectives.manager.current().id,'build-barricade');
@@ -114,3 +114,11 @@ const northEntry=fixture();northEntry.objectives.syncPhase(5);northEntry.at(Map.
 
 require('./barcelona-characters.cjs');
 
+
+// Persistent guidance resolves the exact material/action target, and rifles are available before clearing the patrol.
+const guided=fixture();assert(guided.runtime.guidance().text.includes('Click / tap'));
+guided.at(Map.zones.junction);guided.tick(.1);guided.tick(.1);assert.equal(guided.runtime.guidance().label,'RIFLES');
+guided.at(Map.zones.contact);assert(guided.runtime.interact(guided.squad[0]));assert(guided.squad.every(s=>s.weapon==='mauser'));assert.equal(guided.runtime.guidance().label,'PATROL');
+guided.enemies.forEach(e=>e.surrendered=true);guided.tick(.1);guided.tick(.1);assert.equal(guided.objectives.manager.current().id,'reach-barricade','Early rifles cannot leave the interact objective stuck');
+guided.at(Map.zones.barricade);guided.tick(.1);assert.equal(guided.runtime.guidance().label,'MATERIAL');guided.at(Map.barricade.materials[0]);guided.tick(1);assert(guided.runtime.interact(guided.squad[0]));assert.equal(guided.runtime.guidance().label,'BUILD');assert(guided.runtime.guidance().text.includes('0/2'));
+console.log('PASS: immediate opening, persistent instructions, early rifles, nearest material and carrier delivery guidance.');
