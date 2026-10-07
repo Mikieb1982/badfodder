@@ -107,9 +107,10 @@ const renderCalls=[];const canvas=new Proxy({measureText:text=>({width:text.leng
 for(const [i,b] of Map.buildings.entries()){const points=b.points.map(p=>p.map(v=>v*2));artScope.BadFodderBarcelonaArt.building(canvas,{...b,i,points,minX:Math.min(...points.map(p=>p[0])),maxX:Math.max(...points.map(p=>p[0])),minY:Math.min(...points.map(p=>p[1])),maxY:Math.max(...points.map(p=>p[1]))},v=>v*2)}
 for(const r of Map.roads)artScope.BadFodderBarcelonaArt.road(canvas,{...r,points:r.points.map(p=>p.map(v=>v*2))},v=>v*2);
 artScope.BadFodderBarcelonaArt.scenery(canvas,Map,v=>v*2);
-for(const [integrity,constructionTier,label] of [[0,0,'BARRICADE SITE'],[60,2,'BARRICADE 60 / 90'],[0,2,'BREACHED']]){renderCalls.length=0;artScope.BadFodderBarcelonaArt.defence(canvas,{barrier:{x:690,y:1256,integrity,constructionTier,maxIntegrity:90},materialPoints:[]},v=>v*2);assert(renderCalls.some(c=>c[0]==='fillText'&&c[1].includes(label)),label);if(!integrity)assert(!renderCalls.some(c=>c[0]==='fillRect'&&c[1]===626&&c[3]===128),'Unbuilt/breached barrier must not show the intact crossbeam')}
+for(const [integrity,constructionTier,label] of [[0,0,'BARRICADE SITE'],[30,1,'BARRICADE 30 / 90'],[60,2,'BARRICADE 60 / 90'],[90,3,'BARRICADE 90 / 90'],[20,3,'BARRICADE 20 / 90'],[0,2,'BREACHED']]){renderCalls.length=0;artScope.BadFodderBarcelonaArt.defence(canvas,{barrier:{x:690,y:1256,integrity,constructionTier,maxIntegrity:90},materialPoints:[]},v=>v*2);assert(renderCalls.some(c=>c[0]==='fillText'&&c[1].includes(label)),label);if(!integrity)assert(!renderCalls.some(c=>c[0]==='fillRect'&&c[1]===626&&c[3]===128),'Unbuilt/breached barrier must not show the intact crossbeam')}
 console.log('PASS: Barcelona architecture/streets/scenery draw with finite coordinates; unbuilt, intact and breached barricades are distinct; full-barrier material release.');
 
 const northEntry=fixture();northEntry.objectives.syncPhase(5);northEntry.at(Map.zones.barricade);northEntry.allowed=p=>p.y<400;northEntry.tick(10);assert.equal(northEntry.runtime.stage.wave,1);assert.deepEqual(northEntry.attacks[0].positions,Map.assaultGroups[0].alternatePositions);
 
 require('./barcelona-characters.cjs');
+
