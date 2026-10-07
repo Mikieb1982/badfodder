@@ -59,7 +59,7 @@
   art.paintedReady=false;
   art.paintedAssets={};
   art.hasPainted=key=>!!images[key];
-  art.preloadPainted=(theme)=>loading||(loading=Promise.all(((theme==='wigan'||theme==='cable-street')?[...keys,'urban']:keys).map(key=>new Promise(resolve=>{
+  art.preloadPainted=(theme)=>loading||(loading=Promise.all(((theme==='wigan'||theme==='cable-street'||theme==='barcelona')?[...keys,'urban']:keys).map(key=>new Promise(resolve=>{
     const image=new Image();image.decoding='async';let settled=false;
     const finish=ok=>{if(settled)return;settled=true;clearTimeout(timer);if(ok)images[key]=image;resolve(ok)};
     const timer=setTimeout(()=>finish(false),8000);
@@ -67,7 +67,7 @@
     image.onerror=()=>finish(false);
     const src=key==='urban'?'assets/wigan/materials.webp':'assets/painted/'+key+'.webp';image.src=window.BadFodderAssetUrl?.(src)||src;
   }))).then(results=>{
-    const requested=(theme==='wigan'||theme==='cable-street')?[...keys,'urban']:keys;
+    const requested=(theme==='wigan'||theme==='cable-street'||theme==='barcelona')?[...keys,'urban']:keys;
     requested.forEach((key,i)=>{art.paintedAssets[key]=!!results[i]});
     prepareCostumes();
     art.paintedReady=!!images.materials;

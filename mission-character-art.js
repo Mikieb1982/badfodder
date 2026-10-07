@@ -8,8 +8,11 @@ const previous=art.drawActor,cache=new Map(),portraits=new Map(),assets=new Map(
 let mission='belzig';
 const sets=Object.fromEntries(['cable-street','wigan','belzig'].map((key,row)=>[key,{sprites:'assets/characters/'+key+'.webp',portraits:'assets/characters/portraits-1936-1945.webp',portraitRow:row}]));
 const frames={"cable-street":[[[51,18,110,226],[229,18,119,227],[413,18,136,217],[612,18,128,226],[819,17,99,228],[1013,17,113,226],[1179,16,141,222],[1371,18,115,225]],[[50,263,96,239],[239,262,108,239],[420,259,125,238],[616,262,117,238],[816,264,102,232],[1014,264,106,236],[1185,262,125,238],[1375,264,107,236]],[[53,516,101,252],[232,516,122,252],[416,516,133,252],[614,517,121,251],[818,516,93,252],[1011,516,113,252],[1181,516,135,252],[1373,518,115,250]],[[43,768,111,235],[225,768,126,234],[407,768,151,230],[619,768,127,234],[818,768,105,229],[1002,768,128,232],[1177,768,149,230],[1369,768,127,232]]],"wigan":[[[45,26,147,222],[192,26,192,220],[384,24,192,216],[576,24,175,223],[786,24,140,221],[967,26,146,220],[1171,23,129,222],[1366,25,137,220]],[[45,264,147,237],[192,267,192,232],[384,263,192,232],[576,264,169,237],[783,271,134,228],[962,264,145,237],[1170,266,132,235],[1365,267,133,234]],[[47,522,145,246],[192,522,192,246],[384,518,192,250],[576,520,170,248],[773,522,153,246],[961,523,152,245],[1168,521,135,247],[1364,522,136,246]],[[41,768,151,232],[192,768,192,232],[384,768,192,225],[576,768,180,233],[774,768,164,231],[965,768,161,235],[1161,768,154,232],[1353,768,156,233]]],"belzig":[[[30,25,162,231],[192,28,186,228],[415,29,151,220],[612,28,129,228],[788,27,139,225],[986,28,134,226],[1182,27,130,221],[1367,26,140,230]],[[27,256,158,254],[227,270,154,239],[412,272,147,228],[615,256,122,254],[783,271,142,233],[984,273,141,231],[1170,270,144,232],[1372,270,139,240]],[[31,518,161,250],[192,519,192,249],[384,522,190,246],[609,521,124,247],[784,521,154,247],[988,522,136,246],[1190,522,116,246],[1364,521,149,247]],[[28,768,160,234],[226,768,147,233],[413,768,136,224],[604,768,134,234],[781,768,146,233],[981,768,135,231],[1173,768,141,225],[1375,768,128,234]]]};
-// Barcelona uses the shared illustrated costume cache for every actor and portrait.
-sets.barcelona={};
+// Authored painted Barcelona art uses the same distance-driven gait as the other missions.
+sets.barcelona={sprites:'assets/characters/barcelona-illustrated.webp'};
+frames.barcelona=[[[31,20,65,128],[153,18,77,130],[279,19,82,129],[411,19,73,129],[543,20,65,128],[669,19,70,129],[791,21,82,127],[925,22,69,126]],[[31,178,66,130],[155,178,74,130],[279,179,81,129],[413,177,69,131],[546,180,59,128],[668,178,71,130],[794,180,76,128],[924,179,72,129]],[[25,332,77,136],[148,335,87,133],[271,335,97,133],[405,333,86,135],[539,335,73,133],[664,334,79,134],[785,339,94,129],[922,335,75,133]],[[31,508,65,120],[155,505,73,123],[282,507,75,121],[415,505,66,123],[545,505,62,123],[672,506,63,122],[795,505,73,123],[927,506,65,122]]];
+frames.barcelonaArmed=[[[12,671,103,117],[139,669,106,119],[270,673,100,115],[404,672,88,116],[524,672,104,116],[655,669,97,119],[790,672,84,116],[916,668,88,120]],[[11,835,105,113],[140,835,103,113],[270,839,100,109],[406,832,83,116],[527,835,98,113],[653,835,101,113],[793,834,77,114],[917,835,86,113]],[[11,977,106,131],[138,976,107,132],[262,974,116,134],[406,977,84,131],[524,977,103,131],[649,979,110,129],[783,982,97,126],[919,976,82,132]],[[18,1152,92,116],[146,1155,91,113],[276,1155,87,113],[402,1153,92,115],[535,1154,82,114],[661,1155,86,113],[789,1154,85,114],[922,1155,75,113]]];
+let barcelonaEnemies=null;
 const pending=new Map();
 const canvas=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c;};
 function ellipse(g,x,y,rx,ry,fill){g.fillStyle=fill;g.beginPath();g.ellipse(x,y,rx,ry,0,0,Math.PI*2);g.fill();}
@@ -98,7 +101,8 @@ art.missionAssetSets=sets;
 art.preloadMissionArt=key=>{const id=identities.get(key).key;if(pending.has(id))return pending.get(id);
  const task=Promise.all(['sprites','portraits'].map(kind=>new Promise(resolve=>{const src=sets[id]?.[kind];if(!src)return resolve(false);const image=new Image();let done=false;const finish=ok=>{if(done)return;done=true;clearTimeout(timer);if(ok&&image.naturalWidth>0){assets.set(id+'/'+kind,image);portraits.clear();}resolve(ok);};const timer=setTimeout(()=>finish(false),4000);image.onload=()=>finish(true);image.onerror=()=>finish(false);image.src=window.BadFodderAssetUrl?.(src)||src;})));
  const ready=id==='barcelona'?task.then(result=>{
- // Prime the bounded pose cache during mission loading, including rifle acquisition.
+ if(assets.has(id+'/sprites')){barcelonaEnemies=barcelonaEnemyAtlas(assets.get(id+'/sprites'));return result;}
+ // Prime fallback poses only when the painted asset is unavailable.
  for(const team of ['squad','resistance','civilian','enemy'])for(let index=0;index<4;index++){
   const base=identities.skin(id,team,index),weapons=team==='squad'?[null,'pistol','mauser']:[base.weapon];
   for(const weapon of weapons)for(let dir=0;dir<8;dir++)for(let step=0;step<8;step++)sprite({...base,illustratedMotion:true,weapon},dir,step);
@@ -108,12 +112,19 @@ art.preloadMissionArt=key=>{const id=identities.get(key).key;if(pending.has(id))
  pending.set(id,ready);return ready;
 };
 // Shared distance-driven gait animates the painted legs, retaining the source's proportions.
-function paintedBody(g,atlas,key,index,dir,phase,moving){
- const row=frames[key][index],f=row[dir],scale=43/Math.max(...row.map(r=>r[3]));
+function paintedBody(g,atlas,key,index,dir,phase,moving,rowOverride=null,referenceHeight=0){
+ const row=rowOverride||frames[key][index],f=row[dir],scale=43/(referenceHeight||Math.max(...row.map(r=>r[3])));
  const [sx,sy,sw,sh]=f,w=sw*scale,h=sh*scale,split=Math.floor(sh*.75),leg=sh-split,half=Math.floor(sw/2),stride=moving?Math.sin(phase)*1.25:0;
  g.drawImage(atlas,sx,sy,sw,split,-w/2,-h,w,split*scale);
  g.drawImage(atlas,sx,sy+split,half,leg,-w/2,-leg*scale+stride,half*scale,leg*scale);
  g.drawImage(atlas,sx+half,sy+split,sw-half,leg,-w/2+half*scale,-leg*scale-stride,(sw-half)*scale,leg*scale);
+}
+// Cache the rebel uniform tint once, retaining the authored facial and fabric detail.
+function barcelonaEnemyAtlas(atlas){
+ const c=canvas(atlas.naturalWidth,atlas.naturalHeight),g=c.getContext('2d');g.drawImage(atlas,0,0);
+ g.globalCompositeOperation='source-atop';g.globalAlpha=.58;g.fillStyle='#817b52';
+ for(const row of [...frames.barcelona,...frames.barcelonaArmed])for(const[x,y,w,h]of row){g.fillRect(x,y+h*.31,w,h*.6);g.fillRect(x,y,w,h*.17);}
+ return c;
 }
 // Crowd variants reuse the volunteers' painted silhouettes and fabric detail.
 // Only clothing is tinted; faces, hands, headwear and transparent edges stay intact.
@@ -137,7 +148,8 @@ art.drawActor=(g,ent,team='squad')=>{
  const barcelonaNPC=mission==='barcelona',streetNPC=mission==='cable-street'&&(team==='civilian'||ent.periodRole);
  if(!identities.missions[mission]||(!barcelonaNPC&&!streetNPC&&(team==='civilian'||ent.periodRole)&&ent.identityRole!=='squad'))return previous(g,ent,team);
  const v=art.pose(ent),s=descriptor(ent,team),dir=v.dir??0,moving=v.moving||/walk|run/.test(v.state),step=moving?Math.round((v.phase||0)/(Math.PI/4))%8:0;
- let atlas=(ent.identityRole==='squad'||team==='squad'||streetNPC)?assets.get(mission+'/sprites'):null;
+ let atlas=(barcelonaNPC||ent.identityRole==='squad'||team==='squad'||streetNPC)?assets.get(mission+'/sprites'):null;
+ if(barcelonaNPC&&team==='enemy'&&atlas)atlas=barcelonaEnemies||atlas;
  if(atlas&&streetNPC&&ent.identityRole!=='squad')atlas=ent.periodRole?roleAtlas(atlas,ent.periodRole):crowdAtlas(atlas,ent.variant);
  g.save();ellipse(g,ent.x,ent.y+2,9,3,'#17251f50');g.translate(ent.x,ent.y);
  if(v.state==='dead'||mission==='barcelona'&&ent.downed){if(s.enemyDetail)g.globalAlpha=.68;g.rotate((mission==='barcelona'&&ent.downed?1:Math.min(1,(v.death||0)/.24))*1.45);g.scale(1,.8);}
@@ -148,7 +160,7 @@ art.drawActor=(g,ent,team='squad')=>{
  }
  if(atlas){
   const index=streetNPC&&ent.periodRole?(ent.periodRole==='police'?2:0):Math.abs(ent.variant||0)%4;
-  paintedBody(g,atlas,mission,index,dir,v.phase||0,moving);
+  if(barcelonaNPC){const slot=team==='enemy'?[0,2,0,2][index]:index,armed=!!s.weapon&&s.weapon!=='pistol',row=(armed?frames.barcelonaArmed:frames.barcelona)[slot],height=Math.max(...frames.barcelona[slot].map(f=>f[3]));paintedBody(g,atlas,mission,slot,dir,v.phase||0,moving,row,height);if(s.weapon==='pistol')weapon(g,s.weapon,Math.cos(dir*Math.PI/4)*8,-17,dir*Math.PI/4);if(team==='enemy'&&s.webbing)enemyGear(g,s,Math.sin(dir*Math.PI/4)<-.35);}else paintedBody(g,atlas,mission,index,dir,v.phase||0,moving);
   if(streetNPC&&ent.periodRole){
    hat(g,s,0,-39,.83);
    if(ent.periodRole==='police'&&Math.sin(dir*Math.PI/4)>=-.35){
@@ -164,6 +176,6 @@ art.drawActor=(g,ent,team='squad')=>{
  }
  g.restore();
 };
-art.missionPortrait=(key,index,state='idle')=>{const id=identities.get(key),slot=Math.abs(index)%4,s=id.characters[slot],k=id.key+'/'+index+'/'+state;if(portraits.has(k))return portraits.get(k);const c=canvas(144,144),g=c.getContext('2d'),atlas=assets.get(id.key+'/portraits');if(atlas){const w=atlas.naturalWidth/4,h=atlas.naturalHeight/3;g.drawImage(atlas,slot*w,sets[id.key].portraitRow*h,w,h,0,0,144,144);}else{g.fillStyle=shade(g,60,0,144,'#666c57');g.fillRect(0,0,144,144);g.save();g.translate(72,244);g.scale(4.7,4.7);body(g,s,2,0,true);g.restore();for(let i=0;i<80;i++){g.fillStyle=i%2?'#ead4a20a':'#1a271809';g.fillRect((i*37)%144,(i*53)%144,2,1);}}
+art.missionPortrait=(key,index,state='idle')=>{const id=identities.get(key),slot=Math.abs(index)%4,s=id.characters[slot],k=id.key+'/'+index+'/'+state;if(portraits.has(k))return portraits.get(k);const c=canvas(144,144),g=c.getContext('2d'),atlas=assets.get(id.key+'/portraits'),barcelona=id.key==='barcelona'?assets.get('barcelona/sprites'):null;if(atlas){const w=atlas.naturalWidth/4,h=atlas.naturalHeight/3;g.drawImage(atlas,slot*w,sets[id.key].portraitRow*h,w,h,0,0,144,144);}else if(barcelona){const [sx,sy,sw,sh]=frames.barcelona[slot][2],cropH=Math.round(sh*.65),scale=Math.min(132/sw,132/cropH),w=sw*scale,h=cropH*scale;g.fillStyle='#536254';g.fillRect(0,0,144,144);g.drawImage(barcelona,sx,sy,sw,cropH,(144-w)/2,140-h,w,h);}else{g.fillStyle=shade(g,60,0,144,'#666c57');g.fillRect(0,0,144,144);g.save();g.translate(72,244);g.scale(4.7,4.7);body(g,s,2,0,true);g.restore();for(let i=0;i<80;i++){g.fillStyle=i%2?'#ead4a20a':'#1a271809';g.fillRect((i*37)%144,(i*53)%144,2,1);}}
  g.strokeStyle='#c9bfa2';g.lineWidth=5;g.strokeRect(2.5,2.5,139,139);if(state==='dead'){g.fillStyle='#202d2da0';g.fillRect(0,0,144,144);}portraits.set(k,c);return c;};
 })();
