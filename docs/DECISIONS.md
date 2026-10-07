@@ -268,3 +268,93 @@ Reason:
 This reduces duplicated code, prevents premature architecture changes and protects good ideas from being lost in implementation churn.
 
 Status: ACTIVE
+
+---
+
+## 7 October 2026 - Bad Belzig detailed playable structure
+
+Decision:
+Retain the existing four playable characters and the current three major combat anchors, but change their purpose through story and consequence.
+
+The playable structure is:
+
+1. Bahnhofstraße opening with civilians moving toward refuge.
+2. Postdistanzsäule hold while the civilian route crosses.
+3. Burg Eisenhardt assault to break the enemy command / staging point.
+4. Act III split crisis between St. Marien refuge and the Post route.
+5. Reißigerhaus regroup and recovery.
+6. Local-knowledge route choice toward the centre.
+7. Marktplatz / Rathaus hold as the final organised resistance position.
+8. Personal aftermath based on what survived.
+
+Reason:
+This preserves the current mission geography and working combat systems while converting the mission from three disconnected capture points into one story about protecting home.
+
+Status: ACTIVE
+
+---
+
+## 7 October 2026 - Bad Belzig civilian network
+
+Decision:
+Use St. Marien as the main fictional civilian refuge and the Reißigerhaus area as a fallback regroup / first-aid point.
+
+The Postdistanzsäule controls the direct southern civilian route. Losing it does not fail the mission. It forces a slower fallback route and changes later support.
+
+Reason:
+The defensive positions need a visible human purpose and losing ground should create consequences rather than automatic failure.
+
+Status: ACTIVE
+
+---
+
+## 7 October 2026 - Bad Belzig Act III is a priority crisis
+
+Decision:
+Act III presents two developing problems at once:
+
+- protect / evacuate St. Marien
+- keep the Post route open
+
+The player is not given a menu choice. The order of movement determines what receives attention first.
+
+Single-player must be able to complete the mission without mandatory simultaneous control. Co-op may make squad splitting useful, but it is never required.
+
+Reason:
+This expresses the mission's central idea, that the group cannot protect everything perfectly, through play rather than dialogue.
+
+Status: ACTIVE
+
+---
+
+## 7 October 2026 - Bad Belzig outcome model
+
+Decision:
+Track a small set of consequences:
+
+- Post route: HELD / LOST
+- refuge: SAFE / EVACUATED / EVACUATED_WITH_LOSSES
+- Frieda: SAFE / WOUNDED / LOST
+- civilian evacuation result
+- squad health / survival result
+
+Securing Rathaus completes the mission even if earlier outcomes were costly. Earlier losses change support and the aftermath rather than creating a large branching campaign.
+
+Reason:
+Allow imperfect victories and meaningful cost without making the mission structure unmanageable.
+
+Status: ACTIVE
+
+---
+
+## 7 October 2026 - Bad Belzig supporting civilian
+
+Decision:
+Introduce Frieda Lehmann as a fictional local first-aid volunteer at St. Marien.
+
+She is a non-combatant story anchor. Her state can alter recovery and the final scene.
+
+Reason:
+The civilian side of the mission needs at least one recognisable person so losses and successful protection are not represented only by counters.
+
+Status: ACTIVE
