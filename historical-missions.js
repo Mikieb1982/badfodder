@@ -10,7 +10,7 @@
     {
       id:'cable-street-1936',
       scenario:'historical',location:'London',country:'England',date:'1936-10-04',
-      title:'Cable Street, 1936',
+      title:'Cable Street, 4 October 1936',
       subtitle:'London, 4 October 1936',
       blueprintVersion:'0.2',
       status:'playable-slice',
