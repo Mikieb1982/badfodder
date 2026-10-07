@@ -1,0 +1,31 @@
+{
+  "wind": {
+    "source": "https://opengameart.org/content/wind1",
+    "download": "https://opengameart.org/sites/default/files/wind1.wav",
+    "author": "Luke.RUSTLTD",
+    "license": "CC0-1.0",
+    "sha256": "a2856f794fbf77e05f8241dc4adeade7f62fa21c3c9dc49f7725b6c6218060c3"
+  },
+  "crowd": {
+    "source": "https://opengameart.org/content/crowd-shoutingspeaking-ambience",
+    "download": "https://opengameart.org/sites/default/files/crowd_shouting_0.ogg",
+    "author": "StarNinjas",
+    "license": "CC0-1.0",
+    "sha256": "a2c23a64c127c77717cbe4abb21f138bac9d9aa6cb3cc89d62bab5d0d96dd7ca"
+  },
+  "shot": {
+    "source": "https://opengameart.org/content/random-gunfire-sfx",
+    "download": "https://opengameart.org/sites/default/files/gunfire_sfx.wav",
+    "author": "iamoneabe",
+    "license": "CC0-1.0",
+    "sha256": "a60ba5477bea3b7e1047597fee3280a1e981d63e637649763187713ff98475be"
+  },
+  "boom": {
+    "source": "https://opengameart.org/content/muffled-distant-explosion",
+    "download": "https://opengameart.org/sites/default/files/NenadSimic%20-%20Muffled%20Distant%20Explosion.wav",
+    "author": "NenadSimic",
+    "license": "CC0-1.0",
+    "sha256": "13a0bf75af94ec6d332bc71cba489b573466e05c4b17288158b3d683b41de39f"
+  },
+  "notes": "Edited sound-design beds, not historical recordings: filtered, peak-normalised, mixed, faded; 48 s mono loops. Existing music and live action SFX retained."
+}

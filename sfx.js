@@ -205,6 +205,7 @@ function setEnabled(on){
   enabled=!!on;
   try{(typeof BadFodderStorage!=='undefined'?BadFodderStorage.local:localStorage).setItem(KEY,enabled?'1':'0')}catch(_){}
   if(enabled)unlock();
+  window.BadFodderAmbience?.sync();
   render();
 }
 
