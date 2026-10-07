@@ -23,30 +23,34 @@ For substantial work, define:
 
 ## P0 - Preserve and complete mission design
 
-### APPROVED: Bad Belzig detailed mission design
+### DESIGN COMPLETE: Bad Belzig detailed mission design
 
-Turn the current story spine into a playable act-by-act design before changing code.
+Completed 7 October 2026 in `docs/MISSIONS.md`.
 
-Define:
+Defined:
 
-- named playable characters and relationships
-- opening playable situation
-- exact purpose of each important checkpoint
-- civilian routes and refuge locations
-- local-knowledge interactions
-- Act III setback
-- counterattack logic
-- finale conditions
-- 3 to 5 tracked consequences
-- success, partial success and failure states
-- quiet moments and dialogue opportunities
-- which existing mechanics already support each beat
+- Karl, Otto, Lotte and Greta as the existing playable cast and gave each a story function without replacing their current identity
+- Frieda Lehmann as a fictional civilian first-aid anchor at St. Marien
+- opening playable situation around Bahnhofstraße
+- Postdistanzsäule as the civilian crossing / southern route rather than a checkpoint with no story purpose
+- St. Marien as the main refuge and Reißigerhaus as a fallback regroup / first-aid point
+- civilian route logic
+- Burg Eisenhardt as the enemy command / staging position
+- Act III simultaneous refuge and Post-route crisis
+- local-knowledge approach choices
+- Marktplatz / Rathaus finale purpose
+- tracked route, refuge, civilian, Frieda and squad outcomes
+- strong success, costly success and failure states
+- quiet moments and retry checkpoints
+- explicit reuse of existing systems
 
-Output should be detailed enough to implement in small tasks without rediscovering the story.
+No gameplay code was changed as part of this design task.
 
 ### APPROVED: Wigan detailed mission design
 
-After Bad Belzig, define:
+This is now the next mission-design item.
+
+Define:
 
 - starting group and relationships
 - separated resistance groups
@@ -182,17 +186,21 @@ Do not start these until the relevant detailed mission design is approved.
 
 ### Bad Belzig implementation package
 
-Expected task groups:
+Design prerequisite is complete. Implementation remains separate and is not yet authorised by the design task itself.
 
-1. Opening playable state
-2. Local defence network
-3. Checkpoint purpose and civilian routing
-4. Act III dynamic setback
-5. Counterattack
-6. Consequence tracking
-7. Finale and aftermath
-8. Automated tests
-9. Playtest and balance
+Recommended small task order:
+
+1. Opening Bahnhofstraße civilian group and movement triggers
+2. Postdistanzsäule civilian-crossing condition and persistent route state
+3. Burg command-position interaction and Act III trigger
+4. St. Marien refuge, Frieda NPC and evacuation state
+5. Act III dual-crisis logic and fallback route
+6. Reißigerhaus regroup / recovery state
+7. Local route-choice interactions into the centre
+8. Marktplatz / Rathaus consequence-aware finale
+9. Outcome summary and aftermath
+10. Automated tests for each state transition
+11. Full playtest and balance pass
 
 ### Wigan implementation package
 
