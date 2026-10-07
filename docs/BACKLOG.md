@@ -70,25 +70,37 @@ Defined:
 
 No gameplay code was changed as part of this design task.
 
-### APPROVED: Cable Street detailed mission design
+### DESIGN COMPLETE: Cable Street detailed mission design
 
-This is now the next mission-design item.
+Completed 7 October 2026 in `docs/CABLE-STREET-DESIGN.md`.
 
-Define:
+Defined:
 
-- historical boundaries and verified facts
-- playable preparation phase
-- barricade network
-- NPC roles around each position
-- non-combat actions
-- how pressure shifts between sections
-- how the world continues when the player moves away
-- decisive hold/support moment
-- aftermath and outcome tracking
+- historical boundaries and uncertainty rules using the existing authoring/evidence package
+- Jack, Rose, Sam and Ada as the existing playable volunteers with story functions but no rigid RPG roles
+- fictional community anchors Miriam Rosen, Alf Harris and Nora Flynn
+- Christian Street defence B as the required historically-supported-vicinity main position
+- Berner Street side defence S as an explicitly fictional gameplay support position
+- preparation as visible shared labour rather than a checklist performed only by the player
+- persistent defence states built around existing barricade integrity/breach data
+- functional resident, helper, messenger and first-aid crowd roles
+- first police push, playable regroup and repair phase
+- shifting pressure between two positions
+- bounded off-screen simulation and warning rules so the world continues when the camera moves away
+- civilian assistance opportunities that remain short contextual actions rather than escort missions
+- repeated pressure and breach recovery
+- a decisive hold framed as keeping one section blocked while the wider historical confrontation continues
+- historical-outcome transition that avoids crediting the four playable characters with winning the whole event
+- preparation, main-defence, side-defence, civilian, crowd and playable-group consequences
+- strong success, costly success and local failure/retry states
+- aftermath with persistent damage and community reactions
+- explicit reuse of the current Cable Street runtime, director, crowd, interactions and authoring systems
 
-Avoid representing the playable squad as the people who single-handedly won the historical event.
+No gameplay code was changed as part of this design task.
 
 ### APPROVED: Barcelona detailed mission design
+
+This is now the next mission-design item.
 
 Define:
 
@@ -170,7 +182,7 @@ Questions:
 - How do civilians report that a route is blocked?
 - Can the system identify an alternative route?
 
-Likely Cable Street rule: prefer consequences over arbitrary placement restrictions when that creates interesting play and does not softlock the mission.
+Cable Street direction: use authored barricade positions and persistent reachability checks. Prefer visible consequences and recovery over arbitrary restrictions, but never allow a mission-critical route state to create an unrecoverable softlock.
 
 ### CANDIDATE: Contextual NPC decisions
 
@@ -233,18 +245,22 @@ Recommended small task order:
 
 ### Cable Street implementation package
 
-Expected task groups:
+Design prerequisite is complete. Implementation remains separate and is not yet authorised by the design task itself.
 
-1. Preparation interactions
-2. Barricade state expansion
-3. Crowd response and routing
-4. Shifting pressure system
-5. Non-combat action expansion
-6. Persistent off-screen position state
-7. Decisive finale
-8. Aftermath
-9. Historical verification
-10. Tests and playtest
+Recommended small task order:
+
+1. Preparation outcome state and story presentation
+2. Named community-anchor presentation using existing NPC/crowd systems
+3. Readable defence-state wrapper around existing barricade integrity
+4. Two-defence pressure-shift policy
+5. Off-screen persistence and warning rules
+6. Bounded civilian assistance events
+7. Consequence-aware final hold and breach recovery presentation
+8. Historical outcome transition
+9. Aftermath state and summary
+10. Automated tests for pressure shifting, off-screen determinism and breach recovery
+11. Historical wording verification
+12. Human playtest and balance
 
 ### Barcelona implementation package
 
