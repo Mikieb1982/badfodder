@@ -117,3 +117,25 @@ console.log('PASS: detailed three-row sandbags, tight outward defence, heavier a
   assert.equal(unit.checkpointGarrison,f.phase.index);assert(unit.checkpointFortified,'Returning defender did not enter sandbags');
 }
 console.log('PASS: checkpoint release persists inside the circle and through reinforcements, then re-arms after exit and return.');
+
+// Joining, leaving and casualties must not drag existing defenders or the sandbags.
+{
+ const f=fixture({style:'rush',count:3});f.commander.maintain(1);
+ const before=f.squad.map(s=>({x:s.x,y:s.y}));
+ for(let tick=0;tick<30;tick++)f.commander.maintain(1+tick*.1);
+ f.squad.forEach((s,i)=>assert.deepEqual({x:s.x,y:s.y},before[i],'Occupied slot drifted'));
+ f.squad[0].checkpointCover=false;f.squad[0].checkpointGarrison=null;f.squad[0].checkpointExitPhase=0;
+ f.squad[1].downed=true;
+ f.commander.maintain(5);
+ for(const i of [2,3])assert.deepEqual({x:f.squad[i].x,y:f.squad[i].y},before[i],'Remaining defenders shuffled');
+ assert(!f.squad[1].checkpointFortified,'Downed soldier retained sandbags');
+ const newcomer={x:510,y:520,alive:true};f.squad.push(newcomer);f.commander.maintain(6);
+ assert(newcomer.checkpointFortified,'Newcomer did not get an available slot');
+ for(const i of [2,3])assert.deepEqual({x:f.squad[i].x,y:f.squad[i].y},before[i],'Joining defender displaced existing slot');
+ const defenders=f.squad.filter(s=>s.checkpointFortified);
+ for(const s of defenders){assert.equal(s.checkpointAnchorX,s.x);assert.equal(s.checkpointAnchorY,s.y);for(const other of defenders)if(other!==s)assert(Math.hypot(s.x-other.x,s.y-other.y)>=9.99,'Defender slots overlap');}
+ const trapped={x:500,y:500,alive:true,checkpointGarrison:0,checkpointCover:true};
+ Fortification.arrangeSquad({squad:[trapped],phase:f.phase,zones:{poi:f.zone},blocked:()=>true});
+ assert(!trapped.checkpointCover&&!trapped.checkpointFortified&&trapped.checkpointGarrison===null,'Blocked placement created a hard hold');
+}
+console.log('PASS: stable occupied slots, casualty handling, safe newcomer spacing and blocked-placement release.');

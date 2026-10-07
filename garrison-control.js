@@ -162,7 +162,7 @@
     if(root.BadFodderCommands?.mode==='client')return;
     for(const unit of liveSquad()){
       if(!unit?.alive)continue;
-      const holding=!!unit.checkpointCover&&Number.isFinite(unit.checkpointGarrison);
+      const holding=!unit.downed&&!!unit.checkpointCover&&Number.isFinite(unit.checkpointGarrison);
       if(holding){
         if(unit.checkpointAnchorPhase!==unit.checkpointGarrison||!Number.isFinite(unit.checkpointAnchorX)||!Number.isFinite(unit.checkpointAnchorY)){
           unit.checkpointAnchorPhase=unit.checkpointGarrison;

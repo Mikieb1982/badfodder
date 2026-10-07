@@ -964,7 +964,7 @@
   };
   const pinchPointers=new Map();
   let pinchGesture=null;
-  let historicalTap=null;
+  let historicalTap=null,lastCheckpointTap=null;
 
   function releaseAllFireInputs(){
     rightHeld=false;
@@ -1608,7 +1608,7 @@
     wiganRouteCache={key:null,path:[]};
     touchState.movePointer=null;touchState.moveX=0;touchState.moveY=0;touchState.moveMag=0;
     touchState.firePointer=null;touchState.fireHeld=false;
-    pinchPointers.clear();pinchGesture=null;historicalTap=null;
+    pinchPointers.clear();pinchGesture=null;historicalTap=null;lastCheckpointTap=null;
     touchStick.style.transform='translate(0px,0px)';
     touchJoystick.classList.remove('active');
     touchFire.classList.remove('active');
@@ -3449,8 +3449,8 @@
       evt.preventDefault();
       canvas.setPointerCapture?.(evt.pointerId);
       pinchPointers.set(evt.pointerId,{x:evt.clientX,y:evt.clientY});
-      historicalTap=missionInteractionLayer&&pinchPointers.size===1?{id:evt.pointerId,x:evt.clientX,y:evt.clientY,time:performance.now()}:null;
-      if(pinchPointers.size===2)beginPinchIfReady();
+      historicalTap=pinchPointers.size===1?{id:evt.pointerId,x:evt.clientX,y:evt.clientY,time:performance.now()}:null;
+      if(pinchPointers.size===2){historicalTap=null;lastCheckpointTap=null;beginPinchIfReady();}
       return;
     }
 
@@ -3521,7 +3521,7 @@
     evt.preventDefault();
     const p=pointerWorld(evt);
     setMoveTargets({...p,exitCheckpoint:true});
-    setStatus('Checkpoint released. Leave the circle to re-arm automatic sandbag defence.');
+    if(selectedUnits().some(u=>Number.isFinite(u.checkpointExitPhase)))setStatus('Checkpoint released. Leave the circle, then return to defend.');
   });
 
   canvas.addEventListener('pointerup',evt=>{
@@ -3530,7 +3530,16 @@
       const tap=historicalTap;historicalTap=null;
       endPinchPointer(evt.pointerId);
       if(tap&&tap.id===evt.pointerId&&performance.now()-tap.time<400&&Math.hypot(evt.clientX-tap.x,evt.clientY-tap.y)<=10&&!menuOpen&&!paused&&!mapOpen&&!finished){
-        const p=pointerWorld(evt),selected=selectedHistoricalActor();
+        const p=pointerWorld(evt),now=performance.now();
+        const held=selectedUnits().some(u=>Number.isFinite(u.checkpointGarrison));
+        const doubleTap=lastCheckpointTap&&now-lastCheckpointTap.time<=350&&Math.hypot(evt.clientX-lastCheckpointTap.x,evt.clientY-lastCheckpointTap.y)<=24;
+        lastCheckpointTap=held?{time:now,x:evt.clientX,y:evt.clientY}:null;
+        if(held&&doubleTap){
+          lastCheckpointTap=null;setMoveTargets({...p,exitCheckpoint:true});
+          setStatus('Checkpoint released. Leave the circle, then return to defend.');return;
+        }
+        if(!missionInteractionLayer)return;
+        const selected=selectedHistoricalActor();
         if(selected&&missionInteractionLayer.contextAt(selected.id,p.x,p.y))performHistoricalContextActionAt(p.x,p.y);
         else setMoveTargets(p);
       }
@@ -3544,7 +3553,7 @@
   });
 
   canvas.addEventListener('pointercancel',evt=>{
-    historicalTap=null;
+    historicalTap=null;lastCheckpointTap=null;
     if(evt.pointerType==='touch')endPinchPointer(evt.pointerId);
     rightHeld=false;macFireHeld=false;bothLatched=false;
   });
@@ -3731,7 +3740,7 @@
   });
 
   function releaseInterruptedInput(){
-    BadFodderRuntime.interrupt({releaseFire:releaseAllFireInputs,releaseMove:releaseTouchMove,pointers:pinchPointers,resetGesture:()=>{pinchGesture=null;historicalTap=null;}});
+    BadFodderRuntime.interrupt({releaseFire:releaseAllFireInputs,releaseMove:releaseTouchMove,pointers:pinchPointers,resetGesture:()=>{pinchGesture=null;historicalTap=null;lastCheckpointTap=null;}});
   }
 
   window.addEventListener('blur',releaseInterruptedInput);

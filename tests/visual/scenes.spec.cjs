@@ -17,3 +17,15 @@ test('double-click releases selected checkpoint defenders',async({page})=>{
  const released=await page.evaluate(()=>BadFodderCoopBridge.squad().map(u=>({cover:u.checkpointCover,phase:u.checkpointGarrison,held:u.checkpointHeld,fortified:u.checkpointFortified,exit:u.checkpointExitPhase,anchor:u.checkpointAnchorX})));
  for(const unit of released)expect(unit).toEqual({cover:false,phase:null,held:null,fortified:false,exit:0,anchor:null});
 });
+test('double-tap releases checkpoint defenders on touchscreens',async({browser})=>{
+ const context=await browser.newContext({viewport:{width:915,height:412},hasTouch:true,isMobile:true});
+ const page=await context.newPage();await prepare(page);await choose(page,'#menuMissionBad');await page.locator('#briefingBegin').click();
+ await page.waitForFunction(()=>window.__visual?.state().started&&!window.__visual.state().menuOpen);
+ await page.evaluate(()=>{window.__visual.freeze();for(const u of BadFodderCoopBridge.squad()){u.checkpointGarrison=0;u.checkpointCover=true;u.checkpointFortified=true;}});
+ const box=await page.locator('#game').boundingBox();
+ await page.touchscreen.tap(box.x+box.width*.7,box.y+box.height*.7);
+ expect(await page.evaluate(()=>BadFodderCoopBridge.squad().every(u=>u.checkpointCover))).toBe(true);
+ await page.touchscreen.tap(box.x+box.width*.7,box.y+box.height*.7);
+ expect(await page.evaluate(()=>BadFodderCoopBridge.squad().every(u=>!u.checkpointCover&&!u.checkpointFortified&&u.checkpointExitPhase===0))).toBe(true);
+ await context.close();
+});

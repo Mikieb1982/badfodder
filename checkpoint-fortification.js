@@ -43,31 +43,40 @@
       units.forEach(clearVisual);return null;
     }
     const zone=zones[phase.zone];
-    const defenders=units.filter(s=>s.alive&&s.checkpointGarrison===phase.index&&(s.checkpointCover||s.checkpointHeld===phase.index));
+    const defenders=units.filter(s=>s.alive&&!s.downed&&s.checkpointGarrison===phase.index&&(s.checkpointCover||s.checkpointHeld===phase.index));
     for(const unit of units)if(!defenders.includes(unit))clearVisual(unit);
     if(!defenders.length)return null;
 
-    const center={
-      x:defenders.reduce((n,s)=>n+s.x,0)/defenders.length,
-      y:defenders.reduce((n,s)=>n+s.y,0)/defenders.length
-    };
+    // Keep the POI centre and occupied slots stable when squad membership changes.
+    const center={x:zone.x,y:zone.y};
     const radius=Math.min(zone.r*.18,scale*11);
     const sandbagRadius=Math.max(radius+scale*16,scale*28);
-
-    defenders.forEach((s,i)=>{
-      const angle=-Math.PI/2+i*TAU/defenders.length;
-      const point=candidate(center,angle,radius,(x,y,r)=>blocked(x,y,r));
-      if(point){s.x=point.x;s.y=point.y;s.path=null;s.pendingPath=null;s.pathIndex=0;s.target=null}
+    const placed=[];
+    const retained=defenders.filter(s=>s.checkpointFortified&&s.checkpointFortificationPhase===phase.index&&!blocked(s.x,s.y,8)&&dist(s,center)<sandbagRadius);
+    placed.push(...retained);
+    for(const s of defenders){
+      if(!retained.includes(s)){
+        let point=null;
+        for(let pass=0;pass<2&&!point;pass++)for(let slot=0;slot<8&&!point;slot++){
+          point=candidate(center,-Math.PI/2+slot*TAU/8,radius,(x,y,r)=>
+            blocked(x,y,r)||(pass===0&&dist({x,y},center)>radius+.01)||dist({x,y},zone)>zone.r||placed.some(other=>dist({x,y},other)<scale*10));
+        }
+        if(!point){s.checkpointCover=false;s.checkpointGarrison=null;s.checkpointHeld=null;clearVisual(s);continue}
+        s.x=point.x;s.y=point.y;placed.push(s);
+      }
+      s.path=null;s.pendingPath=null;s.pathIndex=0;s.target=null;
       const facing=Math.atan2(s.y-center.y,s.x-center.x);
       s.dir=facing;s.checkpointFacing=facing;s.checkpointFortified=true;
       s.checkpointCenterX=center.x;s.checkpointCenterY=center.y;
       s.checkpointSandbagRadius=sandbagRadius;s.checkpointFortificationPhase=phase.index;
-    });
-    const rear=defenders.reduce((lead,s)=>!lead||s.y<lead.y?s:lead,null);
-    const front=defenders.reduce((lead,s)=>!lead||s.y>lead.y?s:lead,null);
+      s.checkpointAnchorPhase=phase.index;s.checkpointAnchorX=s.x;s.checkpointAnchorY=s.y;
+    }
+    if(!placed.length)return null;
+    const rear=placed.reduce((lead,s)=>!lead||s.y<lead.y?s:lead,null);
+    const front=placed.reduce((lead,s)=>!lead||s.y>lead.y?s:lead,null);
     rear.checkpointFortificationLead=true;rear.checkpointFortificationRearLead=true;
     front.checkpointFortificationFrontLead=true;
-    return{center,radius,sandbagRadius,count:defenders.length};
+    return{center,radius,sandbagRadius,count:placed.length};
   }
 
   function bagPath(ctx,w,h,seed){
@@ -243,7 +252,7 @@
         if(group.length){commander.groups?.set(groupId,group);const target={x:zone.x+Math.cos(spec.targetAngle||0)*(spec.targetOffset||0),y:zone.y+Math.sin(spec.targetAngle||0)*(spec.targetOffset||0)};issue(group,spec.type||'PRESSURE',target,time,spec.delay||0)}
       });
       if(spawned){
-        for(const s of living)if(s.checkpointExitPhase!==phase.index&&(s.checkpointGarrison===phase.index||dist(s,zone)<=zone.r)){s.checkpointGarrison=phase.index;s.checkpointCover=true}
+        for(const s of living)if(!s.downed&&s.checkpointExitPhase!==phase.index&&(s.checkpointGarrison===phase.index||dist(s,zone)<=zone.r)){s.checkpointGarrison=phase.index;s.checkpointCover=true}
       }
       return spawned;
     }

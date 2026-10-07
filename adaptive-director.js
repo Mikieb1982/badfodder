@@ -211,7 +211,7 @@
       if(!living.length)return;
       const radius=Math.min(zone.r*.34,scale*22);
       living.forEach((s,i)=>{
-        s.checkpointGarrison=phaseIndex;s.checkpointCover=true;
+        if(s.checkpointGarrison===phaseIndex)return;
         const base=-Math.PI/2+i*Math.PI*2/Math.max(1,living.length);
         let point=null;
         for(let ring=radius;ring<=Math.min(zone.r*.62,scale*38)&&!point;ring+=scale*7){
@@ -220,7 +220,7 @@
             if(!blocked(p.x,p.y,8)){point=p;break}
           }
         }
-        if(point){s.x=point.x;s.y=point.y;s.path=null;s.pendingPath=null;s.pathIndex=0;s.target=null}
+        if(point){s.checkpointGarrison=phaseIndex;s.checkpointCover=true;s.x=point.x;s.y=point.y;s.path=null;s.pendingPath=null;s.pathIndex=0;s.target=null}
       });
     }
     function spawnCheckpointEnemy(template,point,phase,groupId,index,target){
