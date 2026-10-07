@@ -433,3 +433,84 @@ Reason:
 The ending should pay off the mission's solidarity theme and show that the four playable characters enabled collective action rather than winning the town alone.
 
 Status: ACTIVE
+
+---
+
+## 7 October 2026 - Cable Street historical boundary
+
+Decision:
+Use the existing Cable Street authoring/evidence package as the source of truth for geography and historical certainty.
+
+The Christian Street defence is an interpretation inside a historically supported vicinity, not an exact surveyed 1936 barricade coordinate. The Berner Street side defence is explicitly fictional gameplay.
+
+Exact barricade dimensions, named supporting NPCs, material piles, timings and exact mounted-pressure placement remain gameplay adaptations unless later evidence supports them.
+
+Reason:
+The mission is based on real events and must clearly separate documented context from tactical approximation.
+
+Status: ACTIVE
+
+---
+
+## 7 October 2026 - Cable Street detailed playable structure
+
+Decision:
+Retain Jack, Rose, Sam and Ada, the non-firearm action profile and the existing Cable Street runtime systems.
+
+The playable structure is:
+
+1. Join a street already preparing and contribute material/assistance to the main defence.
+2. Withstand the first police push through hold/fight-back and crowd support.
+3. Regroup, repair and help injured residents.
+4. Respond as pressure shifts between the Christian Street main defence and the fictional Berner Street side defence.
+5. Move through a street where helpers and residents continue acting without direct player control.
+6. Withstand repeated pressure while balancing repair, assistance and movement between positions.
+7. Keep the Christian Street route blocked through the decisive final pressure period.
+8. Transition into an aftermath that credits the wider mobilisation rather than the four playable characters.
+
+Reason:
+This turns the current barricade slice into a complete community story without replacing the historically researched map or existing mechanics.
+
+Status: ACTIVE
+
+---
+
+## 7 October 2026 - Cable Street positions continue off-screen
+
+Decision:
+Barricade, police-pressure, helper and critical civilian state continues when the player moves away from a position.
+
+Off-screen pressure must be bounded and communicated through visible/audible warnings before a healthy position becomes critical. Full rendering may be camera-limited, but authoritative state must not depend on whether the player is looking at it.
+
+Reason:
+The mission's theme depends on the neighbourhood continuing to act beyond the playable squad. Freezing off-screen positions would make the player the centre of the entire historical event.
+
+Status: ACTIVE
+
+---
+
+## 7 October 2026 - Cable Street side defence affects support, not history
+
+Decision:
+Holding the fictional Berner Street side defence divides later pressure and preserves more helpers. Losing it increases pressure at the main route but does not fail the mission or claim a historical event occurred there.
+
+The Christian Street route remains the required historical gameplay objective.
+
+Reason:
+The side defence creates movement and tactical variety while preserving the distinction between researched history and gameplay invention.
+
+Status: ACTIVE
+
+---
+
+## 7 October 2026 - Cable Street failure is local
+
+Decision:
+A temporary breach creates a bounded recovery opportunity. Hard failure occurs only if the main route remains breached beyond the recovery window or the playable group becomes unable to continue.
+
+Failure wording describes the player's local defence breaking. It must not rewrite history by declaring that the fascist march historically succeeded.
+
+Reason:
+The mission needs meaningful gameplay failure while remaining responsible about a fixed real-world historical outcome.
+
+Status: ACTIVE
