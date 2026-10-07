@@ -46,23 +46,33 @@ Defined:
 
 No gameplay code was changed as part of this design task.
 
-### APPROVED: Wigan detailed mission design
+### DESIGN COMPLETE: Wigan detailed mission design
 
-This is now the next mission-design item.
+Completed 7 October 2026 in `docs/WIGAN-DESIGN.md`.
 
-Define:
+Defined:
 
-- starting group and relationships
-- separated resistance groups
-- why each group is isolated
-- what each group contributes after connection
-- rally points
-- split-squad situations
-- the event that cuts the network
-- final coordinated action
-- tracked consequences
+- Arthur, Elsie, Tom and George as the existing playable cast with distinct story functions
+- five local groups: Tudor / New Market Street, Bus Station, Market Place, King Street and the isolated railway group
+- practical contributions for each connected group rather than abstract bonuses
+- Tudor House as the opening crisis and first rally point
+- Bus Station and Market Place as flexible-order connection objectives
+- optional split-squad play that remains fully viable in single-player
+- Grand Arcade as the central rally point where the network first becomes visible
+- an Act III network-cut event that disrupts connections rather than repeating Bad Belzig's protect-everything crisis
+- King Street as optional but meaningful supply / volunteer support
+- final coordinated operation at Wallgate / North Western
+- rally-point state, resistance-group state and lightweight contribution hooks
+- tracked group, Grand Arcade, civilian movement and squad outcomes
+- strong success, costly success and failure states
+- aftermath showing previously separated groups physically connected
+- explicit reuse of the current Wigan map, landmarks, defender groups, checkpoint waves and existing systems
+
+No gameplay code was changed as part of this design task.
 
 ### APPROVED: Cable Street detailed mission design
+
+This is now the next mission-design item.
 
 Define:
 
@@ -204,16 +214,22 @@ Recommended small task order:
 
 ### Wigan implementation package
 
-Expected task groups:
+Design prerequisite is complete. Implementation remains separate and is not yet authorised by the design task itself.
 
-1. Resistance-group data model
-2. Connection and contribution logic
-3. Rally points
-4. Split-squad scenario support
-5. Network-cut event
-6. Coordinated finale
-7. Consequence tracking
-8. Tests and playtest
+Recommended small task order:
+
+1. Lightweight resistance-group state and contribution hooks
+2. Tudor opening and first rally-point state
+3. Bus Station connection and civilian movement contribution
+4. Market Place connection and warning / information contribution
+5. Grand Arcade rally and consequence-aware pincer hold
+6. Act III route-disruption / reconnection event
+7. Optional King Street connection and existing supply integration
+8. Wallgate coordinated-operation setup and group support hooks
+9. Consequence-aware Wallgate finale and railway-group connection
+10. Outcome summary / aftermath
+11. Automated tests for state transitions and single-player viability
+12. Full playtest and balance pass
 
 ### Cable Street implementation package
 
