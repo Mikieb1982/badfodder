@@ -125,7 +125,7 @@ function create({map,objectives,getSquad,getEnemies,navigation,spawn,scale=1,spa
     else{const piles=materialPoints.filter(p=>p.supplies>0);target=piles.reduce((best,p)=>!best||leader&&Math.hypot(p.x-leader.x,p.y-leader.y)<Math.hypot(best.x-leader.x,best.y-leader.y)?p:best,null);label='MATERIAL';text='Build '+Math.min(2,builds)+'/2: follow NEXT to a material pile. E / ACTION to pick up.';}break;}
    case 'hold-barricade':case 'hold-east':{
     const east=id==='hold-east',count=east?eastWave:wave,total=(east?map.easternGroups:map.assaultGroups).length;
-    target=east?zone('eastern'):{...barrier,r:90*scale};label='HOLD';text='Stay near NEXT and shoot attackers. Wave '+Math.min(total,count+1)+'/'+total+' · '+getEnemies().filter(hostile).length+' attackers left.';if(count===total&&!getEnemies().some(hostile))text='Attack stopped. Hold this position: '+Math.max(0,Math.ceil(6-secure))+' seconds.';break;}
+    target=east?zone('eastern'):{...barrier,r:90*scale};label='HOLD';text='Stay near NEXT and shoot attackers. Wave '+Math.max(1,count)+'/'+total+' · '+getEnemies().filter(hostile).length+' attackers left.';if(count===total&&!getEnemies().some(hostile))text='Attack stopped. Hold this position: '+Math.max(0,Math.ceil(6-secure))+' seconds.';break;}
    case 'recovery':target={...barrier,r:90*scale};label='REGROUP';text='Breather: '+Math.max(0,Math.ceil(recovery))+' seconds. Help wounded with E / ACTION; spare ammo at the printer.';break;
    case 'reach-civilians':target=zone('residents');label='FAMILIES';text='Follow NEXT east to the families. Press E / ACTION beside them to gather the group.';break;
    case 'escort-civilians':{
