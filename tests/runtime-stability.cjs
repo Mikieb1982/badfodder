@@ -50,7 +50,7 @@ assert(Math.max(...counts)<map.roads.length*.2,'A Wigan tile still visits too mu
 assert(scenery.includes("map.projection&&map.projection.northUp===false?'N ↓':'N ↑'"),'Rotated Wigan tactical map has an incorrect north indicator');
 assert(scenery.includes("function roundRectPath("),'Wigan overlay has no Canvas roundRect compatibility fallback');
 assert(index.includes("Scenery tile rendering failed; using a lightweight fallback tile."),'Tile-render exceptions can still take down live play');
-assert(fs.readFileSync(path.join(root,'mission-assets.js'),'utf8').includes("wigan-scenery.js?v=20261003-upgrade-1"),'Wigan runtime fix is not cache-busted');
+assert(fs.readFileSync(path.join(root,'mission-registry.js'),'utf8').includes("wigan-scenery.js?v=20261003-upgrade-1"),'Wigan runtime fix is not cache-busted');
 assert(index.includes("navigation.js?v=20261003-upgrade-1"),'Navigation runtime fix is not cache-busted');
 assert(navigation.includes("fallbackDepth<1"),'Navigation fallback recursion is not bounded');
 assert(navigation.includes("if(d<1e-6)"),'Zero-distance path steps are not guarded');
