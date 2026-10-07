@@ -1,7 +1,7 @@
 /* Mission identities and lightweight persistent character profiles. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.BadFodderIdentities=api;})(typeof window!=='undefined'?window:globalThis,function(){
 'use strict';
-const scenarioLabels=Object.freeze({fictional:'FICTIONAL SCENARIO',historical:'BASED ON REAL EVENTS'});
+const scenarioLabels=Object.freeze({fictional:'FICTIONAL MISSION',historical:'BASED ON REAL EVENTS'});
 const character=(name,role,coat,hat,weapon,extra={})=>({name,role,coat,hat,weapon,...extra});
 const missions={
  barcelona:{key:'barcelona',title:'BARCELONA',location:'CATALUNYA / LA RAMBLA, SPAIN',year:1936,date:'1936-07-19',scenario:'historical',loading:'BARCELONA · 19 JULY 1936',
