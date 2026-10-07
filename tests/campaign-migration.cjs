@@ -49,6 +49,7 @@ assert(controller);assert.equal(cable.id,'cable-street');controller.dispose();
 for(const creation of ['cableStreetInteractions.create','cableStreetDirector.create','cableStreetCrowd.create'])assert.match(html.slice(html.indexOf(creation),html.indexOf(creation)+160),/mission:historicalControllerMission/,'Specialised Cable components must receive the legacy private ID');
 
 const throughCable=fixture({campaignSchema:2,currentId:'cable-street',unlockedId:'cable-street',completedIds:ids.slice(0,3)});
-const continueCode=html.slice(html.indexOf('  function startCampaignFromMenu('),html.indexOf('  function startStandaloneMission('));let briefing,begin,launched=false;
+const missionSource=fs.readFileSync(require.resolve('../mission-controller.js'),'utf8').replace(/\benv\./g,'');
+const continueCode=missionSource.slice(missionSource.indexOf('  function startCampaignFromMenu('),missionSource.indexOf('  function startStandaloneMission('));let briefing,begin,launched=false;
 new Function('commands','campaign','showTitle','requestMissionBriefing','launchCampaign',continueCode+';startCampaignFromMenu();')(null,throughCable.c,()=>{},(m,action)=>{briefing=m;begin=action},()=>launched=true);
 assert.equal(briefing.id,'barcelona-1936','Continue offers the new chapter after an old terminal Cable save');assert.equal(throughCable.c.current().id,'cable-street','Briefing cancellation preserves the previous current mission');begin();assert(launched);assert.equal(throughCable.reload().current().id,'barcelona-1936');

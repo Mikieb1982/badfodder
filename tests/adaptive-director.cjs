@@ -39,7 +39,7 @@ for(const hook of ['sample','valid','execute','maintain']){
  const f=basic({[hook]:()=>{throw Error('injected '+hook)}});for(let i=0;i<50;i++)assert.doesNotThrow(()=>f.d.update(.25));
  assert(f.d.state.disabled,hook+' failure was not isolated');assert.equal(f.released,1);
 }
-const html=fs.readFileSync('index.html','utf8');
+const html=require('./engine-source.cjs')(fs.readFileSync('index.html','utf8'));
 const safe=html.slice(html.indexOf('  function runAdaptive('),html.indexOf('  function initializeAdaptiveDirector('));
 const simulate=html.slice(html.indexOf('  function simulateStep('),html.indexOf('  function handleRuntimeFault('));
 let simulationSteps=0;const scope={resistanceRuntime:null,barcelonaRuntime:null,tacticsRuntime:null,enemyBehaviour:null,opportunitiesRuntime:null,commands:{mode:'local'},window:{BadFodderHealth:require('../character-health')},menuOpen:false,paused:false,mapOpen:false,adaptiveDirector:basic({sample:()=>{throw Error('Director fault')}}).d,

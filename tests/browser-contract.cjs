@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.join(__dirname,'..');
-const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const html=require('./engine-source.cjs')(fs.readFileSync(path.join(root,'index.html'),'utf8'));
 const css=fs.readFileSync(path.join(root,'game-ui.css'),'utf8');
 const menu=fs.readFileSync(path.join(root,'menu-ui.js'),'utf8');
 const menuCss=fs.readFileSync(path.join(root,'menu-ui.css'),'utf8');

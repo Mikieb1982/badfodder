@@ -117,7 +117,7 @@ const staleCampaign=MissionLaunch.create({
 assert.equal(staleCampaign.currentIndex(),3,'Unavailable future campaign position should resolve to nearest playable mission');
 assert.equal(staleCampaign.current().id,'barcelona-1936');
 
-const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const index=require('./engine-source.cjs')(fs.readFileSync(path.join(root,'index.html'),'utf8'));
 assert(index.includes('BadFodderMissionBootstrap'),'Live bootstrap does not use explicit mission resolver');
 assert(!index.includes("initialMission.map==='wigan')?WIGAN_MAP:TOWN_MAP"),'Two-map Bad Belzig fallback still exists');
 assert(index.includes("historicalMissions:historicalMissions.missions"),'Historical registry is not supplied to launch resolver');

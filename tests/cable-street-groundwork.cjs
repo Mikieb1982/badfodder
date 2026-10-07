@@ -136,7 +136,7 @@ assert(missionController.dispose());
 assert(missionController.disposed);
 assert.throws(()=>missionController.fixedUpdate(1/60),/disposed/);
 
-const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const index=require('./engine-source.cjs')(fs.readFileSync(path.join(root,'index.html'),'utf8'));
 const menu=fs.readFileSync(path.join(root,'menu-ui.js'),'utf8');
 assert(!index.includes('id="menuHistorical"'),'Historical category must not appear in the main menu');
 assert(!index.includes('data-view="historical"'),'Redundant historical category panel must be removed');

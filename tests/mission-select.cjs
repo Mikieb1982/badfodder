@@ -2,7 +2,7 @@
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),vm=require('node:vm');
 const root=path.join(__dirname,'..');
 const MissionLaunch=require('../mission-launch.js');
-const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const index=require('./engine-source.cjs')(fs.readFileSync(path.join(root,'index.html'),'utf8'));
 const menu=fs.readFileSync(path.join(root,'menu-ui.js'),'utf8');
 const campaignSource=fs.readFileSync(path.join(root,'campaign.js'),'utf8');
 

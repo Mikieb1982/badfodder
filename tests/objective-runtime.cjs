@@ -3,7 +3,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 const Runtime=require('../mission-objectives'),Rules=require('../mission-rules'),Protocol=require('../multiplayer-protocol');
 const scope={window:{BadFodderHistoricalMissions:require('../historical-missions')},localStorage:{getItem:()=>null,setItem(){}}};
 vm.runInNewContext(fs.readFileSync(require.resolve('../campaign.js'),'utf8'),scope);
-const source=fs.readFileSync(require.resolve('../index.html'),'utf8');
+const source=require('./engine-source.cjs')(fs.readFileSync(require.resolve('../index.html'),'utf8'));
 const update=source.slice(source.indexOf('  function updateMissionProgress(dt){'),source.indexOf('  let nextHudUpdate='));
 for(const mission of scope.window.BadFodderCampaign.missions.filter(m=>m.playable&&m.scenario!=='historical')){
  const runtime=Runtime.create(mission),zones=Object.fromEntries(mission.phases.map((p,i)=>[p.zone,{x:i*1000,y:0,r:50}]));

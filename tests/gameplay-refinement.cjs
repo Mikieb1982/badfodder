@@ -2,7 +2,7 @@
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict');
 const root=path.join(__dirname,'..');
 const MissionRules=require('../mission-rules.js');
-const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const index=require('./engine-source.cjs')(fs.readFileSync(path.join(root,'index.html'),'utf8'));
 const campaignSource=fs.readFileSync(path.join(root,'campaign.js'),'utf8');
 const wiganSource=fs.readFileSync(path.join(root,'wigan-map.js'),'utf8');
 const townSource=fs.readFileSync(path.join(root,'town-map.js'),'utf8');

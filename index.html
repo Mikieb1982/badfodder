@@ -545,6 +545,9 @@
 <script src="game-rng.js"></script>
 <script src="game-lifecycle.js"></script>
 <script src="runtime-services.js"></script>
+<script src="hud-controller.js"></script>
+<script src="mission-controller.js"></script>
+<script src="simulation-runtime.js"></script>
 <script src="game-input.js"></script>
 <script src="pixel-art.js"></script>
 <script src="mission-identities.js?v=20261003-wartime-1"></script>
@@ -583,6 +586,193 @@
 <script>
 (async () => {
   'use strict';
+  // Live accessors preserve state replacement during restart and co-op restore.
+  const hudEngine=BadFodderHudController.create({
+    get S(){return S;},
+    get actionAllowed(){return actionAllowed;},
+    get activeMission(){return activeMission;},
+    get activeMissionIndex(){return activeMissionIndex;},
+    get art(){return art;},
+    get barcelonaRuntime(){return barcelonaRuntime;},
+    get campaign(){return campaign;},
+    get civilianRuntime(){return civilianRuntime;},
+    get commands(){return commands;},
+    get contextAction(){return contextAction;},
+    get currentObjectivePhase(){return currentObjectivePhase;},
+    get enemies(){return enemies;},
+    get enemyCountEl(){return enemyCountEl;},
+    get finished(){return finished;},
+    get grenadeCountEl(){return grenadeCountEl;},
+    get hudAll(){return hudAll;},
+    get hudCampaign(){return hudCampaign;},
+    get hudChips(){return hudChips;},
+    get hudEnemies(){return hudEnemies;},
+    get hudEnemyLabel(){return hudEnemyLabel;},
+    get hudGrenadeLabel(){return hudGrenadeLabel;},
+    get hudGrenades(){return hudGrenades;},
+    get hudMission(){return hudMission;},
+    get hudNotice(){return hudNotice;},
+    get hudNoticeUntil(){return hudNoticeUntil;},set hudNoticeUntil(value){hudNoticeUntil=value;},
+    get hudProgress(){return hudProgress;},
+    get hudSquad(){return hudSquad;},
+    get hudSquadBar(){return hudSquadBar;},
+    get hudSquadLabel(){return hudSquadLabel;},
+    get hudStage(){return hudStage;},
+    get lastHudStats(){return lastHudStats;},set lastHudStats(value){lastHudStats=value;},
+    get lastRosterSignature(){return lastRosterSignature;},set lastRosterSignature(value){lastRosterSignature=value;},
+    get mapOpen(){return mapOpen;},
+    get menuOpen(){return menuOpen;},
+    get missionController(){return missionController;},
+    get missionDirector(){return missionDirector;},
+    get missionIdentity(){return missionIdentity;},
+    get missionInteractionLayer(){return missionInteractionLayer;},
+    get missionLaunch(){return missionLaunch;},
+    get missionObjectivesRuntime(){return missionObjectivesRuntime;},
+    get missionStage(){return missionStage;},set missionStage(value){missionStage=value;},
+    get nextHudUpdate(){return nextHudUpdate;},set nextHudUpdate(value){nextHudUpdate=value;},
+    get paused(){return paused;},
+    get phaseDefenders(){return phaseDefenders;},
+    get phaseStatus(){return phaseStatus;},
+    get rosterEl(){return rosterEl;},
+    get selectAllBtn(){return selectAllBtn;},
+    get selectedHistoricalActor(){return selectedHistoricalActor;},
+    get selectedUnits(){return selectedUnits;},
+    get setSelection(){return setSelection;},
+    get squad(){return squad;},
+    get squadCountEl(){return squadCountEl;},
+    get squadGrenades(){return squadGrenades;},
+    get squadMaxEl(){return squadMaxEl;},
+    get statusEl(){return statusEl;},
+    get toggleSelection(){return toggleSelection;},
+    get touchAction(){return touchAction;},
+    get touchDrop(){return touchDrop;},
+    get unitButtons(){return unitButtons;},set unitButtons(value){unitButtons=value;},
+    get win(){return win;},
+    get zones(){return zones;}
+  });
+
+  // Live accessors preserve state replacement during restart and co-op restore.
+  const missionEngine=BadFodderMissionController.create({
+    get LOW_POWER(){return LOW_POWER;},
+    get MAP_DATA(){return MAP_DATA;},
+    get PATH_CELL(){return PATH_CELL;},
+    get VIEW_H(){return VIEW_H;},
+    get VIEW_W(){return VIEW_W;},
+    get activeMission(){return activeMission;},
+    get activeMissionIndex(){return activeMissionIndex;},
+    get bakeScenery(){return bakeScenery;},
+    get barcelonaRuntime(){return barcelonaRuntime;},
+    get camera(){return camera;},
+    get campaign(){return campaign;},
+    get commands(){return commands;},
+    get ctx(){return ctx;},
+    get diagnostics(){return diagnostics;},
+    get finished(){return finished;},set finished(value){finished=value;},
+    get handleRuntimeFault(){return handleRuntimeFault;},
+    get historicalMissions(){return historicalMissions;},
+    get hudMission(){return hudMission;},
+    get hudStage(){return hudStage;},
+    get last(){return last;},set last(value){last=value;},
+    get launchAfterLoad(){return launchAfterLoad;},set launchAfterLoad(value){launchAfterLoad=value;},
+    get lifecycle(){return lifecycle;},
+    get loadingEl(){return loadingEl;},
+    get loadingMission(){return loadingMission;},set loadingMission(value){loadingMission=value;},
+    get mapOpen(){return mapOpen;},set mapOpen(value){mapOpen=value;},
+    get menu(){return menu;},
+    get menuOpen(){return menuOpen;},
+    get missionController(){return missionController;},
+    get missionIdentity(){return missionIdentity;},
+    get missionLaunch(){return missionLaunch;},
+    get pathComponent(){return pathComponent;},
+    get pathComponents(){return pathComponents;},
+    get pauseBtn(){return pauseBtn;},
+    get preload(){return preload;},
+    get refreshCursorWorld(){return refreshCursorWorld;},
+    get releaseAllFireInputs(){return releaseAllFireInputs;},
+    get releaseInterruptedInput(){return releaseInterruptedInput;},
+    get releaseTouchMove(){return releaseTouchMove;},
+    get resetGame(){return resetGame;},
+    get root(){return root;},
+    get runtimeFaultCount(){return runtimeFaultCount;},set runtimeFaultCount(value){runtimeFaultCount=value;},
+    get runtimeSafeStop(){return runtimeSafeStop;},
+    get sceneryTiles(){return sceneryTiles;},
+    get setStatus(){return setStatus;},
+    get simulationAccumulator(){return simulationAccumulator;},set simulationAccumulator(value){simulationAccumulator=value;},
+    get squad(){return squad;},
+    get started(){return started;},set started(value){started=value;},
+    get syncTouchControlState(){return syncTouchControlState;},
+    get updateHud(){return updateHud;},
+    get validateMissionConnectivity(){return validateMissionConnectivity;},
+    get win(){return win;},set win(value){win=value;},
+    get zoom(){return zoom;}
+  });
+
+  // Live accessors preserve state replacement during restart and co-op restore.
+  const simulationEngine=BadFodderSimulationRuntime.create({
+    get FIXED_DT(){return FIXED_DT;},
+    get MAX_CATCHUP_STEPS(){return MAX_CATCHUP_STEPS;},
+    get actionAllowed(){return actionAllowed;},
+    get adaptiveDirector(){return adaptiveDirector;},
+    get applyTouchMovement(){return applyTouchMovement;},
+    get art(){return art;},
+    get barcelonaRuntime(){return barcelonaRuntime;},
+    get bothLatched(){return bothLatched;},
+    get checkFailure(){return checkFailure;},
+    get civilians(){return civilians;},
+    get commands(){return commands;},
+    get completeCurrentMission(){return completeCurrentMission;},
+    get cursorWorld(){return cursorWorld;},
+    get diagnostics(){return diagnostics;},
+    get drawWorld(){return drawWorld;},
+    get enemies(){return enemies;},
+    get enemyBehaviour(){return enemyBehaviour;},
+    get finished(){return finished;},set finished(value){finished=value;},
+    get fireMobile(){return fireMobile;},
+    get hudStage(){return hudStage;},
+    get keyboardFireHeld(){return keyboardFireHeld;},
+    get last(){return last;},set last(value){last=value;},
+    get lifecycle(){return lifecycle;},
+    get macFireHeld(){return macFireHeld;},
+    get mapOpen(){return mapOpen;},
+    get menu(){return menu;},
+    get menuOpen(){return menuOpen;},
+    get missionController(){return missionController;},
+    get missionCrowd(){return missionCrowd;},
+    get missionDirector(){return missionDirector;},
+    get missionInteractionLayer(){return missionInteractionLayer;},
+    get missionObjectivesRuntime(){return missionObjectivesRuntime;},
+    get missionStage(){return missionStage;},set missionStage(value){missionStage=value;},
+    get opportunitiesRuntime(){return opportunitiesRuntime;},
+    get paused(){return paused;},
+    get processEnemyPathQueue(){return processEnemyPathQueue;},
+    get refreshCursorWorld(){return refreshCursorWorld;},
+    get releaseInterruptedInput(){return releaseInterruptedInput;},
+    get resistanceRuntime(){return resistanceRuntime;},
+    get rightHeld(){return rightHeld;},
+    get runAdaptive(){return runAdaptive;},
+    get runtimeFaultAt(){return runtimeFaultAt;},set runtimeFaultAt(value){runtimeFaultAt=value;},
+    get runtimeFaultCount(){return runtimeFaultCount;},set runtimeFaultCount(value){runtimeFaultCount=value;},
+    get runtimeFaultTotal(){return runtimeFaultTotal;},set runtimeFaultTotal(value){runtimeFaultTotal=value;},
+    get runtimeSafeStop(){return runtimeSafeStop;},
+    get setStatus(){return setStatus;},
+    get showMissionResult(){return showMissionResult;},
+    get simulationAccumulator(){return simulationAccumulator;},set simulationAccumulator(value){simulationAccumulator=value;},
+    get squad(){return squad;},
+    get squadFireAt(){return squadFireAt;},
+    get started(){return started;},
+    get syncTouchControlState(){return syncTouchControlState;},
+    get tacticsRuntime(){return tacticsRuntime;},
+    get touchState(){return touchState;},
+    get updateCamera(){return updateCamera;},
+    get updateCivilians(){return updateCivilians;},
+    get updateEnemies(){return updateEnemies;},
+    get updateHud(){return updateHud;},
+    get updateMissionProgress(){return updateMissionProgress;},
+    get updateProjectiles(){return updateProjectiles;},
+    get updateSquad(){return updateSquad;},
+    get win(){return win;},set win(value){win=value;}
+  });
+
   try{await BadFodderMissionAssets.ready}catch(error){BadFodderMissionAssets.recover(error);return;}
 
   const root=document.getElementById('gameRoot');
@@ -783,26 +973,9 @@
     touchFire.classList.remove('active');
   }
 
-  function setStatus(text){
-    if(statusEl.textContent!==text)statusEl.textContent=text;
-    const phaseLine=/^Phase\s+\d+:/.test(text),missionLine=/^Mission (complete|failed)/i.test(text);
-    if(phaseLine||missionLine){
-      const brief=text.replace(/^Phase\s+\d+:\s*/,'');
-      if(hudMission.textContent!==brief)hudMission.textContent=brief;
-      return;
-    }
-    if(hudNotice){
-      hudNotice.textContent=text;
-      hudNotice.classList.add('show');
-      hudNoticeUntil=performance.now()+2400;
-    }
-  }
+  function setStatus(...args){return hudEngine.setStatus(...args);}
 
-  function updateHudNotice(now){
-    if(hudNotice&&hudNotice.classList.contains('show')&&now>=hudNoticeUntil){
-      hudNotice.classList.remove('show');
-    }
-  }
+  function updateHudNotice(...args){return hudEngine.updateHudNotice(...args);}
 
   function hash(n){n=Math.imul(n^(n>>>16),2246822519);n=Math.imul(n^(n>>>13),3266489917);return(n^(n>>>16))>>>0}
   function unit(seed,salt){return hash((seed+Math.imul(salt,1013904223))>>>0)/4294967296}
@@ -967,17 +1140,7 @@
     return index>=0?{unit,id:'player-'+index}:null;
   }
 
-  function updateHistoricalActionButton(){
-    if(!touchAction)return;
-    const selected=selectedHistoricalActor();
-    const enabled=!!(missionInteractionLayer&&selected&&!menuOpen&&!paused&&!finished&&!mapOpen);
-    const civilianHint=contextAction(selected?.unit)?.label||'';
-    touchAction.hidden=!missionInteractionLayer&&!civilianHint;
-    touchAction.disabled=missionInteractionLayer?!enabled:!civilianHint||menuOpen||paused||finished||mapOpen;
-    touchAction.textContent=missionInteractionLayer&&selected?missionInteractionLayer.hint(selected.id):civilianHint||'ACTION';
-    touchDrop.hidden=!missionInteractionLayer;touchDrop.disabled=!enabled;
-    touchDrop.textContent=selected&&missionController?.state.actors.get(selected.id)?.carrying?'DROP':'CANCEL';
-  }
+  function updateHistoricalActionButton(...args){return hudEngine.updateHistoricalActionButton(...args);}
 
   function contextAction(helper){
     if(!helper)return null;
@@ -1181,123 +1344,31 @@
     syncTouchControlState();
   }
 
-  function togglePause(){
-    if(commands?.mode==='host'){setStatus('Co-op continues while the menu is open.');}
-    if(finished||!started)return;
-    if(menuOpen){if(menu&&menu.mode==='pause')resumeMission();return;}
-    lifecycle.transition('PAUSED');
-    releaseAllFireInputs();
-    releaseTouchMove();
-    pauseBtn.textContent='Resume (Enter)';
-    if(menu)menu.show('pause');
-    syncTouchControlState();
-  }
+  function togglePause(...args){return missionEngine.togglePause(...args);}
 
-  function canResumeMission(){
-    return started&&!finished&&!runtimeSafeStop&&squad.some(s=>s.alive)&&(!missionController||!missionController.disposed);
-  }
+  function canResumeMission(...args){return missionEngine.canResumeMission(...args);}
 
-  function resumeMission(){
-    window.BadFodderSfx?.unlock();
-    if(!canResumeMission())return;
-    window.BadFodderMusic?.playMission(activeMission());
-    simulationAccumulator=0;last=performance.now();
-    releaseInterruptedInput();
-    lifecycle.transition('PLAYING');
-    pauseBtn.textContent='Pause (Enter)';
-    menu.close();syncTouchControlState();root.focus({preventScroll:true});
-  }
+  function resumeMission(...args){return missionEngine.resumeMission(...args);}
 
-  function beginMission(){
-    diagnostics.start();
-    if(commands&&commands.mode!=='local'&&!commands.applying){window.BadFodderCoop?.restart();return;}
-    window.BadFodderSfx?.unlock();
-    if(!started)return;
-    window.BadFodderMusic?.playMission(activeMission());
-    try{resetGame()}catch(err){runtimeFaultCount=2;handleRuntimeFault(err);return}
-    lifecycle.transition('PLAYING');
-    menu.close();syncTouchControlState();root.focus({preventScroll:true});
-    refreshCursorWorld();
-  }
+  function beginMission(...args){return missionEngine.beginMission(...args);}
 
-  function requestMissionBriefing(mission,begin,back='missions'){
-    releaseInterruptedInput();lifecycle.transition('BRIEFING');mapOpen=false;simulationAccumulator=0;
-    menu.showBriefing(BadFodderIdentities.get(mission),begin,back);syncTouchControlState();
-    void BadFodderMissionAssets.load(mission.map).catch(()=>setStatus('Mission preload failed. Begin Mission retries the load.'));
-  }
-  function startCampaignFromMenu(){
-    if(commands&&commands.mode!=='local')showTitle();
-    let next=campaign.state.current;while(next<campaign.state.unlocked&&campaign.state.completed.includes(next))next++;
-    requestMissionBriefing(campaign.missions[next]||campaign.missions[0],()=>{campaign.setCurrent(next);launchCampaign();},'main');
-  }
-  function startStandaloneMission(index){if(commands&&commands.mode!=='local')showTitle();if(campaign.missions[index]?.playable)requestMissionBriefing(campaign.missions[index],()=>launchStandalone(index));}
-  function startHistoricalMission(id){if(commands&&commands.mode!=='local')showTitle();const m=historicalMissions.get(id);if(m?.playable&&m.mapReady&&BadFodderMissionAssets.has(m.map))requestMissionBriefing(m,()=>launchHistorical(id));}
-  function viewMissionBriefing(){requestMissionBriefing(activeMission(),finished?beginMission:resumeMission,finished?'result':'main');}
-  function showMissionResult(){
-    window.BadFodderCoop?.flush();
-    releaseInterruptedInput();lifecycle.transition('RESULT');mapOpen=false;
-    menu.showResult(missionIdentity,win,win&&hasPlayableNextMission());
-    if(barcelonaRuntime){const result=barcelonaRuntime.summary();document.getElementById('resultFlavour').textContent=result.characters.filter(s=>s.alive).length+' neighbours survived · '+result.characters.filter(s=>!s.alive).length+' casualties · '+result.characters.filter(s=>s.alive&&s.health!=='FIT').length+' hurt · '+result.alliesLost+' friendly losses · '+result.civiliansRescued+'/'+result.civiliansFound+' civilians rescued · '+result.civiliansLost+' lost · '+(result.breached?'barricade breached':'barricade standing');}
-    syncTouchControlState();
-  }
+  function requestMissionBriefing(...args){return missionEngine.requestMissionBriefing(...args);}
+  function startCampaignFromMenu(...args){return missionEngine.startCampaignFromMenu(...args);}
+  function startStandaloneMission(...args){return missionEngine.startStandaloneMission(...args);}
+  function startHistoricalMission(...args){return missionEngine.startHistoricalMission(...args);}
+  function viewMissionBriefing(...args){return missionEngine.viewMissionBriefing(...args);}
+  function showMissionResult(...args){return missionEngine.showMissionResult(...args);}
 
-  function launchCampaign(){
-    if(missionLaunch.isCampaign()&&activeMissionIndex===campaign.state.current){
-      if(started)beginMission();else{launchAfterLoad=true;startGame();}
-      return;
-    }
-    missionLaunch.useCampaign();
-    missionLaunch.requestAutoStart();
-    location.reload();
-  }
+  function launchCampaign(...args){return missionEngine.launchCampaign(...args);}
 
-  function launchStandalone(index){
-    const selected=campaign.missions[index];
-    if(!selected||!selected.playable)return;
-    if(missionLaunch.isSelection()&&activeMissionIndex===index&&started){
-      beginMission();
-      return;
-    }
-    if(!missionLaunch.select(index))return;
-    missionLaunch.requestAutoStart();
-    location.reload();
-  }
+  function launchStandalone(...args){return missionEngine.launchStandalone(...args);}
 
-  function launchHistorical(id){
-    if(!missionLaunch.selectHistorical(id)){
-      setStatus('Historical mission is not ready for play.');
-      return false;
-    }
-    missionLaunch.requestAutoStart();
-    location.reload();
-    return true;
-  }
+  function launchHistorical(...args){return missionEngine.launchHistorical(...args);}
 
-  function showTitle(){
-    const wasCoop=commands&&commands.mode!=='local';
-    window.BadFodderCoop?.leave();
-    if(wasCoop&&started)resetGame();
-    lifecycle.transition('TITLE');
-    releaseAllFireInputs();
-    releaseInterruptedInput();mapOpen=false;simulationAccumulator=0;
-    window.BadFodderMusic?.playHome();
-    menu.show('title');syncTouchControlState();
-  }
+  function showTitle(...args){return missionEngine.showTitle(...args);}
 
 
-  function rebuildUnitButtons(){
-    unitButtons.forEach(b=>b.remove());
-    unitButtons=squad.map((s,i)=>{
-      const b=document.createElement('button');
-      b.className='unitBtn';
-      b.dataset.unit=String(i);
-      b.type='button';
-      b.textContent=(i+1)+' '+s.name;
-      b.addEventListener('click',evt=>(evt.shiftKey||evt.ctrlKey||evt.metaKey)?toggleSelection(i):setSelection(i));
-      selectAllBtn.parentElement.appendChild(b);
-      return b;
-    });
-  }
+  function rebuildUnitButtons(...args){return hudEngine.rebuildUnitButtons(...args);}
 
   function setSelection(sel){
     const next=sel==='all'?'all':selectionIds(sel);
@@ -1329,41 +1400,7 @@
     setSelection([...current,index].sort((a,b)=>a-b));
   }
 
-  function updateRoster(force=false){
-    const signature=squad.map((s,i)=>[
-      i,s.alive?1:0,s.hp,s.maxHp,s.selected?1:0,(s.suppression||0)>=.55?1:0,s.coverMask||0,missionController?Math.round((missionController.state.actors.get('player-'+i)?.stamina??100)/10):0
-    ].join(':')).join('|');
-    if(!force&&signature===lastRosterSignature)return;
-    lastRosterSignature=signature;
-
-    rosterEl.innerHTML='';
-
-
-    squad.forEach((s,i)=>{
-      const d=document.createElement('div');
-      d.className='card'+(s.selected?' selected':'');
-      d.innerHTML='<strong>'+(i+1)+' '+s.name+'</strong><div>'+(s.alive?'HP '+s.hp+'/'+s.maxHp:'DOWN')+'</div><div>'+(s.alive&&actionAllowed('firearms')?'Machine gun ∞':'')+'</div>';
-      rosterEl.appendChild(d);
-
-      let chip=hudChips.get(i);
-      if(!chip){
-        chip=document.createElement('button');chip.type='button';
-        chip.addEventListener('click',()=>toggleSelection(i));hudChips.set(i,chip);hudSquadBar.appendChild(chip);
-      }
-      chip.className='hud-unit'+(s.selected?' selected':'')+(s.alive?'':' down');
-      const energy=missionController?Math.round((missionController.state.actors.get('player-'+i)?.stamina??100)/10)*10:null;
-      chip.setAttribute('aria-label',(s.alive?'Select ':'Down: ')+s.name+(energy===null?', health '+s.hp+' of '+s.maxHp:', energy '+energy+' percent'));
-      const cachedPortrait=chip.querySelector('canvas');
-      chip.setAttribute('aria-pressed',String(s.selected));chip.disabled=!s.alive||s.downed||!!(commands&&!commands.owns(i));
-      chip.title=s.name+' · '+s.occupation+' · '+s.trait.toLowerCase();
-      const hp=Array.from({length:energy===null?s.maxHp:10},(_,h)=>'<i class="'+(h<(energy===null?s.hp:energy/10)?((energy===null?s.hp<=2:energy<30)?'on low':'on'):'')+'"></i>').join('');
-      chip.innerHTML='<span class="hud-unit-info"><span class="hud-name"><em>'+(i+1)+'</em>'+s.name+(commands&&commands.mode!=='local'?' P'+(i<2?1:2):'')+'</span><span class="hud-health">'+hp+'</span><span class="hud-state">'+(s.alive?(s.downed?'DOWN + ':s.carryingUnit?'CARRYING + ':(s.suppression||0)>=.55?'PINNED ! ':s.coverMask?'COVER ◇ ':s.manualGarrison?'HOLD ◇ ':s.selected?'SELECTED ▸ ':'')+(energy===null?'HP '+s.hp+'/'+s.maxHp:'ENERGY '+energy+'%'):'DOWN ×')+'</span></span>';
-      const portrait=cachedPortrait||document.createElement('canvas');portrait.width=96;portrait.height=96;portrait.className='hud-portrait';
-      const pg=portrait.getContext('2d');pg.imageSmoothingEnabled=true;pg.drawImage(art.missionPortrait?art.missionPortrait(missionIdentity.key,i,s.alive?'idle':'dead'):art.soldier(missionController?'civilian':'squad',2,s.alive?0:2,s.alive?'idle':'dead',i),0,0,96,96);
-      chip.insertBefore(portrait,chip.firstChild);
-
-    });
-  }
+  function updateRoster(...args){return hudEngine.updateRoster(...args);}
 
 
 
@@ -1602,42 +1639,13 @@
     });
   }
 
-  function rebuildHudProgress(count){
-    const current=hudProgress.querySelectorAll('i').length;
-    if(current===count)return;
-    hudProgress.innerHTML='';
-    for(let i=0;i<count;i++)hudProgress.appendChild(document.createElement('i'));
-  }
+  function rebuildHudProgress(...args){return hudEngine.rebuildHudProgress(...args);}
 
-  function hasPlayableNextMission(){
-    if(!missionLaunch.isCampaign())return false;
-    const next=activeMissionIndex+1;
-    return !!(campaign.missions[next]&&campaign.missions[next].playable);
-  }
+  function hasPlayableNextMission(...args){return missionEngine.hasPlayableNextMission(...args);}
 
-  function advanceCampaign(){
-    if(commands?.mode!=='local'&&commands)return false;
-    if(!finished||!win||!hasPlayableNextMission())return false;
-    requestMissionBriefing(campaign.missions[activeMissionIndex+1],()=>{
-      campaign.setCurrent(activeMissionIndex+1);missionLaunch.useCampaign();missionLaunch.requestAutoStart();location.reload();
-    },'result');
-    return true;
-  }
+  function advanceCampaign(...args){return missionEngine.advanceCampaign(...args);}
 
-  function completeCurrentMission(){
-    if(finished)return;
-    finished=true;win=true;
-    if(commands?.mode!=='client')squad.filter(s=>s.alive).forEach(s=>s.experience=Math.min(24,(s.experience||0)+1));
-    const mission=activeMission();
-    if(!commands||commands.mode==='local'){if(missionLaunch.isCampaign())campaign.complete(activeMissionIndex);}
-    hudStage.textContent='MISSION COMPLETE';
-    const completion=missionLaunch.isHistorical()&&mission.successHeadline
-      ?mission.successHeadline
-      :mission.title+' complete.';
-    setStatus('Mission complete. '+completion);
-    if(missionLaunch.isHistorical())hudMission.textContent=completion;
-    showMissionResult();
-  }
+  function completeCurrentMission(...args){return missionEngine.completeCurrentMission(...args);}
 
   function phaseStatus(phase,result){
     return missionRules.phaseStatus(phase,result,phaseHoldTime);
@@ -1680,90 +1688,7 @@
   }
 
   let nextHudUpdate=0;
-  function updateHud(force=false){
-    const hudNow=performance.now();
-    if(!force&&hudNow<nextHudUpdate)return;
-    nextHudUpdate=hudNow+100;
-    const mission=activeMission();
-    const phases=mission.phases||[];
-    const objectiveRows=missionObjectivesRuntime?.manager.all().filter(o=>!o.optional)||[];
-    const phaseCount=Math.max(1,objectiveRows.length||phases.length);
-    const living=squad.filter(s=>s.alive);
-    const remaining=enemies.filter(e=>e.alive&&!e.surrendered).length;
-    const currentPhase=currentObjectivePhase();
-    const objectiveDefenders=currentPhase?phaseDefenders(currentPhase):null;
-    const targetCount=objectiveDefenders?objectiveDefenders.length:remaining;
-
-    hudCampaign.textContent=missionLaunch.isHistorical()
-      ?missionIdentity.title+' · '+missionIdentity.year
-      :'MISSION '+String(activeMissionIndex+1).padStart(2,'0')+'/'+String(campaign.missions.length).padStart(2,'0')+' · '+mission.title.toUpperCase();
-    const historicalMode=missionLaunch.isHistorical();
-    hudAll.querySelector('span').textContent=commands&&commands.mode!=='local'?(living.filter(s=>commands.owns(squad.indexOf(s))).length?'MY PAIR':'SPECTATING'):living.length+(historicalMode?' VOLUNTEERS':' LOCALS');
-    hudSquadLabel.textContent=historicalMode?'VOLUNTEERS':'SQUAD';
-    hudStage.textContent=finished?(win?'MISSION COMPLETE':'MISSION FAILED'):'OBJECTIVE '+Math.min(phaseCount,missionStage+1)+'/'+phaseCount;
-    rebuildHudProgress(phaseCount);
-    hudProgress.querySelectorAll('i').forEach((p,i)=>{p.className=win||objectiveRows[i]?.status==='COMPLETED'?'done':objectiveRows[i]?.status==='ACTIVE'?'current':'';});
-
-    const stats=[living.length,squad.length,remaining,targetCount,squadGrenades,mission.id,missionStage].join('|');
-    if(force||stats!==lastHudStats){
-      lastHudStats=stats;
-      squadCountEl.textContent=living.length;
-      squadMaxEl.textContent=squad.length;
-      enemyCountEl.textContent=remaining;
-      grenadeCountEl.textContent=squadGrenades;
-      hudSquad.textContent=living.length;
-      hudEnemies.textContent=targetCount;
-      hudGrenades.textContent=squadGrenades;
-    }
-
-    updateRoster(force);
-    updateHistoricalActionButton();
-    if(finished)return;
-
-    if(missionDirector){
-      const historicalProgress=missionDirector.snapshot();
-      missionStage=historicalProgress.phaseIndex;
-      hudProgress.querySelectorAll('i').forEach((p,i)=>{
-        p.className=i<missionStage?'done':i===missionStage?'current':'';
-      });
-      hudStage.textContent='PHASE '+Math.min(phaseCount,missionStage+1)+'/'+phaseCount;
-      hudEnemyLabel.textContent='DEFENCE';
-      hudGrenadeLabel.textContent='ENERGY';
-      hudEnemies.textContent=Math.round(historicalProgress.barricadeRatio*100)+'%';
-      hudEnemyLabel.textContent=historicalProgress.threat?.id==='S'?'SIDE DEFENCE':'MAIN DEFENCE';
-      if(historicalProgress.threat)hudEnemies.textContent=Math.round(historicalProgress.threat.integrity)+'%';
-      const selected=selectedHistoricalActor();
-      hudGrenades.textContent=Math.round(selected?(missionController.state.actors.get(selected.id)?.stamina??100):0)+'%';
-      const nextHistoricalObjective=historicalProgress.objectives.find(o=>!o.done);
-      const threat=historicalProgress.threat;
-      const historicalBrief=missionStage===0?'BUILD: '+historicalProgress.materialDeliveries+'/'+historicalProgress.buildsRequired+' loads · CHARGE IN '+historicalProgress.buildSecondsLeft+'s'
-        :missionStage===3?'HOLD THE ROUTE: '+Math.ceil(historicalProgress.finalHoldTarget-historicalProgress.finalHoldSeconds)+'s'
-        :missionStage===2?'REGROUP: repair both defences':(threat?.id==='S'?'SIDE STREET UNDER ATTACK':'MAIN BARRICADE UNDER ATTACK');
-      const instructionEl=document.getElementById('hudInstruction');
-      instructionEl.hidden=false;
-      const hint=historicalProgress.breachSeconds>0?'REBUILD '+(historicalProgress.barricades.find(b=>b.breachSeconds>0)?.id==='S'?'SIDE STREET':'MAIN DEFENCE')+': '+Math.ceil((activeMission().breachRecoverySeconds||30)-historicalProgress.breachSeconds)+'s · E / ACTION with material'
-        :missionStage===2?(nextHistoricalObjective?.label||'Regroup and repair')+' · E / ACTION'
-        :missionStage===0?'E / ACTION: pick up, then deliver. Rescues earn repairs.'
-        :(threat?.id==='S'?'SIDE STREET: ':'MAIN DEFENCE: ')+'F / SHOVE · G / THROW · E: build · Breach '+(activeMission().breachRecoverySeconds||30)+'s = defeat';
-      if(instructionEl.textContent!==hint)instructionEl.textContent=hint;
-      if(hudMission.textContent!==historicalBrief)hudMission.textContent=historicalBrief;
-      const instruction=historicalProgress.instruction||historicalProgress.status;
-      if(statusEl.textContent!==instruction)statusEl.textContent=instruction;
-      return;
-    }
-    const civCounts=civilianRuntime?.counts();
-    if(barcelonaRuntime){const totals=barcelonaRuntime.summary(),ammo=barcelonaRuntime.ammoStatus(selectedUnits());document.getElementById('hudInstruction').hidden=false;document.getElementById('hudInstruction').textContent='AMMO '+ammo.total+(ammo.level==='READY'?'':' · '+ammo.level)+' · ALLIES '+totals.allies+(totals.civiliansFound?' · SAFE '+totals.civiliansRescued+'/'+totals.civiliansFound+' · LOST '+totals.civiliansLost:'')+' · BARRICADE '+totals.barrier+'/90 · E / ACTION';}
-    if(!barcelonaRuntime)document.getElementById('hudInstruction').hidden=!civCounts?.total;
-    if(civCounts?.total&&!barcelonaRuntime)document.getElementById('hudInstruction').textContent='CIVILIANS '+civCounts.evacuated+'/'+civCounts.total+' SAFE · '+civCounts.lost+' LOST · E / ACTION: gather or hide';
-    hudEnemyLabel.textContent='TARGETS';
-    hudGrenadeLabel.textContent='GRENADES';
-
-    const phase=currentObjectivePhase();
-    if(!phase)return;
-    const result=missionObjectivesRuntime.evaluate(missionObjectivesRuntime.manager.current(),{living,enemies,zones,scale:S(1)});
-    if(barcelonaRuntime){hudMission.textContent=phase.title;return;}
-    setStatus('Phase '+(missionStage+1)+': '+phaseStatus(phase,result));
-  }
+  function updateHud(...args){return hudEngine.updateHud(...args);}
 
 
   function moveEntity(ent,dx,dy,r=10){
@@ -3789,159 +3714,13 @@
   window.addEventListener('pagehide',releaseInterruptedInput);
   window.addEventListener('orientationchange',releaseInterruptedInput);
 
-  function simulateStep(dt){
-    if(commands?.mode==='client')return;
-    tacticsRuntime?.fixedUpdate(dt);
-    enemyBehaviour?.fixedUpdate(dt);
-    window.BadFodderCoop?.remoteStep(dt);
-    runAdaptive(()=>adaptiveDirector.update(dt));
-    if(!menuOpen&&!paused&&!mapOpen)applyTouchMovement(dt);
-    if(keyboardFireHeld&&actionAllowed('firearms'))refreshCursorWorld();
-    if(!menuOpen&&!paused&&!mapOpen&&actionAllowed('firearms')&&(rightHeld||macFireHeld||keyboardFireHeld)&&cursorWorld&&!bothLatched)squadFireAt(cursorWorld.x,cursorWorld.y);
-    if(!menuOpen&&!paused&&!mapOpen&&actionAllowed('firearms')&&touchState.fireHeld)fireMobile();
-    squad.forEach((s,i)=>{s.aiming=actionAllowed('firearms')&&(rightHeld||macFireHeld||keyboardFireHeld||touchState.fireHeld);s.streetActor=missionController?.state.actors.get('player-'+i)});
-    updateSquad(dt);
-    window.BadFodderHealth.fixedUpdate(dt);
+  function simulateStep(...args){return simulationEngine.simulateStep(...args);}
 
-    if(missionController){
-      if(missionInteractionLayer){
-        missionInteractionLayer.syncActors(squad.map((s,i)=>({
-          id:'player-'+i,name:s.name,x:s.x,y:s.y,active:s.alive
-        })));
-        missionInteractionLayer.fixedUpdate(dt);
-      }else{
-        missionController.fixedUpdate(dt);
-      }
-      if(missionDirector){
-        missionDirector.fixedUpdate(dt);
-        const historicalProgress=missionDirector.snapshot();
-        missionObjectivesRuntime.syncPhase(historicalProgress.phaseIndex,historicalProgress);
-        missionStage=historicalProgress.phaseIndex;
-        if(historicalProgress.completed)completeCurrentMission();
-        else if(historicalProgress.failed){finished=true;win=false;hudStage.textContent='MISSION FAILED';setStatus(historicalProgress.status);showMissionResult()}
-      }
-      if(missionCrowd)missionCrowd.fixedUpdate(dt);
-      updateCivilians(dt);
-      squad.forEach(ent=>art.animate(ent,dt));
-      civilians.forEach(ent=>art.animate(ent,dt));
-      updateCamera(dt);
-      checkFailure();
-      updateHud();
-      return;
-    }
+  function handleRuntimeFault(...args){return simulationEngine.handleRuntimeFault(...args);}
 
-    processEnemyPathQueue();
-    updateEnemies(dt);
-    updateCivilians(dt);
-    updateProjectiles(dt);
-    resistanceRuntime?.update(dt);resistanceRuntime?.units.forEach(ent=>art.animate(ent,dt));
-    barcelonaRuntime?.update(dt);
-    opportunitiesRuntime?.fixedUpdate(dt);
-    squad.forEach(ent=>art.animate(ent,dt));
-    enemies.forEach(ent=>art.animate(ent,dt));
-    civilians.forEach(ent=>art.animate(ent,dt));
-    updateCamera(dt);
-    checkFailure();
-    updateMissionProgress(dt);
-    updateHud();
-  }
+  function tick(...args){return simulationEngine.tick(...args);}
 
-  function handleRuntimeFault(err){
-    const now=performance.now();
-    runtimeFaultTotal++;
-    const fault=BadFodderRuntime.fault({time:now,last:runtimeFaultAt,count:runtimeFaultCount});
-    runtimeFaultAt=fault.at;runtimeFaultCount=fault.count;
-    diagnostics.rememberFault(err);
-    console.error('If I Can Shoot Rabbits runtime fault',err);
-    releaseInterruptedInput();
-    simulationAccumulator=0;
-
-    if(runtimeFaultCount>=3){
-      lifecycle.transition('RECOVERY');
-      setStatus('Runtime recovery paused the mission after repeated errors.');
-      if(menu){
-        const detail=err&&err.message?String(err.message).slice(0,140):'Unknown runtime error';
-        menu.showRecovery('The mission hit a repeated runtime error: '+detail+'. Restart the mission.');
-      }
-      syncTouchControlState();
-    }
-  }
-
-  function tick(now){
-    // Schedule first: a runtime exception must never kill the animation loop.
-    requestAnimationFrame(tick);
-    if(runtimeSafeStop)return;
-
-    try{
-      const elapsedMs=Math.max(0,now-last);
-      const frameDt=Math.min(.1,elapsedMs/1000||0);
-      last=now;
-
-      const measuredAt=diagnostics.enabled?performance.now():0;
-      simulationAccumulator=BadFodderRuntime.fixedFrame({dt:frameDt,accumulator:simulationAccumulator,fixedDt:FIXED_DT,maxSteps:MAX_CATCHUP_STEPS,simulate:simulateStep,onSteps:diagnostics.steps,active:commands?.mode!=='client'&&started&&!finished&&((commands?.mode==='host')||(!menuOpen&&!paused&&!mapOpen))});
-      const simulatedAt=diagnostics.enabled?performance.now():0;
-
-      if(commands?.mode==='client'){
-        if(started&&!menuOpen&&!paused&&!finished&&!mapOpen){applyTouchMovement(frameDt);if((rightHeld||macFireHeld||keyboardFireHeld)&&cursorWorld&&!bothLatched)squadFireAt(cursorWorld.x,cursorWorld.y);if(touchState.fireHeld)fireMobile();}
-        window.BadFodderCoop?.clientFrame(frameDt);
-      }
-      BadFodderRuntime.renderFrame({started,menuOpen,draw:drawWorld});
-      if(diagnostics.enabled)diagnostics.record(elapsedMs,simulatedAt-measuredAt,performance.now()-simulatedAt);
-      if(runtimeFaultCount&&now-runtimeFaultAt>3000)runtimeFaultCount=0;
-    }catch(err){
-      handleRuntimeFault(err);
-    }
-  }
-
-  async function startGame(){
-    if(loadingMission)return;loadingMission=true;
-    menu.close();lifecycle.transition('LOADING');syncTouchControlState();
-    try{
-      loadingEl.classList.remove('hidden');
-      const loadingText=loadingEl.querySelector('span');
-      if(loadingText)loadingText.textContent=LOW_POWER?'Preparing mobile terrain…':'Preparing '+(MAP_DATA.title||activeMission().title)+'…';
-
-      await preload();
-      resetGame();
-
-      // Let the loading screen render before starting the expensive scenery work.
-      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-
-      if(pathComponents){
-        if(loadingText)loadingText.textContent='Preparing navigation routes…';
-        pathComponent(Math.floor(squad[0].x/PATH_CELL),Math.floor(squad[0].y/PATH_CELL));
-        validateMissionConnectivity();
-      }
-
-      try{
-        bakeScenery(false);
-      }catch(err){
-        console.warn('High-detail scenery bake failed; retrying lightweight mode.',err);
-        if(loadingText)loadingText.textContent='Preparing lightweight terrain…';
-        await new Promise(resolve=>setTimeout(resolve,0));
-        bakeScenery(true);
-      }
-
-      sceneryTiles.draw(ctx,camera.x,camera.y,VIEW_W/zoom,VIEW_H/zoom);
-      started=true;
-      menu.ready();
-      loadingEl.classList.add('hidden');
-      const firstPhase=(activeMission().phases||[])[0];
-      setStatus('Phase 1: '+(firstPhase?(firstPhase.brief||firstPhase.title):'Begin mission.'));
-      syncTouchControlState();
-      updateHud(true);
-      if(launchAfterLoad){launchAfterLoad=false;beginMission();}
-    }catch(err){
-      console.error('If I Can Shoot Rabbits failed to start',err);
-      started=false;lifecycle.transition('RECOVERY');
-      releaseInterruptedInput();
-      loadingEl.classList.add('hidden');
-      menu.show('title');menu.fail();lifecycle.transition('RECOVERY');
-      const loadingText=loadingEl.querySelector('span');
-      if(loadingText)loadingText.textContent='Unable to start game. Reload the page to try again.';
-      setStatus('Game startup failed.');
-    }finally{loadingMission=false;}
-  }
+  function startGame(...args){return missionEngine.startGame(...args);}
 
   menu=new BadFodderMenu({
     state:next=>lifecycle.transition(next),root,screen:document.getElementById('menuScreen'),canResume:canResumeMission,start:startCampaignFromMenu,selectMission:startStandaloneMission,selectHistorical:startHistoricalMission,resume:resumeMission,restart:beginMission,main:showTitle,viewBriefing:viewMissionBriefing,next:advanceCampaign,

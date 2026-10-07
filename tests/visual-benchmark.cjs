@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict');
 const root=path.join(__dirname,'..');
-const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const index=require('./engine-source.cjs')(fs.readFileSync(path.join(root,'index.html'),'utf8'));
 const css=fs.readFileSync(path.join(root,'game-ui.css'),'utf8');
 const wigan=fs.readFileSync(path.join(root,'wigan-scenery.js'),'utf8');
 
