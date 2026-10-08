@@ -71,7 +71,7 @@
         if(livingInside('market',context)&&routeClear('market',context)){
           setFact('market_group','CONNECTED');
           setFact('bus_group','CONNECTED');
-          if(facts.get('network_status')!=='DISRUPTED')setFact('network_status','CONNECTED');
+          if(!['DISRUPTED','RESTORED','COORDINATED'].includes(facts.get('network_status')))setFact('network_status','CONNECTED');
         }
         if(livingInside('kingStreet',context)&&routeClear('kingStreet',context))setFact('king_group','CONNECTED');
       }
