@@ -32,6 +32,8 @@
 
   TOWN_MAP.opening={civilianIndexes:[12,13,14,15],contact:{x:789,y:1368,r:55},postRevealRadius:100};
 
+  TOWN_MAP.crossing={onward:{x:765,y:1160,r:26},minimum:2,holdSeconds:2.5,recoverySeconds:8,contestRadius:72,presenceRadius:130};
+
   TOWN_MAP.defenderGroups={
     // Compulsory defenders stay close enough to their objective to avoid map-wide cleanup hunts.
     post:[0,1,2],

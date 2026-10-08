@@ -2,7 +2,7 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.BadFodderCivilians=api;})(typeof window!=='undefined'?window:globalThis,function(){
  'use strict';
  const STATES=Object.freeze(['CALM','FRIGHTENED','HIDING','FOLLOWING','FLEEING','EVACUATED','WOUNDED','DOWN','DEAD']);
- function create({getCivilians,getSquad,getEnemies=()=>[],getNoise=()=>[],zones=[],move,path,follow,face,onEvent=()=>{},canOccupy=()=>true,scale=1}={}){
+ function create({getCivilians,getSquad,getEnemies=()=>[],getNoise=()=>[],getGuide=(c,leader)=>leader,zones=[],move,path,follow,face,onEvent=()=>{},canOccupy=()=>true,scale=1}={}){
   let clock=0;
   const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   const stop=c=>{c.path=null;c.target=null;c.navDestination=null;c.state=c.alive?'idle':'dead'};
@@ -38,17 +38,19 @@
     c.flash=Math.max(0,(c.flash||0)-dt);
     c.repath=Math.max(0,(c.repath||0)-dt);c.panic=Math.max(0,(c.panic||0)-dt);
     const threat=enemies.find(e=>distance(c,e)<170*scale)||noise.find(n=>distance(c,n)<(n.r||130*scale));
-    const leader=Number.isInteger(c.leaderIndex)?squad[c.leaderIndex]:null;
+    // An opt-in mission guide can use the same following/navigation toward an onward shelter.
+    const leader=getGuide(c,Number.isInteger(c.leaderIndex)?squad[c.leaderIndex]:null);
     if(leader&&(!leader.alive||leader.downed||distance(c,leader)>420*scale)){c.leaderIndex=null;c.civilianState='HIDING';stop(c);onEvent('separated',c)}
     if(threat)c.panic=3;
     const safe=z=>!enemies.some(e=>distance(e,z)<z.r+60*scale);
-    const zone=zones.find(z=>distance(c,z)<=z.r&&safe(z));
+    const shelters=leader?.shelters||zones;
+    const zone=shelters.find(z=>distance(c,z)<=z.r&&safe(z));
     if(zone&&c.leaderIndex!==null){c.civilianState='EVACUATED';c.leaderIndex=null;stop(c);onEvent('evacuated',c);continue}
     let target=null,speed=(c.speed||40)*1.7;
     if(c.leaderIndex!==null){
      c.civilianState=c.hp<2?'WOUNDED':'FOLLOWING';
      // Once the guide reaches shelter, followers aim inside it, including at the rim.
-     const shelter=zones.find(z=>distance(leader,z)<=z.r&&safe(z)),radius=shelter?Math.min(18*scale,shelter.r*.3):(22+i%3*4)*scale;
+     const shelter=shelters.find(z=>distance(leader,z)<=z.r&&safe(z)),radius=shelter?Math.min(18*scale,shelter.r*.3):(22+i%3*4)*scale;
      const centre=shelter||leader;
      target={x:centre.x+Math.cos(i*2.4)*radius,y:centre.y+Math.sin(i*2.4)*radius};
      if(!canOccupy(target.x,target.y))target={x:centre.x,y:centre.y};

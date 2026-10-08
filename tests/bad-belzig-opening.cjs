@@ -12,10 +12,11 @@ function fresh(){
  const squad=map.spawns.squad.map(([x,y])=>({x:x*2,y:y*2,alive:true}));
  const residents=map.spawns.civilians.map(([x,y],i)=>({x:x*2,y:y*2,homeX:x*2,homeY:y*2,phase:i,speed:40}));
  const enemies=map.spawns.enemies.map(([x,y])=>({x:x*2,y:y*2,alive:true})),messages=[];
+ for(const [name,indexes]of Object.entries(map.defenderGroups))for(const i of indexes)enemies[i].objectiveGroup=name;
  let nav;nav=Navigation.create({worldWidth:map.width*2,worldHeight:map.height*2,buildings,mapKey:map.key,moveEntity:(c,dx,dy)=>{if(!nav.obstacleAt(c.x+dx,c.y,6))c.x+=dx;if(!nav.obstacleAt(c.x,c.y+dy,6))c.y+=dy},updateFacing(){}});
- const civilians=Civilians.create({getCivilians:()=>residents,getSquad:()=>squad,getEnemies:()=>enemies,scale:2,zones:[{x:squad[0].x,y:squad[0].y,r:130}],path:nav.assignPath,follow:nav.followPath,canOccupy:(x,y)=>!nav.obstacleAt(x,y,6)});
+ let runtime;const civilians=Civilians.create({getCivilians:()=>residents,getSquad:()=>squad,getEnemies:()=>enemies,scale:2,getGuide:(c,leader)=>runtime?.civilianGuide(c,leader)||leader,zones:[{x:squad[0].x,y:squad[0].y,r:130}],path:nav.assignPath,follow:nav.followPath,canOccupy:(x,y)=>!nav.obstacleAt(x,y,6)});
  const objectives=Objectives.create(mission);
- const runtime=Opening.create({map,objectives,civilians:{getResidents:()=>residents,zones:civilians.zones,interact:civilians.interact},getSquad:()=>squad,getEnemies:()=>enemies,scale:2,status:t=>messages.push(t),stop:nav.cancelPath});
+ runtime=Opening.create({map,objectives,civilians:{getResidents:()=>residents,zones:civilians.zones,interact:civilians.interact},getSquad:()=>squad,getEnemies:()=>enemies,scale:2,status:t=>messages.push(t),stop:nav.cancelPath});
  return{runtime,objectives,civilians,squad,residents,enemies,messages,nav,group:map.opening.civilianIndexes.map(i=>residents[i])};
 }
 const f=fresh();f.runtime.start();
@@ -44,7 +45,9 @@ for(const dx of [-90,90]){const a=fresh();Object.assign(a.squad[1],{x:(map.pois.
 const stageOnly=fresh();stageOnly.runtime.sync({legacy:true});stageOnly.objectives.syncPhase(1);assert.equal(stageOnly.objectives.manager.current().id,'phase-1');assert(stageOnly.runtime.combatReady);
 const retry=fresh();assert.equal(retry.residents.length,16);assert(retry.group.every(c=>c.civilianState==='HIDING'&&c.leaderIndex===null));assert.equal(retry.objectives.facts.get('opening_state'),'NOT_MET');assert.equal(retry.objectives.manager.current().id,'opening-contact');
 const combat=fresh();Object.assign(combat.squad[0],{x:map.pois.postcolumn.x*2,y:map.pois.postcolumn.y*2});combat.runtime.update();
-combat.enemies.forEach(e=>e.alive=false);combat.objectives.update(3,{living:combat.squad,enemies:combat.enemies,zones:{post:{x:combat.squad[0].x,y:combat.squad[0].y,r:50}},scale:2});assert.equal(combat.objectives.manager.current().id,'phase-1','Original Post hold still advances to Burg');
+combat.enemies.forEach(e=>e.alive=false);combat.objectives.update(3,{living:combat.squad,enemies:combat.enemies,zones:{post:{x:combat.squad[0].x,y:combat.squad[0].y,r:50}},scale:2});assert.equal(combat.objectives.manager.current().id,'phase-0','Post combat waits for the civilian crossing');
 const legacy=fresh();legacy.objectives.restore(Objectives.create({...mission,factDefaults:{}}).snapshot());legacy.runtime.sync();assert(legacy.runtime.combatReady,'Legacy combat snapshot must not replay the opening');
 for(const m of scope.window.BadFodderCampaign.missions.filter(m=>m.id!=='bad-belzig'))assert.equal(Objectives.create(m).facts.get('opening_state'),undefined);
 console.log('PASS: authored opening, civilian following/navigation, split contact, Post handoff, alternative approaches, restart and snapshot compatibility.');
+
+module.exports={fresh,map,mission,missions:scope.window.BadFodderCampaign.missions};

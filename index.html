@@ -1581,12 +1581,13 @@
       select:setSelection,move:setMoveTargets,isActive:()=>started&&!menuOpen&&!paused&&!finished&&!mapOpen,
       prepareHold:s=>{coordinationSupport?.directOrder(s);buildingRuntime?.exit(s)},firearmsAllowed:()=>actionAllowed('firearms'),canSee:(s,e)=>!lineBlocked(s.x,s.y,e.x,e.y),
       shoot:(s,e)=>{const spread=10*window.BadFodderCombatTactics.spreadScale(s);fireBullet('squad',s.x,s.y,e.x+(gameplayRng.random()-.5)*spread,e.y+(gameplayRng.random()-.5)*spread,squad.indexOf(s))}});
-    civilianRuntime=null;buildingRuntime=null;tacticsRuntime=null;enemyBehaviour=null;
+    badBelzigRuntime=null;civilianRuntime=null;buildingRuntime=null;tacticsRuntime=null;enemyBehaviour=null;
     if(!missionController)enemyBehaviour=window.BadFodderEnemyBehaviour.create({autoCommanders:MAP_DATA.key!=='barcelona',getEnemies:()=>enemies,getSquad:()=>squad,scale:SCALE,canSee:(e,s)=>!lineBlocked(e.x,e.y,s.x,s.y),onSurrender:()=>setStatus('An isolated enemy has surrendered.')});
     if(!missionController)tacticsRuntime=window.BadFodderCombatTactics.create({getSquad:()=>[...squad,...(resistanceRuntime?.units||[])],getEnemies:()=>enemies,obstacleAt,scale:SCALE,canSee:(ax,ay,bx,by)=>!lineBlocked(ax,ay,bx,by),resistance:u=>u.identityRole==='squad'?window.BadFodderIdentities.modifiers(u).suppression:1});
     if(!missionController){
       const rally={x:squad[0].x,y:squad[0].y,r:S(65)};
       civilianRuntime=window.BadFodderCivilians.create({getCivilians:()=>civilians,getSquad:()=>squad,getEnemies:()=>enemies,getNoise:()=>noise,
+        getGuide:(c,leader)=>badBelzigRuntime?.civilianGuide(c,leader)||leader,
         zones:[MAP_DATA.key==='barcelona'?{x:S(MAP_DATA.zones.safe.x),y:S(MAP_DATA.zones.safe.y),r:S(MAP_DATA.zones.safe.r)}:rally],scale:S(1),move:moveEntity,path:assignPath,follow:followPath,face:updateFacing,canOccupy:(x,y)=>!obstacleAt(x,y,NAV_RADIUS),
         onEvent:(event)=>{runAdaptive(()=>adaptiveDirector.notify('meaningful'));if(barcelonaRuntime&&event==='separated')setStatus('A resident fell behind. Return and gather them with E / ACTION.');if(event==='evacuated'){const n=civilianRuntime.counts().evacuated;setStatus(n+' civilians evacuated.');if(n>=1&&MAP_DATA.key!=='barcelona')missionObjectivesRuntime.signal('evacuate-residents');}}});
       missionObjectivesRuntime.manager.add({id:'evacuate-residents',type:'EVACUATE',optional:true,priority:-10,hidden:MAP_DATA.key==='barcelona',
@@ -2393,7 +2394,7 @@
 
 
   function updateCivilians(dt){
-    badBelzigRuntime?.update();
+    badBelzigRuntime?.update(dt);
     if(civilianRuntime){civilianRuntime.update(dt);return}
     civilians.forEach(c=>{
       const danger=noise.some(n=>Math.hypot(c.x-n.x,c.y-n.y)<S(100));
