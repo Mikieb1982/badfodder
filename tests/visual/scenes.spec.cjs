@@ -7,7 +7,24 @@ for(const [key,button] of [['bad-belzig','#menuMissionBad'],['wigan','#menuMissi
  await prepare(page);await choose(page,button);await page.locator('#briefingBegin').click();await page.waitForFunction(()=>window.__visual?.state().started&&!window.__visual.state().menuOpen&&window.__visual.state().actors===4);await page.evaluate(()=>window.__visual.freeze());expect(await page.evaluate(()=>window.__visual.state().faults)).toBe(0);await expect(page.locator('.viewport')).toHaveScreenshot(key+'.png');
 });
 test('barcelona scenery actors and roster',async({page})=>{await prepare(page);await choose(page,'#menuMissionBarcelona');await page.locator('#briefingBegin').click();await page.waitForFunction(()=>window.__visual?.state().started&&!window.__visual.state().menuOpen&&window.__visual.state().actors===4);await page.evaluate(()=>window.__visual.freeze());expect(await page.evaluate(()=>window.__visual.state().faults)).toBe(0);await expect(page.locator('.viewport')).toHaveClass(/barcelona-mission/);await expect(page.locator('.hud-unit')).toHaveCount(4);});
-test('mobile HUD',async({browser})=>{const context=await browser.newContext({viewport:{width:915,height:412},hasTouch:true,isMobile:true,reducedMotion:'reduce',locale:'en-GB',colorScheme:'dark'});const page=await context.newPage();await prepare(page);await choose(page,'#menuMissionBad');await page.locator('#briefingBegin').click();await page.waitForFunction(()=>window.__visual?.state().started&&!window.__visual.state().menuOpen&&window.__visual.state().actors===4);await page.evaluate(()=>window.__visual.freeze());await expect(page.locator('.viewport')).toHaveScreenshot('mobile-hud.png');await context.close();});
+test('mobile HUD',async({browser})=>{const context=await browser.newContext({viewport:{width:915,height:412},hasTouch:true,isMobile:true,reducedMotion:'reduce',locale:'en-GB',colorScheme:'dark'});const page=await context.newPage();await prepare(page);await choose(page,'#menuMissionBad');await page.locator('#briefingBegin').click();await page.waitForFunction(()=>window.__visual?.state().started&&!window.__visual.state().menuOpen&&window.__visual.state().actors===4);await page.evaluate(()=>window.__visual.freeze());await expect(page.locator('.viewport')).toHaveScreenshot('mobile-hud.png');
+ const layout=await page.evaluate(()=>{
+  const rect=el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height}};
+  const fire=document.querySelector('#touchFire'),stick=document.querySelector('#touchJoystick');
+  const controls=[...document.querySelectorAll('.touch-actions button,#companionOrders button,.touch-joystick,.hud-roster')].filter(el=>el.getBoundingClientRect().width&&getComputedStyle(el).display!=='none'&&!el.hidden);
+  return {fire:rect(fire),stick:rect(stick),idleFire:+getComputedStyle(fire).opacity,idleStick:+getComputedStyle(stick).opacity,boxes:controls.map(el=>({id:el.id,...rect(el)}))};
+ });
+ expect(layout.fire.width).toBe(72);expect(layout.fire.x).toBeLessThan(915/2);expect(layout.stick.x).toBeGreaterThan(915/2);
+ expect(layout.idleFire).toBeLessThan(.8);expect(layout.idleStick).toBeLessThan(.3);
+ for(let i=0;i<layout.boxes.length;i++)for(let j=i+1;j<layout.boxes.length;j++){const a=layout.boxes[i],b=layout.boxes[j];expect(a.x<b.right&&a.right>b.x&&a.y<b.bottom&&a.bottom>b.y,JSON.stringify({a,b})).toBe(false);}
+ await expect(page.locator('.hud-unit')).toHaveCount(4);
+ await page.locator('#companionHOLD').tap();
+ await page.locator('#companionHOLD').evaluate(el=>el.setAttribute('aria-pressed','true'));
+ expect(await page.locator('#companionHOLD').evaluate(el=>+getComputedStyle(el).opacity)).toBe(1);
+ // Check visual state hooks atomically because the frozen runtime still clears synthetic input.
+ expect(await page.locator('#touchFire').evaluate(el=>{el.style.setProperty('transition','none','important');el.classList.add('active');return +getComputedStyle(el).opacity})).toBe(1);
+ expect(await page.locator('#touchJoystick').evaluate(el=>{el.style.setProperty('transition','none','important');el.classList.add('active');return +getComputedStyle(el).opacity})).toBeGreaterThan(.9);
+ await context.close();});
 test('double-click releases selected checkpoint defenders',async({page})=>{
  await prepare(page);await choose(page,'#menuMissionBad');await page.locator('#briefingBegin').click();
  await page.waitForFunction(()=>window.__visual?.state().started&&!window.__visual.state().menuOpen);
