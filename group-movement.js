@@ -58,7 +58,7 @@
       }
       return nav.followPath(unit,speed,dt);
     }
-    function separate(units,options=defaults,dt=1/60){
+    function separate(units,options=defaults,dt=1/60,canMove=()=>true){
       const min=options.separationRadius,step=Math.min(1,Math.max(0,dt)*60);
       for(let i=0;i<units.length;i++){
         const a=units[i];if(a.alive===false||a.downed||a.insideBuilding||a.carriedBy)continue;
@@ -69,8 +69,8 @@
           if(d<.01){dx=1;dy=0;d=1}
           const push=Math.min(2.2,(min-d)*.18)*step,nx=dx/d,ny=dy/d;
           // Existing movement collision and health/carry modifiers remain authoritative.
-          if(!a.manualGarrison&&!a.checkpointCover&&nav.routeClear(a.x,a.y,a.x-nx*push,a.y-ny*push,radius))moveEntity(a,-nx*push,-ny*push,radius);
-          if(!b.manualGarrison&&!b.checkpointCover&&nav.routeClear(b.x,b.y,b.x+nx*push,b.y+ny*push,radius))moveEntity(b,nx*push,ny*push,radius);
+          if(canMove(a)&&!a.manualGarrison&&!a.checkpointCover&&nav.routeClear(a.x,a.y,a.x-nx*push,a.y-ny*push,radius))moveEntity(a,-nx*push,-ny*push,radius);
+          if(canMove(b)&&!b.manualGarrison&&!b.checkpointCover&&nav.routeClear(b.x,b.y,b.x+nx*push,b.y+ny*push,radius))moveEntity(b,nx*push,ny*push,radius);
         }
       }
     }

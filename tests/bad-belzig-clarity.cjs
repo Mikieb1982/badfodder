@@ -26,7 +26,7 @@ function cover(u){Object.assign(u,{checkpointGarrison:0,checkpointCover:true,che
 cover(live[0]);cover(live[1]);env.setMoveTargets({x:1400,y:2500});assert(!live[0].checkpointCover);assert.equal(live[0].checkpointExitPhase,0);assert(live[0].path);assert(live[1].checkpointCover,'Split move must leave the unselected defender alone');
 const pos={x:live[0].x,y:live[0].y};env.BadFodderGarrison.lockCheckpointGarrisons();assert.deepEqual({x:live[0].x,y:live[0].y},pos);assert(live[0].path,'Interval lock cannot cancel a released movement order');
 cover(live[0]);env.ensureTouchFormation();assert(!live[0].checkpointCover);assert.equal(live[0].checkpointExitPhase,0);
-assert(source.includes("if(badBelzigRuntime)window.BadFodderGarrison?.releaseCheckpoint(u)"),'Authoritative co-op stick must release prepared cover');
+assert(source.includes("window.BadFodderGarrison?.releaseCheckpoint(u)"),'Authoritative co-op stick must release prepared cover');
 // A single touch tap routes through the same authoritative move command.
 Object.assign(env,{historicalTap:{id:1,x:100,y:100,time:performance.now()},lastCheckpointTap:null,endPinchPointer(){},pointerWorld:()=>({x:1400,y:2500}),performance,menuOpen:false,paused:false,mapOpen:false,finished:false});
 const tapStart=source.indexOf("  canvas.addEventListener('pointerup',evt=>{")+"  canvas.addEventListener('pointerup',evt=>{".length,tapEnd=source.indexOf('    rememberCanvasPointer(evt);',tapStart);

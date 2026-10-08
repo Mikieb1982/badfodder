@@ -156,7 +156,7 @@ assert(index.includes("hudEnemyLabel.textContent='DEFENCE'"),'Cable Street HUD d
 assert(index.includes("hudGrenadeLabel.textContent='ENERGY'"),'Cable Street HUD does not show volunteer energy');
 assert(index.includes('id="hudSquadLabel"'),'HUD squad label cannot switch for Cable Street');
 assert(index.includes("historicalMode?'VOLUNTEERS':'SQUAD'"),'Cable Street HUD still labels the player group as a military squad');
-assert(index.includes("historicalMode?' VOLUNTEERS':' LOCALS'"),'Cable Street roster still labels historical participants as troops');
+assert(index.includes("textContent='NEXT · '"),'Character switching HUD must replace the old all-troops selector');
 assert(index.includes('mission.successHeadline'),'Cable Street completion does not use the historical success headline');
 
 assert(index.includes("Math.round(historicalProgress.barricadeRatio*100)+'%'"),'Cable Street defence percentage is not displayed');
@@ -165,7 +165,7 @@ assert(index.includes("id=\"hudInstruction\"")&&index.includes("nextHistoricalOb
 assert(index.includes('historicalProgress.instruction||historicalProgress.status'),'Cable Street HUD does not prefer explicit player instructions');
 
 assert(fs.readFileSync(path.join(root,'mission-registry.js'),'utf8').includes("cable-street-interactions.js?v=20261004-adaptive-1"),'Historical interaction module is not cache-busted');
-assert(index.includes('options:{scale:SCALE,pressureControlled:true,navigation}'),'Live Cable Street interactions do not wait for the historical pressure director');
+assert(index.includes('options:{scale:SCALE,pressureControlled:true,navigation,movementScale:ACTOR_SPEED}'),'Live Cable Street interactions do not wait for the historical pressure director');
 assert(fs.readFileSync(path.join(root,'cable-street-interactions.js'),'utf8').includes('pressureDamageMultiplier'),'Cable Street HOLD actions do not mitigate police pressure');
 assert(fs.readFileSync(path.join(root,'cable-street-interactions.js'),'utf8').includes("reason:'repelled'"),'Cable Street pressure waves cannot be repelled without a breach');
 assert(/cable-street-art\.js\?v=[^"\s]+/.test(fs.readFileSync(path.join(root,'mission-registry.js'),'utf8')),'Historical art module is not cache-busted');

@@ -59,7 +59,7 @@
 
   function updateRoster(force=false){
     const signature=env.squad.map((s,i)=>[
-      i,s.alive?1:0,s.hp,s.maxHp,s.selected?1:0,env.badBelzigRuntime&&s.downed?1:0,(s.suppression||0)>=.55?1:0,s.coverMask||0,env.missionController?Math.round((env.missionController.state.actors.get('player-'+i)?.stamina??100)/10):0
+      i,s.companionState,env.companions?.order,env.commands?.owner?.(i),s.alive?1:0,s.hp,s.maxHp,s.selected?1:0,s.downed?1:0,(s.suppression||0)>=.55?1:0,s.coverMask||0,env.missionController?Math.round((env.missionController.state.actors.get('player-'+i)?.stamina??100)/10):0
     ].join(':')).join('|');
     if(!force&&signature===env.lastRosterSignature)return;
     env.lastRosterSignature=signature;
@@ -85,7 +85,7 @@
       chip.setAttribute('aria-pressed',String(s.selected));chip.disabled=!s.alive||s.downed||!!(env.commands&&!env.commands.owns(i));
       chip.title=s.name+' · '+s.occupation+' · '+s.trait.toLowerCase();
       const hp=Array.from({length:energy===null?s.maxHp:10},(_,h)=>'<i class="'+(h<(energy===null?s.hp:energy/10)?((energy===null?s.hp<=2:energy<30)?'on low':'on'):'')+'"></i>').join('');
-      chip.innerHTML='<span class="hud-unit-info"><span class="hud-name"><em>'+(i+1)+'</em>'+s.name+(env.commands&&env.commands.mode!=='local'?' P'+(i<2?1:2):'')+'</span><span class="hud-health">'+hp+'</span><span class="hud-state">'+(s.alive?(s.downed?'DOWN + ':s.carryingUnit?'CARRYING + ':(s.suppression||0)>=.55?'PINNED ! ':s.coverMask?'COVER ◇ ':s.manualGarrison?'HOLD ◇ ':s.selected?'SELECTED ▸ ':'')+(energy===null?'HP '+s.hp+'/'+s.maxHp:'ENERGY '+energy+'%'):env.badBelzigRuntime?'DEAD ×':'DOWN ×')+'</span></span>';
+      chip.innerHTML='<span class="hud-unit-info"><span class="hud-name"><em>'+(i+1)+'</em>'+s.name+(env.commands&&env.commands.mode!=='local'&&env.commands.owner(i)>=0?' P'+(env.commands.owner(i)+1):'')+'</span><span class="hud-health">'+hp+'</span><span class="hud-state">'+(s.alive?(s.selected?'YOU ▸ ':env.commands?.owner(i)>=0?'P'+(env.commands.owner(i)+1)+' ':'AI ')+(s.downed?'DOWN + ':s.carryingUnit?'CARRYING + ':(s.suppression||0)>=.55?'PINNED ! ':s.coverMask?'COVER ◇ ':s.manualGarrison?'HOLD ◇ ':s.companionState?s.companionState+' ':'')+(energy===null?'HP '+s.hp+'/'+s.maxHp:'ENERGY '+energy+'%'):env.badBelzigRuntime?'DEAD ×':'DOWN ×')+'</span></span>';
       const portrait=cachedPortrait||document.createElement('canvas');portrait.width=96;portrait.height=96;portrait.className='hud-portrait';
       const pg=portrait.getContext('2d');pg.imageSmoothingEnabled=true;pg.drawImage(env.art.missionPortrait?env.art.missionPortrait(env.missionIdentity.key,i,s.alive?'idle':'dead'):env.art.soldier(env.missionController?'civilian':'squad',2,s.alive?0:2,s.alive?'idle':'dead',i),0,0,96,96);
       chip.insertBefore(portrait,chip.firstChild);
@@ -120,7 +120,7 @@
       ?env.missionIdentity.title+' · '+env.missionIdentity.year
       :'MISSION '+String(env.activeMissionIndex+1).padStart(2,'0')+'/'+String(env.campaign.missions.length).padStart(2,'0')+' · '+mission.title.toUpperCase();
     const historicalMode=env.missionLaunch.isHistorical();
-    env.hudAll.querySelector('span').textContent=env.commands&&env.commands.mode!=='local'?(living.filter(s=>env.commands.owns(env.squad.indexOf(s))).length?'MY PAIR':'SPECTATING'):living.length+(historicalMode?' VOLUNTEERS':' LOCALS');
+    env.hudAll.querySelector('span').textContent='NEXT · '+(env.companions?.order||'FOLLOW');
     env.hudSquadLabel.textContent=historicalMode?'VOLUNTEERS':'SQUAD';
     env.hudStage.textContent=env.finished?(env.win?(env.badBelzigRuntime?.finish?'HOME: WHAT REMAINS':'MISSION COMPLETE'):'MISSION FAILED'):'OBJECTIVE '+Math.min(phaseCount,(objectiveIndex<0?env.missionStage:objectiveIndex)+1)+'/'+phaseCount;
     rebuildHudProgress(phaseCount);

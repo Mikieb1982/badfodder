@@ -110,8 +110,8 @@ scope.coopCommand=(type,data)=>Commands.mode!=='local'&&!Commands.applying&&Comm
 const executeStart=html.indexOf('    execute(c){'),executeEnd=html.indexOf('    stick(',executeStart);
 vm.runInContext('function '+html.slice(executeStart,executeEnd).trim().replace(/,$/,''),scope);
 scope.clearSquadFormation();const unselected=JSON.stringify(squad.slice(0,2));
-assert(scope.execute({type:'move',units:[2,3],x:500,y:400}));assert.equal(JSON.stringify(squad.slice(0,2)),unselected);
-assert(squad.slice(2).every(u=>u.navDestination));assert(!Commands.applying);Commands.configure();
+assert(scope.execute({type:'move',player:1,units:[2],x:500,y:400}));assert.equal(JSON.stringify(squad.slice(0,2)),unselected);
+assert(squad[2].navDestination);assert(!Commands.applying);Commands.configure();
 assert(html.indexOf('<script src="group-movement.js">')<html.indexOf('const groupMovement='));
 
 // Squad-size/mobile-sized budget: planning and separation have no per-frame path searches.

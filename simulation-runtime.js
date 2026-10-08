@@ -17,7 +17,7 @@
     if(env.keyboardFireHeld&&env.actionAllowed('firearms'))env.refreshCursorWorld();
     if(!env.menuOpen&&!env.paused&&!env.mapOpen&&env.actionAllowed('firearms')&&(env.rightHeld||env.macFireHeld||env.keyboardFireHeld)&&env.cursorWorld&&!env.bothLatched)env.squadFireAt(env.cursorWorld.x,env.cursorWorld.y);
     if(!env.menuOpen&&!env.paused&&!env.mapOpen&&env.actionAllowed('firearms')&&env.touchState.fireHeld)env.fireMobile();
-    env.squad.forEach((s,i)=>{s.aiming=env.actionAllowed('firearms')&&(env.rightHeld||env.macFireHeld||env.keyboardFireHeld||env.touchState.fireHeld);s.streetActor=env.missionController?.state.actors.get('player-'+i)});
+    env.squad.forEach((s,i)=>{s.aiming=s.selected&&env.actionAllowed('firearms')&&(env.rightHeld||env.macFireHeld||env.keyboardFireHeld||env.touchState.fireHeld);s.streetActor=env.missionController?.state.actors.get('player-'+i)});
     env.updateSquad(dt);
     window.BadFodderHealth.fixedUpdate(dt);
 

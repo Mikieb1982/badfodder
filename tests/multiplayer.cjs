@@ -2,8 +2,8 @@
 const assert=require('node:assert/strict');
 const C=require('../player-commands'),P=require('../multiplayer-protocol');
 const squad=Array.from({length:4},(_,i)=>({alive:true,x:100+i,y:200,hp:8,maxHp:8,dir:0,state:'idle',variant:i}));
-assert.equal(C.mode,'local');assert.equal(C.dispatch('move',[0],{x:1,y:2}),false);assert.equal(C.units(squad,'all').length,4);
-let received;C.configure('client',c=>received=c);assert.deepEqual(C.units(squad,'all'),squad.slice(2));assert.equal(C.units(squad,0).length,0);assert(!C.owns(0));assert(C.owns(2));
+assert.equal(C.mode,'local');assert.equal(C.dispatch('move',[0],{x:1,y:2}),false);assert.equal(C.units(squad,'all').length,1);
+let received;C.configure('client',c=>received=c);assert.deepEqual(C.units(squad,'all'),[squad[2]]);assert.equal(C.units(squad,0).length,0);assert(!C.owns(0));assert(C.owns(2));
 const context={player:1,squad,active:true,w:1000,h:1000};
 for(const type of ['move','fire','grenade','garrison','release','select','stick','aid','interact']){
  C.dispatch(type,[2],{x:1,y:1});const decoded=P.parse(P.encode(received));assert(P.validCommand(decoded,context));
@@ -26,7 +26,7 @@ for(const row of [['DOWN',true,true,null,9,null],['DOWN',true,true,-1,2,null],['
 }
 const brokenCarry=health.map(r=>r.slice());brokenCarry[2][5]=null;assert(!P.readSnapshot({...wire,health:brokenCarry}));
 squad[2].downed=true;assert(!P.validCommand({type:'aid',units:[2]},context));squad[2].downed=false;
-C.configure();assert.equal(C.units(squad,'all').length,4);
+C.configure();assert.equal(C.units(squad,'all').length,1);
 console.log('PASS: local default, ownership, wire validation, adaptive limits, garrison/death/checkpoints/results plus kill/assist report totals.');
 
 const S=require('../multiplayer-signalling');

@@ -78,6 +78,7 @@
   }
   function regroup(){
     if(runtime&&!runtime.isActive())return false;
+    if(runtime?.regroupCompanions)return runtime.regroupCompanions();
     const select=runtime?.select||root.setSelection,move=runtime?.move||root.setMoveTargets;
     if(typeof select!=='function'||typeof move!=='function'){setNotice('Regroup unavailable.');return false}
     const selected=getSelected().filter(s=>s?.alive&&!s.downed);
@@ -234,7 +235,7 @@
         const result=maintain?maintain(time):undefined,squad=options.getSquad?.()||[],enemies=options.getEnemies?.()||[],scale=options.scale||1;
         lockCheckpointGarrisons();
         for(const s of squad){
-          if(!s?.alive||s.downed||!s.manualGarrison)continue;
+          if(!s?.alive||s.downed||!s.manualGarrison||root.BadFodderCommands?.owner&&root.BadFodderCommands.owner(squad.indexOf(s))>=0)continue;
           if(!Number.isFinite(s.garrisonAnchorX)){s.garrisonAnchorX=s.x;s.garrisonAnchorY=s.y}
           s.x=s.garrisonAnchorX;s.y=s.garrisonAnchorY;s.path=null;s.pendingPath=null;s.pathIndex=0;s.target=null;
           let target=null,best=RANGE*scale;

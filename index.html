@@ -10,6 +10,7 @@
   <link rel="apple-touch-icon" sizes="192x192" href="assets/icons/icon-192.png?v=character-transparent-1">
   <link rel="manifest" href="manifest.webmanifest">
   <style>
+    #companionOrders{position:absolute;left:50%;bottom:74px;pointer-events:auto;transform:translateX(-50%);display:flex;gap:3px;z-index:8}#companionOrders button{font:700 10px system-ui;padding:7px;min-height:32px;background:#182c38;color:#f5e8cb;border:1px solid #aac5d4;border-radius:4px}
     :root{
       color-scheme:dark;
       --bg:#1e281b;--panel:#374329;--panel2:#495938;--text:#efe2b0;
@@ -512,7 +513,8 @@
         </div>
       </div>
       <div id="hudNotice" class="hud-notice" role="status" aria-live="polite"></div>
-      <div class="hud-roster"><button id="hudAll" type="button">ALL<span>4 TROOPS</span></button><div id="hudSquadBar" class="hud-squad"></div></div>
+      <div id="companionOrders" aria-label="Companion commands"></div>
+      <div class="hud-roster"><button id="hudAll" type="button">NEXT<span>FOLLOW</span></button><div id="hudSquadBar" class="hud-squad"></div></div>
     </div>
     <div id="touchControls" class="touch-controls" aria-label="Mobile game controls">
       <div class="touch-actions touch-gameplay">
@@ -569,6 +571,7 @@
 <script src="navigation.js?v=20261003-upgrade-1"></script>
 <script src="group-movement.js"></script>
 <script src="coordination-support.js"></script>
+<script src="companion-controller.js"></script>
 <script src="checkpoint-fortification.js"></script>
 <script src="checkpoint-wave-config.js"></script>
 <script src="garrison-control.js"></script>
@@ -680,6 +683,7 @@
     get diagnostics(){return diagnostics;},
     get clearSquadFormation(){return clearSquadFormation;},
     get coordinationSupport(){return coordinationSupport;},
+    get companions(){return companions;},
     get currentObjectivePhase(){return currentObjectivePhase;},
     get finished(){return finished;},set finished(value){finished=value;},
     get handleRuntimeFault(){return handleRuntimeFault;},
@@ -1128,7 +1132,7 @@
 
   const groupMovement=window.BadFodderGroupMovement.create({navigation,moveEntity,worldWidth:WORLD_W,worldHeight:WORLD_H});
   let groupMovementProfile=window.BadFodderGroupMovement.profile({separationRadius:NAV_RADIUS*2+2});
-  let coordinationSupport=null;
+  let coordinationSupport=null,companions=null;
 
   const pointInCircle=missionRules.pointInCircle;
   const commands=window.BadFodderCommands;
@@ -1146,11 +1150,9 @@
     return [...new Set(values)].filter(i=>Number.isInteger(i)&&allowed.includes(i));
   }
   function selectedUnits(){
-    if(commands&&commands.mode!=='local')return commands.units(squad,selection).filter(s=>!s.downed);
-    const ids=new Set(selectionIds());
-    const units=squad.filter((s,i)=>s.alive&&!s.downed&&ids.has(i));
-    if(units.length)return units;
-    return squad.filter(s=>s.alive&&!s.downed);
+    if(commands?.applying)return commands.appliedIds.slice(0,1).map(i=>squad[i]).filter(u=>u?.alive&&!u.downed);
+    const unit=commands?.mode==='client'?squad[commands.active()]:companions?.ensureActive()||squad[commands.active()];
+    return unit?.alive&&!unit.downed?[unit]:[];
   }
 
   function selectedHistoricalActor(){
@@ -1401,34 +1403,21 @@
   function rebuildUnitButtons(...args){return hudEngine.rebuildUnitButtons(...args);}
 
   function setSelection(sel){
-    const next=sel==='all'?'all':selectionIds(sel);
-    if(next!=='all'&&!next.length)return;
-    coordinationSupport?.reset();
-    if(squadFormation.active)clearSquadFormation(true);
-    selection=next;
-    const ids=new Set(selectionIds());
-    squad.forEach((s,i)=>s.selected=s.alive&&(!commands||commands.owns(i))&&ids.has(i));
-    const all=selection==='all';
-    selectAllBtn.classList.toggle('active',all);
-    hudAll.classList.toggle('selected',all);
-    hudAll.setAttribute('aria-pressed',String(all));
-    unitButtons.forEach((b,i)=>b.classList.toggle('active',ids.has(i)));
-    updateRoster(true);
+    const index=sel==='all'?commands.active():Array.isArray(sel)?sel[0]:sel;
+    if(!squad[index]?.alive||squad[index].downed||!commands.owns(index))return;
+    if(commands.mode==='client'&&!commands.applying){commands.dispatch('select',[index]);return;}
+    if(companions&&!companions.switchTo(index))return;
+    releaseInterruptedInput();coordinationSupport?.directOrder(squad[index]);
+    if(squadFormation.active)clearSquadFormation();
+    selection=[index];squad.forEach((u,i)=>u.selected=i===index);
+    selectAllBtn.classList.toggle('active',false);hudAll.classList.toggle('selected',false);
+    hudAll.setAttribute('aria-pressed','false');
+    unitButtons.forEach((b,i)=>b.classList.toggle('active',i===index));updateRoster(true);
   }
-
-  function toggleSelection(index){
-    if(!squad[index]?.alive||(commands&&commands.mode!=='local'&&!commands.owns(index)))return;
-    const available=selectionIds('all');
-    if(selection==='all'){setSelection([index]);return;}
-    const current=selectionIds();
-    if(current.includes(index)){
-      if(current.length===1){
-        const others=available.filter(i=>i!==index);
-        setSelection(others.length?others:current);
-      }else setSelection(current.filter(i=>i!==index));
-      return;
-    }
-    setSelection([...current,index].sort((a,b)=>a-b));
+  function toggleSelection(index){setSelection(index);}
+  function companionOrder(order){
+    if(coopCommand('companion',{order}))return;
+    companions?.setOrder(order);updateHud(true);setStatus('COMPANIONS: '+order);
   }
 
   function updateRoster(...args){return hudEngine.updateRoster(...args);}
@@ -1491,11 +1480,12 @@
   function resetGame(){
     if(commands&&commands.mode!=='local'&&!commands.applying&&started){window.BadFodderCoop?.restart();return;}
     const mission=activeMission();
+    companions?.reset();commands.configure(commands.mode,window.BadFodderCoop?.command);
     groupMovementProfile=window.BadFodderGroupMovement.profile({separationRadius:NAV_RADIUS*2+2,...mission.groupMovementProfile});
     coordinationSupport?.reset();
     coordinationSupport=window.BadFodderCoordinationSupport.create({navigation,groupMovement,movementProfile:groupMovementProfile,
-      profile:mission.coordinationProfile,getSquad:()=>squad,getSelected:selectedUnits,getHostiles:()=>enemies,
-      canControl:u=>!commands||commands.mode==='local'||commands.owns(squad.indexOf(u)),
+      profile:{...mission.coordinationProfile,interactionCover:true,casualtySupport:true,allowUnselected:true},getSquad:()=>squad,getSelected:selectedUnits,getHostiles:()=>enemies,
+      canControl:u=>commands.owner(squad.indexOf(u))<0||u===squad[commands.active()],
       isBusy:u=>!!missionController?.state.jobs?.has('player-'+squad.indexOf(u))||!!u.streetActor?.carrying});
     barcelonaRuntime?.dispose();barcelonaRuntime=null;resistanceRuntime=null;
     try{adaptiveDirector?.disable()}catch{}
@@ -1588,7 +1578,7 @@
     window.BadFodderMissionObjectives=missionObjectivesRuntime;
     window.BadFodderHealth.bindRuntime({getSquad:()=>squad,getSelected:selectedUnits,damage:applyDamageBase,dispatchAid:()=>coopCommand('aid'),onSupportAction:event=>coordinationSupport?.casualtyAction(event),isActive:()=>started&&!menuOpen&&!paused&&!finished&&!mapOpen});
     window.BadFodderGarrison?.bindRuntime({getSquad:()=>squad,getEnemies:()=>enemies,getSelected:selectedUnits,
-      select:setSelection,move:setMoveTargets,notice:MAP_DATA.key==='bad-belzig'?setStatus:null,isActive:()=>started&&!menuOpen&&!paused&&!finished&&!mapOpen,
+      regroupCompanions:()=>{companionOrder('REGROUP');return true},select:setSelection,move:setMoveTargets,notice:MAP_DATA.key==='bad-belzig'?setStatus:null,isActive:()=>started&&!menuOpen&&!paused&&!finished&&!mapOpen,
       prepareHold:s=>{coordinationSupport?.directOrder(s);buildingRuntime?.exit(s)},firearmsAllowed:()=>actionAllowed('firearms'),canSee:(s,e)=>!lineBlocked(s.x,s.y,e.x,e.y),
       shoot:(s,e)=>{const spread=10*window.BadFodderCombatTactics.spreadScale(s);fireBullet('squad',s.x,s.y,e.x+(gameplayRng.random()-.5)*spread,e.y+(gameplayRng.random()-.5)*spread,squad.indexOf(s))}});
     badBelzigRuntime=null;civilianRuntime=null;buildingRuntime=null;tacticsRuntime=null;enemyBehaviour=null;
@@ -1655,6 +1645,11 @@
     refreshCursorWorld();
     pauseBtn.textContent='Pause (Enter)';
     mapBtn.classList.remove('active');mapBtn.textContent='Map (M)';
+    companions=window.BadFodderCompanions.create({getSquad:()=>squad,commands,navigation,groupMovement,health:window.BadFodderHealth,support:coordinationSupport,
+      getHostiles:()=>enemies,canSee:(u,e)=>!lineBlocked(u.x,u.y,e.x,e.y),fire:fireCharacterAt,firearmsAllowed:()=>actionAllowed('firearms'),
+      releaseCover:u=>{window.BadFodderGarrison?.releaseCheckpoint(u);window.BadFodderGarrison?.release(u)},exitBuilding:u=>buildingRuntime?.exit(u),
+      isBusy:u=>!!missionController?.state.jobs.has('player-'+squad.indexOf(u)),findCover:companionCover,getContext:companionContext,
+      profile:{spacing:groupMovementProfile.spacing,engagement:S(180),leash:S(260),comfortable:S(44),catchUp:S(110)}});
     setSelection('all');updateHud();syncTouchControlState();badBelzigRuntime?.start();
   }
 
@@ -1841,31 +1836,38 @@
     return true;
   }
 
+  function fireCharacterAt(s,target){
+    if(!actionAllowed('firearms')||!s?.alive||s.cooldown>0||s.downed||s.carryingUnit||s.equipmentManaged&&(!s.weapon||s.ammo<=0))return false;
+    updateFacing(s,target.x-s.x,target.y-s.y);s.fireTimer=.11;s.state='fire';
+    const heat=Math.min(1,s.fireHeat||0),spread=(5+heat*22)*window.BadFodderIdentities.modifiers(s).spread*window.BadFodderCombatTactics.spreadScale(s);
+    const fired=fireBullet('squad',s.x,s.y,target.x+(gameplayRng.random()-.5)*spread,target.y+(gameplayRng.random()-.5)*spread,squad.indexOf(s));
+    if(fired===false)return false;s.fireHeat=Math.min(1,heat+.15);s.cooldown=s.equipmentManaged?(s.weapon==='pistol'?.55:.32):.085;return true;
+  }
   function squadFireAt(x,y){
     if(coopCommand('fire',{x,y}))return true;
-    if(!actionAllowed('firearms'))return false;
-    const units=selectedUnits();
-    if(!units.length)return false;
-    coordinationSupport?.directOrder(units);
-
-    let fired=false;
-    units.forEach(s=>{
-      if(s.cooldown>0||s.downed||s.carryingUnit||s.equipmentManaged&&(!s.weapon||s.ammo<=0))return;
-
-      updateFacing(s,x-s.x,y-s.y);
-      s.fireTimer=.11;s.state='fire';
-
-      const heat=Math.min(1,s.fireHeat||0);
-      const spread=(5+heat*22)*window.BadFodderIdentities.modifiers(s).spread*window.BadFodderCombatTactics.spreadScale(s);
-      const tx=x+(gameplayRng.random()-.5)*spread;
-      const ty=y+(gameplayRng.random()-.5)*spread;
-
-      fireBullet('squad',s.x,s.y,tx,ty,squad.indexOf(s));
-      s.fireHeat=Math.min(1,heat+.15);
-      s.cooldown=s.equipmentManaged?(s.weapon==='pistol'?.55:.32):.085;
-      fired=true;
-    });
-    return fired;
+    const unit=selectedUnits()[0];if(!unit)return false;coordinationSupport?.directOrder(unit);
+    return fireCharacterAt(unit,{x,y});
+  }
+  function companionCover(unit,enemy,anchor,reserved){
+    if(!enemy)return null;
+    if(window.BadFodderCombatTactics.coveredAgainst(unit,enemy.x,enemy.y)&&Math.hypot(unit.x-anchor.x,unit.y-anchor.y)<=S(90)&&!reserved.some(p=>Math.hypot(p.x-unit.x,p.y-unit.y)<groupMovementProfile.spacing))return{x:unit.x,y:unit.y};
+    const angle=Math.atan2(enemy.y-unit.y,enemy.x-unit.x);let best=null,score=Infinity;
+    for(const distance of [S(24),S(48)])for(let i=0;i<8;i++){
+      const a=i*Math.PI/4,p={x:unit.x+Math.cos(a)*distance,y:unit.y+Math.sin(a)*distance};
+      if(Math.hypot(p.x-anchor.x,p.y-anchor.y)>S(90)||obstacleAt(p.x,p.y,NAV_RADIUS)||!routeClear(unit.x,unit.y,p.x,p.y,NAV_RADIUS)||reserved.some(q=>Math.hypot(q.x-p.x,q.y-p.y)<groupMovementProfile.spacing))continue;
+      if(!obstacleAt(p.x+Math.cos(angle)*S(24),p.y+Math.sin(angle)*S(24),S(3)))continue;
+      const cost=distance+Math.hypot(p.x-anchor.x,p.y-anchor.y)*.2;if(cost<score){best=p;score=cost}
+    }
+    return best;
+  }
+  function companionContext(){
+    const leader=squad[commands.active(0)],current=missionObjectivesRuntime?.manager.current();
+    if(!leader)return{mode:'FOLLOW'};
+    const interaction=!!missionController?.state.jobs.has('player-'+squad.indexOf(leader))||leader.carryingUnit||leader.aidTimer>0;
+    // Follow the player's chosen crisis location. Never choose a distant story target.
+    const nearby=current?.marker&&Number.isFinite(current.marker.x)&&Math.hypot(leader.x-current.marker.x,leader.y-current.marker.y)<S(85);
+    const mode=interaction?'INTERACT_SUPPORT':nearby&&['HOLD','DEFEND','CAPTURE'].includes(current.type)?'DEFEND':civilians.some(c=>c.alive&&c.leaderIndex===squad.indexOf(leader))?'ESCORT':'FOLLOW';
+    return{mode,anchor:leader,interactionTarget:interaction?leader:null,casualtyAid:true};
   }
 
 
@@ -2159,10 +2161,13 @@
   }
 
   function resolveSquadSpacing(dt=1/60){
-    groupMovement.separate(squad,groupMovementProfile,dt);
+    groupMovement.separate(squad,groupMovementProfile,dt,u=>commands.owner(squad.indexOf(u))<0);
   }
 
   function updateSquad(dt){
+    companions?.update(dt);
+    const active=selectedUnits()[0];squad.forEach(u=>u.selected=u===active);
+    selection=active?[squad.indexOf(active)]:[];
     coordinationSupport?.update(dt);
     recordLeaderTrail();
 
@@ -2174,6 +2179,7 @@
       }
       if(s.downed){s.damageGrace=Math.max(0,(s.damageGrace||0)-dt);s.state='hurt';return}
       if(s.insideBuilding){s.state='idle';return}
+      s.aidTimer=Math.max(0,(s.aidTimer||0)-dt);
       s.anim=(s.anim||0)+dt*8;
       s.cooldown=Math.max(0,s.cooldown-dt);
       s.flash=Math.max(0,s.flash-dt);
@@ -2189,11 +2195,11 @@
       let moving=false;
 
       if(coordinationSupport?.isSupporting(s)){
-        moving=groupMovement.follow(s,185,dt,groupMovementProfile);
+        moving=groupMovement.follow(s,185*(companions?.speedScale(s)||1),dt,groupMovementProfile);
       }else if(squadFormation.active&&squadFormation.members.includes(s)&&!s.isFormationLeader){
         moving=followFormationMember(s,dt);
       }else{
-        moving=groupMovement.follow(s,historicalActor?(historicalActor.carrying?205:240):(firingNow?128:185),dt,groupMovementProfile);
+        moving=groupMovement.follow(s,(historicalActor?(historicalActor.carrying?205:240):(firingNow?128:185))*(companions?.speedScale(s)||1),dt,groupMovementProfile);
       }
 
       if(s.throwTimer>0)s.state='throw';
@@ -2495,8 +2501,7 @@
     const units=selectedUnits();
     if(!units.length)return;
     coordinationSupport?.directOrder(units);
-    if(badBelzigRuntime||p.exitCheckpoint)units.forEach(u=>window.BadFodderGarrison?.releaseCheckpoint(u));
-    if(badBelzigRuntime)units.forEach(u=>window.BadFodderGarrison?.release(u));
+    units.forEach(u=>{window.BadFodderGarrison?.releaseCheckpoint(u);window.BadFodderGarrison?.release(u)});
     units.forEach(u=>buildingRuntime?.exit(u));
 
     if(typeof missionInteractionLayer!=='undefined'&&missionInteractionLayer)units.forEach(s=>missionInteractionLayer.cancelJob('player-'+squad.indexOf(s)));
@@ -2550,7 +2555,7 @@
 
   function ensureTouchFormation(){
     const units=selectedUnits();
-    if(badBelzigRuntime)units.forEach(u=>{window.BadFodderGarrison?.releaseCheckpoint(u);window.BadFodderGarrison?.release(u)});
+    units.forEach(u=>{window.BadFodderGarrison?.releaseCheckpoint(u);window.BadFodderGarrison?.release(u)});
     coordinationSupport?.directOrder(units);
     if(!units.length)return null;
 
@@ -3728,8 +3733,9 @@
     syncFullscreenButton();resizeGame();
   });
 
-  selectAllBtn.addEventListener('click',()=>setSelection('all'));
-  hudAll.addEventListener('click',()=>setSelection('all'));
+  selectAllBtn.textContent='Follow';selectAllBtn.addEventListener('click',()=>companionOrder('FOLLOW'));
+  hudAll.title='Next character (Tab)';hudAll.addEventListener('click',()=>{const ids=selectionIds('all'),i=ids[(ids.indexOf(commands.active())+1)%ids.length];if(i!==undefined)setSelection(i)});
+  for(const order of ['FOLLOW','HOLD','REGROUP']){const b=document.createElement('button');b.type='button';b.textContent=order;b.id='companion'+order;b.addEventListener('click',()=>companionOrder(order));document.getElementById('companionOrders').appendChild(b);}
   stopBtn.addEventListener('click',()=>{
     coordinationSupport?.directOrder(selectedUnits());
     clearSquadFormation();
@@ -3787,7 +3793,9 @@
         if(e.shiftKey||e.ctrlKey||e.metaKey)toggleSelection(index);else setSelection(index);
       }
     }
-    if(key==='a')setSelection('all');
+    if(key==='a')companionOrder('FOLLOW');
+    if(key==='r')companionOrder('REGROUP');
+    if(key==='Tab'.toLowerCase()){e.preventDefault();const ids=selectionIds('all'),i=ids[(ids.indexOf(commands.active())+1)%ids.length];if(i!==undefined)setSelection(i);}
 
     if(key==='m'){
       e.preventDefault();
@@ -3840,7 +3848,7 @@
   requestAnimationFrame(tick);
   // Thin co-op adapter: networking never owns the single-player boot path.
   window.BadFodderCoopBridge={
-    map:()=>MAP_DATA.key, size:()=>({w:WORLD_W,h:WORLD_H}), squad:()=>squad,
+    controls:()=>companions, map:()=>MAP_DATA.key, size:()=>({w:WORLD_W,h:WORLD_H}), squad:()=>squad,
     active:()=>started&&!finished&&(commands?.mode==='host'||(!menuOpen&&!paused&&!mapOpen)),
     status:setStatus,
     shootGarrison:(u,e)=>fireBullet('squad',u.x,u.y,e.x,e.y,squad.indexOf(u)),
@@ -3861,6 +3869,10 @@
       window.BadFodderMissionStats?.begin(()=>squad,()=>enemies);
     },
     execute(c){
+      const player=c.player??0;
+      if(c.type==='select'){const result=companions?.switchTo(c.units[0],player);if(player===commands.player)setSelection(c.units[0]);return result;}
+      if(c.type==='companion')return companions?.setOrder(c.order);
+      if(c.units[0]!==commands.active(player))return false;
       return commands.apply(c.units,()=>{
         const units=selectedUnits();
         if(c.type==='move'){
@@ -3882,9 +3894,9 @@
     },
     stick(ids,x,y,dt){
       for(const [i,id] of ids.entries()){
-        const u=squad[id];if(!u?.alive||Math.hypot(x,y)<.1||u.checkpointCover&&!badBelzigRuntime)continue;
+        const u=squad[id];if(!u?.alive||Math.hypot(x,y)<.1||commands.owner(id)<0)continue;
         coordinationSupport?.directOrder(u);
-        if(badBelzigRuntime)window.BadFodderGarrison?.releaseCheckpoint(u);
+        window.BadFodderGarrison?.releaseCheckpoint(u);
         window.BadFodderGarrison?.release(u);u.path=null;u.target=null;u.isFormationLeader=false;
         const mag=Math.min(1,Math.hypot(x,y)),v=(mag-.1)/.9,speed=205*ACTOR_SPEED*v*v*(3-2*v);
         updateFacing(u,x,y);moveEntity(u,x/mag*speed*dt,y/mag*speed*dt,NAV_RADIUS);u.state='walk';u.touchMoveSpeed=speed;
@@ -3893,6 +3905,7 @@
     capture(){
       window.BadFodderMissionStats?.tick();
       return {squad,enemies,civilians,pickups,bullets,thrown,effects,missionStage,phaseHoldTime,squadGrenades,finished,win,
+        companion:companions?.snapshot(),
         objectives:missionObjectivesRuntime.snapshot(),
         health:window.BadFodderHealth.snapshot(),
         civilianState:civilianRuntime?.snapshot(),
@@ -3911,15 +3924,14 @@
       if(state.objectives)missionObjectivesRuntime.restore(state.objectives);
       else{badBelzigRuntime?.sync({legacy:true,phase:missionStage});missionObjectivesRuntime.syncPhase(missionStage,{completed:finished&&win,failed:finished&&!win});}
       if(state.health)window.BadFodderHealth.receive(state.health);
+      if(state.companion){companions?.restore(state.companion);const index=commands.active();selection=index===null?[]:[index];squad.forEach((u,i)=>u.selected=i===index);}
       if(state.civilianState)civilianRuntime?.receive(state.civilianState);
       badBelzigRuntime?.sync();
       if(state.buildingState)buildingRuntime?.receive(state.buildingState);
       if(state.tactics)tacticsRuntime?.receive(state.tactics);
       if(state.enemyBehaviour)enemyBehaviour?.receive(state.enemyBehaviour);
-      if(selection!=='all'){
-        const remaining=selectionIds();
-        if(remaining.length)setSelection(remaining);else setSelection('all');
-      }
+      const local=squad[commands.active()];selection=local?.alive&&!local.downed?[commands.active()]:[];
+      squad.forEach(u=>u.selected=selection.length>0&&u===local);
       window.BadFodderMissionStats?.receive(state.stats);
       if(refresh){updateRoster();updateHud(true);}
       if(finished&&!wasFinished)showMissionResult();
@@ -3928,7 +3940,7 @@
       squad.forEach(e=>art.animate(e,dt));enemies.forEach(e=>art.animate(e,dt));civilians.forEach(e=>art.animate(e,dt));updateCamera(dt);updateHud();
     },
     disconnect(player){
-      if(player===1){for(const u of squad.slice(2)){u.path=null;u.target=null;u.touchMoveSpeed=0;u.manualGarrison=u.alive;u.garrisonAnchorX=u.x;u.garrisonAnchorY=u.y;}setStatus('PLAYER 2 DISCONNECTED');}
+      if(player===1){const u=squad[commands.active(1)];if(u){u.path=null;u.target=null;u.touchMoveSpeed=0;}commands.release(1);companions?.setOrder('FOLLOW');setStatus('PLAYER 2 DISCONNECTED');}
       else{showTitle();document.getElementById('menuMultiplayer').click();}
     },
     menu:showTitle
