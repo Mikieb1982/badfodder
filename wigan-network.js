@@ -131,13 +131,16 @@
   }
 
   function install(root){
-    const civiliansApi=root.BadFodderCivilians,art=root.BadFodderArt;
+    const civiliansApi=root.BadFodderCivilians,art=root.BadFodderArt,protocol=root.BadFodderCoopProtocol;
     if(!civiliansApi?.create||!art?.drawActor)return false;
     if(!civiliansApi.__wiganNetworkPatched){
       const originalCreate=civiliansApi.create.bind(civiliansApi);
       civiliansApi.create=function(options={}){
         const runtime=originalCreate(options),objectives=root.BadFodderMissionObjectives;
-        if(!objectives?.facts?.get('wigan_story'))return runtime;
+        if(!objectives?.facts?.get('wigan_story')){
+          activeRuntime?.dispose?.();activeRuntime=null;root.BadFodderWiganNetworkRuntime=null;
+          return runtime;
+        }
         const map=typeof WIGAN_MAP!=='undefined'?WIGAN_MAP:null;if(!map)return runtime;
         const list=options.getCivilians?.();if(!Array.isArray(list))return runtime;
         activeRuntime?.dispose?.();
@@ -157,6 +160,17 @@
         runtime.network=network;return runtime;
       };
       civiliansApi.__wiganNetworkPatched=true;
+    }
+    if(protocol?.snapshot&&!protocol.__wiganNetworkPatched){
+      const originalSnapshot=protocol.snapshot.bind(protocol);
+      protocol.snapshot=function(state,seq){
+        const list=state?.civilians;
+        if(!Array.isArray(list)||!list.some(c=>c?.networkActor))return originalSnapshot(state,seq);
+        const keep=[];for(let i=0;i<list.length;i++)if(!list[i]?.networkActor)keep.push(i);
+        const civilianState=Array.isArray(state.civilianState)&&state.civilianState.length===list.length?keep.map(i=>state.civilianState[i]):state.civilianState;
+        return originalSnapshot({...state,civilians:keep.map(i=>list[i]),civilianState},seq);
+      };
+      protocol.__wiganNetworkPatched=true;
     }
     if(!art.__wiganNetworkPatched){
       const originalDraw=art.drawActor.bind(art);
