@@ -8,7 +8,7 @@ const ctx={save(){stack.push([...matrix])},restore(){matrix=stack.pop()},transla
 const art={drawActor(g,u,team){rendered.push({team,x:matrix[0]*u.x+matrix[4],y:matrix[3]*u.y+matrix[5],width:40*matrix[0],height:50*matrix[3]});return true},missionPortrait:()=>({width:144,height:144})},portrait=art.missionPortrait;
 Scale.installArt(art);Scale.installArt(art);
 for(const team of ['squad','enemy','civilian','resistance'])assert(art.drawActor(ctx,{x:180,y:240},team));
-assert(rendered.every(r=>r.Math.abs(r.width-27.3)<1e-8&&Math.abs(r.height-34.125)<1e-8&&r.x===180&&r.y===240));assert.deepEqual(matrix,[1,0,0,1,0,0]);assert.equal(art.missionPortrait,portrait);
+assert(rendered.every(r=>Math.abs(r.width-27.3)<1e-8&&Math.abs(r.height-34.125)<1e-8&&r.x===180&&r.y===240));assert.deepEqual(matrix,[1,0,0,1,0,0]);assert.equal(art.missionPortrait,portrait);
 function navFixture(){const nav=Navigation.create({worldWidth:600,worldHeight:600,buildings:[],moveEntity:(u,x,y)=>{u.x+=x;u.y+=y},updateFacing(){}});Scale.installNavigation(nav);Scale.installNavigation(nav);return nav}
 const nav=navFixture(),unit={x:100,y:100};nav.assignPath(unit,400,100);nav.followPath(unit,100,.1);assert.equal(unit.x,104.55);
 // Waypoint arrival uses the reduced speed as well, so no last-step teleport or overshoot.
