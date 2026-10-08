@@ -1,0 +1,91 @@
+/* Mobile/touch tactical HUD zones. Keep the centre battlefield free of permanent controls. */
+@media (pointer:coarse){
+  /* Bottom centre: squad status tray, flush to the safe-area edge. */
+  .hud-roster{
+    left:50%!important;
+    bottom:calc(6px + env(safe-area-inset-bottom,0px))!important;
+    transform:translateX(-50%)!important;
+    width:min(520px,calc(100% - 400px))!important;
+    max-width:52vw;
+    z-index:7;
+  }
+
+  /* Bottom left: immediate combat and contextual actions only. */
+  .touch-actions{
+    left:calc(10px + env(safe-area-inset-left,0px))!important;
+    bottom:calc(8px + env(safe-area-inset-bottom,0px))!important;
+    display:grid!important;
+    grid-template-columns:72px 64px;
+    grid-auto-rows:min-content;
+    align-items:end!important;
+    gap:6px!important;
+    max-width:150px;
+    z-index:8;
+  }
+  #touchFire{grid-column:1;grid-row:1;width:72px!important;height:72px!important}
+  #touchGrenade{grid-column:2;grid-row:1;width:60px!important;height:60px!important;margin:0!important}
+  #touchAction,#touchAid,#touchGarrison,#touchDrop{
+    width:auto!important;min-width:0!important;height:46px!important;min-height:46px!important;
+    padding:0 7px!important;border-radius:8px!important;font-size:9px!important;
+  }
+  #touchAction,#touchAid,#touchGarrison{grid-column:1 / span 2}
+  #touchDrop{grid-column:1 / span 2}
+
+  /* REGROUP already exists in the companion command dock. Do not duplicate it. */
+  #touchRegroup{display:none!important}
+
+  /* Bottom right: companion stance commands, just above the movement stick. */
+  #companionOrders{
+    left:auto!important;
+    right:calc(10px + env(safe-area-inset-right,0px))!important;
+    bottom:calc(118px + env(safe-area-inset-bottom,0px))!important;
+    transform:none!important;
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(54px,1fr));
+    gap:4px!important;
+    width:190px;
+    z-index:8;
+  }
+  #companionOrders button{
+    min-height:40px!important;
+    padding:5px 6px!important;
+    border-radius:6px!important;
+    font-size:9px!important;
+  }
+  #companionOrders button.active,
+  #companionOrders button[aria-pressed="true"]{
+    border-color:#f3dc99!important;
+    outline:1px solid #f3dc99;
+    background:#3d503d!important;
+  }
+
+  /* Movement remains in the natural right-thumb corner. */
+  .touch-joystick{
+    right:calc(10px + env(safe-area-inset-right,0px))!important;
+    bottom:calc(8px + env(safe-area-inset-bottom,0px))!important;
+    z-index:7;
+  }
+
+  /* Top edge is information/system only. */
+  .hud-topline{
+    top:calc(6px + env(safe-area-inset-top,0px))!important;
+    left:calc(8px + env(safe-area-inset-left,0px))!important;
+    right:calc(8px + env(safe-area-inset-right,0px))!important;
+  }
+  .hud-notice{top:calc(64px + env(safe-area-inset-top,0px))!important}
+}
+
+@media (pointer:coarse) and (orientation:landscape){
+  .hud-roster{width:min(520px,calc(100% - 410px))!important;max-width:50vw!important}
+  .hud-unit{min-width:0!important}
+  .hud-portrait{display:none!important}
+  #hudAll{flex-basis:38px!important}
+}
+
+@media (pointer:coarse) and (max-width:760px){
+  .hud-roster{width:min(430px,calc(100% - 350px))!important;max-width:49vw!important}
+  #companionOrders{width:174px;grid-template-columns:repeat(3,minmax(50px,1fr))}
+  .touch-actions{grid-template-columns:64px 56px;max-width:130px}
+  #touchFire{width:64px!important;height:64px!important}
+  #touchGrenade{width:54px!important;height:54px!important}
+}
