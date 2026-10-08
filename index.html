@@ -566,6 +566,7 @@
 <script src="combat-tactics.js"></script>
 <script src="enemy-behaviour.js"></script>
 <script src="navigation.js?v=20261003-upgrade-1"></script>
+<script src="group-movement.js"></script>
 <script src="checkpoint-fortification.js"></script>
 <script src="checkpoint-wave-config.js"></script>
 <script src="garrison-control.js"></script>
@@ -671,6 +672,7 @@
     get commands(){return commands;},
     get ctx(){return ctx;},
     get diagnostics(){return diagnostics;},
+    get clearSquadFormation(){return clearSquadFormation;},
     get finished(){return finished;},set finished(value){finished=value;},
     get handleRuntimeFault(){return handleRuntimeFault;},
     get historicalMissions(){return historicalMissions;},
@@ -1114,6 +1116,9 @@
     NAV_RADIUS,PATH_CELL,PATH_COLS,PATH_ROWS,pathComponents
   }=navigation;
 
+  const groupMovement=window.BadFodderGroupMovement.create({navigation,moveEntity,worldWidth:WORLD_W,worldHeight:WORLD_H});
+  let groupMovementProfile=window.BadFodderGroupMovement.profile({separationRadius:NAV_RADIUS*2+2});
+
   const pointInCircle=missionRules.pointInCircle;
   const commands=window.BadFodderCommands;
   function coopCommand(type,data={}){
@@ -1465,6 +1470,7 @@
   function resetGame(){
     if(commands&&commands.mode!=='local'&&!commands.applying&&started){window.BadFodderCoop?.restart();return;}
     const mission=activeMission();
+    groupMovementProfile=window.BadFodderGroupMovement.profile({separationRadius:NAV_RADIUS*2+2,...mission.groupMovementProfile});
     barcelonaRuntime?.dispose();barcelonaRuntime=null;resistanceRuntime=null;
     try{adaptiveDirector?.disable()}catch{}
     adaptiveDirector=null;enemyCommander=null;
@@ -1896,6 +1902,9 @@
     squadFormation.members=[];
     squadFormation.trail=[];
     squadFormation.destination=null;
+    squadFormation.slots=null;
+    squadFormation.heading=null;
+    squadFormation.slotVersion=null;
     squadFormation.manualMoving=false;
     squad.forEach(s=>{
       s.isFormationLeader=false;
@@ -1904,15 +1913,7 @@
     });
     if(continuing){
       const units=continuing.members.filter(s=>s.alive&&!s.manualGarrison&&!s.checkpointCover);
-      const target=continuing.destination,lead=units[0];
-      if(lead){
-        const angle=Math.atan2(target.y-lead.y,target.x-lead.x);
-        units.forEach((unit,i)=>{
-          const offset=(i-(units.length-1)/2)*26;
-          const x=target.x-Math.sin(angle)*offset,y=target.y+Math.cos(angle)*offset;
-          if(!assignPath(unit,x,y))assignPath(unit,target.x,target.y);
-        });
-      }
+      groupMovement.assign(units,continuing.destination,groupMovementProfile);
     }
   }
 
@@ -1933,7 +1934,10 @@
       if(i>0){s.path=null;s.target=null;s.pathIndex=0}
     });
 
-    if(squadFormation.destination)assignPath(leader,squadFormation.destination.x,squadFormation.destination.y);
+    if(squadFormation.destination){
+      squadFormation.slots=groupMovement.slots(living,squadFormation.destination,groupMovementProfile,true,squadFormation.heading);
+      assignPath(leader,squadFormation.destination.x,squadFormation.destination.y);
+    }
     return leader;
   }
 
@@ -1987,7 +1991,15 @@
       return safeFormationPoint(trailPoint.x,trailPoint.y);
     }
 
-    // Once the leader stops, reform into a loose wedge.
+    if(squadFormation.slots){
+      if(squadFormation.slotVersion!==navigation.navigationVersion){
+        squadFormation.slots=groupMovement.slots(squadFormation.members,squadFormation.destination,groupMovementProfile,true,squadFormation.heading);
+        squadFormation.slotVersion=navigation.navigationVersion;
+      }
+      return squadFormation.slots[slot]||{x:leader.x,y:leader.y};
+    }
+
+    // Once a joystick leader stops, preserve the existing loose wedge.
     const offsets=[
       [0,0],
       [-34,30],
@@ -2012,8 +2024,8 @@
     const desired=formationDestinationFor(s);
     if(!desired)return false;
     const d=Math.hypot(desired.x-s.x,desired.y-s.y);
-    if(d<14){
-      s.path=null;s.target=null;s.pathIndex=0;
+    if(d<=(desired.shared?groupMovementProfile.separationRadius:3)){
+      navigation.cancelPath(s);
       return false;
     }
 
@@ -2022,10 +2034,11 @@
     const catchUp=d>130?(leaderRun?1.28:1.16):d>75?(leaderRun?1.16:1.08):1;
 
     if(routeClear(s.x,s.y,desired.x,desired.y,NAV_RADIUS)){
-      s.path=null;s.target=null;s.pathIndex=0;
+      navigation.cancelPath(s);
       const dx=desired.x-s.x,dy=desired.y-s.y;
       updateFacing(s,dx,dy);
-      moveEntity(s,dx/d*185*catchUp*dt,dy/d*185*catchUp*dt,NAV_RADIUS);
+      const speed=groupMovement.arrive(d,185*catchUp,dt,groupMovementProfile);
+      moveEntity(s,dx/d*speed*dt,dy/d*speed*dt,NAV_RADIUS);
       return true;
     }
 
@@ -2033,7 +2046,7 @@
       assignPath(s,desired.x,desired.y);
       s.followRepath=.55+.12*(s.formSlot||1);
     }
-    return followPath(s,185*catchUp,dt);
+    return groupMovement.follow(s,185*catchUp,dt,groupMovementProfile);
   }
 
   function pointSegmentDistance(px,py,ax,ay,bx,by){
@@ -2112,23 +2125,8 @@
     return null;
   }
 
-  function resolveSquadSpacing(){
-    const living=squad.filter(s=>s.alive&&!s.downed&&!s.insideBuilding);
-    const min=NAV_RADIUS*2+2;
-    for(let i=0;i<living.length;i++){
-      for(let j=i+1;j<living.length;j++){
-        const a=living[i],b=living[j];
-        let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);
-        if(d>=min)continue;
-        if(d<.01){dx=1;dy=0;d=1}
-        if(d<min){
-          const push=Math.min(2.2,(min-d)*.18);
-          const nx=dx/d,ny=dy/d;
-          moveEntity(a,-nx*push,-ny*push,NAV_RADIUS);
-          moveEntity(b,nx*push,ny*push,NAV_RADIUS);
-        }
-      }
-    }
+  function resolveSquadSpacing(dt=1/60){
+    groupMovement.separate(squad,groupMovementProfile,dt);
   }
 
   function updateSquad(dt){
@@ -2159,7 +2157,7 @@
       if(squadFormation.active&&squadFormation.members.includes(s)&&!s.isFormationLeader){
         moving=followFormationMember(s,dt);
       }else{
-        moving=followPath(s,historicalActor?(historicalActor.carrying?205:240):(firingNow?128:185),dt);
+        moving=groupMovement.follow(s,historicalActor?(historicalActor.carrying?205:240):(firingNow?128:185),dt,groupMovementProfile);
       }
 
       if(s.throwTimer>0)s.state='throw';
@@ -2168,7 +2166,7 @@
       else s.state='idle';
     });
 
-    resolveSquadSpacing();
+    resolveSquadSpacing(dt);
 
     pickups.forEach(p=>{
       if(!p.active)return;
@@ -2476,14 +2474,7 @@
     // while the player switches to and commands another group.
     if(units.length<squad.filter(s=>s.alive).length){
       clearSquadFormation();
-      const heading=Math.atan2(ty-units[0].y,tx-units[0].x),rx=-Math.sin(heading),ry=Math.cos(heading);
-      let routed=0;
-      units.forEach((unit,i)=>{
-        const offset=(i-(units.length-1)/2)*26;
-        const gx=Math.max(16,Math.min(WORLD_W-16,tx+rx*offset));
-        const gy=Math.max(16,Math.min(WORLD_H-16,ty+ry*offset));
-        if(assignPath(unit,gx,gy)||assignPath(unit,tx,ty))routed++;
-      });
+      const routed=groupMovement.assign(units,{x:tx,y:ty},groupMovementProfile);
       if(!routed)setStatus('No clear route to that position.');
       return;
     }
@@ -2496,6 +2487,9 @@
       members:[...units],
       trail:[{x:leader.x,y:leader.y}],
       destination:{x:tx,y:ty},
+      heading:Math.atan2(ty-leader.y,tx-leader.x),
+      slots:groupMovement.slots(units,{x:tx,y:ty},groupMovementProfile,true),
+      slotVersion:navigation.navigationVersion,
       manualMoving:false
     };
 
@@ -2550,6 +2544,7 @@
     }
 
     squadFormation.manualMoving=true;
+    squadFormation.slots=null;
     return squadFormation.leader;
   }
 
@@ -3796,7 +3791,7 @@
         const units=selectedUnits();
         if(c.type==='move'){
           if(c.exitCheckpoint)units.forEach(u=>window.BadFodderGarrison?.releaseCheckpoint(u));
-          units.forEach((u,i)=>{window.BadFodderGarrison?.release(u);buildingRuntime?.exit(u);u.isFormationLeader=false;assignPath(u,Math.max(16,Math.min(WORLD_W-16,c.x+i*18)),Math.max(16,Math.min(WORLD_H-16,c.y+i*18)));});return true;
+          units.forEach(u=>window.BadFodderGarrison?.release(u));setMoveTargets(c);return true;
         }
         if(c.type==='fire')return squadFireAt(c.x,c.y);
         if(c.type==='grenade')return throwGrenade(c.x,c.y);

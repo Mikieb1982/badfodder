@@ -3,6 +3,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 const source=fs.readFileSync(require.resolve('../index.html'),'utf8');
 const group={squad:Array.from({length:4},(_,i)=>({x:i*10,y:0,alive:true})),commands:null,selection:'all',squadFormation:{active:true,manualMoving:false,destination:{x:300,y:300},members:[]},
  selectAllBtn:{classList:{toggle(){}}},hudAll:{classList:{toggle(){}},setAttribute(){}},unitButtons:[],updateRoster(){},assignPath(unit,x,y){unit.path=[{x,y}];unit.target={x,y};return true}};
+group.groupMovement=require('../group-movement').create({navigation:{NAV_RADIUS:6,obstacleAt:()=>false,routeClear:()=>true,assignPath:group.assignPath}});group.groupMovementProfile=require('../group-movement').defaults;
 group.squadFormation.members=[...group.squad];vm.createContext(group);
 for(const [start,end] of [
  ['  function selectionIds(','  function selectedHistoricalActor('],

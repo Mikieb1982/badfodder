@@ -104,6 +104,7 @@
   }
 
   function showTitle(){
+    env.clearSquadFormation?.(true);
     const wasCoop=env.commands&&env.commands.mode!=='local';
     window.BadFodderCoop?.leave();
     if(wasCoop&&env.started)env.resetGame();

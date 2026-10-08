@@ -41,14 +41,15 @@ for(const [name,p] of Object.entries(map.pois)){
  assert(!ent.path,name+' gets stuck');assert(Math.hypot(ent.x-target.x,ent.y-target.y)<12,name+' misses its street frontage');
 }
 const formationCode=source.slice(source.indexOf('  function clearSquadFormation('),source.indexOf('  function pointSegmentDistance('));
-const f=new Function('TOWN_MAP','navApi',
+const f=new Function('TOWN_MAP','navApi','GroupMovement',
   `const WORLD_W=TOWN_MAP.width*2,WORLD_H=TOWN_MAP.height*2,NAV_RADIUS=navApi.NAV_RADIUS,PATH_CELL=navApi.PATH_CELL;
    const {findPath,routeClear,followPath,assignPath,obstacleAt,nearestOpenCell,pathCellCenter}=navApi;
    const updateFacing=(ent,dx,dy)=>{if(Math.abs(dx)>.001||Math.abs(dy)>.001)ent.dir=Math.atan2(dy,dx)};
    const moveEntity=(ent,dx,dy,r=NAV_RADIUS)=>{const nx=Math.max(r,Math.min(WORLD_W-r,ent.x+dx));if(!obstacleAt(nx,ent.y,r))ent.x=nx;const ny=Math.max(r,Math.min(WORLD_H-r,ent.y+dy));if(!obstacleAt(ent.x,ny,r))ent.y=ny};
+   const navigation=navApi,groupMovement=GroupMovement.create({navigation,moveEntity,worldWidth:WORLD_W,worldHeight:WORLD_H}),groupMovementProfile=GroupMovement.profile({separationRadius:NAV_RADIUS*2+2});
    const buildingRuntime=null,coopCommand=()=>false;let squad=[],squadFormation={active:false},pickups=[],squadGrenades=5;const selectedUnits=()=>squad.filter(s=>s.alive),setStatus=()=>{};
   `+formationCode+body('resolveSquadSpacing')+body('updateSquad')+body('setMoveTargets')+`;return {setMoveTargets,updateSquad,get squad(){return squad},get grenades(){return squadGrenades},get pickups(){return pickups},setGrenades(n){squadGrenades=n},addPickup(type){pickups.push({type,x:squad[0].x,y:squad[0].y,active:true})},reset(){squad=TOWN_MAP.spawns.squad.map(([x,y])=>({x:x*2,y:y*2,alive:true,dir:-Math.PI/2,fireTimer:0,cooldown:0,flash:0,fireHeat:0,hp:8,maxHp:8}));squadFormation={active:false};pickups=[];squadGrenades=5;}};`
-)(map,q);
+)(map,q,require('../group-movement'));
 for(const [name,p] of Object.entries(map.pois)){
  f.reset();const target={x:p.approach[0]*2,y:p.approach[1]*2};f.setMoveTargets(target);for(let i=0;i<5000;i++)f.updateSquad(1/30);
  const distances=f.squad.map(s=>Math.round(Math.hypot(s.x-target.x,s.y-target.y)));assert(distances.every(d=>d<=160),name+' stranded follower '+distances);assert(f.squad.every(s=>!q.obstacleAt(s.x,s.y,4)));

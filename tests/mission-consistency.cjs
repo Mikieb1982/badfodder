@@ -116,11 +116,12 @@ for(const phase of badMission.phases.filter(p=>p.defenderGroup)){
 
 const formationCode=source.slice(source.indexOf('  function clearSquadFormation('),source.indexOf('  function pointSegmentDistance('));
 const supplies=new Function(
-  'TOWN_MAP','navApi',
+  'TOWN_MAP','navApi','GroupMovement',
   `const WORLD_W=TOWN_MAP.width*2,WORLD_H=TOWN_MAP.height*2,NAV_RADIUS=navApi.NAV_RADIUS,PATH_CELL=navApi.PATH_CELL;
    const {findPath,routeClear,followPath,assignPath,obstacleAt,nearestOpenCell,pathCellCenter}=navApi;
    const updateFacing=(ent,dx,dy)=>{if(Math.abs(dx)>.001||Math.abs(dy)>.001)ent.dir=Math.atan2(dy,dx)};
    const moveEntity=(ent,dx,dy,r=NAV_RADIUS)=>{const nx=Math.max(r,Math.min(WORLD_W-r,ent.x+dx));if(!obstacleAt(nx,ent.y,r))ent.x=nx;const ny=Math.max(r,Math.min(WORLD_H-r,ent.y+dy));if(!obstacleAt(ent.x,ny,r))ent.y=ny};
+   const navigation=navApi,groupMovement=GroupMovement.create({navigation,moveEntity,worldWidth:WORLD_W,worldHeight:WORLD_H}),groupMovementProfile=GroupMovement.profile({separationRadius:NAV_RADIUS*2+2});
    let squad=[],squadFormation={active:false},pickups=[],squadGrenades=5;
    const selectedUnits=()=>squad.filter(s=>s.alive),setStatus=()=>{};
   `+
@@ -137,7 +138,7 @@ const supplies=new Function(
       squadFormation={active:false};pickups=[];squadGrenades=5;
     }
   };`
-)(map,q);
+)(map,q,require('../group-movement'));
 
 supplies.reset();
 supplies.addPickup('med',4);
