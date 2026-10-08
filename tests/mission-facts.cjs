@@ -48,12 +48,14 @@ assert.deepEqual(Objectives.create(mission).restore(received.objectives).facts.s
 // Every playable mission goes through this same runtime; new runs cannot inherit facts.
 const scope={window:{BadFodderHistoricalMissions:require('../historical-missions')},localStorage:{getItem:()=>null,setItem(){}}};
 vm.runInNewContext(fs.readFileSync(require.resolve('../campaign.js'),'utf8'),scope);
+// VM fixtures cross a realm boundary; serialized campaign data matches runtime data.
+scope.window.BadFodderCampaign.missions=JSON.parse(JSON.stringify(scope.window.BadFodderCampaign.missions));
 const missions=scope.window.BadFodderCampaign.missions.filter(m=>m.playable);
 assert.equal(missions.length,4);
 for(const m of missions){
  const first=Objectives.create(m);first.facts.set('fixture','changed');
- const next=Objectives.create(m);assert.deepEqual(next.facts.snapshot(),{});
- first.manager.setObjectives(Objectives.definitions(m));assert.deepEqual(first.facts.snapshot(),{});
+ const next=Objectives.create(m);assert.deepEqual(next.facts.snapshot(),m.factDefaults||{});
+ first.manager.setObjectives(Objectives.definitions(m));assert.deepEqual(first.facts.snapshot(),m.factDefaults||{});
 }
 // Verify the real menu/restart controller preserves a resumable run, then replaces it on retry.
 let current=Objectives.create(mission);current.facts.set('count',5);

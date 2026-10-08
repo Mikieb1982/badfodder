@@ -42,7 +42,7 @@ for(const hook of ['sample','valid','execute','maintain']){
 const html=require('./engine-source.cjs')(fs.readFileSync('index.html','utf8'));
 const safe=html.slice(html.indexOf('  function runAdaptive('),html.indexOf('  function initializeAdaptiveDirector('));
 const simulate=html.slice(html.indexOf('  function simulateStep('),html.indexOf('  function handleRuntimeFault('));
-let simulationSteps=0;const scope={resistanceRuntime:null,barcelonaRuntime:null,tacticsRuntime:null,enemyBehaviour:null,opportunitiesRuntime:null,commands:{mode:'local'},window:{BadFodderHealth:require('../character-health')},menuOpen:false,paused:false,mapOpen:false,adaptiveDirector:basic({sample:()=>{throw Error('Director fault')}}).d,
+let simulationSteps=0;const scope={badBelzigRuntime:null,resistanceRuntime:null,barcelonaRuntime:null,tacticsRuntime:null,enemyBehaviour:null,opportunitiesRuntime:null,commands:{mode:'local'},window:{BadFodderHealth:require('../character-health')},menuOpen:false,paused:false,mapOpen:false,adaptiveDirector:basic({sample:()=>{throw Error('Director fault')}}).d,
  applyTouchMovement:()=>simulationSteps++,keyboardFireHeld:false,actionAllowed:()=>false,squad:[],
  missionController:null,missionInteractionLayer:null,missionDirector:null,missionCrowd:null,
  processEnemyPathQueue:()=>{},updateSquad:()=>{},updateEnemies:()=>{},updateCivilians:()=>{},updateProjectiles:()=>{},updateCamera:()=>{},checkFailure:()=>{},updateMissionProgress:()=>{},updateHud:()=>{},
@@ -53,6 +53,9 @@ assert.equal(simulationSteps,600,'Actual simulation must continue after a Direct
 assert(scope.adaptiveDirector.state.disabled);
 scope.adaptiveDirector.update=()=>{throw Error('update itself failed')};scope.adaptiveDirector.state.disabled=false;
 assert.doesNotThrow(()=>vm.runInContext('simulateStep(1/60)',scope));assert.equal(simulationSteps,601);
+scope.adaptiveDirector.state.disabled=false;scope.badBelzigRuntime={combatReady:false};
+assert.equal(vm.runInContext('runAdaptive(()=>true,false)',scope),false,'Opening gates combat director decisions');
+scope.badBelzigRuntime={combatReady:true};assert.equal(vm.runInContext('runAdaptive(()=>true,false)',scope),true);
 assert(!fs.readFileSync('adaptive-director.js','utf8').match(/fetch\(|XMLHttpRequest|WebSocket/));
 
 function military(map){

@@ -6,7 +6,7 @@ const KEY='badfodder.campaign.v1';
 
 const missions=[
   {
-    id:'bad-belzig',chapter:1,order:1,status:'playable',scenario:'fictional',location:'Bad Belzig',country:'Germany',title:'Bad Belzig',environment:'temperate-town',map:'bad-belzig',squadSize:4,playable:true,
+    id:'bad-belzig',chapter:1,order:1,status:'playable',scenario:'fictional',location:'Bad Belzig',country:'Germany',title:'Bad Belzig',environment:'temperate-town',map:'bad-belzig',squadSize:4,playable:true,factDefaults:{opening_state:'NOT_MET'},
     phases:[
       {type:'secure-zone',zone:'post',defenderGroup:'post',hold:2.5,contestRadius:72,title:'Secure the Postdistanzsäule',brief:'Clear the Postdistanzsäule patrol, enter the checkpoint position and repel the fast frontal counterattack.',checkpoint:{style:'rush',count:3}},
       {type:'secure-zone',zone:'castle',defenderGroup:'castle',hold:2.8,contestRadius:105,title:'Secure Burg Eisenhardt',brief:'Clear the castle defenders, occupy the Burg checkpoint and hold it against a two-sided flanking counterattack.',checkpoint:{style:'pincer',count:4}},

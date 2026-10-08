@@ -179,7 +179,7 @@
       env.started=true;
       env.menu.ready();
       env.loadingEl.classList.add('hidden');
-      const firstPhase=(env.activeMission().phases||[])[0];
+      const firstPhase=env.currentObjectivePhase?.()||(env.activeMission().phases||[])[0];
       env.setStatus('Phase 1: '+(firstPhase?(firstPhase.brief||firstPhase.title):'Begin mission.'));
       env.syncTouchControlState();
       env.updateHud(true);

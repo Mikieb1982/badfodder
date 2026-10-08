@@ -18,7 +18,8 @@
     ],
     civilians:[
       [610,760],[720,830],[870,740],[673.1,422.6],[768.7,538.7],[560,620],
-      [950,900],[470,860],[806.5,245.3],[525.9,378.8],[600,1080],[740,1140]
+      [950,900],[470,860],[806.5,245.3],[525.9,378.8],[600,1080],[740,1140],
+      [782,1360],[796,1360],[782,1375],[796,1375]
     ],
     pickups:[
       {type:'grenade',x:745.2,y:1203.9,amount:2},
@@ -28,6 +29,8 @@
       {type:'grenade',x:853.6,y:509,amount:2}
     ]
   };
+
+  TOWN_MAP.opening={civilianIndexes:[12,13,14,15],contact:{x:789,y:1368,r:55},postRevealRadius:100};
 
   TOWN_MAP.defenderGroups={
     // Compulsory defenders stay close enough to their objective to avoid map-wide cleanup hunts.

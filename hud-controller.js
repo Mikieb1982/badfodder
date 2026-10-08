@@ -107,6 +107,7 @@
     const living=env.squad.filter(s=>s.alive);
     const remaining=env.enemies.filter(e=>e.alive&&!e.surrendered).length;
     const currentPhase=env.currentObjectivePhase();
+    const objectiveIndex=objectiveRows.findIndex(o=>o.id===currentPhase?.id);
     const objectiveDefenders=currentPhase?env.phaseDefenders(currentPhase):null;
     const targetCount=objectiveDefenders?objectiveDefenders.length:remaining;
 
@@ -116,7 +117,7 @@
     const historicalMode=env.missionLaunch.isHistorical();
     env.hudAll.querySelector('span').textContent=env.commands&&env.commands.mode!=='local'?(living.filter(s=>env.commands.owns(env.squad.indexOf(s))).length?'MY PAIR':'SPECTATING'):living.length+(historicalMode?' VOLUNTEERS':' LOCALS');
     env.hudSquadLabel.textContent=historicalMode?'VOLUNTEERS':'SQUAD';
-    env.hudStage.textContent=env.finished?(env.win?'MISSION COMPLETE':'MISSION FAILED'):'OBJECTIVE '+Math.min(phaseCount,env.missionStage+1)+'/'+phaseCount;
+    env.hudStage.textContent=env.finished?(env.win?'MISSION COMPLETE':'MISSION FAILED'):'OBJECTIVE '+Math.min(phaseCount,(objectiveIndex<0?env.missionStage:objectiveIndex)+1)+'/'+phaseCount;
     rebuildHudProgress(phaseCount);
     env.hudProgress.querySelectorAll('i').forEach((p,i)=>{p.className=env.win||objectiveRows[i]?.status==='COMPLETED'?'done':objectiveRows[i]?.status==='ACTIVE'?'current':'';});
 

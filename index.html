@@ -578,6 +578,7 @@
 <script src="mission-objectives.js"></script>
 <script src="building-runtime.js"></script>
 <script src="civilian-runtime.js"></script>
+<script src="bad-belzig-opening.js"></script>
 <script src="character-health.js"></script>
 <script src="mission-route-validation.js?v=20261002-cable-nav-3"></script>
 <script src="historical-missions.js?v=20261003-tactical-1"></script>
@@ -675,6 +676,7 @@
     get diagnostics(){return diagnostics;},
     get clearSquadFormation(){return clearSquadFormation;},
     get coordinationSupport(){return coordinationSupport;},
+    get currentObjectivePhase(){return currentObjectivePhase;},
     get finished(){return finished;},set finished(value){finished=value;},
     get handleRuntimeFault(){return handleRuntimeFault;},
     get historicalMissions(){return historicalMissions;},
@@ -919,7 +921,7 @@
   let lastHudStats='',lastRosterSignature='',hudNoticeUntil=0;
   let runtimeFaultCount=0,runtimeFaultAt=0,runtimeSafeStop=false,runtimeFaultTotal=0;
   let missionController=null,missionInteractionLayer=null,missionDirector=null,missionCrowd=null;
-  let barcelonaRuntime=null,resistanceRuntime=null;
+  let barcelonaRuntime=null,resistanceRuntime=null,badBelzigRuntime=null;
   let missionObjectivesRuntime=null,civilianRuntime=null,buildingRuntime=null,tacticsRuntime=null,enemyBehaviour=null,opportunitiesRuntime=null;
   function currentObjectivePhase(){
     const objective=missionObjectivesRuntime?.manager.current();
@@ -936,7 +938,7 @@
   let adaptiveDirector=null,enemyCommander=null,adaptiveMemory=null;
   // Optional Director faults are contained here, outside normal runtime recovery.
   function runAdaptive(fn,fallback=null){
-    if(!adaptiveDirector||adaptiveDirector.state.disabled)return fallback;
+    if(!adaptiveDirector||adaptiveDirector.state.disabled||badBelzigRuntime&&!badBelzigRuntime.combatReady)return fallback;
     try{return adaptiveDirector.guard(fn,fallback)}catch{
       try{adaptiveDirector.disable()}catch{}
       return fallback;
@@ -1615,6 +1617,8 @@
       resistanceRuntime=window.BadFodderResistance.create({starts:MAP_DATA.resistance.starts,positions:MAP_DATA.resistance.positions,getEnemies:()=>enemies,getSquad:()=>squad,navigation:{...navigation,move:moveEntity},fire:fireBullet,scale:SCALE,canSee:(a,b)=>!lineBlocked(a.x,a.y,b.x,b.y),random:gameplayRng.random,spreadScale:u=>window.BadFodderCombatTactics.spreadScale(u),enabled:()=>missionObjectivesRuntime.manager.get('opening').status==='COMPLETED'});
       barcelonaRuntime.allies.push(...resistanceRuntime.units);
     }
+    badBelzigRuntime=MAP_DATA.key==='bad-belzig'?window.BadFodderBelzigOpening.create({map:MAP_DATA,objectives:missionObjectivesRuntime,
+      civilians:{getResidents:()=>civilians,zones:civilianRuntime.zones,interact:actor=>civilianRuntime.interact(actor)},getSquad:()=>squad,getEnemies:()=>enemies,scale:SCALE,status:setStatus,stop:c=>navigation.cancelPath(c)}):null;
     initializeAdaptiveDirector();
     missionObjectivesRuntime.manager.onChange(event=>{if(['complete','activate','discover','add'].includes(event.action))runAdaptive(()=>adaptiveDirector.notify('meaningful'))});
     finished=false;win=false;paused=false;mapOpen=false;selection='all';zoom=preferredZoom;
@@ -1639,11 +1643,11 @@
     refreshCursorWorld();
     pauseBtn.textContent='Pause (Enter)';
     mapBtn.classList.remove('active');mapBtn.textContent='Map (M)';
-    setSelection('all');updateHud();syncTouchControlState();
+    setSelection('all');updateHud();syncTouchControlState();badBelzigRuntime?.start();
   }
 
   function phaseZone(phase){
-    return phase&&phase.zone?zones[phase.zone]||null:null;
+    return Number.isFinite(phase?.marker?.x)?phase.marker:phase&&phase.zone?zones[phase.zone]||null:null;
   }
 
   function wiganSector(x,y){
@@ -2389,6 +2393,7 @@
 
 
   function updateCivilians(dt){
+    badBelzigRuntime?.update();
     if(civilianRuntime){civilianRuntime.update(dt);return}
     civilians.forEach(c=>{
       const danger=noise.some(n=>Math.hypot(c.x-n.x,c.y-n.y)<S(100));
@@ -3856,9 +3861,10 @@
       enemies=merge(enemies,state.enemies);civilians=merge(civilians,state.civilians);pickups=state.pickups;bullets=state.bullets;thrown=state.thrown;effects=state.effects;
       coopCheckpoint=state.checkpoint;missionStage=state.missionStage;phaseHoldTime=state.phaseHoldTime;squadGrenades=state.squadGrenades;finished=state.finished;win=state.win;
       if(state.objectives)missionObjectivesRuntime.restore(state.objectives);
-      else missionObjectivesRuntime.syncPhase(missionStage,{completed:finished&&win,failed:finished&&!win});
+      else{badBelzigRuntime?.sync({legacy:true});missionObjectivesRuntime.syncPhase(missionStage,{completed:finished&&win,failed:finished&&!win});}
       if(state.health)window.BadFodderHealth.receive(state.health);
       if(state.civilianState)civilianRuntime?.receive(state.civilianState);
+      badBelzigRuntime?.sync();
       if(state.buildingState)buildingRuntime?.receive(state.buildingState);
       if(state.tactics)tacticsRuntime?.receive(state.tactics);
       if(state.enemyBehaviour)enemyBehaviour?.receive(state.enemyBehaviour);
