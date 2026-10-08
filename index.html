@@ -555,6 +555,7 @@
 <script src="painted-art.js?v=20261003-visual-2"></script>
 <script src="mission-character-art.js?v=20261003-visual-2"></script>
 <script src="enemy-character-art.js"></script>
+<script src="actor-scale.js"></script>
 <script src="wartime-scenery.js?v=20261003-wartime-1"></script>
 <script src="building-art.js"></script>
 <script src="scenery-cache.js"></script>
@@ -798,7 +799,7 @@
   let renderingStatic=false,renderingOverview=false,scenery=null,sceneryTiles=null,sceneryBounds=null;
   ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
   display.imageSmoothingEnabled=true;
-  const art=BadFodderArt;
+  const art=BadFodderArt,ACTOR_SPEED=BadFodderActorScale.speed;
   const combatGeometry=BadFodderCombatGeometry;
   const missionRules=BadFodderMissionRules;
   const routeValidation=BadFodderRouteValidation;
@@ -1117,6 +1118,7 @@
     moveEntity,
     updateFacing
   });
+  BadFodderActorScale.installNavigation(navigation);
   const {
     pointInPoly,nearbyBuildings,solidPoint,obstacleAt,lineBlocked,
     routeClear,findPath,assignPath,followPath,pathComponent,
@@ -1557,7 +1559,7 @@
         controller:missionController,
         runtime:cableStreetRuntime,
         mission:historicalControllerMission,
-        options:{scale:SCALE,pressureControlled:true,navigation}
+        options:{scale:SCALE,pressureControlled:true,navigation,movementScale:ACTOR_SPEED}
       });
       missionInteractionLayer.initialize({
         actors:squad.map((s,i)=>({id:'player-'+i,name:s.name,x:s.x,y:s.y,active:s.alive})),
@@ -1573,7 +1575,7 @@
         controller:missionController,
         worldWidth:WORLD_W,
         worldHeight:WORLD_H,
-        blocked:(x,y,r)=>obstacleAt(x,y,r),navigation
+        blocked:(x,y,r)=>obstacleAt(x,y,r),navigation,options:{movementScale:ACTOR_SPEED}
       });
     }
 
@@ -1596,7 +1598,7 @@
       const rally={x:squad[0].x,y:squad[0].y,r:S(65)};
       civilianRuntime=window.BadFodderCivilians.create({getCivilians:()=>civilians,getSquad:()=>squad,getEnemies:()=>enemies,getNoise:()=>noise,
         getGuide:(c,leader)=>badBelzigRuntime?.civilianGuide(c,leader)||leader,
-        zones:[MAP_DATA.key==='barcelona'?{x:S(MAP_DATA.zones.safe.x),y:S(MAP_DATA.zones.safe.y),r:S(MAP_DATA.zones.safe.r)}:rally],scale:S(1),move:moveEntity,path:assignPath,follow:followPath,face:updateFacing,canOccupy:(x,y)=>!obstacleAt(x,y,NAV_RADIUS),
+        zones:[MAP_DATA.key==='barcelona'?{x:S(MAP_DATA.zones.safe.x),y:S(MAP_DATA.zones.safe.y),r:S(MAP_DATA.zones.safe.r)}:rally],scale:S(1),move:(c,dx,dy,r)=>moveEntity(c,dx*ACTOR_SPEED,dy*ACTOR_SPEED,r),path:assignPath,follow:followPath,face:updateFacing,canOccupy:(x,y)=>!obstacleAt(x,y,NAV_RADIUS),
         onEvent:(event)=>{runAdaptive(()=>adaptiveDirector.notify('meaningful'));if(barcelonaRuntime&&event==='separated')setStatus('A resident fell behind. Return and gather them with E / ACTION.');if(event==='evacuated'){const n=civilianRuntime.counts().evacuated;if(MAP_DATA.key!=='bad-belzig')setStatus(n+' civilians evacuated.');if(n>=1&&MAP_DATA.key!=='barcelona')missionObjectivesRuntime.signal('evacuate-residents');}}});
       missionObjectivesRuntime.manager.add({id:'evacuate-residents',type:'EVACUATE',optional:true,priority:-10,hidden:MAP_DATA.key==='barcelona',
         title:MAP_DATA.key==='barcelona'?'Rescue every trapped resident':'Guide residents to safety',text:MAP_DATA.key==='barcelona'?'Optional: get every trapped resident to the western shelter.':'Optional: gather residents with E / ACTION and guide them to the rally point.',marker:MAP_DATA.key==='barcelona'?zones.safe:rally});
@@ -2061,14 +2063,14 @@
     }
 
     s.followRepath=Math.max(0,(s.followRepath||0)-dt);
-    const leaderRun=squadFormation.leader&&squadFormation.leader.touchMoveSpeed>175;
+    const leaderRun=squadFormation.leader&&squadFormation.leader.touchMoveSpeed>175*ACTOR_SPEED;
     const catchUp=d>130?(leaderRun?1.28:1.16):d>75?(leaderRun?1.16:1.08):1;
 
     if(routeClear(s.x,s.y,desired.x,desired.y,NAV_RADIUS)){
       navigation.cancelPath(s);
       const dx=desired.x-s.x,dy=desired.y-s.y;
       updateFacing(s,dx,dy);
-      const speed=groupMovement.arrive(d,185*catchUp,dt,groupMovementProfile);
+      const speed=groupMovement.arrive(d,185*catchUp*ACTOR_SPEED,dt,groupMovementProfile);
       moveEntity(s,dx/d*speed*dt,dy/d*speed*dt,NAV_RADIUS);
       return true;
     }
@@ -2392,7 +2394,7 @@
         const dx=tx-e.x,dy=ty-e.y,d=Math.hypot(dx,dy);
         if(d>4){
           moving=true;updateFacing(e,dx,dy);
-          moveEntity(e,dx/d*38*dt,dy/d*38*dt,NAV_RADIUS);
+          moveEntity(e,dx/d*38*ACTOR_SPEED*dt,dy/d*38*ACTOR_SPEED*dt,NAV_RADIUS);
         }
       }
 
@@ -2414,7 +2416,7 @@
       const dx=tx-c.x,dy=ty-c.y,d=Math.hypot(dx,dy);
       if(d>3){
         updateFacing(c,dx,dy);
-        moveEntity(c,dx/d*c.speed*(danger?2.2:1)*dt,dy/d*c.speed*(danger?2.2:1)*dt,8);
+        moveEntity(c,dx/d*c.speed*ACTOR_SPEED*(danger?2.2:1)*dt,dy/d*c.speed*ACTOR_SPEED*(danger?2.2:1)*dt,8);
         c.state='walk';
       }else c.state='idle';
     });
@@ -2602,7 +2604,7 @@
     // True analogue movement: slight tilt = cautious walk, full tilt = run.
     const intensity=Math.max(0,Math.min(1,(mag-deadZone)/(1-deadZone)));
     const smoothIntensity=intensity*intensity*(3-2*intensity);
-    const speed=(missionController?245:205)*smoothIntensity;
+    const speed=(missionController?245:205)*ACTOR_SPEED*smoothIntensity;
     if(missionController?.state.actors.get('player-'+squad.indexOf(leader))?.stunned>0)return;
     const nx=touchState.moveX/(mag||1);
     const ny=touchState.moveY/(mag||1);
@@ -2968,7 +2970,7 @@
 
   function drawIdentityMarker(ent,team){
     if(!ent.alive)return;
-    ctx.save();ctx.lineWidth=1.6;
+    ctx.save();ctx.translate(ent.x,ent.y);ctx.scale(BadFodderActorScale.size,BadFodderActorScale.size);ctx.translate(-ent.x,-ent.y);ctx.lineWidth=1.6;
     if(team==='squad'){
       ctx.strokeStyle='rgba(220,239,232,.88)';
       ctx.beginPath();ctx.moveTo(ent.x-6,ent.y+11);ctx.lineTo(ent.x,ent.y+14);ctx.lineTo(ent.x+6,ent.y+11);ctx.stroke();
@@ -2987,7 +2989,7 @@
     units.forEach(ent=>{
       if(!ent.alive)return;
       ctx.save();ctx.strokeStyle='rgba(232,225,173,.9)';ctx.lineWidth=1.6;ctx.setLineDash([4,3]);
-      ctx.beginPath();ctx.ellipse(ent.x,ent.y-15,10,16,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.restore();
+      ctx.beginPath();ctx.ellipse(ent.x,ent.y-7.5,5,8,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.restore();
     });
   }
 
@@ -3290,7 +3292,7 @@
         ctx.strokeStyle='#eadb82';ctx.lineWidth=2;
         // Small ground brackets leave the silhouette and walking feet visible.
         for(const side of [-1,1]){
-          ctx.beginPath();ctx.moveTo(ent.x+side*12,ent.y-2);ctx.lineTo(ent.x+side*12,ent.y+8);ctx.lineTo(ent.x+side*8,ent.y+8);ctx.stroke();
+          ctx.beginPath();ctx.moveTo(ent.x+side*6,ent.y-1);ctx.lineTo(ent.x+side*6,ent.y+4);ctx.lineTo(ent.x+side*4,ent.y+4);ctx.stroke();
         }
       }
       drawSoldier(ent,team,historicalRenderState,historicalClock);
@@ -3884,7 +3886,7 @@
         coordinationSupport?.directOrder(u);
         if(badBelzigRuntime)window.BadFodderGarrison?.releaseCheckpoint(u);
         window.BadFodderGarrison?.release(u);u.path=null;u.target=null;u.isFormationLeader=false;
-        const mag=Math.min(1,Math.hypot(x,y)),v=(mag-.1)/.9,speed=205*v*v*(3-2*v);
+        const mag=Math.min(1,Math.hypot(x,y)),v=(mag-.1)/.9,speed=205*ACTOR_SPEED*v*v*(3-2*v);
         updateFacing(u,x,y);moveEntity(u,x/mag*speed*dt,y/mag*speed*dt,NAV_RADIUS);u.state='walk';u.touchMoveSpeed=speed;
       }
     },

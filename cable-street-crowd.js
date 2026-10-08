@@ -41,6 +41,7 @@
     const reactive=Math.max(0,mission.crowdBudget&&mission.crowdBudget.reactiveCivilians|0);
     const helpers=Math.max(0,mission.crowdBudget&&mission.crowdBudget.functionalHelpers|0);
     const settings={
+      movementScale:1,
       innerRadius:Number.isFinite(options.innerRadius)?options.innerRadius:52,
       outerRadius:Number.isFinite(options.outerRadius)?options.outerRadius:150,
       policeAvoidRadius:Number.isFinite(options.policeAvoidRadius)?options.policeAvoidRadius:120,
@@ -185,7 +186,7 @@
 
       if(helping&&b.workPoints&&b.workPoints.length){
         const p=b.workPoints[(Number(person.id.split('-').at(-1))||0)%b.workPoints.length];
-        const dx=p.x-person.x,dy=p.y-person.y,d=Math.hypot(dx,dy),step=Math.min(d,person.speed*dt);
+        const dx=p.x-person.x,dy=p.y-person.y,d=Math.hypot(dx,dy),step=Math.min(d,person.speed*settings.movementScale*dt);
         if(d>1){
           const nx=person.x+dx/d*step,ny=person.y+dy/d*step;
           if(!blocked||!blocked(nx,ny,4)){person.x=nx;person.y=ny;person.dir=Math.atan2(dy,dx)}
@@ -217,7 +218,7 @@
       const dx=tx-person.x,dy=ty-person.y,d=Math.hypot(dx,dy);
       if(d>=.5){
         const speed=pressure.formation&&pressure.distance<settings.policeAvoidRadius*.72?person.speed*1.75:person.speed;
-        const step=Math.min(d,speed*dt);
+        const step=Math.min(d,speed*settings.movementScale*dt);
         const nx=person.x+dx/d*step,ny=person.y+dy/d*step;
         if(typeof blocked!=='function'||!blocked(nx,ny,4)){
           person.x=nx;person.y=ny;person.dir=Math.atan2(dy,dx);
@@ -264,7 +265,7 @@
         // Defer stale routes as well: followPath would otherwise replan the entire crowd.
         if(!p.path||p.pathVersion===navigation.navigationVersion)navigation.followPath(p,speed,dt);
       }else{
-        const dx=target.x-p.x,dy=target.y-p.y,d=Math.hypot(dx,dy)||1,step=Math.min(d,speed*dt);
+        const dx=target.x-p.x,dy=target.y-p.y,d=Math.hypot(dx,dy)||1,step=Math.min(d,speed*settings.movementScale*dt);
         const nx=p.x+dx/d*step,ny=p.y+dy/d*step;
         if(!blocked||!blocked(nx,p.y,4))p.x=nx;
         if(!blocked||!blocked(p.x,ny,4))p.y=ny;

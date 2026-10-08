@@ -8,6 +8,7 @@
   'use strict';
 
   const DEFAULTS=Object.freeze({
+    movementScale:1,
     materialRadius:30,
     civilianRadius:34,
     barricadeRadius:42,
@@ -422,7 +423,7 @@
     function moveToward(entity,x,y,speed,dt){
       if(!entity||!finitePoint(entity)||!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(speed)||speed<=0)return 0;
       const dx=x-entity.x,dy=y-entity.y,d=Math.hypot(dx,dy);if(d<1e-6)return 0;
-      const step=Math.min(d,speed*dt),nx=entity.x+dx/d*step,ny=entity.y+dy/d*step;
+      const step=Math.min(d,speed*settings.movementScale*dt),nx=entity.x+dx/d*step,ny=entity.y+dy/d*step;
       const radius=entity.width?entity.width/2:5*worldScale;
       if(navigation&&!navigation.routeClear(entity.x,entity.y,nx,ny,radius)){entity.blockedSeconds=(entity.blockedSeconds||0)+dt;return d}
       entity.blockedSeconds=0;entity.dir=Math.atan2(dy,dx);entity.x=nx;entity.y=ny;return d-step;
@@ -517,7 +518,7 @@
       conflict.impacts.forEach(i=>i.life-=dt);conflict.impacts=conflict.impacts.filter(i=>i.life>0);
       conflict.charges.forEach(c=>{
         if(c.warning>0){c.warning=Math.max(0,c.warning-dt);return}
-        c.t=Math.min(1,c.t+dt/c.duration);c.x=c.startX+(c.targetX-c.startX)*c.t;c.y=c.startY+(c.targetY-c.startY)*c.t;
+        c.t=Math.min(1,c.t+dt*settings.movementScale/c.duration);c.x=c.startX+(c.targetX-c.startX)*c.t;c.y=c.startY+(c.targetY-c.startY)*c.t;
         if(c.t>=.72&&!c.hit){
           c.hit=true;const b=barricade(c.barricadeId)||mainBarricade();if(b&&!b.breached)controller.damageBarricadeById(b.id,settings.mountedChargeDamage);
           if(mission.fastAction)controller.state.actors.forEach(a=>{

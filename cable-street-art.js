@@ -7,7 +7,7 @@
 })(typeof window!=='undefined'?window:globalThis,function(){
   'use strict';
 
-  const TAU=Math.PI*2;
+  const TAU=Math.PI*2,ACTOR_SIZE=typeof window!=='undefined'?window.BadFodderActorScale?.size||1:1;
   const PALETTE={
     brick:'#875e4a',brickDark:'#5c4035',brickLight:'#ad795d',stone:'#9f967f',
     timber:'#805a37',timberLight:'#ad7b49',timberDark:'#4d3728',paper:'#d8cfaf',
@@ -356,12 +356,12 @@
   function drawMountedCharge(ctx,c,clock,art){
     if(!c||!Number.isFinite(c.x)||!Number.isFinite(c.y))return;
     const dir=Math.atan2(c.targetY-c.startY,c.targetX-c.startX),gallop=Math.sin(clock*18+c.t*12);
-    ctx.save();ctx.translate(c.x,c.y);ctx.rotate(dir);ellipse(ctx,0,5,17,6,'rgba(20,22,20,.28)');
+    ctx.save();ctx.translate(c.x,c.y);ctx.scale(ACTOR_SIZE,ACTOR_SIZE);ctx.rotate(dir);ellipse(ctx,0,5,17,6,'rgba(20,22,20,.28)');
     ctx.fillStyle='#76533c';ctx.beginPath();ctx.ellipse(0,0,14,6,0,0,TAU);ctx.fill();ctx.strokeStyle='#4a3428';ctx.lineWidth=1.2;ctx.stroke();
     ctx.fillStyle='#856047';ctx.beginPath();ctx.ellipse(10,-4,6,4,-.25,0,TAU);ctx.fill();ctx.beginPath();ctx.ellipse(15,-6,4,3,-.15,0,TAU);ctx.fill();
     line(ctx,-8,3,-12+gallop*2,10,'#4c392d',2);line(ctx,-2,4,-4-gallop*2,11,'#4c392d',2);line(ctx,6,3,9-gallop*2,10,'#4c392d',2);line(ctx,10,2,14+gallop*2,8,'#4c392d',2);line(ctx,-13,-1,-20,-5,'#4d392d',1.5);
     ctx.fillStyle='#4a4339';ctx.fillRect(-4,-6,9,4);ctx.restore();
-    const officer={x:c.x,y:c.y-8,dir,variant:1,periodRole:'police',animState:'idle'};sharedActor(ctx,policeActors,'mounted:'+c.id,officer,art,'civilian',clock,{scale:1.05});
+    const officer={x:c.x,y:c.y-8*ACTOR_SIZE,dir,variant:1,periodRole:'police',animState:'idle'};sharedActor(ctx,policeActors,'mounted:'+c.id,officer,art,'civilian',clock,{scale:1.05});
   }
 
   function drawGround(ctx,state,clock=0,art=null,view=null){
@@ -392,7 +392,7 @@
   function volunteerJob(state,index){return state&&Array.isArray(state.jobs)?state.jobs.find(j=>j.actorId==='player-'+index&&(j.status==='working'||j.status==='waiting'||j.status==='queued'))||null:null}
   function drawVolunteer(ctx,ent,art,{state=null,index=0,clock=0}={}){
     if(!ctx||!ent||!art)return;art.drawActor(ctx,ent,'civilian');const job=volunteerJob(state,index),actor=state&&state.actors&&state.actors.find(a=>a.id==='player-'+index),carrying=actor&&actor.carrying;
-    ctx.save();ctx.translate(ent.x,ent.y);ctx.strokeStyle=['#dfc35e','#8fc0b2','#bf8b69','#ae9bc4'][index%4];ctx.lineWidth=2.2;ctx.beginPath();ctx.arc(0,-16,5.5,.1,Math.PI-.1);ctx.stroke();
+    ctx.save();ctx.translate(ent.x,ent.y);ctx.scale(ACTOR_SIZE,ACTOR_SIZE);ctx.strokeStyle=['#dfc35e','#8fc0b2','#bf8b69','#ae9bc4'][index%4];ctx.lineWidth=2.2;ctx.beginPath();ctx.arc(0,-16,5.5,.1,Math.PI-.1);ctx.stroke();
     if(job&&job.status==='working'){
       const fighting=job.action==='hold'&&(state.formations||[]).some(f=>f.objective===job.targetId&&['halt','dismantle'].includes(f.state));
       const swing=Math.sin(clock*11+index)*4;
