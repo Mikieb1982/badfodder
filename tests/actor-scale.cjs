@@ -12,7 +12,7 @@ assert(rendered.every(r=>Math.abs(r.width-27.3)<1e-8&&Math.abs(r.height-34.125)<
 function navFixture(){const nav=Navigation.create({worldWidth:600,worldHeight:600,buildings:[],moveEntity:(u,x,y)=>{u.x+=x;u.y+=y},updateFacing(){}});Scale.installNavigation(nav);Scale.installNavigation(nav);return nav}
 const nav=navFixture(),unit={x:100,y:100};nav.assignPath(unit,400,100);nav.followPath(unit,100,.1);assert.equal(unit.x,104.55);
 // Waypoint arrival uses the reduced speed as well, so no last-step teleport or overshoot.
-Object.assign(unit,{x:100,y:100,path:[{x:108,y:100}],pathIndex:0,navDestination:null});assert(nav.followPath(unit,100,.1));assert.equal(unit.x,106.5);nav.followPath(unit,100,.1);assert.equal(unit.x,108);assert.equal(unit.path,null);
+Object.assign(unit,{x:100,y:100,path:[{x:108,y:100}],pathIndex:0,navDestination:null});assert(nav.followPath(unit,100,.1));assert.equal(unit.x,104.55);nav.followPath(unit,100,.1);assert.equal(unit.x,108);assert.equal(unit.path,null);
 // Cable Street police and assisted residents use their existing movement/controller clock.
 const mission=Historical.missions.find(m=>m.id==='cable-street-1936');
 function police(factor){const controller=Cable.createController({mission}),layer=Interactions.create({controller,runtime:Cable,mission,options:{movementScale:factor}});layer.initialize({actors:[],mapData:{historicalObjects:{formations:[{id:'p',x:100,y:100,targetX:500,targetY:100,speed:40,width:20}]}}});return{controller,layer}}
