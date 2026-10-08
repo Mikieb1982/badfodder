@@ -104,6 +104,7 @@
   }
 
   function showTitle(){
+    env.coordinationSupport?.reset();
     env.clearSquadFormation?.(true);
     const wasCoop=env.commands&&env.commands.mode!=='local';
     window.BadFodderCoop?.leave();

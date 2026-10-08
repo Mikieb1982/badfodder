@@ -567,6 +567,7 @@
 <script src="enemy-behaviour.js"></script>
 <script src="navigation.js?v=20261003-upgrade-1"></script>
 <script src="group-movement.js"></script>
+<script src="coordination-support.js"></script>
 <script src="checkpoint-fortification.js"></script>
 <script src="checkpoint-wave-config.js"></script>
 <script src="garrison-control.js"></script>
@@ -673,6 +674,7 @@
     get ctx(){return ctx;},
     get diagnostics(){return diagnostics;},
     get clearSquadFormation(){return clearSquadFormation;},
+    get coordinationSupport(){return coordinationSupport;},
     get finished(){return finished;},set finished(value){finished=value;},
     get handleRuntimeFault(){return handleRuntimeFault;},
     get historicalMissions(){return historicalMissions;},
@@ -1118,6 +1120,7 @@
 
   const groupMovement=window.BadFodderGroupMovement.create({navigation,moveEntity,worldWidth:WORLD_W,worldHeight:WORLD_H});
   let groupMovementProfile=window.BadFodderGroupMovement.profile({separationRadius:NAV_RADIUS*2+2});
+  let coordinationSupport=null;
 
   const pointInCircle=missionRules.pointInCircle;
   const commands=window.BadFodderCommands;
@@ -1185,13 +1188,15 @@
     if((!civilianRuntime&&!buildingRuntime)||!started||menuOpen||paused||finished||mapOpen)return false;
     if(coopCommand('interact'))return true;
     const chosen=selectedUnits();
+    coordinationSupport?.directOrder(chosen);
     const helper=barcelonaRuntime?(chosen.find(u=>['TAKE RIFLES','RESUPPLY','REINFORCE','TAKE MATERIAL'].includes(barcelonaRuntime.hint(u)))||chosen[0]):chosen[0];
     const action=contextAction(helper);
-    if(action?.type==='barcelona'){const acted=barcelonaRuntime.interact(helper);updateHud(true);return acted;}
+    if(action?.type==='barcelona'){const acted=barcelonaRuntime.interact(helper);if(acted)coordinationSupport?.beginSupport({actor:helper,action:action.label,duration:.35});updateHud(true);return acted;}
     if(action?.type==='building'){
-      const acted=buildingRuntime.perform(helper,action.label,action.site);updateHud(true);return acted;
+      const acted=buildingRuntime.perform(helper,action.label,action.site);if(acted)coordinationSupport?.beginSupport({actor:helper,action:action.label,target:action.site.door,duration:.35});updateHud(true);return acted;
     }
     const acted=civilianRuntime?.interact(helper);
+    if(acted)coordinationSupport?.beginSupport({actor:helper,action:'civilian',duration:.35});
     if(acted){const count=civilianRuntime.counts();setStatus(barcelonaRuntime?(count.following?count.following+' residents following. Guide them to the western shelter.':'Residents are hiding. E / ACTION: gather them when ready.'):'Residents: '+count.evacuated+' evacuated. Guide followers to the rally point; E / ACTION lets them hide.');updateHud(true);}
     return acted;
   }
@@ -1247,20 +1252,23 @@
   function cancelHistoricalAction(drop=true){
     const selected=selectedHistoricalActor();
     if(!selected||!missionInteractionLayer)return;
+    coordinationSupport?.directOrder(selected.unit);
     missionInteractionLayer.cancelJob(selected.id,{dropCarried:drop});
     selected.unit.path=null;selected.unit.target=null;clearSquadFormation();
     updateHistoricalActionButton();
   }
 
   function approachHistoricalJob(selected,job){
+    coordinationSupport?.directOrder(selected.unit);
     if(job.action==='drop')return true;
     const state=missionController.state;
     const target=job.targetType==='material'?state.materials.get(job.targetId):job.targetType==='civilian'?state.civilians.get(job.targetId):state.barricades.get(job.targetId);
     if(!target)return false;
     const radius=target.interactionRadius||42;
+    const support=()=>coordinationSupport?.beginSupport({actor:selected.unit,action:job.action,target,isActive:()=>missionController?.state.jobs.get(selected.id)===job});
     clearSquadFormation();
     selected.unit.path=null;selected.unit.target=null;
-    if(Math.hypot(selected.unit.x-target.x,selected.unit.y-target.y)<=radius)return true;
+    if(Math.hypot(selected.unit.x-target.x,selected.unit.y-target.y)<=radius){support();return true;}
     let candidates=target.workPoints?.length?target.workPoints:[];
     if(!candidates.length){
       for(let i=0;i<16;i++){
@@ -1270,7 +1278,7 @@
     }
     candidates=[...candidates].sort((a,b)=>Math.hypot(a.x-selected.unit.x,a.y-selected.unit.y)-Math.hypot(b.x-selected.unit.x,b.y-selected.unit.y));
     for(const point of candidates){
-      if(!obstacleAt(point.x,point.y,10)&&assignPath(selected.unit,point.x,point.y))return true;
+      if(!obstacleAt(point.x,point.y,10)&&assignPath(selected.unit,point.x,point.y)){support();return true;}
     }
     missionInteractionLayer.cancelJob(selected.id);
     setStatus('No clear route to that action.');
@@ -1383,6 +1391,7 @@
   function setSelection(sel){
     const next=sel==='all'?'all':selectionIds(sel);
     if(next!=='all'&&!next.length)return;
+    coordinationSupport?.reset();
     if(squadFormation.active)clearSquadFormation(true);
     selection=next;
     const ids=new Set(selectionIds());
@@ -1471,6 +1480,11 @@
     if(commands&&commands.mode!=='local'&&!commands.applying&&started){window.BadFodderCoop?.restart();return;}
     const mission=activeMission();
     groupMovementProfile=window.BadFodderGroupMovement.profile({separationRadius:NAV_RADIUS*2+2,...mission.groupMovementProfile});
+    coordinationSupport?.reset();
+    coordinationSupport=window.BadFodderCoordinationSupport.create({navigation,groupMovement,movementProfile:groupMovementProfile,
+      profile:mission.coordinationProfile,getSquad:()=>squad,getSelected:selectedUnits,getHostiles:()=>enemies,
+      canControl:u=>!commands||commands.mode==='local'||commands.owns(squad.indexOf(u)),
+      isBusy:u=>!!missionController?.state.jobs?.has('player-'+squad.indexOf(u))||!!u.streetActor?.carrying});
     barcelonaRuntime?.dispose();barcelonaRuntime=null;resistanceRuntime=null;
     try{adaptiveDirector?.disable()}catch{}
     adaptiveDirector=null;enemyCommander=null;
@@ -1560,10 +1574,10 @@
     squadGrenades=actionAllowed('grenades')?5:0;missionStage=0;phaseHoldTime=0;
     missionObjectivesRuntime=window.BadFodderObjectives.create(mission);
     window.BadFodderMissionObjectives=missionObjectivesRuntime;
-    window.BadFodderHealth.bindRuntime({getSquad:()=>squad,getSelected:selectedUnits,damage:applyDamageBase,dispatchAid:()=>coopCommand('aid'),isActive:()=>started&&!menuOpen&&!paused&&!finished&&!mapOpen});
+    window.BadFodderHealth.bindRuntime({getSquad:()=>squad,getSelected:selectedUnits,damage:applyDamageBase,dispatchAid:()=>coopCommand('aid'),onSupportAction:event=>coordinationSupport?.casualtyAction(event),isActive:()=>started&&!menuOpen&&!paused&&!finished&&!mapOpen});
     window.BadFodderGarrison?.bindRuntime({getSquad:()=>squad,getEnemies:()=>enemies,getSelected:selectedUnits,
       select:setSelection,move:setMoveTargets,isActive:()=>started&&!menuOpen&&!paused&&!finished&&!mapOpen,
-      prepareHold:s=>buildingRuntime?.exit(s),firearmsAllowed:()=>actionAllowed('firearms'),canSee:(s,e)=>!lineBlocked(s.x,s.y,e.x,e.y),
+      prepareHold:s=>{coordinationSupport?.directOrder(s);buildingRuntime?.exit(s)},firearmsAllowed:()=>actionAllowed('firearms'),canSee:(s,e)=>!lineBlocked(s.x,s.y,e.x,e.y),
       shoot:(s,e)=>{const spread=10*window.BadFodderCombatTactics.spreadScale(s);fireBullet('squad',s.x,s.y,e.x+(gameplayRng.random()-.5)*spread,e.y+(gameplayRng.random()-.5)*spread,squad.indexOf(s))}});
     civilianRuntime=null;buildingRuntime=null;tacticsRuntime=null;enemyBehaviour=null;
     if(!missionController)enemyBehaviour=window.BadFodderEnemyBehaviour.create({autoCommanders:MAP_DATA.key!=='barcelona',getEnemies:()=>enemies,getSquad:()=>squad,scale:SCALE,canSee:(e,s)=>!lineBlocked(e.x,e.y,s.x,s.y),onSurrender:()=>setStatus('An isolated enemy has surrendered.')});
@@ -1815,6 +1829,7 @@
     if(!actionAllowed('firearms'))return false;
     const units=selectedUnits();
     if(!units.length)return false;
+    coordinationSupport?.directOrder(units);
 
     let fired=false;
     units.forEach(s=>{
@@ -1841,6 +1856,7 @@
     if(coopCommand('grenade',{x,y}))return true;
     if(!actionAllowed('grenades'))return false;
     const units=selectedUnits();
+    coordinationSupport?.directOrder(units);
     if(!units.length||squadGrenades<=0)return false;
     const s=units[0];
     if(s.downed||s.carryingUnit)return false;
@@ -2130,6 +2146,7 @@
   }
 
   function updateSquad(dt){
+    coordinationSupport?.update(dt);
     recordLeaderTrail();
 
     squad.forEach(s=>{
@@ -2154,7 +2171,9 @@
       const firingNow=s.fireTimer>0;
       let moving=false;
 
-      if(squadFormation.active&&squadFormation.members.includes(s)&&!s.isFormationLeader){
+      if(coordinationSupport?.isSupporting(s)){
+        moving=groupMovement.follow(s,185,dt,groupMovementProfile);
+      }else if(squadFormation.active&&squadFormation.members.includes(s)&&!s.isFormationLeader){
         moving=followFormationMember(s,dt);
       }else{
         moving=groupMovement.follow(s,historicalActor?(historicalActor.carrying?205:240):(firingNow?128:185),dt,groupMovementProfile);
@@ -2457,6 +2476,7 @@
     if(coopCommand('move',p))return;
     const units=selectedUnits();
     if(!units.length)return;
+    coordinationSupport?.directOrder(units);
     if(p.exitCheckpoint)units.forEach(u=>window.BadFodderGarrison?.releaseCheckpoint(u));
     units.forEach(u=>buildingRuntime?.exit(u));
 
@@ -2511,6 +2531,7 @@
 
   function ensureTouchFormation(){
     const units=selectedUnits();
+    coordinationSupport?.directOrder(units);
     if(!units.length)return null;
 
     if(units.length===1){
@@ -3658,6 +3679,7 @@
   selectAllBtn.addEventListener('click',()=>setSelection('all'));
   hudAll.addEventListener('click',()=>setSelection('all'));
   stopBtn.addEventListener('click',()=>{
+    coordinationSupport?.directOrder(selectedUnits());
     clearSquadFormation();
     selectedUnits().forEach(s=>{s.target=null;s.path=null;s.pathIndex=0;if(missionInteractionLayer)missionInteractionLayer.cancelJob('player-'+squad.indexOf(s))});
   });
@@ -3798,6 +3820,7 @@
         if(c.type==='aid')return window.BadFodderHealth.contextualAction();
         if(c.type==='interact')return performCivilianAction();
         if(c.type==='garrison'||c.type==='release'){
+          coordinationSupport?.directOrder(units);
           if(units.length!==1)return false;
           if(c.type==='release')return window.BadFodderGarrison?.release(units[0]);
           return window.BadFodderGarrison?.toggleGarrison(units[0]);
@@ -3808,6 +3831,7 @@
     stick(ids,x,y,dt){
       for(const [i,id] of ids.entries()){
         const u=squad[id];if(!u?.alive||Math.hypot(x,y)<.1||u.checkpointCover)continue;
+        coordinationSupport?.directOrder(u);
         window.BadFodderGarrison?.release(u);u.path=null;u.target=null;u.isFormationLeader=false;
         const mag=Math.min(1,Math.hypot(x,y)),v=(mag-.1)/.9,speed=205*v*v*(3-2*v);
         updateFacing(u,x,y);moveEntity(u,x/mag*speed*dt,y/mag*speed*dt,NAV_RADIUS);u.state='walk';u.touchMoveSpeed=speed;
@@ -3825,6 +3849,7 @@
         checkpoint:enemyCommander?.checkpointState()||null,stats:window.BadFodderMissionStats?.snapshot()||[]};
     },
     receive(state,refresh=true){
+      coordinationSupport?.reset();
       const wasFinished=finished;
       for(let i=0;i<4;i++){const selected=squad[i]?.selected;Object.assign(squad[i],state.squad[i]);squad[i].selected=selected;}
       const merge=(old,rows)=>rows.map((r,i)=>Object.assign(old[i]||{},r));

@@ -8,6 +8,7 @@
  const STATES=Object.freeze(['FIT','WOUNDED','BADLY_WOUNDED','DOWN','DEAD']);
  const DOWN_SECONDS=12,CARRY_SPEED=.58,AID_RANGE=58;
  let runtimeGetSquad=null,runtimeGetSelected=null,runtimeDispatchAid=null,runtimeIsActive=()=>true,originalDamage=null,originalMove=null,patchedDamage=false,patchedMove=false,simulationClock=null;
+ let runtimeSupportAction=null;
  const now=()=>simulationClock!==null?simulationClock:typeof performance!=='undefined'&&performance.now?performance.now()/1000:Date.now()/1000;
 
  function squad(){try{return runtimeGetSquad?.()||[]}catch(_){return[]}}
@@ -38,17 +39,20 @@
   if(!unit?.downed||unit.alive===false)return false;
   unit.stabilised=true;unit.downUntil=null;unit.healthState='DOWN';freezeDowned(unit);
   if(helper)helper.aidTimer=Math.max(Number(helper.aidTimer)||0,.8);
+  if(helper)runtimeSupportAction?.({phase:'begin',actor:helper,action:'stabilise',target:unit,duration:.8});
   return true;
  }
  function beginCarry(unit,helper){
   if(!unit?.downed||unit.alive===false||!helper?.alive||helper.downed||helper.carryingUnit)return false;
   if(Math.hypot((unit.x||0)-(helper.x||0),(unit.y||0)-(helper.y||0))>AID_RANGE)return false;
   if(!unit.stabilised)stabilise(unit,helper);
-  unit.carriedBy=helper;helper.carryingUnit=unit;helper.carrySlow=CARRY_SPEED;freezeDowned(unit);return true;
+  unit.carriedBy=helper;helper.carryingUnit=unit;helper.carrySlow=CARRY_SPEED;freezeDowned(unit);
+  runtimeSupportAction?.({phase:'begin',actor:helper,action:'carry',target:unit});return true;
  }
  function dropCarry(helper){
   const unit=helper?.carryingUnit;if(!unit)return false;
-  unit.carriedBy=null;helper.carryingUnit=null;helper.carrySlow=1;return true;
+  unit.carriedBy=null;helper.carryingUnit=null;helper.carrySlow=1;
+  runtimeSupportAction?.({phase:'end',actor:helper,action:'carry',target:unit});return true;
  }
  function selectedHelper(){
   try{return(runtimeGetSelected?.()||root.selectedUnits?.()||[]).find(unit=>unit?.alive&&!unit.downed)||null}catch(_){return null}
@@ -111,7 +115,8 @@
    }
    const result=originalDamage(target,amount,hitX,hitY,source);sync(target);return result;
  }
- function bindRuntime({getSquad,getSelected,damage,dispatchAid,isActive=()=>true}={}){
+ function bindRuntime({getSquad,getSelected,damage,dispatchAid,isActive=()=>true,onSupportAction=null}={}){
+  runtimeSupportAction?.({phase:'reset'});runtimeSupportAction=onSupportAction;
   runtimeIsActive=isActive;runtimeGetSquad=getSquad;runtimeGetSelected=getSelected;runtimeDispatchAid=dispatchAid;originalDamage=damage;simulationClock=0;
  }
  function fixedUpdate(dt){if(simulationClock===null)return;if(!Number.isFinite(dt)||dt<0)return;simulationClock+=dt;tick()}
@@ -127,6 +132,7 @@
    u.carriedBy?units.indexOf(u.carriedBy):null,u.carryingUnit?units.indexOf(u.carryingUnit):null]);
  }
  function receive(rows){
+  runtimeSupportAction?.({phase:'reset'});
   const units=squad();rows.forEach((r,i)=>{const u=units[i];if(!u)return;u.healthState=r[0];u.downed=r[1];u.stabilised=r[2];u.downUntil=r[3]===null?null:now()+r[3];u.carriedBy=r[4]===null?null:units[r[4]];u.carryingUnit=r[5]===null?null:units[r[5]]});syncAidButton();
  }
  function patchMovement(){

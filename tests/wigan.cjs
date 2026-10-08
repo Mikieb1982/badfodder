@@ -46,6 +46,7 @@ const f=new Function('TOWN_MAP','navApi','GroupMovement',
    const {findPath,routeClear,followPath,assignPath,obstacleAt,nearestOpenCell,pathCellCenter}=navApi;
    const updateFacing=(ent,dx,dy)=>{if(Math.abs(dx)>.001||Math.abs(dy)>.001)ent.dir=Math.atan2(dy,dx)};
    const moveEntity=(ent,dx,dy,r=NAV_RADIUS)=>{const nx=Math.max(r,Math.min(WORLD_W-r,ent.x+dx));if(!obstacleAt(nx,ent.y,r))ent.x=nx;const ny=Math.max(r,Math.min(WORLD_H-r,ent.y+dy));if(!obstacleAt(ent.x,ny,r))ent.y=ny};
+   const coordinationSupport=null;
    const navigation=navApi,groupMovement=GroupMovement.create({navigation,moveEntity,worldWidth:WORLD_W,worldHeight:WORLD_H}),groupMovementProfile=GroupMovement.profile({separationRadius:NAV_RADIUS*2+2});
    const buildingRuntime=null,coopCommand=()=>false;let squad=[],squadFormation={active:false},pickups=[],squadGrenades=5;const selectedUnits=()=>squad.filter(s=>s.alive),setStatus=()=>{};
   `+formationCode+body('resolveSquadSpacing')+body('updateSquad')+body('setMoveTargets')+`;return {setMoveTargets,updateSquad,get squad(){return squad},get grenades(){return squadGrenades},get pickups(){return pickups},setGrenades(n){squadGrenades=n},addPickup(type){pickups.push({type,x:squad[0].x,y:squad[0].y,active:true})},reset(){squad=TOWN_MAP.spawns.squad.map(([x,y])=>({x:x*2,y:y*2,alive:true,dir:-Math.PI/2,fireTimer:0,cooldown:0,flash:0,fireHeat:0,hp:8,maxHp:8}));squadFormation={active:false};pickups=[];squadGrenades=5;}};`
