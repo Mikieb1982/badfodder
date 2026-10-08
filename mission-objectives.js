@@ -7,19 +7,33 @@
   if(root)root.BadFodderObjectives=api;
 })(typeof window!=='undefined'?window:globalThis,function(rules,factStores){
   'use strict';
+  const WIGAN_COPY=[
+    {title:'Rally at Tudor House',brief:"Clear Tudor House and hold the position long enough for May Cooper's group to rally."},
+    {title:'Reconnect the Town Centre',brief:'Reconnect Market Place, then secure Grand Arcade as a shared rally point.'},
+    {title:'Coordinate the Wallgate Advance',brief:"Restore the network if it is cut, then reach Wallgate and link with Nell Foster's railway group."}
+  ];
+  const WIGAN_FACTS={
+    wigan_story:{networkCut:false},tudor_group:'ISOLATED',bus_group:'ISOLATED',market_group:'ISOLATED',
+    king_group:'ISOLATED',railway_group:'ISOLATED',grand_arcade_status:'OPEN',network_status:'ISOLATED'
+  };
   function definitions(mission){
     if(mission.objectives)return mission.objectives;
     const phases=mission.phases||[];
-    return phases.map((phase,index)=>({
-      ...phase,id:phase.id||'phase-'+index,phase:index,
-      type:phase.type||(['INTERACT','DEFEND','GARRISON','HOLD'][index]||'INTERACT'),
-      requires:index?[phases[index-1].id||'phase-'+(index-1)]:[],
-      marker:phase.marker||(phase.zone?{kind:'zone',id:phase.zone}:null),
-      meta:{...phase.meta,legacy:!!phase.type}
-    }));
+    return phases.map((phase,index)=>{
+      const story=mission.id==='wigan'?WIGAN_COPY[index]:null;
+      return{
+        ...phase,...(story||{}),id:phase.id||'phase-'+index,phase:index,
+        type:phase.type||(['INTERACT','DEFEND','GARRISON','HOLD'][index]||'INTERACT'),
+        requires:index?[phases[index-1].id||'phase-'+(index-1)]:[],
+        marker:phase.marker||(phase.zone?{kind:'zone',id:phase.zone}:null),
+        meta:{...phase.meta,legacy:!!phase.type}
+      };
+    });
   }
   function create(mission){
-    const facts=factStores.create(mission.factDefaults||{});
+    const isWigan=mission.id==='wigan';
+    const factDefaults=isWigan?{...WIGAN_FACTS,...(mission.factDefaults||{})}:(mission.factDefaults||{});
+    const facts=factStores.create(factDefaults);
     const manager=rules.createObjectiveManager(definitions(mission));
     const holds=new Map();
     const signals=Object.create(null);
@@ -35,32 +49,103 @@
       if(Number.isFinite(m?.x)&&Number.isFinite(m?.y))return m;
       return objective.zone?zones[objective.zone]||null:null;
     }
+    function livingInside(zoneId,context){
+      const zone=context.zones?.[zoneId];
+      return !!zone&&(context.living||[]).some(s=>s.alive!==false&&rules.pointInCircle(s.x,s.y,zone));
+    }
+    function routeClear(zoneId,context){
+      const zone=context.zones?.[zoneId];
+      if(!zone)return false;
+      return !(context.enemies||[]).some(e=>e.alive&&!e.surrendered&&rules.pointInCircle(e.x,e.y,{...zone,r:zone.r*1.2}));
+    }
+    function setFact(key,value){if(facts.get(key)!==value)facts.set(key,value)}
+    function updateWiganStory(context){
+      if(!isWigan)return;
+      const p0=manager.get('phase-0'),p1=manager.get('phase-1'),p2=manager.get('phase-2');
+      if(p0?.status==='COMPLETED'){
+        setFact('tudor_group','CONNECTED');
+        if(facts.get('bus_group')==='ISOLATED')setFact('bus_group','CONTACTED');
+        if(facts.get('network_status')==='ISOLATED')setFact('network_status','CONTACT');
+      }
+      if(['ACTIVE','COMPLETED'].includes(p1?.status)){
+        if(livingInside('market',context)&&routeClear('market',context)){
+          setFact('market_group','CONNECTED');
+          setFact('bus_group','CONNECTED');
+          if(facts.get('network_status')!=='DISRUPTED')setFact('network_status','CONNECTED');
+        }
+        if(livingInside('kingStreet',context)&&routeClear('kingStreet',context))setFact('king_group','CONNECTED');
+      }
+      if(p1?.status==='COMPLETED'){
+        setFact('grand_arcade_status','HELD');
+        const story=facts.get('wigan_story')||{};
+        if(!story.networkCut){
+          facts.set('wigan_story',{...story,networkCut:true});
+          setFact('network_status','DISRUPTED');
+        }
+      }
+      if(p2?.status==='ACTIVE'){
+        setFact('railway_group','CONTACTED');
+        if(facts.get('network_status')==='DISRUPTED'){
+          const alternate=facts.get('king_group')==='CONNECTED';
+          const reopened=livingInside('market',context)&&routeClear('market',context);
+          if(alternate||reopened)setFact('network_status','RESTORED');
+        }
+      }
+      if(p2?.status==='COMPLETED'){
+        setFact('railway_group','CONNECTED');
+        setFact('network_status','COORDINATED');
+      }
+    }
+    function wiganResult(objective,result){
+      if(!isWigan)return result;
+      if(objective.id==='phase-0'){
+        return{...result,status:result.ready
+          ?"Tudor House is clear. Hold it while May Cooper's group rallies."
+          :"Reach Tudor House, clear the defenders and give May Cooper's group somewhere to rally."};
+      }
+      if(objective.id==='phase-1'){
+        if(facts.get('market_group')!=='CONNECTED')return{...result,ready:false,complete:false,status:'Reconnect Market Place first. Clear the immediate route so runners and civilians can move through the centre.'};
+        const linked=facts.get('bus_group')==='CONNECTED'?'New Market Street and Market Place are linked. ':'Market Place is linked. ';
+        return{...result,status:linked+(result.ready?'Hold Grand Arcade as the shared rally point.':'Push on to Grand Arcade and secure the rally point.')};
+      }
+      if(objective.id==='phase-2'){
+        if(facts.get('network_status')==='DISRUPTED')return{...result,ready:false,complete:false,status:'The central route has been cut. Return through Market Place, or secure King Street support, before the Wallgate advance.'};
+        const support=facts.get('king_group')==='CONNECTED'?'King Street support is linked. ':'';
+        return{...result,status:support+(result.ready?"Hold Wallgate while Nell Foster's railway group secures the station route.":"The network is working again. Advance to Wallgate and link with Nell Foster's railway group.")};
+      }
+      return result;
+    }
     function evaluate(objective,context){
       const fact=(context.facts||{})[objective.id]??facts.get(objective.id)??signals[objective.id];
       if(fact?.failed)return{failed:true,status:fact.text||objective.text};
-      if(objective.meta?.legacy&&['reach','secure-zone','eliminate-and-reach','eliminate','destroy','rescue','protect'].includes(objective.legacyType))return rules.evaluatePhase({...context,phase:{...objective,type:objective.legacyType}});
-      if(objective.eventDriven)return{ready:fact===true||fact?.complete===true,complete:fact===true||fact?.complete===true,status:fact?.text||objective.text};
-      const zone=marker(objective,context.zones),living=(context.living||[]).filter(s=>s.alive!==false);
-      const inside=zone?living.filter(s=>rules.pointInCircle(s.x,s.y,zone)):[];
-      let ready=false;
-      switch(objective.type){
-        case 'REACH':case 'ESCAPE':ready=!!zone&&inside.length>0;break;
-        case 'CLEAR':ready=objective.defenderGroup?rules.phaseDefenders(objective,context.enemies||[]).length===0
-          :!!zone&&(context.enemies||[]).every(e=>(!e.alive||e.surrendered)||!rules.pointInCircle(e.x,e.y,zone));break;
-        case 'CAPTURE':case 'HOLD':case 'DEFEND':case 'GARRISON':{
-          const contested=!!zone&&(context.enemies||[]).some(e=>(e.alive&&!e.surrendered)&&rules.pointInCircle(e.x,e.y,zone));
-          const defenders=rules.phaseDefenders(objective,context.enemies||[]);
-          ready=inside.length>0&&!contested&&(!defenders||!defenders.length)&&(objective.type!=='GARRISON'||inside.some(s=>s.manualGarrison||s.checkpointCover));
-          break;
+      let result;
+      if(objective.meta?.legacy&&['reach','secure-zone','eliminate-and-reach','eliminate','destroy','rescue','protect'].includes(objective.legacyType))result=rules.evaluatePhase({...context,phase:{...objective,type:objective.legacyType}});
+      else if(objective.eventDriven)result={ready:fact===true||fact?.complete===true,complete:fact===true||fact?.complete===true,status:fact?.text||objective.text};
+      else{
+        const zone=marker(objective,context.zones),living=(context.living||[]).filter(s=>s.alive!==false);
+        const inside=zone?living.filter(s=>rules.pointInCircle(s.x,s.y,zone)):[];
+        let ready=false;
+        switch(objective.type){
+          case 'REACH':case 'ESCAPE':ready=!!zone&&inside.length>0;break;
+          case 'CLEAR':ready=objective.defenderGroup?rules.phaseDefenders(objective,context.enemies||[]).length===0
+            :!!zone&&(context.enemies||[]).every(e=>(!e.alive||e.surrendered)||!rules.pointInCircle(e.x,e.y,zone));break;
+          case 'CAPTURE':case 'HOLD':case 'DEFEND':case 'GARRISON':{
+            const contested=!!zone&&(context.enemies||[]).some(e=>(e.alive&&!e.surrendered)&&rules.pointInCircle(e.x,e.y,zone));
+            const defenders=rules.phaseDefenders(objective,context.enemies||[]);
+            ready=inside.length>0&&!contested&&(!defenders||!defenders.length)&&(objective.type!=='GARRISON'||inside.some(s=>s.manualGarrison||s.checkpointCover));
+            break;
+          }
+          case 'SURVIVE':ready=living.length>0;break;
+          default:ready=fact===true||fact?.complete===true;
         }
-        case 'SURVIVE':ready=living.length>0;break;
-        default:ready=fact===true||fact?.complete===true;
+        result={ready,complete:ready&&!objective.hold,status:fact?.text||objective.text};
       }
-      return{ready,complete:ready&&!objective.hold,status:fact?.text||objective.text};
+      return wiganResult(objective,result);
     }
     function update(dt,context={}){
       if(!Number.isFinite(dt)||dt<0)throw new Error('Invalid objective timestep');
       if(manager.missionState().failed)return manager.missionState();
+      updateWiganStory(context);
       // Newly activated objectives start on the next step, preventing accidental chain completion.
       for(const objective of manager.active()){
         const result=evaluate(objective,context);
@@ -69,6 +154,7 @@
         holds.set(objective.id,progress.holdTime);
         if(progress.complete){holds.delete(objective.id);manager.complete(objective.id)}
       }
+      updateWiganStory(context);
       return manager.missionState();
     }
     function syncPhase(index,{completed=false,failed=false}={}){
