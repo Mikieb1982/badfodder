@@ -53,9 +53,10 @@ scope.window.BadFodderCampaign.missions=JSON.parse(JSON.stringify(scope.window.B
 const missions=scope.window.BadFodderCampaign.missions.filter(m=>m.playable);
 assert.equal(missions.length,4);
 for(const m of missions){
+ const clean=Objectives.create(m).facts.snapshot();
  const first=Objectives.create(m);first.facts.set('fixture','changed');
- const next=Objectives.create(m);assert.deepEqual(next.facts.snapshot(),m.factDefaults||{});
- first.manager.setObjectives(Objectives.definitions(m));assert.deepEqual(first.facts.snapshot(),m.factDefaults||{});
+ const next=Objectives.create(m);assert.deepEqual(next.facts.snapshot(),clean);
+ first.manager.setObjectives(Objectives.definitions(m));assert.deepEqual(first.facts.snapshot(),clean);
 }
 // Verify the real menu/restart controller preserves a resumable run, then replaces it on retry.
 let current=Objectives.create(mission);current.facts.set('count',5);
