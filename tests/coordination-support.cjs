@@ -86,7 +86,7 @@ menuScope.window.BadFodderMissionController.create({coordinationSupport:menuFixt
 // Actual contextual-action hooks, both timed actions and a long-lived historical job.
 const context=fixture(),ctxActor=context.squad[0];
 const ctx={coordinationSupport:context.coord,started:true,menuOpen:false,paused:false,finished:false,mapOpen:false,coopCommand:()=>false,
- selectedUnits:()=>context.squad,barcelonaRuntime:null,contextAction:()=>({type:'building',label:'SEARCH',site:{door:ctxActor}}),buildingRuntime:{perform:()=>true},civilianRuntime:null,updateHud(){}};
+ selectedUnits:()=>context.squad,badBelzigRuntime:null,barcelonaRuntime:null,contextAction:()=>({type:'building',label:'SEARCH',site:{door:ctxActor}}),buildingRuntime:{perform:()=>true},civilianRuntime:null,updateHud(){}};
 vm.createContext(ctx);vm.runInContext(body('performCivilianAction'),ctx);assert(ctx.performCivilianAction());assert.equal(context.coord.size,1);context.coord.update(.35);assert.equal(context.coord.size,0);
 ctx.buildingRuntime.perform=()=>false;assert.equal(ctx.performCivilianAction(),false);assert.equal(context.coord.size,0);
 const jobFixture=fixture(),jobActor=jobFixture.squad[0],job={action:'reinforce',targetType:'barricade',targetId:'b',status:'queued'};

@@ -1158,6 +1158,7 @@
 
   function contextAction(helper){
     if(!helper)return null;
+    const burgHint=badBelzigRuntime?.burgHint(helper);if(burgHint)return{type:'burg-command',label:burgHint};
     const barcelonaHint=barcelonaRuntime?.hint(helper);if(barcelonaHint)return{type:'barcelona',label:barcelonaHint};
     const site=buildingRuntime?.nearest(helper),resident=civilianRuntime?.nearest(helper);
     if(site&&(helper.insideBuilding||!resident||Math.hypot(helper.x-site.door.x,helper.y-site.door.y)<Math.hypot(helper.x-resident.x,helper.y-resident.y)))return{type:'building',label:buildingRuntime.nextAction(helper,site),site};
@@ -1191,8 +1192,9 @@
     if(coopCommand('interact'))return true;
     const chosen=selectedUnits();
     coordinationSupport?.directOrder(chosen);
-    const helper=barcelonaRuntime?(chosen.find(u=>['TAKE RIFLES','RESUPPLY','REINFORCE','TAKE MATERIAL'].includes(barcelonaRuntime.hint(u)))||chosen[0]):chosen[0];
+    const helper=badBelzigRuntime?(chosen.find(u=>badBelzigRuntime.burgHint(u))||chosen[0]):barcelonaRuntime?(chosen.find(u=>['TAKE RIFLES','RESUPPLY','REINFORCE','TAKE MATERIAL'].includes(barcelonaRuntime.hint(u)))||chosen[0]):chosen[0];
     const action=contextAction(helper);
+    if(action?.type==='burg-command'){const acted=badBelzigRuntime.interactBurg(helper);if(acted)coordinationSupport?.beginSupport({actor:helper,action:action.label,target:badBelzigRuntime.commandPoint,duration:.35});updateHud(true);return acted;}
     if(action?.type==='barcelona'){const acted=barcelonaRuntime.interact(helper);if(acted)coordinationSupport?.beginSupport({actor:helper,action:action.label,duration:.35});updateHud(true);return acted;}
     if(action?.type==='building'){
       const acted=buildingRuntime.perform(helper,action.label,action.site);if(acted)coordinationSupport?.beginSupport({actor:helper,action:action.label,target:action.site.door,duration:.35});updateHud(true);return acted;
@@ -3862,7 +3864,7 @@
       enemies=merge(enemies,state.enemies);civilians=merge(civilians,state.civilians);pickups=state.pickups;bullets=state.bullets;thrown=state.thrown;effects=state.effects;
       coopCheckpoint=state.checkpoint;missionStage=state.missionStage;phaseHoldTime=state.phaseHoldTime;squadGrenades=state.squadGrenades;finished=state.finished;win=state.win;
       if(state.objectives)missionObjectivesRuntime.restore(state.objectives);
-      else{badBelzigRuntime?.sync({legacy:true});missionObjectivesRuntime.syncPhase(missionStage,{completed:finished&&win,failed:finished&&!win});}
+      else{badBelzigRuntime?.sync({legacy:true,phase:missionStage});missionObjectivesRuntime.syncPhase(missionStage,{completed:finished&&win,failed:finished&&!win});}
       if(state.health)window.BadFodderHealth.receive(state.health);
       if(state.civilianState)civilianRuntime?.receive(state.civilianState);
       badBelzigRuntime?.sync();
