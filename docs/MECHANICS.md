@@ -1,289 +1,229 @@
 # IF I CAN SHOOT RABBITS - Mechanics Design
 
-Status: Design working document
-Last consolidated: 7 October 2026
+Status: Consolidated design
+Last consolidated: 8 October 2026
 
-This document separates mechanics we already have, mechanics we have approved conceptually, and public references worth studying. Public references are inspiration and algorithm sources, not a plan to replace the existing engine.
+The detailed decision is in `docs/MECHANICS-CONSOLIDATION.md`.
 
-## Status labels
+This document is the short reference for what the engine should share and what the missions should own.
 
-- IDEA: interesting, not yet judged
-- CANDIDATE: fits the game and deserves design work
-- APPROVED: accepted direction, ready to break into implementation tasks
-- IMPLEMENTED: present in the game and verified
+---
 
-## Shared mechanics already present
+# Shared systems already present
 
-The current codebase already contains substantial systems that should be extended rather than replaced where practical:
+Reuse and extend these rather than replacing them:
 
-- shared navigation and pathfinding
-- cover and suppression
+- `navigation.js`: pathfinding, route checks, connected components, dynamic obstacles, stale-route replanning
+- `mission-objectives.js`: objective progression and event-driven objectives
+- `character-health.js`: FIT / WOUNDED / BADLY_WOUNDED / DOWN / DEAD, stabilise and carry
+- cover and suppression systems
 - civilian states and evacuation behaviour
-- building and garrison interactions
-- adaptive director and utility-style decision making
-- enemy roles and tactical behaviour
-- mission objectives and mission runtimes
-- Cable Street barricade logic
-- Cable Street crowd and interaction systems
-- deterministic or bounded simulation support
+- building/garrison systems
+- `adaptive-director.js`: bounded utility-style strategic decisions / enemy coordination
+- `barricade-rules.js`: generic barricade integrity and breach
+- Cable Street crowd/interactions/runtime
+- deterministic fixed-update and simulation tooling
 
-Relevant existing files include `navigation.js`, `adaptive-director.js`, `adaptive-opportunities.js`, `combat-tactics.js`, civilian runtime code, `barricade-rules.js`, `cable-street-runtime.js`, `cable-street-interactions.js`, `cable-street-crowd.js`, mission objective code and mission-specific runtimes.
+---
 
-Before adding a new dependency or parallel system, check whether one of these can support the required behaviour.
+# New shared systems approved
 
-## Shared design mechanics
+## 1. Mission facts / consequence state
 
-| Mechanic | Purpose | Status |
-| --- | --- | --- |
-| Squad movement and selection | Core control of playable characters | IMPLEMENTED |
-| Cover and suppression | Tactical combat without bullet-sponge enemies | IMPLEMENTED |
-| FIT / WOUNDED / BADLY WOUNDED / DOWN / DEAD | Make individual characters matter | IMPLEMENTED / evolving |
-| Stabilise and carry | Create difficult choices during retreats | APPROVED direction |
-| Civilian behaviour | Make places feel inhabited and vulnerable | IMPLEMENTED / evolving |
-| Garrisoning | Turn buildings into tactical and narrative spaces | IMPLEMENTED / evolving |
-| Contextual interaction | Search, help, sabotage, build, open and assist | IMPLEMENTED / evolving |
-| Dynamic objectives | Let events change the player's purpose | IMPLEMENTED / evolving |
-| Local consequences | Let failure or success alter later play | APPROVED |
-| Quiet phases | Regroup, talk, treat wounds and prepare | APPROVED |
-| Friendly resistance NPCs | Show that the squad is part of something larger | APPROVED / partial |
-| Limited resources | Encourage restraint and improvisation | APPROVED direction |
+Purpose:
 
-## Mission-specific mechanics
+Store a small serialisable set of mission-local facts that later objectives, support and aftermath can query.
 
-### Bad Belzig - protect and adapt
+Needed by all four missions.
 
-Core loop:
+Examples:
 
-OBSERVE THREAT -> PROTECT ROUTE -> HOLD POSITION -> REACT TO BREACH -> REPOSITION
+- Bad Belzig: Post route / refuge / Frieda
+- Wigan: resistance-group connections
+- Cable Street: defence/crowd/civilian outcomes
+- Barcelona: resident/defence/cooperation/final-position outcomes
 
-Approved concepts:
+Keep the API deliberately small: get, set, increment, guarded transition, snapshot, restore and optional change notification.
 
-#### Local defence network
-Important positions are connected. A checkpoint matters because it protects a route, refuge or later position. Losing one should alter pressure elsewhere.
+Do not turn it into a quest, dialogue or branching-narrative framework.
 
-#### Checkpoint and sandbag behaviour
-Entering a defended position should place the squad into useful cover without trapping them. Leaving must be deliberate and reliable. Re-entering the zone may return characters to prepared positions.
+Status: **APPROVED - first shared implementation task**.
 
-#### Civilian flow
-Civilians should use protected routes when safe. The player influences movement by clearing streets, holding positions and opening safe destinations rather than micromanaging every civilian.
+## 2. Group coordination movement
 
-#### Local knowledge
-Characters may reveal shortcuts, useful buildings, alternative routes or supplies because they know the town. Avoid arbitrary RPG bonuses.
+Purpose:
 
-Escalation principle: the town becomes harder to protect, forcing the player to choose what can still be saved.
+Place selected units into useful adaptive slots while continuing to use the existing navigation system for every actual route.
 
-### Wigan - connect and coordinate
+Shared capabilities:
 
-Core loop:
+- formation anchor
+- elastic slots
+- deterministic slot assignment
+- slot compression/expansion
+- split-group compatibility
+- clean regroup
+- arrive near target
+- short-range separation
 
-FIND GROUP -> SOLVE IMMEDIATE PROBLEM -> CONNECT GROUP -> EXPAND NETWORK
+Mission profiles:
 
-Approved concepts:
+- Bad Belzig: normal/local-volunteer movement
+- Wigan: split-group + rally regroup emphasis
+- Cable Street: loose, non-military playable group
+- Barcelona: progressively better coordination through mission-local cooperation states
 
-#### Resistance groups
-Separate local groups become connected through player actions and then provide practical help such as routes, information, rally points, civilian movement or volunteers.
+Status: **APPROVED - second shared implementation task**.
 
-#### Split squad
-Wigan is the strongest mission for deliberate two-and-two or small-group play. Splitting and regrouping must remain easy to understand and recover from.
+## 3. Small coordination hooks
 
-#### Communication network
-Information quality improves as groups connect. Early reports may be vague. Later reports can identify enemy movement or threatened locations.
+Possible shared behaviours after group movement is stable:
 
-#### Rally points
-Temporary hubs allow regrouping, treating wounded, exchanging people or receiving information.
+- ally covers a contextual interaction
+- ally supports casualty treatment/carry
+- regroup after a split task
 
-Escalation principle: the opposition becomes more dangerous, but the resistance becomes more organised.
+These extend existing interaction/health systems. They are not autonomous squad AI.
 
-### Cable Street - contribute to a crowd
+Status: **APPROVED CONDITIONALLY after group movement**.
 
-Core loop:
+---
 
-PREPARE -> REINFORCE -> RESPOND TO PRESSURE -> SUPPORT NEIGHBOURING POSITIONS
+# Mechanics that remain mission-specific
 
-Approved concepts:
+## Bad Belzig - HOME
 
-#### Barricade network
-Barricades should support clear states:
+Mission owns:
 
-UNBUILT -> BUILDING -> REINFORCED -> DAMAGED -> BREACHED
+- Post route meaning
+- St. Marien refuge
+- Frieda
+- dual Act III priority crisis
+- local-knowledge route choices
+- sandbag/checkpoint behaviour
+- Marktplatz/Rathaus support/outcome variation
 
-#### Crowd state through behaviour
-Avoid relying on a large abstract morale meter. Show strength and weakness through density, chanting, movement, retreat, wounded people, barricade activity and gaps opening in the line.
+Engine supplies navigation, civilians, facts, objectives, health and group movement.
 
-#### World continues without the player
-When the squad leaves one section to reinforce another, the previous area should continue operating based on its condition and available NPCs.
+## Wigan - SOLIDARITY
 
-#### Non-combat contribution
-Cable Street should make building, carrying, helping, warning, escorting, repairing and opening routes as meaningful as firing a weapon.
+Mission owns:
 
-Escalation principle: challenge increases through competing priorities and disorder, not simply enemy lethality.
+- resistance-group identities and states
+- contribution of each connected group
+- rally-point identities
+- network-cut event
+- Market Place information
+- King Street support
+- coordinated Wallgate finale
 
-### Barcelona - learn to operate as a squad
+Do not build a universal faction/network simulator.
 
-Core loop:
+## Cable Street - COMMUNITY
 
-IMPROVISATION -> COOPERATION -> COORDINATION
+Mission owns:
 
-Approved concepts:
+- Christian Street / Berner Street pressure relationship
+- crowd-confidence presentation
+- helper behaviour policy
+- off-screen pressure/warnings
+- historical local-failure wording
+- historical outcome transition
 
-#### Cooperation actions
-Certain interactions may benefit from two people:
+Generic barricade integrity stays shared.
 
-- moving a heavy obstruction
-- carrying a wounded person efficiently
-- covering a dangerous crossing
-- breaching or opening a blocked route
-- helping someone over an obstacle
+## Barcelona - COMMITMENT
 
-#### Practical character strengths
-The four protagonists can have small practical strengths linked to who they are as people. Avoid rigid combat classes.
+Mission owns:
 
-#### Trust shown through behaviour
-Do not use a visible friendship meter. Show growing cooperation through better spacing, quicker regrouping, automatic cover, faster assistance and smoother contextual actions.
+- PAIRS / IMPROVISED / COOPERATING / COMMITTED
+- triggers that advance those states
+- paired opening
+- western-shelter commitment point
+- deliberate return to danger
+- eastern-route payoff
+- Portal junction local finale
 
-#### Commitment point
-A quiet, relatively safe moment allows the characters to decide to continue. The next objective should feel like a conscious return to danger.
+Shared movement merely accepts a profile chosen by Barcelona.
 
-Escalation principle: the environment becomes more dangerous while the squad becomes mechanically more capable of working together.
+---
 
-## Public GitHub mechanics research
+# Public GitHub research - final disposition
 
-These references are useful because they contain focused mechanics that can inform our own implementation.
+## gdx-ai
 
-### 1. Last Stand
+Use as a design reference for formation anchors, slots and reassignment.
 
-Repository: https://github.com/devinjones521/last-stand
-Licence: MIT
-Stack relevance: Vanilla JavaScript, Canvas 2D, no dependencies, offline PWA
+**Build:** a minimal deterministic local implementation around our existing navigation.
 
-Useful concepts:
+**Do not import:** the Java framework.
 
-- flow-field pathfinding
-- recomputing a shared route after barriers change
-- cheap routing for many agents with a shared destination
-- reachability checks before or after environmental changes
+Status: **WORTH BUILDING AS OUR OWN SMALL SYSTEM**.
 
-Potential use:
+## Yuka
 
-- Cable Street civilian and crowd routes
-- Cable Street barricade consequences
-- Wigan resistance-group movement
-- evacuation routing
+Use as a design reference for local steering.
 
-Preferred approach: study the algorithm and reimplement only the small pieces that fit our navigation architecture.
+**Build now:** arrive + separation only.
 
-### 2. libGDX gdx-ai
+**Maybe later:** small local obstacle correction if testing proves necessary.
 
-Repository: https://github.com/libgdx/gdx-ai
-Licence: Apache-2.0
-Language: Java
+**Do not import:** entity, navigation, perception, goal or full steering frameworks.
+
+Status: **WORTH BUILDING ONLY AS A TINY SUBSET**.
+
+## Last Stand
 
 Useful concepts:
 
-- formation motion
-- formation anchors and slots
-- environment-aware formation movement
-- steering behaviour architecture
+- shared flow fields
+- topology invalidation
+- route reachability after obstacle changes
+- avoiding softlocks
 
-Potential use:
+Our existing navigation already implements the important topology/reachability behaviours.
 
-- Barcelona squad cooperation
-- Wigan split squads
-- more natural group movement
+Status: **FLOW FIELD DEFERRED. KEEP AS REFERENCE.**
 
-Preferred approach: use the design pattern, not the Java implementation.
+Only revisit if profiling shows same-destination crowd pathfinding is a real target-device bottleneck.
 
-### 3. Yuka
+## CrowdedJS / RVO-style crowd simulation
 
-Repository: https://github.com/Mugen87/yuka
-Licence: MIT
-Language: JavaScript
+The current game does not justify a second crowd/navigation architecture.
 
-Useful concepts:
+Status: **NOT NEEDED FOR CURRENT FOUR MISSIONS**.
 
-- arrive steering
-- separation
-- obstacle avoidance
-- autonomous-agent structure
-- perception and triggers
+## Utility-AI frameworks
 
-Potential use:
+The game already has an adaptive utility-style system. The mission designs call mainly for authored support roles, not another generic action scorer.
 
-- civilians slowing naturally near destinations
-- preventing NPC stacking
-- small local corrections around people and obstacles
-- smoother follower movement
+Status: **DO NOT BUILD / IMPORT**.
 
-Preferred approach: reimplement the minimum steering behaviours needed instead of adopting the full library unless a later benchmark proves that worthwhile.
+---
 
-### 4. crowdedjs examples
+# Explicit non-projects
 
-Repository: https://github.com/crowdedjs/examples
-Licence: MIT
-Focus: browser-based crowd simulation
+Do not create during the four-mission story pass:
 
-Useful concept:
+- replacement pathfinder
+- separate reachability engine
+- flow-field engine without benchmark evidence
+- RVO/threaded crowd engine
+- second Utility AI system
+- generic resistance faction simulator
+- relationship/friendship simulation
+- generic narrative/quest graph
+- RTS control layer for friendly NPCs
+- second casualty system
 
-Separate global routing from local crowd avoidance.
+---
 
-Potential use:
+# Architecture rule
 
-- Cable Street crowd movement
-- dense evacuation movement
+The engine owns reusable physical and simulation rules.
 
-Preferred approach: use as a conceptual and performance reference. Do not replace the current game engine with a separate crowd framework.
+Mission runtimes own meaning and consequences.
 
-### 5. exane/utility-ai
+The engine should know how to move a group, store a fact, carry a casualty, test a route or damage a barricade.
 
-Repository: https://github.com/exane/utility-ai
-Licence: MIT
-Language: JavaScript
-
-Useful concept:
-
-Contextual action scoring.
-
-Decision: do not import this framework. The game already has a local utility-style adaptive director. Use this repository only as a reference when extending our existing scoring model to new NPC decisions.
-
-## Strongest research candidates
-
-Priority order for future engineering evaluation:
-
-1. Elastic formation and local steering
-2. Flow-field movement for crowds sharing destinations
-3. Dynamic reachability checks around barricades and blocked routes
-4. Separation and local obstacle avoidance for civilians and followers
-5. Additional contextual NPC actions using the existing adaptive system
-
-## Ownership rule
-
-The final implementation should still look and behave like IF I CAN SHOOT RABBITS.
-
-Do not import:
-
-- another game's art
-- characters
-- missions
-- dialogue
-- maps
-- UI
-- campaign structure
-- complete AI framework unless clearly justified
-
-When external source code is copied or adapted rather than independently reimplemented, preserve all licence and attribution requirements.
-
-## Architecture principle
-
-Global systems answer broad questions:
-
-- Where should this group go?
-- Which objective matters?
-- Which route is currently viable?
-
-Local systems answer immediate movement questions:
-
-- How do I avoid this person?
-- How do I approach this position smoothly?
-- How do I keep useful spacing?
-
-Keeping those layers separate should help us add richer behaviour without making mission runtimes brittle.
+It should not know why St. Marien matters, what solidarity means in Wigan, what the Cable Street side defence represents, or why Barcelona's four characters choose to return to danger.
