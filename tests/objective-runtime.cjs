@@ -9,6 +9,7 @@ const source=require('./engine-source.cjs')(fs.readFileSync(require.resolve('../
 const update=source.slice(source.indexOf('  function updateMissionProgress(dt){'),source.indexOf('  let nextHudUpdate='));
 for(const mission of scope.window.BadFodderCampaign.missions.filter(m=>m.playable&&m.scenario!=='historical')){
  const runtime=Runtime.create(mission),zones=Object.fromEntries(mission.phases.map((p,i)=>[p.zone,{x:i*1000,y:0,r:50}]));
+ if(mission.id==='wigan')Object.assign(zones,{market:{x:500,y:0,r:50},kingStreet:{x:1500,y:200,r:50}});
  const squad=[{x:0,y:0,alive:true}],enemies=mission.phases.map((p,i)=>({x:i*1000,y:0,alive:true,objectiveGroup:p.defenderGroup}));
  let completed=false;
  const game={finished:false,win:false,missionObjectivesRuntime:runtime,squad,enemies,zones,S:x=>x,phaseHoldTime:0,missionStage:0,
@@ -16,7 +17,9 @@ for(const mission of scope.window.BadFodderCampaign.missions.filter(m=>m.playabl
  vm.createContext(game);vm.runInContext(update,game);
  for(let i=0;i<mission.phases.length;i++){
   squad[0].x=i*1000;game.updateMissionProgress(.1);assert.equal(runtime.phase(),i,'Live defender blocks progression');
-  enemies[i].alive=false;game.updateMissionProgress(.5);assert.equal(runtime.holdTime(),.5);
+  enemies[i].alive=false;
+  if(mission.id==='wigan'&&i>0){squad[0].x=zones.market.x;game.updateMissionProgress(0);squad[0].x=i*1000;}
+  game.updateMissionProgress(.5);assert.equal(runtime.holdTime(),.5);
   const saved=runtime.snapshot();runtime.restore(saved);assert.equal(runtime.holdTime(),.5,'Partial hold survives restore');
   assert.equal(runtime.manager.current().legacyType,mission.phases[i].type,'Legacy rules survive restore');
   game.updateMissionProgress(mission.phases[i].hold);assert.equal(game.phaseHoldTime,0);
