@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),vm=require('node:vm');
-const Network=require('../wigan-network.js'),Objectives=require('../mission-objectives.js');
+const Network=require('../wigan-network.js'),Objectives=require('../mission-objectives.js'),Protocol=require('../multiplayer-protocol.js');
 const root=path.join(__dirname,'..');
 const map=new Function(fs.readFileSync(path.join(root,'wigan-map.js'),'utf8')+';return WIGAN_MAP;')();
 const campaignScope={window:{BadFodderHistoricalMissions:require('../historical-missions')},localStorage:{getItem:()=>null,setItem(){}}};
@@ -31,17 +31,20 @@ objectives.facts.set('grand_arcade_status','HELD');objectives.facts.set('king_gr
 state=network.snapshot();assert.equal(state.volunteers.kingStreet,2);assert.equal(state.volunteers.wallgate,2);assert.equal(state.runners,2);assert.equal(state.civilians,4,'Restored station route should carry civilian traffic as well as runners');
 assert(network.actors.every(a=>a.civilianState==='EVACUATED'&&a.storyVisible),'Visual network actors must remain outside rescue/combat civilian rules');
 
-// Browser integration: the Wigan-only module decorates the existing civilian runtime and preserves its gameplay counts/snapshot.
-const residents=[{x:0,y:0,homeX:0,homeY:0,phase:0,speed:30,alive:true,civilianState:'CALM'}];
+// Browser integration: visual actors share the normal renderer but stay out of rescue counts, save rows and co-op actor packets.
+const residents=[{x:0,y:0,homeX:0,homeY:0,phase:0,speed:30,alive:true,civilianState:'CALM',dir:0,state:'idle'}];
 const fakeCivilianRuntime={
  create(options){return{update(){},snapshot:()=>options.getCivilians().map(c=>[c.civilianState,null,null]),receive(){},add(c){options.getCivilians().push(c);return c},counts:()=>({total:options.getCivilians().length})}}
 };
 let draws=0;
-const browser={window:{BadFodderCivilians:fakeCivilianRuntime,BadFodderArt:{drawActor(){draws++}},BadFodderMissionObjectives:objectives},globalThis:null,console};browser.globalThis=browser.window;
+const browser={window:{BadFodderCivilians:fakeCivilianRuntime,BadFodderArt:{drawActor(){draws++}},BadFodderMissionObjectives:objectives,BadFodderCoopProtocol:{...Protocol}},globalThis:null,console};browser.globalThis=browser.window;
 vm.createContext(browser);
 vm.runInContext(fs.readFileSync(path.join(root,'wigan-map.js'),'utf8')+'\n'+fs.readFileSync(path.join(root,'wigan-network.js'),'utf8'),browser);
 const patched=browser.window.BadFodderCivilians.create({getCivilians:()=>residents,getSquad:()=>squad,getEnemies:()=>enemies,path:navigation.assignPath,follow:navigation.followPath,canOccupy:()=>true});
-assert(residents.some(c=>c.networkActor),'Wigan module should inject visual actors into the normal render list');assert.equal(patched.counts().total,1,'Visual actors must not inflate rescue counts');assert.equal(patched.snapshot().length,1,'Visual actors must not enter civilian save/co-op rows');
+assert(residents.some(c=>c.networkActor),'Wigan module should inject visual actors into the normal render list');assert.equal(patched.counts().total,1,'Visual actors must not inflate rescue counts');assert.equal(patched.snapshot().length,1,'Visual actors must not enter civilian save rows');
 patched.update(.1);const visual=residents.find(c=>c.networkActor&&c.active);browser.window.BadFodderArt.drawActor(ctx,visual,'civilian');assert(draws>0,'Active network actors should use the normal character renderer');
+const coopSquad=Array.from({length:4},(_,i)=>({x:i,y:i,hp:8,maxHp:8,alive:true,dir:0,state:'idle'}));
+const packet=browser.window.BadFodderCoopProtocol.snapshot({squad:coopSquad,enemies:[],civilians:residents,pickups:[],bullets:[],thrown:[],effects:[],missionStage:0,phaseHoldTime:0,squadGrenades:5,finished:false,win:false,checkpoint:null,civilianState:patched.snapshot(),stats:coopSquad.map((_,i)=>({index:i,name:'Local',kills:0,assists:0,alive:true}))},1);
+assert.equal(packet.c.length,1,'Cosmetic Wigan actors must stay out of co-op actor packets');assert.equal(packet.civilianState.length,1);assert(Protocol.readSnapshot(packet),'Filtered Wigan co-op packet must remain protocol-valid');
 assert(fs.readFileSync(path.join(root,'mission-registry.js'),'utf8').includes('wigan-network.js?v=20261008-network-1'),'Wigan network module is not registered for the browser runtime');
-console.log('PASS: Wigan runners, volunteers, reopened civilian routes, Bus Station muster and Wigan-only civilian-render integration.');
+console.log('PASS: Wigan runners, volunteers, reopened civilian routes, Bus Station muster, normal rendering and cosmetic-only co-op integration.');
