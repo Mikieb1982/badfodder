@@ -917,6 +917,7 @@
 
 
   let zoom=1,selection='all',paused=false,mapOpen=false,finished=false,win=false,missionStage=0,phaseHoldTime=0;
+  const MAX_CAMERA_ZOOM=3.2;
   const FIXED_DT=1/60,MAX_CATCHUP_STEPS=5;
   let simulationAccumulator=0;
   let camera={x:S(620),y:S(1260)},last=performance.now(),squadGrenades=5;
@@ -3482,7 +3483,7 @@
     const distance=Math.hypot(b.x-a.x,b.y-a.y);
     if(distance<8)return;
 
-    const nextZoom=Math.max(.55,Math.min(1.8,pinchGesture.startZoom*(distance/pinchGesture.startDistance)));
+    const nextZoom=Math.max(.55,Math.min(MAX_CAMERA_ZOOM,pinchGesture.startZoom*(distance/pinchGesture.startDistance)));
     zoom=nextZoom;
 
     // Keep the same world point under the midpoint of the two fingers.
@@ -3743,7 +3744,7 @@
   });
   mapBtn.addEventListener('click',toggleMap);
   zoomOutBtn.addEventListener('click',()=>{zoom=Math.max(.55,zoom-.15)});
-  zoomInBtn.addEventListener('click',()=>{zoom=Math.min(1.8,zoom+.15)});
+  zoomInBtn.addEventListener('click',()=>{zoom=Math.min(MAX_CAMERA_ZOOM,zoom+.15)});
   pauseBtn.addEventListener('click',togglePause);
   restartBtn.addEventListener('click',resetGame);
 
