@@ -6,7 +6,7 @@ const WaveConfig=require('../checkpoint-wave-config.js');
 Fortification.patchAdaptive(Adaptive);
 
 function angleDiff(a,b){return Math.abs(Math.atan2(Math.sin(a-b),Math.cos(a-b)))}
-function fixture(checkpoint,index=0){
+function fixture(checkpoint,index=0,canGarrison=()=>true){
   const zone={x:500,y:500,r:90};
   const phase={index,type:index===2?'eliminate-and-reach':'secure-zone',zone:'poi',defenderGroup:'poi-'+index,checkpoint};
   const template={x:100,y:100,homeX:100,homeY:100,variant:0,hp:3,maxHp:3,alive:false,phase:0,cooldown:.3,alert:false,lastSeen:null,aiState:'patrol',flash:0,dir:0,anim:0,state:'idle',fireTimer:0,deadTimer:0,deathAngle:0,path:null,pathIndex:0,repath:0,hitTimer:0,groupId:'initial',objectiveGroup:phase.defenderGroup,role:'anchor',tacticTimer:.2,tacticalPoint:null,burstCount:0,burstLimit:2,burstPause:0,searchTimer:0,reactionTimer:0,cueTimer:0,alertCue:'',pathQueued:false,pendingPath:null};
@@ -20,7 +20,7 @@ function fixture(checkpoint,index=0){
   ];
   const queued=[];
   const navigation={PATH_CELL:20,pathComponent:()=>1};
-  const commander=Adaptive.createCommander({getEnemies:()=>enemies,getSquad:()=>squad,getPhase:()=>phase,getZones:()=>({poi:zone}),roads,scale:1,navigation,blocked:()=>false,queuePath:(e,x,y)=>{queued.push({e,x,y});e.pathQueued=true}});
+  const commander=Adaptive.createCommander({getEnemies:()=>enemies,getSquad:()=>squad,getPhase:()=>phase,getZones:()=>({poi:zone}),roads,scale:1,navigation,canGarrison,blocked:()=>false,queuePath:(e,x,y)=>{queued.push({e,x,y});e.pathQueued=true}});
   return{zone,phase,enemies,squad,queued,commander};
 }
 
@@ -139,3 +139,14 @@ console.log('PASS: checkpoint release persists inside the circle and through rei
  assert(!trapped.checkpointCover&&!trapped.checkpointFortified&&trapped.checkpointGarrison===null,'Blocked placement created a hard hold');
 }
 console.log('PASS: stable occupied slots, casualty handling, safe newcomer spacing and blocked-placement release.');
+
+// An explicit move may cross a prepared position without being commandeered en route.
+{
+ const f=fixture({style:'rush',count:3,waves:[{style:'siege',count:6}],intermission:.3},0,s=>!s.path?.length&&!(s.touchMoveSpeed>0));
+ const moving=f.squad[0],touch=f.squad[1];moving.path=[{x:800,y:500}];touch.touchMoveSpeed=120;f.commander.maintain(1);
+ assert.equal(moving.checkpointGarrison,undefined);assert(moving.path);assert.equal(touch.checkpointGarrison,undefined);assert(f.squad[2].checkpointCover);
+ f.enemies.forEach(e=>e.alive=false);f.commander.maintain(2);f.commander.maintain(3);
+ assert.equal(moving.checkpointGarrison,undefined,'Reinforcement cannot interrupt an explicit route');assert(moving.path);assert.equal(touch.checkpointGarrison,undefined);
+ moving.path=null;touch.touchMoveSpeed=0;f.commander.maintain(3.1);assert(moving.checkpointCover&&touch.checkpointCover,'Settled arrivals may enter prepared cover');
+}
+console.log('PASS: direct mouse/touch movement crosses prepared positions without path cancellation or reinforcement recapture.');

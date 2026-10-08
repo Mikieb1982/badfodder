@@ -74,7 +74,7 @@ const html=fs.readFileSync(require.resolve('../index.html'),'utf8');
 function body(name){const start=html.indexOf('  function '+name+'('),brace=html.indexOf('{',start);let end=brace+1,depth=1;for(;depth;end++){if(html[end]==='{')depth++;if(html[end]==='}')depth--}return html.slice(start,end)}
 const command=fixture(),commandActor=command.squad[0],commandPartner=command.squad[1];
 let chosen=[commandPartner];
-const scope={coordinationSupport:command.coord,squad:command.squad,squadFormation:{active:false},groupMovement:command.group,groupMovementProfile:Group.defaults,
+const scope={badBelzigRuntime:null,coordinationSupport:command.coord,squad:command.squad,squadFormation:{active:false},groupMovement:command.group,groupMovementProfile:Group.defaults,
  navigation:command.nav,assignPath:command.nav.assignPath,WORLD_W:500,WORLD_H:500,coopCommand:()=>false,buildingRuntime:null,selectedUnits:()=>chosen,window:{},setStatus(){}};
 vm.createContext(scope);vm.runInContext(body('clearSquadFormation')+body('setMoveTargets'),scope);
 command.coord.beginSupport({actor:commandActor});scope.setMoveTargets({x:400,y:400});assert.equal(command.coord.size,0);assert.deepEqual(commandPartner.navDestination,{x:400,y:400});

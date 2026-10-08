@@ -17,6 +17,7 @@ const env={commands:{mode:'local'},started:true,finished:false,menuOpen:false,pa
 const sim=Simulation.create(env);
 sim.simulateStep(1/60);
 assert.deepEqual(calls,['tactics','behaviour','remote','director','input','squad','health','paths','enemies','civilians','projectiles','camera','failure','objectives','hud']);
+env.badBelzigRuntime={};env.squad=[{touchMoveSpeed:205}];sim.simulateStep(1/60);assert.equal(env.squad[0].touchMoveSpeed,0,'Stopped or expired sticks cannot prevent cover re-entry');env.badBelzigRuntime=null;env.squad=[];
 calls.length=0;env.commands.mode='client';sim.simulateStep(1/60);assert.deepEqual(calls,[]);sim.tick(20);assert.deepEqual(calls,['schedule','input','client','draw']);assert.equal(env.simulationAccumulator,0);
 calls.length=0;env.commands.mode='local';env.paused=true;sim.tick(40);assert.deepEqual(calls,['schedule','draw']);
 calls.length=0;env.commands.mode='host';sim.tick(60);assert(calls.includes('objectives'),'Host simulation continues while paused');

@@ -68,6 +68,7 @@
     env.releaseInterruptedInput();env.lifecycle.transition('RESULT');env.mapOpen=false;
     env.menu.showResult(env.missionIdentity,env.win,env.win&&hasPlayableNextMission());
     if(env.barcelonaRuntime){const result=env.barcelonaRuntime.summary();document.getElementById('resultFlavour').textContent=result.characters.filter(s=>s.alive).length+' neighbours survived · '+result.characters.filter(s=>!s.alive).length+' casualties · '+result.characters.filter(s=>s.alive&&s.health!=='FIT').length+' hurt · '+result.alliesLost+' friendly losses · '+result.civiliansRescued+'/'+result.civiliansFound+' civilians rescued · '+result.civiliansLost+' lost · '+(result.breached?'barricade breached':'barricade standing');}
+    if(!env.win&&env.badBelzigRuntime){document.getElementById('resultTitle').textContent='NO ONE CAN CONTINUE';document.getElementById('resultFlavour').textContent='No conscious survivor remains. Losing people or a route alone does not end the mission.';}
     if(env.win&&env.badBelzigRuntime?.summary){document.getElementById('resultTitle').textContent='HOME: WHAT WE COULD PROTECT';document.getElementById('resultFlavour').textContent=env.badBelzigRuntime.summary();}
     env.syncTouchControlState();
   }
@@ -181,7 +182,7 @@
       env.menu.ready();
       env.loadingEl.classList.add('hidden');
       const firstPhase=env.currentObjectivePhase?.()||(env.activeMission().phases||[])[0];
-      env.setStatus('Phase 1: '+(firstPhase?(firstPhase.brief||firstPhase.title):'Begin mission.'));
+      if(env.badBelzigRuntime)env.setStatus(env.badBelzigRuntime.presentation().title,2);else env.setStatus('Phase 1: '+(firstPhase?(firstPhase.brief||firstPhase.title):'Begin mission.'));
       env.syncTouchControlState();
       env.updateHud(true);
       if(env.launchAfterLoad){env.launchAfterLoad=false;beginMission();}

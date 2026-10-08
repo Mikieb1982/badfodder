@@ -138,7 +138,7 @@
     return{state,memory,update,notify,guard,scores,disable};
   }
 
-  function createCommander({getEnemies,getSquad,getPhase,getZones,roads,scale=1,navigation,queuePath,blocked,getContext=()=>({}),opportunities=null}={}){
+  function createCommander({getEnemies,getSquad,getPhase,getZones,roads,scale=1,navigation,queuePath,blocked,getContext=()=>({}),opportunities=null,canGarrison=()=>true}={}){
     let clock=0,failedUntil=0;
     const groups=new Map(),routePoints=[],counts=new Map(),checkpointStates=new Map();
     for(const e of getEnemies()){
@@ -207,7 +207,7 @@
       return null;
     }
     function garrisonSquad(zone,phaseIndex,completed=false){
-      const living=getSquad().filter(s=>s.alive&&!s.downed&&dist(s,zone)<=zone.r&&s.checkpointExitPhase!==phaseIndex&&(!completed||s.checkpointGarrison!==phaseIndex));
+      const living=getSquad().filter(s=>s.alive&&!s.downed&&canGarrison(s)&&dist(s,zone)<=zone.r&&s.checkpointExitPhase!==phaseIndex&&(!completed||s.checkpointGarrison!==phaseIndex));
       if(!living.length)return;
       const radius=Math.min(zone.r*.34,scale*22);
       living.forEach((s,i)=>{

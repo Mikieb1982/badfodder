@@ -47,6 +47,7 @@
 
   function firearmsAllowed(){try{return runtime?runtime.firearmsAllowed():typeof root.actionAllowed!=='function'||root.actionAllowed('firearms')}catch(_){return true}}
   function setNotice(text){
+    if(runtime?.notice)return runtime.notice(text,0);
     try{if(typeof root.setStatus==='function')root.setStatus(text)}catch(_){ }
     const notice=root.document?.getElementById('hudNotice');
     if(notice){notice.textContent=text;notice.classList.add('show');setTimeout(()=>notice.classList.remove('show'),1400)}

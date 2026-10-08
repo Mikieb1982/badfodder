@@ -1,13 +1,14 @@
 /* Authored Bad Belzig refuge, bounded crisis, recovery and finale. No shared story engine. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.BadFodderBelzigStory=api;})(typeof window!=='undefined'?window:globalThis,function(){
  'use strict';
- function create({opening,map,objectives,civilians,getSquad,getEnemies,getSelected=getSquad,navigation,health,groupMovement,scale=1,status=()=>{},supply=()=>{},persist=()=>{}}){
+ function create({opening,map,objectives,civilians,getSquad,getEnemies,getSelected=getSquad,navigation,health,groupMovement,scale=1,status=()=>{},releaseCover=()=>{},supply=()=>{},persist=()=>{}}){
   const manager=objectives.manager,facts=objectives.facts,data=map.story,residents=civilians.getResidents;
   const circle=p=>({x:p.x*scale,y:p.y*scale,r:(p.r||60)*scale});
   const refuge=circle(data.refuge),regroup=circle(data.regroup),post=circle({...map.pois.postcolumn,r:100}),junction=circle(data.volunteerPoint);
   const points=data.fallback.map(([x,y])=>circle({x,y,r:60})),onward=[...data.refugeRoute.map(([x,y])=>circle({x,y,r:60})),refuge];
   const group=()=>data.refugeIndexes.map(i=>residents()[i]).filter(Boolean),southern=()=>map.opening.civilianIndexes.map(i=>residents()[i]).filter(Boolean),frieda=()=>residents()[data.friedaIndex];
   const defaults={started:false,clock:0,refugeArmed:false,routeArmed:false,refugeWarned:false,routeWarned:false,refugeVisited:false,routeVisited:false,refugeMoving:false,routeMoving:false,onwardMoving:false,onwardLegs:{},legs:{},postUnsafe:0,postHold:0,aid:[],regrouped:false,approach:null,approachLeg:0,routes:[],civiliansSafe:0,support:0,volunteers:[],finished:false};
+  let conscious=4;
   const state=()=>({...defaults,...facts.get('belzig_story')});
   const save=s=>facts.set('belzig_story',s);
   const living=()=>getSquad().filter(s=>s.alive&&!s.downed),near=(a,p)=>Math.hypot(a.x-p.x,a.y-p.y)<=p.r;
@@ -20,13 +21,13 @@
   // Only fresh runtime construction edits the graph. Snapshots own subsequent progress.
   const list=manager.all(),market=list.find(o=>o.id==='phase-2');
   const added=[
-   {id:'crisis-refuge',type:'EVACUATE',eventDriven:true,requires:['burg-command'],priority:20,title:'PROTECT ST. MARIEN',text:'Reach Frieda. Clear the patrol to secure the refuge, or E / ACTION to evacuate toward Reißigerhaus.',marker:refuge},
-   {id:'crisis-route',type:'ESCORT',eventDriven:true,requires:['burg-command'],priority:20,title:'RESPOND TO THE POST ROUTE',text:'Visit the Post. Preserve the crossing or gather survivors for the longer Burg-side route.',marker:post},
-   {id:'reissiger-regroup',type:'INTERACT',eventDriven:true,requires:['act-three','crisis-refuge','crisis-route'],title:'REGROUP AT REISSIGERHAUS',text:'E / ACTION: reform and request first aid. Prepare to hold the Rathaus.',marker:regroup},
-   {id:'local-approach',type:'INTERACT',eventDriven:true,requires:['reissiger-regroup'],title:'USE THE TOWN YOU KNOW',text:'E / ACTION: Lotte can identify the courtyard link; Greta can rally neighbours. The Burg-side approach always remains open.',marker:regroup}
+   {id:'crisis-refuge',type:'EVACUATE',eventDriven:true,requires:['burg-command'],priority:20,title:'PROTECT ST. MARIEN',text:'E / ACTION: help Frieda and the civilians.',marker:refuge},
+   {id:'crisis-route',type:'ESCORT',eventDriven:true,requires:['burg-command'],priority:20,title:'RESPOND TO THE POST ROUTE',text:'Keep the crossing open, or gather civilians for the longer route.',marker:post},
+   {id:'reissiger-regroup',type:'INTERACT',eventDriven:true,requires:['act-three','crisis-refuge','crisis-route'],title:'REGROUP AT REISSIGERHAUS',text:'E / ACTION: regroup and first aid.',marker:regroup},
+   {id:'local-approach',type:'INTERACT',eventDriven:true,requires:['reissiger-regroup'],title:'USE THE TOWN YOU KNOW',text:'E / ACTION: check routes and local support.',marker:regroup}
   ];
   const index=list.findIndex(o=>o.id==='phase-2');list.splice(index,0,...added);
-  if(market)Object.assign(market,{requires:['local-approach'],title:'HOLD THE RATHAUS FOR THE TOWN',brief:'Secure the square and hold the Rathaus while neighbours keep the safe approaches open.',text:'Secure the square and hold the Rathaus while neighbours keep the safe approaches open.'});
+  if(market)Object.assign(market,{requires:['local-approach'],title:'HOLD THE RATHAUS',brief:'Hold the last organised local position.',text:'Hold the last organised local position.'});
   manager.setObjectives(list,{activate:false});
   for(const c of [...group(),...southern()])c.storyVisible=true;
   for(const c of group()){c.civilianState='HIDING';c.leaderIndex=null}
@@ -50,16 +51,16 @@
    if(s[key])return;s[key]=true;
    for(const i of indexes){const e=getEnemies()[i];if(!e?.alive)continue;e.missionDormant=false;e.alert=true;e.lastSeen={x:target.x,y:target.y};e.commandOrder={type:'PRESSURE',point:{x:target.x,y:target.y},until:1e8,engageAt:0};navigation.assignPath(e,target.x,target.y)}
   }
-  function start(){const s=state();if(s.started||!active('act-three'))return;s.started=true;for(const c of group())if(evac(c)){c.civilianState='HIDING';c.leaderIndex=null}facts.set('refuge_status','THREATENED');save(s);manager.activate('crisis-refuge');manager.activate('crisis-route');status('St. Marien and the Post need attention. Visit either first; unattended patrols will be warned before they advance.');sync()}
-  const offscreenWarning=(s,key,label)=>{if(!s[key]&&s.clock>=data.warningSeconds){s[key]=true;status(label+' patrol is advancing. You have '+data.recoverySeconds+' seconds before it reaches the position.')}};
+  function start(){const s=state();if(s.started||!active('act-three'))return;s.started=true;for(const c of group())if(evac(c)){c.civilianState='HIDING';c.leaderIndex=null}facts.set('refuge_status','THREATENED');save(s);manager.activate('crisis-refuge');manager.activate('crisis-route');status('Two areas need help: St. Marien and the Post.');sync()}
+  const offscreenWarning=(s,key,label)=>{if(!s[key]&&s.clock>=data.warningSeconds){s[key]=true;status(label+' patrol arrives in '+data.recoverySeconds+' seconds.',3)}};
   function recruit(list,actor){const id=getSquad().indexOf(actor);for(const c of list.filter(movable)){c.leaderIndex=id;c.civilianState=c.hp<2?'WOUNDED':'FOLLOWING';c.path=null;c.repath=0}}
-  function resolveRefuge(result){const s=state();s.civiliansSafe=Math.max(s.civiliansSafe,[...southern(),...group()].filter(evac).length);save(s);facts.set('refuge_status',result);manager.complete('crisis-refuge');status(result==='SAFE'?'Frieda: The refuge is safe for now.':'The refuge survivors are reaching Reißigerhaus.');}
-  function finishThreads(){if(done('crisis-refuge')&&done('crisis-route')&&active('act-three')){manager.complete('act-three');status('Both situations are settled enough to move on. Regroup at Reißigerhaus.')}}
+  function resolveRefuge(result){const s=state();s.civiliansSafe=Math.max(s.civiliansSafe,[...southern(),...group()].filter(evac).length);save(s);facts.set('refuge_status',result);manager.complete('crisis-refuge');status(result==='SAFE'?'The refuge is safe for now.':'Refuge survivors are reaching Reißigerhaus.');}
+  function finishThreads(){if(done('crisis-refuge')&&done('crisis-route')&&active('act-three')){manager.complete('act-three');status('Regroup at Reißigerhaus.')}}
   function update(dt){
-   if(state().finished)return;opening.update(dt);updateFrieda();start();let s=state();
+   if(state().finished)return;const able=living().length;if(able===1&&conscious>1)status('Last conscious survivor: help casualties before they bleed out.',3);conscious=able;opening.update(dt);updateFrieda();start();let s=state();
    if(!s.onwardMoving&&facts.get('post_route_status')==='HELD'&&done('phase-0')){s.onwardMoving=true;const actor=living()[0];if(actor)for(const c of southern().filter(c=>c.alive)){if(evac(c))c.civilianState='HIDING';recruit([c],actor)}}
    if(s.onwardMoving&&!s.routeMoving)for(const [i,c]of southern().entries())if(movable(c)){const leg=s.onwardLegs[i]||0;if(near(c,onward[leg])&&leg<onward.length-1)s.onwardLegs[i]=leg+1}
-   save(s);if(!s.started||s.finished)return;
+   save(s);if(!s.started||s.finished){sync();return;}
    const step=Number.isFinite(dt)&&dt>0?dt:0;s.clock+=step;
    if(active('crisis-refuge')){
     offscreenWarning(s,'refugeWarned','St. Marien');
@@ -72,10 +73,10 @@
     if(living().some(u=>near(u,post))||s.routeWarned&&s.clock>=data.warningSeconds+data.recoverySeconds)arm(s,'routeArmed',data.routeEnemies,post);
     if(facts.get('post_route_status')==='HELD'){
      const blocked=!quiet(post);
-     if(blocked){if(s.postUnsafe===0)status('Post patrol is inside the crossing. Clear it within 12 seconds to preserve the direct route.');s.postUnsafe+=step;s.postHold=0}
+     if(blocked){if(s.postUnsafe===0)status('Crossing under attack: recover it within 12 seconds.',3);s.postUnsafe+=step;s.postHold=0}
      else{s.postUnsafe=0;s.postHold=s.routeVisited&&!threats(data.routeEnemies).length?s.postHold+step:0}
-     if(s.postUnsafe>=12){facts.set('post_route_status','LOST');s.routeMoving=false;status('The direct route is lost. E / ACTION near the Post: gather survivors for the Burg-side route.');}
-     else if(s.postHold>=2.5){manager.complete('crisis-route');status('The direct route remains held.');}
+     if(s.postUnsafe>=12){facts.set('post_route_status','LOST');s.routeMoving=false;status('Direct route lost: gather civilians for the Burg-side route.',3);}
+     else if(s.postHold>=2.5){manager.complete('crisis-route');status('The direct crossing remains open.');}
     }
     if(facts.get('post_route_status')==='LOST'&&s.routeMoving){
      for(const [i,c]of southern().entries())if(movable(c)){const leg=s.legs[i]||0;if(near(c,points[leg])&&leg<points.length-1)s.legs[i]=leg+1}
@@ -99,12 +100,12 @@
   function hint(actor){
    if(!actor?.alive||actor.downed||!getSquad().includes(actor))return'';
    if(residents().some(c=>c.alive&&c.civilianState==='DOWN'&&Math.hypot(c.x-actor.x,c.y-actor.y)<=90*scale))return'';
-   if(active('crisis-refuge')&&near(actor,refuge))return !threats(data.refugeEnemies).length&&quiet(refuge)?'SECURE REFUGE':'EVACUATE REFUGE';
-   if(active('crisis-route')&&near(actor,post))return facts.get('post_route_status')==='LOST'?'GATHER FOR BURG-SIDE ROUTE':'REINFORCE POST';
-   if(active('reissiger-regroup')&&near(actor,regroup))return'REGROUP / FIRST AID';
-   if(active('local-approach')&&near(actor,regroup))return'PLAN THE FINAL APPROACH';
+   if(active('crisis-refuge')&&near(actor,refuge))return !threats(data.refugeEnemies).length&&quiet(refuge)?'HELP REFUGE':'EVACUATE REFUGE';
+   if(active('crisis-route')&&near(actor,post))return facts.get('post_route_status')==='LOST'?'GATHER CIVILIANS':'REINFORCE POST';
+   if(active('reissiger-regroup')&&near(actor,regroup))return'REGROUP / AID';
+   if(active('local-approach')&&near(actor,regroup))return'CHECK ROUTES';
    const s=state(),phase=active('act-three')?'refuge':active('phase-2')?'final':null;
-   if(phase&&aidReady()&&near(actor,refuge)&&!s.aid.includes(phase))return'FRIEDA: FIRST AID';
+   if(phase&&aidReady()&&near(actor,refuge)&&!s.aid.includes(phase))return'FIRST AID';
    return'';
   }
   function aid(s,actor,key){
@@ -114,20 +115,20 @@
   }
   function interact(actor){
    const action=hint(actor);if(!action)return false;const s=state();
-   if(action==='SECURE REFUGE'){s.refugeVisited=true;aid(s,actor,'refuge');resolveRefuge('SAFE')}
-   else if(action==='EVACUATE REFUGE'){s.refugeVisited=true;s.refugeMoving=true;recruit(group(),actor);aid(s,actor,'refuge');status('Frieda: Take everyone toward Reißigerhaus. E / ACTION can help a wounded resident.');}
-   else if(action==='REINFORCE POST'){s.routeVisited=true;arm(s,'routeArmed',data.routeEnemies,post);status('Hold off the returning patrol. The civilians still need this route.');}
-   else if(action==='GATHER FOR BURG-SIDE ROUTE'){s.routeVisited=true;s.routeMoving=true;recruit(southern(),actor);status('The direct crossing is closed. Follow the slower Burg-side streets to Reißigerhaus.');}
-   else if(action==='REGROUP / FIRST AID'){
-    const eligible=getSelected().filter(u=>u.alive&&!u.downed);groupMovement.regroup(eligible,regroup);aid(s,actor,'regroup');s.regrouped=true;
+   if(action==='HELP REFUGE'){s.refugeVisited=true;aid(s,actor,'refuge');resolveRefuge('SAFE')}
+   else if(action==='EVACUATE REFUGE'){s.refugeVisited=true;s.refugeMoving=true;recruit(group(),actor);aid(s,actor,'refuge');status('Frieda: Bring everyone to Reißigerhaus.');}
+   else if(action==='REINFORCE POST'){s.routeVisited=true;arm(s,'routeArmed',data.routeEnemies,post);status("Keep the civilians crossing safely.");}
+   else if(action==='GATHER CIVILIANS'){s.routeVisited=true;s.routeMoving=true;recruit(southern(),actor);status('Civilians following: take the marked Burg-side route.');}
+   else if(action==='REGROUP / AID'){
+    const eligible=getSelected().filter(u=>u.alive&&!u.downed);eligible.forEach(releaseCover);groupMovement.regroup(eligible,regroup);aid(s,actor,'regroup');s.regrouped=true;
     if(facts.get('refuge_status')==='SAFE')recruit(group(),actor);
-    manager.complete('reissiger-regroup');status('Greta: Take stock of who remains. We can hold the Rathaus together.');
-   }else if(action==='PLAN THE FINAL APPROACH'){
+    manager.complete('reissiger-regroup');status('Check the routes, then hold the Rathaus.');
+   }else if(action==='CHECK ROUTES'){
     const units=living(),lotte=units.find(u=>u.name==='Lotte'&&health.stateFor(u)!=='BADLY_WOUNDED'),greta=units.find(u=>u.name==='Greta'&&health.stateFor(u)!=='BADLY_WOUNDED');
     s.routes=['burg-side'];if(facts.get('post_route_status')==='HELD')s.routes.unshift('direct');if(lotte&&facts.get('refuge_status')!=='EVACUATED_WITH_LOSSES')s.routes.unshift('courtyard');s.approach=null;s.approachLeg=0;s.civiliansSafe=Math.max(s.civiliansSafe,[...southern(),...group()].filter(evac).length);
     s.support=greta?Math.min(facts.get('post_route_status')==='HELD'&&facts.get('refuge_status')!=='EVACUATED_WITH_LOSSES'?2:1,group().filter(c=>c.alive&&c!==frieda()&&c.civilianState!=='DOWN').length):0;
     if(s.support){for(const c of group().filter(c=>c.alive&&c!==frieda()&&c.civilianState!=='DOWN').slice(0,s.support)){s.volunteers.push(residents().indexOf(c));c.belzigVolunteer=true;c.civilianState='HIDING';c.leaderIndex=getSquad().indexOf(actor);c.repath=0} supply({x:regroup.x,y:regroup.y,type:'med',amount:s.support,active:true});}
-    manager.complete('local-approach');status((lotte?'Lotte: The courtyard link is open. ':'Use the Burg-side streets. ')+(s.support?'Greta has rallied '+s.support+' neighbours with first-aid supplies.':'We go with the people we have.'));
+    manager.complete('local-approach');status(lotte?'Lotte: The courtyard link is open.':s.support?'Neighbours brought first-aid supplies.':'The Burg-side approach remains open.',2);
    }else aid(s,actor,active('phase-2')?'final':'refuge');
    save(s);sync();finishThreads();return true;
   }
@@ -136,11 +137,40 @@
    if(active('act-three')){const candidates=[];if(active('crisis-refuge'))candidates.push({target:refuge,caption:'St. Marien refuge'});if(active('crisis-route')){let p=post;if(s.routeMoving&&facts.get('post_route_status')==='LOST'){const legs=Object.values(s.legs);p=points[legs.length?Math.min(...legs):0]}candidates.push({target:p,caption:facts.get('post_route_status')==='LOST'?'Burg-side evacuation route':'Post route'});}return candidates.sort((a,b)=>Math.min(...units.map(u=>Math.hypot(u.x-a.target.x,u.y-a.target.y)))-Math.min(...units.map(u=>Math.hypot(u.x-b.target.x,u.y-b.target.y))))[0]||null;}
    if(active('phase-2')){const route=s.approach==='courtyard'?data.courtyard:data.burgSide,p=s.approach&&s.approach!=='direct'?route[s.approachLeg]:null;return{target:p?circle({x:p[0],y:p[1],r:60}):circle({...map.pois.market,r:86}),caption:p?(s.approach==='courtyard'?'Lotte: courtyard approach':'Burg-side approach'):'Hold the Rathaus · '+s.routes.join(' / ')+' approaches'};}return null;
   }
-  function instruction(){if(!active('act-three'))return null;const s=state(),left=Math.max(0,Math.ceil(data.warningSeconds+data.recoverySeconds-s.clock));return 'ST. MARIEN: '+facts.get('refuge_status')+(s.refugeArmed?' · patrol active':s.refugeWarned?' · patrol arrives in '+left+'s':'')+' | POST: '+facts.get('post_route_status')+(s.postUnsafe?' · recover in '+Math.max(0,Math.ceil(12-s.postUnsafe))+'s':s.routeWarned&&!s.routeArmed?' · patrol arrives in '+left+'s':'')+' · E / ACTION at either place.'}
-  function summary(){if(state().finished&&facts.get('bad_belzig_aftermath'))return facts.get('bad_belzig_aftermath');const all=[...southern(),...group()],units=getSquad();return 'The Rathaus holds. Home is the people who remain. Post '+facts.get('post_route_status')+'; refuge '+facts.get('refuge_status')+'; Frieda '+facts.get('frieda_status')+'. '+Math.max(state().civiliansSafe,all.filter(evac).length)+'/'+all.length+' civilians safe, '+all.filter(c=>!c.alive).length+' lost. '+units.filter(u=>u.alive).length+' returned, '+units.filter(u=>u.alive&&health.stateFor(u)!=='FIT').length+' wounded.'}
+  function presentation(){
+   const s=state(),current=manager.current(),units=living(),markers=[];
+   const add=(id,target,label,kind='move')=>{if(active(id))markers.push({id,target,label,kind})};
+   if(active('act-three')){
+    add('crisis-refuge',s.refugeMoving?regroup:refuge,s.refugeMoving?'REFUGE EVACUATION':'ST. MARIEN REFUGE','threat');
+    let target=post;
+    if(s.routeMoving&&facts.get('post_route_status')==='LOST'){const legs=southern().map((c,i)=>movable(c)?s.legs[i]||0:null).filter(i=>i!==null);target=points[legs.length?Math.min(...legs):points.length-1]}
+    add('crisis-route',target,facts.get('post_route_status')==='LOST'?'BURG-SIDE CIVILIAN ROUTE':'POST CROSSING','threat');
+    if(units.length)markers.sort((a,b)=>Math.min(...units.map(u=>Math.hypot(u.x-a.target.x,u.y-a.target.y)))-Math.min(...units.map(u=>Math.hypot(u.x-b.target.x,u.y-b.target.y))));
+   }else if(current&&!current.optional){
+    const g=guidance(),target=g?.target||objectives.marker(current,{post,castle:opening.commandPoint,market:circle({...map.pois.market,r:86})});
+    if(target)add(current.id,target,({'opening-contact':'CIVILIANS','opening-route':'POST CROSSING','phase-0':'CIVILIAN CROSSING','phase-1':'BURG STAGING POSITION','burg-command':'BURG ORDERS','reissiger-regroup':'REISSIGERHAUS · FIRST AID','local-approach':'REISSIGERHAUS · ROUTES','phase-2':'RATHAUS'})[current.id]||current.title,['burg-command','reissiger-regroup','local-approach'].includes(current.id)?'interact':'move');
+   }
+   markers.forEach((m,i)=>m.primary=i===0);
+   const primary=markers[0],id=primary?.id||current?.id;
+   let title=({'opening-contact':'REACH THE CIVILIANS','opening-route':'GET THEM TO ST. MARIEN','phase-0':facts.get('post_crossing')?.started?'KEEP THE POST ROUTE OPEN':'OPEN THE CIVILIAN ROUTE','phase-1':'DISRUPT THE BURG POSITION','burg-command':'SEARCH THE COMMAND POST','crisis-refuge':s.refugeMoving?'GUIDE THE REFUGE CIVILIANS':'HELP THE REFUGE','crisis-route':facts.get('post_route_status')==='LOST'?'GUIDE THE CIVILIANS':'KEEP THE POST ROUTE OPEN','reissiger-regroup':'REGROUP AT REISSIGERHAUS','local-approach':'CHECK THE FINAL APPROACH','phase-2':'HOLD THE RATHAUS','act-three':'TWO AREAS NEED HELP'})[id]||current?.title||'HOME: WHAT REMAINS';
+   if(markers.length===2)title='TWO AREAS NEED HELP';
+   const crossed=southern().filter(evac).length;
+   let instruction=({'opening-contact':'Neighbours need a safe way through.','opening-route':'Stay with the civilians.','phase-0':facts.get('post_crossing')?.started?crossed+'/'+map.crossing.minimum+' civilians through · protect the crossing.':'The patrol blocks the civilians.','phase-1':'Break the position coordinating attacks.','burg-command':'E / ACTION: search the marked orders.','crisis-refuge':s.refugeMoving?'Guide them to the first-aid point.':'E / ACTION near Frieda: help or evacuate.','crisis-route':facts.get('post_route_status')==='LOST'?(s.routeMoving?'Follow the temporary civilian route.':'E / ACTION at the Post: gather civilians.'):'E / ACTION at the Post: reinforce the crossing.','reissiger-regroup':'E / ACTION: regroup and first aid.','local-approach':'E / ACTION: check routes and support.','phase-2':'Hold the square; distant enemies can remain.'})[id]||'';
+   if(units.length===1)instruction='LAST CONSCIOUS SURVIVOR · E / ACTION helps casualties.';
+   const left=Math.max(0,Math.ceil(data.warningSeconds+data.recoverySeconds-s.clock)),warnings=[],crossing=facts.get('post_crossing');
+   if(active('phase-0')&&crossing?.unsafe)warnings.push('POST: recover in '+Math.max(0,Math.ceil(map.crossing.recoverySeconds-crossing.unsafe))+'s');
+   if(active('crisis-refuge')&&s.refugeWarned)warnings.push('ST. MARIEN: '+(s.refugeArmed?'patrol nearby':'patrol in '+left+'s'));
+   if(active('crisis-route')){if(s.postUnsafe)warnings.push('POST: recover in '+Math.max(0,Math.ceil(12-s.postUnsafe))+'s');else if(s.routeWarned)warnings.push('POST: '+(s.routeArmed?'patrol nearby':'patrol in '+left+'s'))}
+   const convoy=active('phase-0')&&facts.get('post_crossing')?.started||active('crisis-route')&&s.routeMoving||active('crisis-refuge')&&s.refugeMoving;
+   const c=convoy?[...southern(),...group()].find(c=>movable(c)&&c.path?.length):null;
+   return{title,instruction,warning:warnings.join(' · '),markers,primary,people:[...southern(),...group()],route:c?[{x:c.x,y:c.y},...c.path.slice(c.pathIndex||0,(c.pathIndex||0)+3)]:[],threats:primary?getEnemies().filter(e=>hostile(e)&&near(e,{...primary.target,r:180*scale})).length:0};
+  }
+  function instruction(){return presentation().warning||null}
+  function summary(){if(state().finished&&facts.get('bad_belzig_aftermath'))return facts.get('bad_belzig_aftermath');const all=[...southern(),...group()],units=getSquad(),postText=facts.get('post_route_status')==='HELD'?'The direct crossing stayed open.':'The direct crossing was lost.',refugeText=({SAFE:'The refuge remained safe.',EVACUATED:'The refuge civilians moved to safety.',EVACUATED_WITH_LOSSES:'The refuge evacuation cost lives or left people wounded.'})[facts.get('refuge_status')]||'The refuge remained under threat.',friedaText=({SAFE:'Frieda survived to give first aid.',WOUNDED:'Frieda survived wounded.',LOST:'Frieda was lost.'})[facts.get('frieda_status')];return 'The Rathaus holds. '+postText+' '+refugeText+' '+friedaText+' '+Math.min(all.filter(c=>c.alive).length,Math.max(state().civiliansSafe,all.filter(evac).length))+'/'+all.length+' civilians reached safety; '+all.filter(c=>!c.alive).length+' lost. '+units.filter(u=>u.alive).length+' survived; '+units.filter(u=>u.alive&&health.stateFor(u)!=='FIT').length+' wounded.'}
+
   function finish(){const s=state();if(s.finished)return facts.get('bad_belzig_aftermath')||summary();s.finished=true;save(s);const text=summary();facts.set('bad_belzig_aftermath',text);persist({version:1,facts:facts.snapshot(),health:health.snapshot()});sync();return text}
   sync();
-  return{...opening,get combatReady(){return opening.combatReady},get quiet(){return active('reissiger-regroup')||active('local-approach')||state().finished},update,sync,civilianGuide:guide,storyHint:hint,interactStory:interact,guidance,instruction,summary,finish};
+  return{...opening,get combatReady(){return opening.combatReady},get quiet(){return active('reissiger-regroup')||active('local-approach')||state().finished},update,sync,civilianGuide:guide,storyHint:hint,interactStory:interact,guidance,presentation,instruction,summary,finish};
  }
  return{create};
 });

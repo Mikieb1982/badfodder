@@ -26,6 +26,7 @@ function clearRefuge(f){map.story.refugeEnemies.forEach(i=>f.enemies[i].alive=fa
 function clearRoute(f){action(f,map.pois.postcolumn);map.story.routeEnemies.forEach(i=>f.enemies[i].alive=false);f.runtime.update(3);assert.equal(f.objectives.manager.get('crisis-route').status,'COMPLETED')}
 function walk(f,complete,limit=16000){for(let i=0;i<limit&&!complete();i++){f.civilians.update(.1);f.runtime.update(.1)}assert(complete(),'Native civilian navigation must finish the authored route')}
 function restore(f){const g=fixture();g.objectives.restore(clone(f.objectives.snapshot()));f.residents.forEach((c,i)=>Object.assign(g.residents[i],{x:c.x,y:c.y,hp:c.hp,alive:c.alive}));g.civilians.receive(clone(f.civilians.snapshot()));g.runtime.sync();return g}
+if(require.main===module){
 const start=fixture();assert.equal(start.objectives.facts.get('refuge_status'),'SAFE');assert.equal(start.objectives.facts.get('frieda_status'),'SAFE');
 assert.equal(start.residents.filter(c=>c.name==='Frieda Lehmann').length,1);assert.equal(start.frieda.fictional,true);assert.equal(start.frieda.civilianRole,'first-aid volunteer');assert(!start.frieda.weapon);assert(start.refuge.every(c=>c.civilianState==='HIDING'));
 assert(start.enemies.every(e=>e.missionDormant));
@@ -89,7 +90,7 @@ for(const route of ['HELD','LOST'])for(const refuge of ['SAFE','EVACUATED','EVAC
  f.squad[2].alive=false;f.squad[3].alive=false;action(f,map.story.regroup);action(f,map.story.regroup);
  assert.deepEqual(f.objectives.facts.get('belzig_story').routes,route==='HELD'?['direct','burg-side']:['burg-side']);assert.equal(f.supplies.length,0);
  Object.assign(f.squad[0],point(map.pois.market));f.objectives.update(4,{living:f.squad,enemies:f.enemies,zones:{market:{...point(map.pois.market),r:172}},scale:2});assert(f.objectives.manager.missionState().complete,'Rathaus completion accepts costly outcomes');
- const text=f.runtime.finish();assert(text.includes('Post '+route));assert(text.includes('refuge '+refuge));assert(text.includes('Frieda '+frieda));assert.equal(f.saved.length,1);assert.equal(f.runtime.finish(),text);assert.equal(f.saved.length,1);assert.equal(f.saved[0].version,1);
+ const text=f.runtime.finish();assert(text.includes(route==='HELD'?'crossing stayed open':'crossing was lost'));assert(text.includes(({SAFE:'refuge remained safe',EVACUATED:'civilians moved to safety',EVACUATED_WITH_LOSSES:'evacuation cost lives'})[refuge]));assert(text.includes(({SAFE:'Frieda survived to give first aid',WOUNDED:'Frieda survived wounded',LOST:'Frieda was lost'})[frieda]));assert.equal(f.saved.length,1);assert.equal(f.runtime.finish(),text);assert.equal(f.saved.length,1);assert.equal(f.saved[0].version,1);
  const g=restore(f);g.runtime.update(100);assert.equal(g.runtime.finish(),text);assert.equal(g.saved.length,0);assert.equal(g.messages.length,0);assert.equal(g.objectives.facts.get('post_route_status'),route);assert.equal(g.objectives.facts.get('frieda_status'),frieda);
 }
 const legacy=fixture();legacy.runtime.sync({legacy:true,phase:2});legacy.objectives.syncPhase(2);assert.equal(legacy.objectives.manager.current().id,'phase-2');assert.equal(legacy.messages.length,0);
@@ -100,3 +101,6 @@ for(const m of missions.filter(m=>m.id!=='bad-belzig')){const o=Objectives.creat
 const html=fs.readFileSync(require.resolve('../index.html'),'utf8');function body(name){const start=html.indexOf('  function '+name+'('),brace=html.indexOf('{',start);let end=brace+1,depth=1;for(;depth;end++){if(html[end]==='{')depth++;if(html[end]==='}')depth--}return html.slice(start,end)}
 const live=crisis('LOST');Object.assign(live.squad[3],point(map.pois.postcolumn));const env={badBelzigRuntime:live.runtime,barcelonaRuntime:null,buildingRuntime:null,civilianRuntime:live.civilians,coordinationSupport:null,started:true,menuOpen:false,paused:false,finished:false,mapOpen:false,coopCommand:()=>false,selectedUnits:()=>[live.squad[2],live.squad[3]],updateHud(){},setStatus(){}};vm.createContext(env);vm.runInContext(body('contextAction')+body('performCivilianAction'),env);assert(env.performCivilianAction());assert(live.group.every(c=>c.leaderIndex===3));
 console.log('PASS: refuge/Frieda, native civilian routes, warning/recovery windows, either crisis priority, health aid, selected regroup, local support, all costly finales, aftermath/save/restore/reset and isolation.');
+
+}
+module.exports={fixture,crisis,action,clearRefuge,clearRoute,restore,point,map};

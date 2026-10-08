@@ -6,7 +6,11 @@
 })(typeof window!=='undefined'?window:globalThis,function(){
   'use strict';
   function create(env){
-  function setStatus(text){
+  let noticePriority=0,noticeRuntime=null;
+  function setStatus(text,priority=0){
+    if(env.badBelzigRuntime&&noticeRuntime!==env.badBelzigRuntime){noticeRuntime=env.badBelzigRuntime;noticePriority=0;}
+    if(env.badBelzigRuntime&&!env.finished&&performance.now()<env.hudNoticeUntil&&priority<noticePriority)return;
+    noticePriority=priority;
     if(env.statusEl.textContent!==text)env.statusEl.textContent=text;
     const phaseLine=/^Phase\s+\d+:/.test(text),missionLine=/^Mission (complete|failed)/i.test(text);
     if(phaseLine||missionLine){
@@ -55,7 +59,7 @@
 
   function updateRoster(force=false){
     const signature=env.squad.map((s,i)=>[
-      i,s.alive?1:0,s.hp,s.maxHp,s.selected?1:0,(s.suppression||0)>=.55?1:0,s.coverMask||0,env.missionController?Math.round((env.missionController.state.actors.get('player-'+i)?.stamina??100)/10):0
+      i,s.alive?1:0,s.hp,s.maxHp,s.selected?1:0,env.badBelzigRuntime&&s.downed?1:0,(s.suppression||0)>=.55?1:0,s.coverMask||0,env.missionController?Math.round((env.missionController.state.actors.get('player-'+i)?.stamina??100)/10):0
     ].join(':')).join('|');
     if(!force&&signature===env.lastRosterSignature)return;
     env.lastRosterSignature=signature;
@@ -66,7 +70,7 @@
     env.squad.forEach((s,i)=>{
       const d=document.createElement('div');
       d.className='card'+(s.selected?' selected':'');
-      d.innerHTML='<strong>'+(i+1)+' '+s.name+'</strong><div>'+(s.alive?'HP '+s.hp+'/'+s.maxHp:'DOWN')+'</div><div>'+(s.alive&&env.actionAllowed('firearms')?'Machine gun ∞':'')+'</div>';
+      d.innerHTML='<strong>'+(i+1)+' '+s.name+'</strong><div>'+(s.alive?'HP '+s.hp+'/'+s.maxHp:env.badBelzigRuntime?'DEAD':'DOWN')+'</div><div>'+(s.alive&&env.actionAllowed('firearms')?'Machine gun ∞':'')+'</div>';
       env.rosterEl.appendChild(d);
 
       let chip=env.hudChips.get(i);
@@ -74,14 +78,14 @@
         chip=document.createElement('button');chip.type='button';
         chip.addEventListener('click',()=>env.toggleSelection(i));env.hudChips.set(i,chip);env.hudSquadBar.appendChild(chip);
       }
-      chip.className='hud-unit'+(s.selected?' selected':'')+(s.alive?'':' down');
+      chip.className='hud-unit'+(s.selected?' selected':'')+(s.alive&&!(env.badBelzigRuntime&&s.downed)?'':' down');
       const energy=env.missionController?Math.round((env.missionController.state.actors.get('player-'+i)?.stamina??100)/10)*10:null;
-      chip.setAttribute('aria-label',(s.alive?'Select ':'Down: ')+s.name+(energy===null?', health '+s.hp+' of '+s.maxHp:', energy '+energy+' percent'));
+      chip.setAttribute('aria-label',(s.alive?'Select ':env.badBelzigRuntime?'Dead: ':'Down: ')+s.name+(energy===null?', health '+s.hp+' of '+s.maxHp:', energy '+energy+' percent'));
       const cachedPortrait=chip.querySelector('canvas');
       chip.setAttribute('aria-pressed',String(s.selected));chip.disabled=!s.alive||s.downed||!!(env.commands&&!env.commands.owns(i));
       chip.title=s.name+' · '+s.occupation+' · '+s.trait.toLowerCase();
       const hp=Array.from({length:energy===null?s.maxHp:10},(_,h)=>'<i class="'+(h<(energy===null?s.hp:energy/10)?((energy===null?s.hp<=2:energy<30)?'on low':'on'):'')+'"></i>').join('');
-      chip.innerHTML='<span class="hud-unit-info"><span class="hud-name"><em>'+(i+1)+'</em>'+s.name+(env.commands&&env.commands.mode!=='local'?' P'+(i<2?1:2):'')+'</span><span class="hud-health">'+hp+'</span><span class="hud-state">'+(s.alive?(s.downed?'DOWN + ':s.carryingUnit?'CARRYING + ':(s.suppression||0)>=.55?'PINNED ! ':s.coverMask?'COVER ◇ ':s.manualGarrison?'HOLD ◇ ':s.selected?'SELECTED ▸ ':'')+(energy===null?'HP '+s.hp+'/'+s.maxHp:'ENERGY '+energy+'%'):'DOWN ×')+'</span></span>';
+      chip.innerHTML='<span class="hud-unit-info"><span class="hud-name"><em>'+(i+1)+'</em>'+s.name+(env.commands&&env.commands.mode!=='local'?' P'+(i<2?1:2):'')+'</span><span class="hud-health">'+hp+'</span><span class="hud-state">'+(s.alive?(s.downed?'DOWN + ':s.carryingUnit?'CARRYING + ':(s.suppression||0)>=.55?'PINNED ! ':s.coverMask?'COVER ◇ ':s.manualGarrison?'HOLD ◇ ':s.selected?'SELECTED ▸ ':'')+(energy===null?'HP '+s.hp+'/'+s.maxHp:'ENERGY '+energy+'%'):env.badBelzigRuntime?'DEAD ×':'DOWN ×')+'</span></span>';
       const portrait=cachedPortrait||document.createElement('canvas');portrait.width=96;portrait.height=96;portrait.className='hud-portrait';
       const pg=portrait.getContext('2d');pg.imageSmoothingEnabled=true;pg.drawImage(env.art.missionPortrait?env.art.missionPortrait(env.missionIdentity.key,i,s.alive?'idle':'dead'):env.art.soldier(env.missionController?'civilian':'squad',2,s.alive?0:2,s.alive?'idle':'dead',i),0,0,96,96);
       chip.insertBefore(portrait,chip.firstChild);
@@ -109,7 +113,8 @@
     const currentPhase=env.currentObjectivePhase();
     const objectiveIndex=objectiveRows.findIndex(o=>o.id===currentPhase?.id);
     const objectiveDefenders=currentPhase?env.phaseDefenders(currentPhase):null;
-    const targetCount=objectiveDefenders?objectiveDefenders.length:remaining;
+    const belzig=env.badBelzigRuntime?.presentation?.();
+    const targetCount=belzig?belzig.threats:objectiveDefenders?objectiveDefenders.length:remaining;
 
     env.hudCampaign.textContent=env.missionLaunch.isHistorical()
       ?env.missionIdentity.title+' · '+env.missionIdentity.year
@@ -168,6 +173,7 @@
       if(env.statusEl.textContent!==instruction)env.statusEl.textContent=instruction;
       return;
     }
+    if(belzig){env.hudMission.textContent=belzig.title;env.statusEl.textContent=belzig.instruction;const line=document.getElementById('hudInstruction');line.hidden=!belzig.warning;line.textContent=belzig.warning;env.hudEnemyLabel.textContent='NEARBY THREATS';env.hudGrenadeLabel.textContent='GRENADES';return;}
     const civCounts=env.civilianRuntime?.counts();
     if(env.barcelonaRuntime){const instruction=document.getElementById('hudInstruction');instruction.hidden=false;const ammo=env.barcelonaRuntime.ammoStatus(env.selectedUnits());instruction.textContent=env.barcelonaRuntime.guidance().text+(['LOW','CRITICAL','EMPTY'].includes(ammo.level)?' '+ammo.level+' AMMO: '+ammo.total+'.':'');}
     if(!env.barcelonaRuntime)document.getElementById('hudInstruction').hidden=!civCounts?.total;

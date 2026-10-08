@@ -9,7 +9,7 @@ const html=fs.readFileSync(require.resolve('../index.html'),'utf8');
 function body(name){const start=html.indexOf('  function '+name+'('),brace=html.indexOf('{',start);let end=brace+1,depth=1;for(;depth;end++){if(html[end]==='{')depth++;if(html[end]==='}')depth--}return html.slice(start,end)}
 for(const result of ['HELD','LOST']){
  const f=burg(result),before=f.objectives.facts.snapshot();
- assert.equal(f.objectives.manager.current().id,'phase-1');assert.equal(f.objectives.manager.current().title,'DISRUPT THE BURG STAGING POSITION');assert(f.objectives.manager.current().brief.includes('coordinating'));
+ assert.equal(f.objectives.manager.current().id,'phase-1');assert.equal(f.objectives.manager.current().title,'DISRUPT THE BURG POSITION');assert(f.objectives.manager.current().brief.includes('coordinating'));
  assert(!f.runtime.burgHint(f.squad[1]));assert(!f.runtime.interactBurg(f.squad[1]),'Discovery cannot bypass the fight');
  const point=f.runtime.commandPoint,route=f.nav.findPath(f.squad[1].x,f.squad[1].y,point.x,point.y);assert(route.length,'Existing Burg approach remains navigable');
  f.nav.assignPath(f.squad[1],point.x,point.y);for(let i=0;i<7000&&f.squad[1].path;i++)f.nav.followPath(f.squad[1],185,1/30);assert(Math.hypot(f.squad[1].x-point.x,f.squad[1].y-point.y)<=point.r,'Command point can actually be approached');
@@ -21,7 +21,7 @@ for(const result of ['HELD','LOST']){
  // Real E / ACTION integration chooses the eligible selected member at the command point.
  const env={badBelzigRuntime:f.runtime,barcelonaRuntime:null,buildingRuntime:null,civilianRuntime:f.civilians,coordinationSupport:null,started:true,menuOpen:false,paused:false,finished:false,mapOpen:false,coopCommand:()=>false,selectedUnits:()=>[f.squad[3],f.squad[1]],updateHud(){},setStatus(){}};
  vm.createContext(env);vm.runInContext(body('contextAction')+body('performCivilianAction'),env);
- assert.equal(env.contextAction(f.squad[1]).label,'INSPECT ORDERS');assert(env.performCivilianAction());
+ assert.equal(env.contextAction(f.squad[1]).label,'SEARCH ORDERS');assert(env.performCivilianAction());
  assert.equal(triggers,1);assert(!f.runtime.interactBurg(f.squad[1]));assert.equal(triggers,1);
  assert.equal(f.objectives.manager.get('burg-command').status,'COMPLETED');assert.equal(f.objectives.manager.current().id,'act-three');assert.equal(f.objectives.phase(),2);
  const text=f.objectives.manager.current().text;assert(text.includes('St. Marien is threatened'));

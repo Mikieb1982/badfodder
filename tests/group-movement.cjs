@@ -82,7 +82,7 @@ function body(name){
  return html.slice(start,end);
 }
 const live=fixture(),squad=units(4);
-const scope={coordinationSupport:null,squad,selection:[0,1],squadFormation:{active:false},groupMovement:live.group,groupMovementProfile:Group.defaults,navigation:live.nav,
+const scope={badBelzigRuntime:null,coordinationSupport:null,squad,selection:[0,1],squadFormation:{active:false},groupMovement:live.group,groupMovementProfile:Group.defaults,navigation:live.nav,
  WORLD_W:640,WORLD_H:640,assignPath:live.nav.assignPath,coopCommand:()=>false,buildingRuntime:null,window:{},setStatus(){},
  selectedUnits:()=>scope.selection.map(i=>squad[i])};
 vm.createContext(scope);vm.runInContext(body('clearSquadFormation')+body('setMoveTargets'),scope);

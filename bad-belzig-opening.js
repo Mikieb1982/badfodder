@@ -9,26 +9,26 @@
   // The caller supplies live residents, including after a checkpoint merge.
   const getResidents=civilians.getResidents;
   const exits=civilians.zones.slice(),crossing=map.crossing,onward=point(crossing.onward);
-  const guide={...onward,alive:true,shelters:[onward]},commandPoint=point({...map.pois.castle,r:45});
+  const guide={...onward,alive:true,shelters:[onward]},commandPoint=point({...map.pois.castle,r:55});
   const pending=()=>!['HELD','LOST'].includes(facts.get('post_route_status'));
   function progress(){const s=facts.get('post_crossing');return s&&typeof s.started==='boolean'&&Number.isFinite(s.hold)&&s.hold>=0&&Number.isFinite(s.unsafe)&&s.unsafe>=0?s:{started:false,hold:0,unsafe:0}};
   function preparePost(){
    const o=manager.get('phase-0');
-   if(o&&!o.meta?.postCrossing)manager.replace(o.id,{...o,eventDriven:true,hold:0,meta:{...o.meta,legacy:false,postCrossing:true},title:'MAKE THE POST ROUTE SAFE',text:'Clear the patrol so the civilians can cross toward St. Marien.'});
+   if(o&&!o.meta?.postCrossing)manager.replace(o.id,{...o,eventDriven:true,hold:0,meta:{...o.meta,legacy:false,postCrossing:true},title:'OPEN THE CIVILIAN ROUTE',text:'Clear the patrol so the civilians can cross toward St. Marien.'});
   }
   const existing=manager.all().flatMap(o=>{
    if(o.optional)return[o];
    const objective={...o,status:'PENDING',...(o.phase===0?{requires:['opening-route'],hidden:true,discovered:false}:o.phase===2?{requires:['act-three']}: {})};
    if(o.phase!==1)return[objective];
    return[
-    {...objective,title:'DISRUPT THE BURG STAGING POSITION',brief:'Burg Eisenhardt is coordinating the attacks. Clear its defenders and hold against the counterattack.',text:'Burg Eisenhardt is coordinating the attacks. Clear its defenders and hold against the counterattack.'},
-    {id:'burg-command',type:'INTERACT',eventDriven:true,requires:[o.id],title:'INSPECT THE BURG ORDERS',text:'The position is quiet. Regroup, then use E / ACTION at the command point.',marker:commandPoint},
+    {...objective,title:'DISRUPT THE BURG POSITION',brief:'Break the position coordinating attacks on the town.',text:'Break the position coordinating attacks on the town.'},
+    {id:'burg-command',type:'INTERACT',eventDriven:true,requires:[o.id],title:'SEARCH THE COMMAND POST',text:'E / ACTION: search the marked orders.',marker:commandPoint},
     {id:'act-three',phase:2,type:'INTERACT',eventDriven:true,requires:['burg-command'],title:'ACT III: THE TOWN NEEDS HELP',text:'St. Marien and the civilian route both need attention.'}
    ];
   });
   manager.setObjectives([
-   {id:'opening-contact',type:'REACH',eventDriven:true,priority:100,title:'REACH THE CIVILIANS',brief:'Neighbours are sheltering on Bahnhofstraße.',marker:contact},
-   {id:'opening-route',type:'ESCORT',eventDriven:true,priority:100,requires:['opening-contact'],title:'HELP THEM TOWARD ST. MARIEN',brief:'Stay with the residents. The direct route passes the Postdistanzsäule.',marker:post},
+   {id:'opening-contact',type:'REACH',eventDriven:true,priority:100,title:'REACH THE CIVILIANS',brief:'Neighbours need a safe way to St. Marien.',marker:contact},
+   {id:'opening-route',type:'ESCORT',eventDriven:true,priority:100,requires:['opening-contact'],title:'GET THEM TO ST. MARIEN',brief:'Stay with the civilians; the Post blocks their route.',marker:post},
    ...existing
   ],{activate:false});
   manager.activate('opening-contact');preparePost();
@@ -59,13 +59,13 @@
     manager.complete('opening-contact');
     // Existing gather controls select a single guide for the whole nearby group.
     civilians.interact(actor);
-    status('Greta: They are heading for St. Marien. Stay with them.');
+    status('Greta: Stay with them to St. Marien.');
    }
    if(living.some(s=>near(s,post))){
     facts.set('opening_state','POST_BLOCKED');
     for(const c of group())if(c.alive&&!['DOWN','EVACUATED'].includes(c.civilianState)){c.leaderIndex=null;c.civilianState=c.hp<2?'WOUNDED':'HIDING';stop(c)}
     manager.complete('opening-route');sync();
-    status('Karl: The Post patrol blocks the direct route. Keep the civilians back.');
+    status('Karl: The Post patrol blocks the civilians.');
    }
   }
   function resolveRoute(result){
@@ -73,7 +73,7 @@
    facts.set('post_route_status',result);
    if(result==='LOST')for(const c of group())if(c.alive&&c.civilianState!=='EVACUATED'){c.leaderIndex=null;stop(c);if(c.civilianState!=='DOWN')c.civilianState=c.hp<2?'WOUNDED':'HIDING'}
    manager.complete('phase-0');sync();
-   status(result==='HELD'?'The Post route is held. Burg Eisenhardt is coordinating the attacks.':'The direct route is lost. Burg Eisenhardt is coordinating the attacks.');
+   status(result==='HELD'?'The civilians are through.':'The direct route is lost.',2);
   }
   function crossingText(text){if(manager.get('phase-0').text!==text)manager.updateText('phase-0',{title:'KEEP THE ROUTE OPEN',text})}
   function updateCrossing(dt){
@@ -88,7 +88,7 @@
     const leader=getSquad().indexOf(living.find(s=>near(s,46)));
     for(const c of group())if(c.alive&&!['DOWN','EVACUATED'].includes(c.civilianState)){c.leaderIndex=leader;c.civilianState=c.hp<2?'WOUNDED':'FOLLOWING';c.panic=0;c.repath=0;stop(c)}
     facts.set('post_crossing',state);sync();
-    status('The civilians are crossing. Stay near the Post and keep the route open.');
+    status('Civilians crossing: keep the route open.');
    }
    const residents=group(),crossed=residents.filter(c=>c.civilianState==='EVACUATED').length;
    if(residents.filter(c=>c.alive||c.civilianState==='EVACUATED').length<crossing.minimum){resolveRoute('LOST');return}
@@ -96,7 +96,7 @@
    const unsafe=getEnemies().some(e=>hostile(e)&&near(e,crossing.contestRadius))||!nearby&&attackers.length>0;
    const step=Number.isFinite(dt)&&dt>0?dt:0;
    if(unsafe){
-    if(state.unsafe===0)status('The crossing is under pressure. Recover the Post within '+crossing.recoverySeconds+' seconds.');
+    if(state.unsafe===0)status('Recover the Post: '+crossing.recoverySeconds+' seconds.',3);
     state.unsafe+=step;state.hold=0;
    }else{state.unsafe=0;state.hold=nearby&&!attackers.length?Math.min(crossing.holdSeconds,state.hold+step):0}
    facts.set('post_crossing',state);
@@ -111,16 +111,16 @@
    const objective=manager.get('act-three'),text=crisisText();
    if(objective&&objective.text!==text)manager.updateText(objective.id,text);
   }
-  function burgHint(actor){return actor?.alive&&!actor.downed&&getSquad().includes(actor)&&manager.get('burg-command')?.status==='ACTIVE'&&Math.hypot(actor.x-commandPoint.x,actor.y-commandPoint.y)<=commandPoint.r?'INSPECT ORDERS':''}
+  function burgHint(actor){return actor?.alive&&!actor.downed&&getSquad().includes(actor)&&manager.get('burg-command')?.status==='ACTIVE'&&Math.hypot(actor.x-commandPoint.x,actor.y-commandPoint.y)<=commandPoint.r?'SEARCH ORDERS':''}
   function interactBurg(actor){
    if(!burgHint(actor))return false;
    setupCrisis();manager.complete('burg-command');
-   status('The Burg orders split their forces. '+crisisText());
+   status('Two areas need help: St. Marien and the Post.',2);
    return true;
   }
   function civilianGuide(c,leader){return leader&&authored.civilianIndexes.some(i=>getResidents()[i]===c)&&progress().started&&facts.get('post_route_status')!=='LOST'&&Math.hypot(c.x-guide.x,c.y-guide.y)<=420*scale?guide:null}
   sync();
-  return{update,sync,civilianGuide,burgHint,interactBurg,commandPoint,start:()=>status('Bahnhofstraße. Neighbours are sheltering ahead.'),get combatReady(){return facts.get('opening_state')==='POST_BLOCKED'}};
+  return{update,sync,civilianGuide,burgHint,interactBurg,commandPoint,start:()=>status('Neighbours ahead need a safe way through.',2),get combatReady(){return facts.get('opening_state')==='POST_BLOCKED'}};
  }
  return{create};
 });

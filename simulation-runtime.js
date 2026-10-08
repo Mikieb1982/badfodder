@@ -10,6 +10,7 @@
     if(env.commands?.mode==='client')return;
     env.tacticsRuntime?.fixedUpdate(dt);
     env.enemyBehaviour?.fixedUpdate(dt);
+    if(env.badBelzigRuntime)env.squad.forEach(s=>s.touchMoveSpeed=0);
     window.BadFodderCoop?.remoteStep(dt);
     env.runAdaptive(()=>env.adaptiveDirector.update(dt));
     if(!env.menuOpen&&!env.paused&&!env.mapOpen)env.applyTouchMovement(dt);
