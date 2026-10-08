@@ -1,5 +1,5 @@
 /* Mobile/touch tactical HUD zones. Keep the centre battlefield free of permanent controls. */
-@media (pointer:coarse){
+@media (pointer:coarse) and (orientation:portrait){
   :root{--hud-bottom:calc(8px + env(safe-area-inset-bottom,0px));}
 
   .hud-roster{
@@ -55,12 +55,7 @@
   .hud-notice.show{transform:none!important}
 }
 
-@media (pointer:coarse) and (orientation:landscape){
-  .hud-roster{width:min(470px,calc(100% - 510px))!important;max-width:47vw!important}
-  .hud-unit{min-width:0!important}.hud-portrait{display:none!important}#hudAll{flex-basis:38px!important}
-}
-
-@media (pointer:coarse) and (max-width:760px){
+@media (pointer:coarse) and (orientation:portrait) and (max-width:760px){
   .touch-actions{grid-template-columns:repeat(3,52px)!important;max-width:166px!important}
   #touchFire,#touchGrenade,#touchGarrison{width:52px!important;height:52px!important;min-width:52px!important;min-height:52px!important}
   #touchAction,#touchAid,#touchDrop{width:166px!important}
@@ -69,136 +64,101 @@
   .hud-roster{width:min(400px,calc(100% - 455px))!important;max-width:45vw!important}
 }
 
-/* Mobile landscape gamepad: action/command buttons left, movement joystick right. */
+/* Landscape controller overlay. Every action owns a slot, even when hidden. */
 @media (pointer:coarse) and (orientation:landscape){
+  .viewport{
+    --pad-edge:18px;--pad-bottom:18px;--pad-cell:58px;--pad-gap:6px;
+    --pad-face:54px;--pad-fire:72px;--pad-stick:104px;
+  }
   .viewport .touch-joystick{
-    left:auto!important;
-    right:calc(18px + env(safe-area-inset-right,0px))!important;
-    bottom:calc(12px + env(safe-area-inset-bottom,0px))!important;
-    width:104px!important;
-    height:104px!important;
-    opacity:.22;
-    border:1px solid #e8dfc024!important;
-    background:radial-gradient(circle,transparent 47%,#d7d0b51a 48%,#d7d0b51a 49%,transparent 50%)!important;
+    left:calc(var(--pad-edge) + env(safe-area-inset-left,0px))!important;
+    right:auto!important;bottom:calc(var(--pad-bottom) + env(safe-area-inset-bottom,0px))!important;
+    width:var(--pad-stick)!important;height:var(--pad-stick)!important;z-index:7;
+    opacity:.24;border:1px solid #e5e7e940!important;
+    background:radial-gradient(circle,transparent 47%,#dde0e322 48%,#dde0e322 49%,transparent 50%)!important;
     box-shadow:inset 0 1px 5px #0003!important;
   }
-  .viewport .touch-joystick.active{opacity:.94;border-color:#e8dfc05c!important}
+  .viewport .touch-joystick.active{opacity:.94;border-color:#f1f2f3a0!important}
   .viewport .touch-stick{
-    border:1px solid #e8dfc080;
-    background:radial-gradient(circle at 38% 28%,#68715b,#303c31 78%);
-    box-shadow:inset 0 1px 2px #f5e8cb30,inset 0 -3px 5px #0005,0 3px 6px #0005;
+    border:1px solid #e5e7e988;background:radial-gradient(circle at 38% 28%,#a0a4a8b3,#555a60b3 78%);
+    box-shadow:inset 0 1px 2px #fff3,inset 0 -2px 4px #0003,0 2px 5px #0004;
   }
-
-  /* Fixed 3x3 face-button pad. The main four buttons form a PS-style diamond.
-     Contextual buttons have reserved corner slots, so nothing shifts at runtime. */
   .viewport .touch-actions{
-    left:calc(12px + env(safe-area-inset-left,0px))!important;
-    right:auto!important;
-    bottom:calc(12px + env(safe-area-inset-bottom,0px))!important;
-    display:grid!important;
-    grid-template-columns:repeat(3,58px)!important;
-    grid-template-rows:repeat(3,58px)!important;
-    grid-auto-flow:row!important;
-    align-items:center!important;
-    justify-items:center!important;
-    width:186px!important;
-    height:186px!important;
-    max-width:186px!important;
-    gap:6px!important;
+    position:absolute;left:auto!important;
+    right:calc(var(--pad-edge) + env(safe-area-inset-right,0px))!important;
+    bottom:calc(var(--pad-bottom) + env(safe-area-inset-bottom,0px))!important;
+    display:grid!important;grid-template-columns:repeat(3,var(--pad-cell))!important;
+    grid-template-rows:repeat(3,var(--pad-cell))!important;grid-auto-flow:row!important;
+    align-items:center!important;justify-items:center!important;gap:var(--pad-gap)!important;
+    width:calc(3 * var(--pad-cell) + 2 * var(--pad-gap))!important;
+    height:calc(3 * var(--pad-cell) + 2 * var(--pad-gap))!important;
+    max-width:none!important;z-index:8;
   }
   .viewport .touch-actions :is(#touchFire,#touchGrenade,#touchGarrison,#touchAction,#touchAid,#touchDrop,#touchShove,#touchDebris):not([hidden]){
-    flex:none!important;
-    width:54px!important;
-    height:54px!important;
-    min-width:54px!important;
-    min-height:54px!important;
-    margin:0!important;
-    border-radius:50%!important;
-    opacity:.56;
-    color:#f1e6cb!important;
-    background:radial-gradient(circle at 38% 25%,#485344e6,#242e28ed 78%)!important;
-    border:1px solid #ded6bd66!important;
-    box-shadow:inset 0 1px 2px #f5e8cb26,inset 0 -3px 5px #0005,0 2px 5px #0005!important;
-    font-size:9px!important;
-    transition:opacity .15s,transform .08s;
+    flex:none!important;width:var(--pad-face)!important;height:var(--pad-face)!important;
+    min-width:var(--pad-face)!important;min-height:var(--pad-face)!important;
+    margin:0!important;padding:3px!important;border-radius:50%!important;
+    opacity:.5;color:#f5f6f7!important;
+    background:radial-gradient(circle at 38% 25%,#9a9fa599,#484e5699 78%)!important;
+    border:1px solid #e0e3e67a!important;
+    box-shadow:inset 0 1px 2px #fff3,inset 0 -2px 4px #0003,0 2px 5px #0004!important;
+    font-size:9px!important;line-height:1.15;letter-spacing:.02em;
+    text-shadow:0 1px 2px #000b;transition:opacity .15s,transform .08s;
   }
   .viewport .touch-actions #touchGarrison{grid-column:2;grid-row:1}
-  .viewport .touch-actions #touchGrenade{grid-column:3;grid-row:2}
-  .viewport .touch-actions #touchFire{grid-column:2;grid-row:3}
+  .viewport .touch-actions :is(#touchGrenade,#touchDebris){grid-column:3;grid-row:2}
+  .viewport .touch-actions :is(#touchFire,#touchShove){grid-column:2;grid-row:3}
   .viewport .touch-actions #touchAction{grid-column:1;grid-row:2}
   .viewport .touch-actions #touchAid{grid-column:1;grid-row:1}
-  .viewport .touch-actions #touchShove{grid-column:3;grid-row:1}
   .viewport .touch-actions #touchDrop{grid-column:1;grid-row:3}
-  .viewport .touch-actions #touchDebris{grid-column:3;grid-row:3}
-
-  .viewport .touch-actions #touchFire:not([hidden]){
-    width:72px!important;
-    height:72px!important;
-    min-width:72px!important;
-    min-height:72px!important;
-    font-size:12px!important;
-    opacity:.74;
-    border-color:#e8dfc09c!important;
-    background:radial-gradient(circle at 38% 25%,#657057ed,#303c31f2 78%)!important;
-    letter-spacing:.07em;
+  .viewport #touchRegroup{display:none!important}
+  .viewport .touch-actions :is(#touchFire,#touchShove):not([hidden]){
+    width:var(--pad-fire)!important;height:var(--pad-fire)!important;
+    min-width:var(--pad-fire)!important;min-height:var(--pad-fire)!important;
+    opacity:.68;font-size:12px!important;font-weight:800;letter-spacing:.06em;
+    border-color:#f1f2f3a6!important;
   }
-  .viewport .touch-actions :is(#touchFire,#touchGrenade,#touchGarrison,#touchAction,#touchAid,#touchDrop,#touchShove,#touchDebris):is(.active,:active){
-    opacity:1!important;
-    background:radial-gradient(circle at 38% 25%,#7b8067,#3d493b 78%)!important;
-    border-color:#f1e6cb!important;
+  .viewport #companionOrders{
+    left:calc(var(--pad-edge) + env(safe-area-inset-left,0px))!important;right:auto!important;
+    bottom:calc(var(--pad-bottom) + var(--pad-stick) + 14px + env(safe-area-inset-bottom,0px))!important;
+    transform:none!important;display:grid!important;grid-template-columns:repeat(3,46px)!important;
+    width:154px!important;gap:8px!important;z-index:8;
   }
-
-  #companionOrders{
-    left:calc(215px + env(safe-area-inset-left,0px))!important;
-    right:auto!important;
-    transform:none!important;
-    bottom:calc(18px + env(safe-area-inset-bottom,0px))!important;
-    width:178px!important;
-    display:flex!important;
-    gap:5px!important;
+  .viewport #companionOrders button{
+    width:46px!important;min-width:46px!important;height:46px!important;min-height:46px!important;
+    padding:2px!important;border-radius:50%!important;font-size:8px!important;
+    opacity:.48;color:#f5f6f7!important;background:linear-gradient(#8e939899,#444a5099)!important;
+    border:1px solid #e0e3e66b!important;outline:none;
+    box-shadow:inset 0 1px 2px #fff3,0 2px 4px #0003!important;
+    text-shadow:0 1px 2px #000b;transition:opacity .15s,transform .08s;
   }
-  #companionOrders button{
-    flex:0 0 56px!important;
-    width:56px!important;
-    min-width:56px!important;
-    height:56px!important;
-    min-height:56px!important;
-    border-radius:50%!important;
-    padding:3px!important;
-    font-size:8px!important;
-    opacity:.52;
-    color:#f1e6cb!important;
-    background:linear-gradient(#3b4438e6,#222c26ed)!important;
-    border:1px solid #ded6bd55!important;
-    box-shadow:inset 0 1px 2px #f5e8cb20,inset 0 -2px 4px #0004,0 2px 4px #0004!important;
-    transition:opacity .15s,transform .08s;
+  .viewport .touch-actions :is(#touchFire,#touchGrenade,#touchGarrison,#touchAction,#touchAid,#touchDrop,#touchShove,#touchDebris):is(.active,:active),
+  .viewport #companionOrders button:is(.active,:active,[aria-pressed="true"]){
+    opacity:1!important;background:radial-gradient(circle at 38% 25%,#bec2c6c9,#666d75c9 78%)!important;
+    border-color:#fff!important;
   }
-  #companionOrders button:active,
-  #companionOrders button.active,
-  #companionOrders button[aria-pressed="true"]{
-    opacity:1!important;
-    background:linear-gradient(#626b53,#364332)!important;
-    border-color:#f1e6cb!important;
-    outline:1px solid #f1e6cb!important;
-    outline-offset:2px;
+  .viewport #companionOrders button:is(.active,[aria-pressed="true"]){outline:1px solid #fff;outline-offset:2px}
+  .viewport .touch-actions button:is(.active,:active),.viewport #companionOrders button:active{transform:scale(.98)}
+  .viewport .touch-actions button:focus-visible,.viewport #companionOrders button:focus-visible{
+    outline:2px solid #fff;outline-offset:3px;opacity:1!important;
   }
-
-  .viewport .touch-actions button:active,
-  .viewport .touch-actions button.active,
-  #companionOrders button:active{transform:scale(.98)}
-  .viewport .touch-actions button:focus-visible,
-  #companionOrders button:focus-visible{outline:2px solid #f1e6cb;outline-offset:3px;opacity:1}
-
-  /* Clear the left command cluster while retaining a central selection strip. */
   .viewport .hud-roster{
-    left:calc(50% + 90px)!important;
-    transform:translateX(-50%)!important;
-    bottom:calc(10px + env(safe-area-inset-bottom,0px))!important;
-    width:min(430px,calc(100% - 620px))!important;
-    max-width:40vw!important;
+    left:calc(50% + (env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))/2)!important;
+    bottom:calc(10px + env(safe-area-inset-bottom,0px))!important;transform:translateX(-50%)!important;
+    width:min(430px,calc(100% - 440px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px)))!important;
+    max-width:48vw!important;z-index:7;
   }
+  .viewport .hud-unit{min-width:0!important}.viewport .hud-portrait{display:none!important}
+  .viewport #hudAll{flex-basis:38px!important}
+  .viewport .hud-notice{
+    left:calc(8px + env(safe-area-inset-left,0px))!important;top:calc(78px + env(safe-area-inset-top,0px))!important;
+    transform:none!important;max-width:min(430px,48vw)!important;
+  }
+  .viewport .hud-notice.show{transform:none!important}
 }
-
+@media (pointer:coarse) and (orientation:landscape) and (max-height:340px){
+  .viewport{--pad-cell:52px;--pad-face:48px;--pad-fire:66px;--pad-stick:90px;--pad-bottom:12px}
+}
 @media (pointer:coarse) and (orientation:landscape) and (prefers-reduced-motion:reduce){
-  .viewport .touch-actions button:active,.viewport .touch-actions button.active,#companionOrders button:active{transform:none}
+  .viewport .touch-actions button:is(.active,:active),.viewport #companionOrders button:active{transform:none}
 }

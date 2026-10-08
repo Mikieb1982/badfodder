@@ -14,9 +14,26 @@ test('mobile HUD',async({browser})=>{const context=await browser.newContext({vie
   const controls=[...document.querySelectorAll('.touch-actions button,#companionOrders button,.touch-joystick,.hud-roster')].filter(el=>el.getBoundingClientRect().width&&getComputedStyle(el).display!=='none'&&!el.hidden);
   return {fire:rect(fire),stick:rect(stick),idleFire:+getComputedStyle(fire).opacity,idleStick:+getComputedStyle(stick).opacity,boxes:controls.map(el=>({id:el.id,...rect(el)}))};
  });
- expect(layout.fire.width).toBe(72);expect(layout.fire.x).toBeLessThan(915/2);expect(layout.stick.x).toBeGreaterThan(915/2);
+ expect(layout.fire.width).toBe(72);expect(layout.fire.x).toBeGreaterThan(915/2);expect(layout.stick.x).toBeLessThan(915/2);
  expect(layout.idleFire).toBeLessThan(.8);expect(layout.idleStick).toBeLessThan(.3);
  for(let i=0;i<layout.boxes.length;i++)for(let j=i+1;j<layout.boxes.length;j++){const a=layout.boxes[i],b=layout.boxes[j];expect(a.x<b.right&&a.right>b.x&&a.y<b.bottom&&a.bottom>b.y,JSON.stringify({a,b})).toBe(false);}
+ // Context availability changes must not move fixed controls or the selector.
+ const slots=await page.evaluate(()=>{
+  const ids=['touchFire','touchGrenade','touchGarrison','touchAction','touchAid','touchDrop','touchShove','touchDebris'];
+  const nodes=ids.map(id=>document.getElementById(id)).filter(Boolean),hidden=nodes.map(el=>el.hidden);
+  const anchors=()=>[...document.querySelectorAll('#touchJoystick,#companionOrders,.hud-roster')].map(el=>{const r=el.getBoundingClientRect();return [r.x,r.y,r.width,r.height]});
+  const before=anchors();nodes.forEach(el=>el.hidden=false);
+  const rect=id=>{const r=document.getElementById(id).getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}};
+  const positions=Object.fromEntries(nodes.map(el=>[el.id,rect(el.id)]));
+  const fixed=nodes.every(el=>{el.hidden=true;const stable=nodes.filter(n=>!n.hidden).every(n=>JSON.stringify(rect(n.id))===JSON.stringify(positions[n.id]));el.hidden=false;return stable});
+  nodes.forEach((el,i)=>el.hidden=hidden[i]);return {fixed,anchorsStable:JSON.stringify(before)===JSON.stringify(anchors()),positions};
+ });
+ expect(slots.fixed).toBe(true);expect(slots.anchorsStable).toBe(true);
+ const p=slots.positions;
+ expect(p.touchGarrison.y).toBeLessThan(p.touchGrenade.y);expect(p.touchFire.y).toBeGreaterThan(p.touchGrenade.y);
+ expect(p.touchAction.x).toBeLessThan(p.touchFire.x);expect(p.touchGrenade.x).toBeGreaterThan(p.touchFire.x);
+ expect(p.touchShove.x+p.touchShove.w/2).toBe(p.touchFire.x+p.touchFire.w/2);
+ expect(p.touchDebris).toEqual(p.touchGrenade);
  await expect(page.locator('.hud-unit')).toHaveCount(4);
  await page.locator('#companionHOLD').tap();
  await page.locator('#companionHOLD').evaluate(el=>el.setAttribute('aria-pressed','true'));
