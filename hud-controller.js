@@ -117,7 +117,7 @@
     const historicalMode=env.missionLaunch.isHistorical();
     env.hudAll.querySelector('span').textContent=env.commands&&env.commands.mode!=='local'?(living.filter(s=>env.commands.owns(env.squad.indexOf(s))).length?'MY PAIR':'SPECTATING'):living.length+(historicalMode?' VOLUNTEERS':' LOCALS');
     env.hudSquadLabel.textContent=historicalMode?'VOLUNTEERS':'SQUAD';
-    env.hudStage.textContent=env.finished?(env.win?'MISSION COMPLETE':'MISSION FAILED'):'OBJECTIVE '+Math.min(phaseCount,(objectiveIndex<0?env.missionStage:objectiveIndex)+1)+'/'+phaseCount;
+    env.hudStage.textContent=env.finished?(env.win?(env.badBelzigRuntime?.finish?'HOME: WHAT REMAINS':'MISSION COMPLETE'):'MISSION FAILED'):'OBJECTIVE '+Math.min(phaseCount,(objectiveIndex<0?env.missionStage:objectiveIndex)+1)+'/'+phaseCount;
     rebuildHudProgress(phaseCount);
     env.hudProgress.querySelectorAll('i').forEach((p,i)=>{p.className=env.win||objectiveRows[i]?.status==='COMPLETED'?'done':objectiveRows[i]?.status==='ACTIVE'?'current':'';});
 
@@ -172,6 +172,7 @@
     if(env.barcelonaRuntime){const instruction=document.getElementById('hudInstruction');instruction.hidden=false;const ammo=env.barcelonaRuntime.ammoStatus(env.selectedUnits());instruction.textContent=env.barcelonaRuntime.guidance().text+(['LOW','CRITICAL','EMPTY'].includes(ammo.level)?' '+ammo.level+' AMMO: '+ammo.total+'.':'');}
     if(!env.barcelonaRuntime)document.getElementById('hudInstruction').hidden=!civCounts?.total;
     if(civCounts?.total&&!env.barcelonaRuntime)document.getElementById('hudInstruction').textContent='CIVILIANS '+civCounts.evacuated+'/'+civCounts.total+' SAFE · '+civCounts.lost+' LOST · E / ACTION: gather or hide';
+    const belzigInstruction=env.badBelzigRuntime?.instruction?.();if(belzigInstruction){document.getElementById('hudInstruction').hidden=false;document.getElementById('hudInstruction').textContent=belzigInstruction;}
     env.hudEnemyLabel.textContent='TARGETS';
     env.hudGrenadeLabel.textContent='GRENADES';
 

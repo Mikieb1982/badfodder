@@ -20,7 +20,7 @@ const map=new Function(
 )();
 
 assert.equal(map.key,'bad-belzig');
-assert.equal(map.spawns.enemies.length,20);
+assert.equal(map.spawns.enemies.length,24);
 assert.equal(map.spawns.squad.length,4);
 assert(map.spawns.pickups.every(p=>p.type==='grenade'||p.type==='med'),'Bad Belzig has misleading supply types');
 assert(map.spawns.pickups.filter(p=>p.type==='grenade').every(p=>p.amount>0));

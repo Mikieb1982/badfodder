@@ -287,7 +287,8 @@
 
     function routeClear(x1,y1,x2,y2,r=NAV_RADIUS){
       const d=Math.hypot(x2-x1,y2-y1);
-      const steps=Math.max(1,Math.ceil(d/4));
+      // Bad Belzig's thin scenery edges must not produce routes collision cannot follow.
+      const steps=Math.max(1,Math.ceil(d/(mapKey==='bad-belzig'?1:4)));
       for(let i=1;i<=steps;i++){
         const t=i/steps;
         if(obstacleAt(x1+(x2-x1)*t,y1+(y2-y1)*t,r))return false;

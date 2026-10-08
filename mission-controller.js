@@ -68,6 +68,7 @@
     env.releaseInterruptedInput();env.lifecycle.transition('RESULT');env.mapOpen=false;
     env.menu.showResult(env.missionIdentity,env.win,env.win&&hasPlayableNextMission());
     if(env.barcelonaRuntime){const result=env.barcelonaRuntime.summary();document.getElementById('resultFlavour').textContent=result.characters.filter(s=>s.alive).length+' neighbours survived · '+result.characters.filter(s=>!s.alive).length+' casualties · '+result.characters.filter(s=>s.alive&&s.health!=='FIT').length+' hurt · '+result.alliesLost+' friendly losses · '+result.civiliansRescued+'/'+result.civiliansFound+' civilians rescued · '+result.civiliansLost+' lost · '+(result.breached?'barricade breached':'barricade standing');}
+    if(env.win&&env.badBelzigRuntime?.summary){document.getElementById('resultTitle').textContent='HOME: WHAT WE COULD PROTECT';document.getElementById('resultFlavour').textContent=env.badBelzigRuntime.summary();}
     env.syncTouchControlState();
   }
 
@@ -141,7 +142,7 @@
     const completion=env.missionLaunch.isHistorical()&&mission.successHeadline
       ?mission.successHeadline
       :mission.title+' complete.';
-    env.setStatus('Mission complete. '+completion);
+    if(env.badBelzigRuntime?.finish)env.setStatus(env.badBelzigRuntime.finish());else env.setStatus('Mission complete. '+completion);
     if(env.missionLaunch.isHistorical())env.hudMission.textContent=completion;
     showMissionResult();
   }

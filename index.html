@@ -579,6 +579,7 @@
 <script src="building-runtime.js"></script>
 <script src="civilian-runtime.js"></script>
 <script src="bad-belzig-opening.js"></script>
+<script src="bad-belzig-story.js"></script>
 <script src="character-health.js"></script>
 <script src="mission-route-validation.js?v=20261002-cable-nav-3"></script>
 <script src="historical-missions.js?v=20261003-tactical-1"></script>
@@ -601,6 +602,7 @@
     get activeMissionIndex(){return activeMissionIndex;},
     get art(){return art;},
     get barcelonaRuntime(){return barcelonaRuntime;},
+    get badBelzigRuntime(){return badBelzigRuntime;},
     get campaign(){return campaign;},
     get civilianRuntime(){return civilianRuntime;},
     get commands(){return commands;},
@@ -669,6 +671,7 @@
     get activeMissionIndex(){return activeMissionIndex;},
     get bakeScenery(){return bakeScenery;},
     get barcelonaRuntime(){return barcelonaRuntime;},
+    get badBelzigRuntime(){return badBelzigRuntime;},
     get camera(){return camera;},
     get campaign(){return campaign;},
     get commands(){return commands;},
@@ -726,6 +729,7 @@
     get applyTouchMovement(){return applyTouchMovement;},
     get art(){return art;},
     get barcelonaRuntime(){return barcelonaRuntime;},
+    get badBelzigRuntime(){return badBelzigRuntime;},
     get bothLatched(){return bothLatched;},
     get checkFailure(){return checkFailure;},
     get civilians(){return civilians;},
@@ -938,7 +942,7 @@
   let adaptiveDirector=null,enemyCommander=null,adaptiveMemory=null;
   // Optional Director faults are contained here, outside normal runtime recovery.
   function runAdaptive(fn,fallback=null){
-    if(!adaptiveDirector||adaptiveDirector.state.disabled||badBelzigRuntime&&!badBelzigRuntime.combatReady)return fallback;
+    if(!adaptiveDirector||adaptiveDirector.state.disabled||badBelzigRuntime&&(!badBelzigRuntime.combatReady||badBelzigRuntime.quiet))return fallback;
     try{return adaptiveDirector.guard(fn,fallback)}catch{
       try{adaptiveDirector.disable()}catch{}
       return fallback;
@@ -1158,6 +1162,7 @@
 
   function contextAction(helper){
     if(!helper)return null;
+    const storyHint=badBelzigRuntime?.storyHint?.(helper);if(storyHint)return{type:'belzig-story',label:storyHint};
     const burgHint=badBelzigRuntime?.burgHint(helper);if(burgHint)return{type:'burg-command',label:burgHint};
     const barcelonaHint=barcelonaRuntime?.hint(helper);if(barcelonaHint)return{type:'barcelona',label:barcelonaHint};
     const site=buildingRuntime?.nearest(helper),resident=civilianRuntime?.nearest(helper);
@@ -1192,8 +1197,9 @@
     if(coopCommand('interact'))return true;
     const chosen=selectedUnits();
     coordinationSupport?.directOrder(chosen);
-    const helper=badBelzigRuntime?(chosen.find(u=>badBelzigRuntime.burgHint(u))||chosen[0]):barcelonaRuntime?(chosen.find(u=>['TAKE RIFLES','RESUPPLY','REINFORCE','TAKE MATERIAL'].includes(barcelonaRuntime.hint(u)))||chosen[0]):chosen[0];
+    const helper=badBelzigRuntime?(chosen.find(u=>badBelzigRuntime.storyHint?.(u)||badBelzigRuntime.burgHint(u))||chosen[0]):barcelonaRuntime?(chosen.find(u=>['TAKE RIFLES','RESUPPLY','REINFORCE','TAKE MATERIAL'].includes(barcelonaRuntime.hint(u)))||chosen[0]):chosen[0];
     const action=contextAction(helper);
+    if(action?.type==='belzig-story'){const acted=badBelzigRuntime.interactStory(helper);if(acted)coordinationSupport?.beginSupport({actor:helper,action:action.label,duration:.35});updateHud(true);return acted;}
     if(action?.type==='burg-command'){const acted=badBelzigRuntime.interactBurg(helper);if(acted)coordinationSupport?.beginSupport({actor:helper,action:action.label,target:badBelzigRuntime.commandPoint,duration:.35});updateHud(true);return acted;}
     if(action?.type==='barcelona'){const acted=barcelonaRuntime.interact(helper);if(acted)coordinationSupport?.beginSupport({actor:helper,action:action.label,duration:.35});updateHud(true);return acted;}
     if(action?.type==='building'){
@@ -1622,6 +1628,7 @@
     }
     badBelzigRuntime=MAP_DATA.key==='bad-belzig'?window.BadFodderBelzigOpening.create({map:MAP_DATA,objectives:missionObjectivesRuntime,
       civilians:{getResidents:()=>civilians,zones:civilianRuntime.zones,interact:actor=>civilianRuntime.interact(actor)},getSquad:()=>squad,getEnemies:()=>enemies,scale:SCALE,status:setStatus,stop:c=>navigation.cancelPath(c)}):null;
+    if(badBelzigRuntime)badBelzigRuntime=window.BadFodderBelzigStory.create({opening:badBelzigRuntime,map:MAP_DATA,objectives:missionObjectivesRuntime,civilians:{getResidents:()=>civilians,zones:civilianRuntime.zones},getSquad:()=>squad,getEnemies:()=>enemies,getSelected:selectedUnits,navigation,health:window.BadFodderHealth,groupMovement,scale:SCALE,status:setStatus,supply:p=>pickups.push(p),persist:value=>BadFodderStorage.local.setItem('badfodder.bad-belzig.outcome.v1',JSON.stringify(value))});
     initializeAdaptiveDirector();
     missionObjectivesRuntime.manager.onChange(event=>{if(['complete','activate','discover','add'].includes(event.action))runAdaptive(()=>adaptiveDirector.notify('meaningful'))});
     finished=false;win=false;paused=false;mapOpen=false;selection='all';zoom=preferredZoom;
@@ -1737,7 +1744,7 @@
 
   function nearestLivingSquad(e){
     let unit=null,d=Infinity;
-    [...squad,...(resistanceRuntime?.units||[])].forEach(s=>{
+    [...squad,...(resistanceRuntime?.units||[]),...(e.belzigThreatTarget?[e.belzigThreatTarget]:[])].forEach(s=>{
       if(!s.alive||s.downed)return;
       const q=Math.hypot(e.x-s.x,e.y-s.y);
       if(q<d){d=q;unit=s}
@@ -3086,6 +3093,7 @@
     const phase=currentObjectivePhase(),leader=squad.find(s=>s.alive);
     if(!phase||!leader)return null;
 
+    const belzigGuidance=badBelzigRuntime?.guidance?.();if(belzigGuidance)return{...belzigGuidance,phase,contact:false};
     if(barcelonaRuntime){const g=barcelonaRuntime.guidance();return g.target?{target:g.target,phase,contact:false,caption:g.label}:null;}
     const defenders=phaseDefenders(phase);
     if(defenders&&defenders.length){
@@ -3238,7 +3246,7 @@
     });
 
     // Depth order avoids a whole team painting over everyone in front of it.
-    const actors=[...civilians.filter(ent=>ent.civilianState!=='EVACUATED').map(ent=>({ent,team:'civilian'})),...enemies.filter(ent=>!ent.missionDormant).map(ent=>({ent,team:'enemy'})),...(resistanceRuntime?.units||[]).map(ent=>({ent,team:'resistance'})),...squad.map(ent=>({ent,team:'squad'}))];
+    const actors=[...civilians.filter(ent=>ent.civilianState!=='EVACUATED'||ent.storyVisible).map(ent=>({ent,team:'civilian'})),...enemies.filter(ent=>!ent.missionDormant).map(ent=>({ent,team:'enemy'})),...(resistanceRuntime?.units||[]).map(ent=>({ent,team:'resistance'})),...squad.map(ent=>({ent,team:'squad'}))];
     actors.sort((a,b)=>a.ent.y-b.ent.y);
     actors.forEach(({ent,team})=>{
       if(ent.x<camera.x-60||ent.y<camera.y-60||ent.x>camera.x+VIEW_W/zoom+60||ent.y>camera.y+VIEW_H/zoom+60)return;
@@ -3257,9 +3265,9 @@
         ctx.save();ctx.font='bold 11px system-ui';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='#18252e';ctx.fillStyle='#d6edff';
         ctx.strokeText(label,ent.x,ent.y-40);ctx.fillText(label,ent.x,ent.y-40);ctx.restore();
       }
-      if(team==='civilian'&&['FOLLOWING','WOUNDED','DOWN','HIDING'].includes(ent.civilianState)&&(!barcelonaRuntime||['WOUNDED','DOWN'].includes(ent.civilianState))){
+      if(team==='civilian'&&(ent.name||['FOLLOWING','WOUNDED','DOWN','HIDING'].includes(ent.civilianState))&&(!barcelonaRuntime||['WOUNDED','DOWN'].includes(ent.civilianState))){
         ctx.save();ctx.font='bold 9px system-ui';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='#18252e';ctx.fillStyle='#d6edff';
-        const label=ent.civilianState==='DOWN'?'HELP +':ent.civilianState==='FOLLOWING'?'FOLLOWING':ent.civilianState;
+        const label=ent.name|| (ent.civilianState==='DOWN'?'HELP +':ent.civilianState==='FOLLOWING'?'FOLLOWING':ent.civilianState);
         ctx.strokeText(label,ent.x,ent.y-38);ctx.fillText(label,ent.x,ent.y-38);ctx.restore();
       }
       if(team==='enemy'&&ent.alert&&ent.alive){

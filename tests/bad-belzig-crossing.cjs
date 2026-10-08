@@ -15,7 +15,7 @@ assert(f.squad[2].checkpointFortified,'Existing prepared cover remains available
 assert(f.group.every(c=>c.civilianState==='FOLLOWING'||c.civilianState==='WOUNDED'));
 for(const c of f.group){const guide=f.runtime.civilianGuide(c,f.squad[2]);assert(guide);assert(!f.nav.obstacleAt(guide.x,guide.y,6));assert(f.nav.findPath(c.x,c.y,guide.x,guide.y).length)}
 const touched=new Set();let extraSeen=false;
-for(let i=1;i<=900&&f.objectives.facts.get('post_route_status')==='PENDING';i++){
+for(let i=1;i<=1800&&f.objectives.facts.get('post_route_status')==='PENDING';i++){
  const t=i/30;
  // Defeat the finite counterattack through the same checkpoint controller.
  if(t>3)f.enemies.filter(e=>e.checkpointWave&&!e.checkpointExtra).forEach(e=>e.alive=false);
@@ -27,7 +27,7 @@ assert(extraSeen,'Existing bounded follow-up wave remains playable');assert.equa
 assert.equal(f.objectives.facts.get('post_route_status'),'HELD');assert(touched.size>=2,'Civilians really traverse the Post corridor');
 assert(f.group.filter(c=>c.civilianState==='EVACUATED').length>=2,'No individual civilian orders are required');assert.equal(f.objectives.manager.current().id,'phase-1');assert(!f.objectives.manager.missionState().failed);
 f.enemies.push({x:zone.x,y:zone.y,alive:true,objectiveGroup:'post'});step(f,20);assert.equal(f.objectives.facts.get('post_route_status'),'HELD','Resolved outcome cannot flip');
-const held=restore(f);step(held,1);assert.equal(held.objectives.facts.get('post_route_status'),'HELD');assert.equal(held.messages.length,0);assert.equal(held.residents.length,16);
+const held=restore(f);step(held,1);assert.equal(held.objectives.facts.get('post_route_status'),'HELD');assert.equal(held.messages.length,0);assert.equal(held.residents.length,20);
 // Brief recapture has a warned recovery window, and clearing it resets the clock.
 const lost=begin(),hostile={x:zone.x,y:zone.y,alive:true,checkpointWave:true,objectiveGroup:'post'};lost.enemies.push(hostile);step(lost,2);
 assert.equal(lost.objectives.facts.get('post_route_status'),'PENDING');assert(lost.messages.some(t=>t.includes('Recover the Post')));assert(lost.objectives.manager.current().text.includes('6s'));
@@ -36,11 +36,11 @@ hostile.alive=false;step(lost,.1);assert.equal(lost.objectives.facts.get('post_c
 for(let i=0;i<9;i++)step(lost,1);
 assert.equal(lost.objectives.facts.get('post_route_status'),'LOST');assert.equal(lost.objectives.manager.current().id,'phase-1');assert(!lost.objectives.manager.missionState().failed);assert(lost.group.every(c=>c.leaderIndex===null));
 assert(lost.messages.some(t=>t.includes('direct route is lost')));
-const savedLoss=restore(lost);step(savedLoss,1);assert.equal(savedLoss.objectives.facts.get('post_route_status'),'LOST');assert.equal(savedLoss.messages.length,0);assert.equal(savedLoss.residents.length,16);
+const savedLoss=restore(lost);step(savedLoss,1);assert.equal(savedLoss.objectives.facts.get('post_route_status'),'LOST');assert.equal(savedLoss.messages.length,0);assert.equal(savedLoss.residents.length,20);
 // Wounded/delayed residents do not need simultaneous arrival or get credited at the southern rally.
 const delayed=begin();delayed.group[0].hp=1;Object.assign(delayed.group[0],{x:delayed.squad[0].x,y:delayed.squad[0].y});delayed.civilians.update(.1);assert.notEqual(delayed.group[0].civilianState,'EVACUATED');
 for(const c of delayed.group.slice(1,3))c.civilianState='EVACUATED';step(delayed,3);assert.equal(delayed.objectives.facts.get('post_route_status'),'HELD');
 const abandoned=begin();abandoned.enemies.push({x:zone.x+400,y:zone.y,alive:true,checkpointWave:true,objectiveGroup:'post'});for(const s of abandoned.squad)s.y=3000;step(abandoned,1);assert.equal(abandoned.objectives.facts.get('post_crossing').unsafe,1);assert.equal(abandoned.objectives.facts.get('post_route_status'),'PENDING','Abandonment while pressure remains also gets a recovery window');
-const retry=fresh();assert.equal(retry.objectives.facts.get('post_route_status'),'PENDING');assert.deepEqual(retry.objectives.facts.get('post_crossing'),{started:false,hold:0,unsafe:0});assert.equal(retry.residents.length,16);
+const retry=fresh();assert.equal(retry.objectives.facts.get('post_route_status'),'PENDING');assert.deepEqual(retry.objectives.facts.get('post_crossing'),{started:false,hold:0,unsafe:0});assert.equal(retry.residents.length,20);
 for(const m of missions.filter(m=>m.id!=='bad-belzig'))assert.equal(Objectives.create(m).facts.get('post_route_status'),undefined);
 console.log('PASS: real Post crossing/navigation, finite checkpoint counterattack, HELD/LOST, recovery warnings, progression, civilian guides, snapshots/restart and mission isolation.');

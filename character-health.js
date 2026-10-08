@@ -42,6 +42,13 @@
   if(helper)runtimeSupportAction?.({phase:'begin',actor:helper,action:'stabilise',target:unit,duration:.8});
   return true;
  }
+ // Explicit refuge/aid-station recovery; never called from the simulation tick.
+ function recover(unit,amount=2){
+  if(!unit?.alive||!Number.isFinite(unit.maxHp)||unit.maxHp<=0||!Number.isFinite(amount)||amount<=0||unit.downed&&!unit.stabilised||!unit.downed&&unit.hp>=unit.maxHp)return false;
+  if(unit.carriedBy)dropCarry(unit.carriedBy);
+  if(unit.downed){unit.downed=false;unit.stabilised=false;unit.downUntil=null;unit.healthState=null;unit.state='idle'}
+  unit.hp=Math.min(unit.maxHp,Math.max(0,unit.hp||0)+amount);sync(unit);return true;
+ }
  function beginCarry(unit,helper){
   if(!unit?.downed||unit.alive===false||!helper?.alive||helper.downed||helper.carryingUnit)return false;
   if(Math.hypot((unit.x||0)-(helper.x||0),(unit.y||0)-(helper.y||0))>AID_RANGE)return false;
@@ -166,5 +173,5 @@
  function install(){patchDamage();patchMovement();aidButton();root.addEventListener?.('keydown',keyboard,true);setInterval(()=>{if(simulationClock===null)tick()},120)}
  chainProperty('BadFodderAdaptive',patchAdaptive);
  if(root.document){if(root.document.readyState==='loading')root.document.addEventListener('DOMContentLoaded',install,{once:true});else install()}
- return{STATES,DOWN_SECONDS,CARRY_SPEED,AID_RANGE,stateFor,sync,down,stabilise,beginCarry,dropCarry,contextualAction,contextualLabel,finalise,tick,patchDamage,patchMovement,patchAdaptive,bindRuntime,handleDamage,fixedUpdate,movementScale,snapshot,receive,remaining};
+ return{STATES,DOWN_SECONDS,CARRY_SPEED,AID_RANGE,stateFor,sync,down,stabilise,recover,beginCarry,dropCarry,contextualAction,contextualLabel,finalise,tick,patchDamage,patchMovement,patchAdaptive,bindRuntime,handleDamage,fixedUpdate,movementScale,snapshot,receive,remaining};
 });
