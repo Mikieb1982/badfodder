@@ -1,5 +1,6 @@
 @import url('menu-ui-base.css?v=20261003-landscape-only-1');
 @import url('portrait-lock.css?v=20261003-landscape-only-1');
+@import url('hud-zones.css?v=20261008-hud-zones-1');
 .presentation-prompt{}
 
 /* The shared briefing is an illustrated field dossier, separate from live play. */
