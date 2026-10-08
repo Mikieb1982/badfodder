@@ -1,10 +1,11 @@
 /* Runtime adapter for shared objective rules. Existing mission controllers remain authoritative. */
 (function(root,factory){
   const rules=typeof module==='object'&&module.exports?require('./mission-rules.js'):root.BadFodderMissionRules;
-  const api=factory(rules);
+  const facts=typeof module==='object'&&module.exports?require('./mission-facts.js'):root.BadFodderMissionFacts;
+  const api=factory(rules,facts);
   if(typeof module==='object'&&module.exports)module.exports=api;
   if(root)root.BadFodderObjectives=api;
-})(typeof window!=='undefined'?window:globalThis,function(rules){
+})(typeof window!=='undefined'?window:globalThis,function(rules,factStores){
   'use strict';
   function definitions(mission){
     if(mission.objectives)return mission.objectives;
@@ -18,11 +19,12 @@
     }));
   }
   function create(mission){
+    const facts=factStores.create(mission.factDefaults||{});
     const manager=rules.createObjectiveManager(definitions(mission));
     const holds=new Map();
     const signals=Object.create(null);
     manager.onChange(event=>{
-      if(event.action==='reset'){holds.clear();for(const id of Object.keys(signals))delete signals[id]}
+      if(event.action==='reset'){facts.reset();holds.clear();for(const id of Object.keys(signals))delete signals[id]}
       if(event.objective&&(event.objective.status!=='ACTIVE'||['remove','replace'].includes(event.action))){holds.delete(event.objective.id);delete signals[event.objective.id]}
     });
     function phase(){return manager.current()?.phase??null}
@@ -34,7 +36,7 @@
       return objective.zone?zones[objective.zone]||null:null;
     }
     function evaluate(objective,context){
-      const fact=(context.facts||{})[objective.id]??signals[objective.id];
+      const fact=(context.facts||{})[objective.id]??facts.get(objective.id)??signals[objective.id];
       if(fact?.failed)return{failed:true,status:fact.text||objective.text};
       if(objective.meta?.legacy&&['reach','secure-zone','eliminate-and-reach','eliminate','destroy','rescue','protect'].includes(objective.legacyType))return rules.evaluatePhase({...context,phase:{...objective,type:objective.legacyType}});
       if(objective.eventDriven)return{ready:fact===true||fact?.complete===true,complete:fact===true||fact?.complete===true,status:fact?.text||objective.text};
@@ -86,7 +88,7 @@
       if(!objective||objective.status!=='ACTIVE')return false;
       signals[id]=detail;return true;
     }
-    function snapshot(){return{version:1,manager:manager.snapshot(),holds:[...holds],signals:JSON.parse(JSON.stringify(signals))}}
+    function snapshot(){return{version:1,manager:manager.snapshot(),holds:[...holds],signals:JSON.parse(JSON.stringify(signals)),facts:facts.snapshot()}}
     function restore(saved){
       if(!saved||saved.version!==1||!Array.isArray(saved.holds))throw new Error('Unsupported runtime objective snapshot');
       const candidate=rules.createObjectiveManager([],{autoActivate:false}).restore(saved.manager);
@@ -98,10 +100,11 @@
       if(saved.signals&&(!saved.signals||typeof saved.signals!=='object'||Array.isArray(saved.signals)))throw new Error('Invalid objective signals');
       manager.restore(saved.manager);holds.clear();for(const entry of entries)holds.set(...entry);
       for(const id of Object.keys(signals))delete signals[id];Object.assign(signals,saved.signals||{});
+      if(Object.hasOwn(saved,'facts'))facts.restore(saved.facts);else facts.reset();
       return api;
     }
     function holdTime(){return holds.get(manager.current()?.id)||0}
-    const api={manager,phase,marker,evaluate,update,syncPhase,snapshot,restore,holdTime,signal};
+    const api={manager,facts,phase,marker,evaluate,update,syncPhase,snapshot,restore,holdTime,signal};
     return api;
   }
   return{definitions,create};
