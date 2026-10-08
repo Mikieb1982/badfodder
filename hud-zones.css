@@ -110,3 +110,21 @@
  }
  #companionOrders button.active,#companionOrders button[aria-pressed="true"]{opacity:1}
 }
+
+/* Thumb-friendly round tactical command buttons, opposite movement joystick. */
+@media (pointer:coarse) and (orientation:landscape){
+ #companionOrders{
+  left:auto!important;right:calc(215px + env(safe-area-inset-right,0px))!important;
+  transform:none!important;bottom:calc(18px + env(safe-area-inset-bottom,0px))!important;
+  width:178px!important;display:flex!important;gap:5px!important;
+ }
+ #companionOrders button{
+  flex:0 0 56px!important;width:56px!important;min-width:56px!important;
+  height:56px!important;min-height:56px!important;border-radius:50%!important;
+  font-size:8px!important;padding:3px!important;opacity:.65;
+  border:2px solid #d8dfc5b8!important;box-shadow:0 2px 9px #0008!important;
+ }
+ #companionOrders button:active,#companionOrders button.active,#companionOrders button[aria-pressed="true"]{
+  opacity:1!important;background:#566e54!important;
+ }
+}
