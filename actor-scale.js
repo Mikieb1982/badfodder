@@ -1,7 +1,7 @@
 /* World actors only: portraits, scenery, input radii and simulation clocks stay unchanged. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;if(root){root.BadFodderActorScale=api;if(root.BadFodderArt)api.installArt(root.BadFodderArt)}})(typeof window!=='undefined'?window:globalThis,function(){
  'use strict';
- const size=.5,speed=.65;
+ const size=.65,speed=.455;
  function canGround(ctx){return !!(ctx?.beginPath&&ctx?.ellipse&&ctx?.arc&&ctx?.stroke&&ctx?.fill)}
  function drawGrounding(ctx,ent,team){
   if(!canGround(ctx)||!ent||ent.alive===false)return;
