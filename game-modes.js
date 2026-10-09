@@ -1,0 +1,205 @@
+/* Alternate play modes: wave-based Resistance and competitive multiplayer Skirmish. */
+(function(root,factory){
+  const api=factory(root);
+  if(typeof module==='object'&&module.exports)module.exports=api;
+  if(root)root.BadFodderGameModes=api;
+})(typeof window!=='undefined'?window:globalThis,function(root){
+  'use strict';
+
+  const MODE_KEY='badfodder.game-mode.v1';
+  const SKIRMISH_OPEN_KEY='badfodder.skirmish.open.v1';
+  const LAUNCH_KEY='badfodder.launch.v1';
+  const AUTO_KEY='badfodder.launch.autostart.v1';
+  const MAPS=[
+    {index:0,key:'bad-belzig',label:'BAD BELZIG'},
+    {index:1,key:'wigan',label:'WIGAN'},
+    {index:2,key:'cable-street',label:'CABLE STREET'},
+    {index:3,key:'barcelona',label:'BARCELONA'}
+  ];
+  const state={mode:'campaign',map:null,wave:0,score:0,p1:0,p2:0,between:0,templates:null,tracked:new WeakMap(),started:false,ended:false,spawnSeq:0,lastAlive:0};
+
+  function storage(){
+    try{return root.BadFodderStorage?.session||root.sessionStorage}catch(_){return null}
+  }
+  function readMode(){
+    try{const raw=JSON.parse(storage()?.getItem(MODE_KEY)||'null');if(raw&&['resistance','skirmish'].includes(raw.mode)){state.mode=raw.mode;state.map=raw.map||null;return raw}}catch(_){}
+    state.mode='campaign';state.map=null;return null;
+  }
+  function setMode(mode,map){
+    state.mode=mode;state.map=map||null;state.wave=0;state.score=0;state.p1=0;state.p2=0;state.between=0;state.templates=null;state.tracked=new WeakMap();state.started=false;state.ended=false;state.spawnSeq=0;
+    try{storage()?.setItem(MODE_KEY,JSON.stringify({mode,map}))}catch(_){}
+  }
+  function clearMode(){
+    state.mode='campaign';state.map=null;
+    try{storage()?.removeItem(MODE_KEY);storage()?.removeItem(SKIRMISH_OPEN_KEY)}catch(_){}
+    removeHud();
+  }
+  function active(){return state.mode==='resistance'||state.mode==='skirmish'}
+  function waveSize(wave){return Math.min(40,8+Math.max(0,wave-1)*4)}
+  function maxWaves(){return state.mode==='skirmish'?10:Infinity}
+
+  function resetClone(source,spawn,wave){
+    const clone={...source};
+    clone.id='mode-'+(++state.spawnSeq);
+    clone.x=spawn.x;clone.y=spawn.y;clone.alive=true;clone.dead=false;clone.surrendered=false;clone.alert=true;
+    clone.path=null;clone.target=null;clone.targetId=null;clone.stunned=0;clone.suppressed=0;clone.fireTimer=0;clone.hitFlash=0;
+    if(Number.isFinite(source.maxHealth))clone.health=source.maxHealth;
+    else if(Number.isFinite(source.health))clone.health=Math.max(1,source.health);
+    if(Number.isFinite(source.maxHp))clone.hp=source.maxHp;
+    else if(Number.isFinite(source.hp))clone.hp=Math.max(1,source.hp);
+    clone.modeWave=wave;
+    return clone;
+  }
+
+  function captureTemplates(env){
+    if(state.templates||!Array.isArray(env.enemies)||!env.enemies.length)return;
+    const candidates=env.enemies.filter(e=>e&&Number.isFinite(e.x)&&Number.isFinite(e.y));
+    if(!candidates.length)return;
+    state.templates=candidates.map(e=>({source:{...e},spawn:{x:e.x,y:e.y}}));
+    env.enemies.length=0;
+    state.between=.45;
+  }
+
+  function spawnWave(env){
+    if(!state.templates?.length)return false;
+    state.wave++;
+    const count=waveSize(state.wave);
+    for(let i=0;i<count;i++){
+      const template=state.templates[i%state.templates.length];
+      const ring=Math.floor(i/state.templates.length);
+      const angle=(i*2.399963229728653)+(state.wave*.71);
+      const radius=Math.min(70,ring*12);
+      const spawn={x:template.spawn.x+Math.cos(angle)*radius,y:template.spawn.y+Math.sin(angle)*radius};
+      env.enemies.push(resetClone(template.source,spawn,state.wave));
+    }
+    state.lastAlive=count;
+    state.between=0;
+    if(env.hudStage)env.hudStage.textContent=(state.mode==='resistance'?'RESISTANCE':'SKIRMISH')+' · WAVE '+state.wave;
+    env.setStatus?.((state.mode==='resistance'?'Resistance':'Skirmish')+' wave '+state.wave+' incoming.');
+    paintHud(env);
+    return true;
+  }
+
+  function controlledIndex(env,player){
+    try{const n=env.commands?.active?.(player-1);return Number.isInteger(n)?n:(player===1?0:2)}catch(_){return player===1?0:2}
+  }
+  function awardKill(env,enemy){
+    if(state.mode==='resistance'){state.score++;return}
+    const a=env.squad?.[controlledIndex(env,1)],b=env.squad?.[controlledIndex(env,2)];
+    if(!a&&!b){state.p1++;return}
+    if(!b){state.p1++;return}
+    if(!a){state.p2++;return}
+    const da=Math.hypot(enemy.x-a.x,enemy.y-a.y),db=Math.hypot(enemy.x-b.x,enemy.y-b.y);
+    if(da<=db)state.p1++;else state.p2++;
+  }
+  function trackKills(env){
+    for(const enemy of env.enemies||[]){
+      const previous=state.tracked.get(enemy);
+      const alive=enemy?.alive!==false&&!enemy?.dead;
+      if(previous===true&&!alive)awardKill(env,enemy);
+      state.tracked.set(enemy,alive);
+    }
+  }
+  function livingEnemies(env){return (env.enemies||[]).filter(e=>e&&e.alive!==false&&!e.dead&&!e.surrendered).length}
+  function livingSquad(env){return (env.squad||[]).filter(s=>s&&s.alive!==false&&!s.dead).length}
+
+  function finish(env,text){
+    if(state.ended)return;
+    state.ended=true;
+    env.finished=true;
+    env.setStatus?.(text);
+    paintHud(env,true,text);
+  }
+
+  function fixedUpdate(env,dt){
+    if(!active()||state.ended)return false;
+    captureTemplates(env);
+    if(!state.templates?.length)return true;
+    trackKills(env);
+    if(!livingSquad(env)){finish(env,state.mode==='resistance'?'RESISTANCE ENDED · SQUAD LOST':'SKIRMISH ENDED · FORCE LOST');return true}
+    const alive=livingEnemies(env);
+    state.lastAlive=alive;
+    if(alive===0){
+      if(state.wave>=maxWaves()){
+        const result=state.p1===state.p2?'DRAW':state.p1>state.p2?'PLAYER 1 WINS':'PLAYER 2 WINS';
+        finish(env,'SKIRMISH COMPLETE · '+result);return true;
+      }
+      state.between=state.between||2.6;
+      state.between=Math.max(0,state.between-dt);
+      if(state.between===0)spawnWave(env);
+    }
+    paintHud(env);
+    return true;
+  }
+
+  function ensureHud(){
+    if(typeof document==='undefined')return null;
+    let el=document.getElementById('alternateModeHud');
+    if(el)return el;
+    el=document.createElement('div');el.id='alternateModeHud';
+    el.style.cssText='position:absolute;top:54px;left:50%;transform:translateX(-50%);z-index:7;pointer-events:none;padding:7px 11px;border:1px solid rgba(229,211,137,.55);background:rgba(22,29,21,.78);color:#f4e2a7;font:800 11px/1.3 "Courier New",monospace;letter-spacing:.05em;text-align:center;white-space:nowrap;';
+    document.querySelector('.viewport')?.appendChild(el);return el;
+  }
+  function paintHud(env,final=false,text=''){
+    const el=ensureHud();if(!el)return;
+    if(state.mode==='resistance')el.textContent=final?text:'RESISTANCE · WAVE '+Math.max(1,state.wave)+' · ENEMIES '+livingEnemies(env)+' · CLEARED '+state.score;
+    else el.textContent=final?text:'SKIRMISH · WAVE '+Math.max(1,state.wave)+'/10 · P1 '+state.p1+' : '+state.p2+' P2 · ENEMIES '+livingEnemies(env);
+  }
+  function removeHud(){if(typeof document!=='undefined')document.getElementById('alternateModeHud')?.remove()}
+  function frame(env){if(active()&&!state.ended)paintHud(env)}
+
+  function launch(mode,index){
+    const map=MAPS.find(m=>m.index===index);if(!map)return;
+    setMode(mode,map.key);
+    const s=storage();
+    try{
+      s?.setItem(LAUNCH_KEY,JSON.stringify({mode:'select',index:map.index,id:map.key}));
+      if(mode==='resistance')s?.setItem(AUTO_KEY,'1');
+      else{s?.removeItem(AUTO_KEY);s?.setItem(SKIRMISH_OPEN_KEY,'1')}
+    }catch(_){}
+    if(root.location?.reload)root.location.reload();
+  }
+
+  function picker(mode){
+    if(typeof document==='undefined')return;
+    document.getElementById('modePicker')?.remove();
+    const overlay=document.createElement('div');overlay.id='modePicker';
+    overlay.style.cssText='position:fixed;inset:0;z-index:2147483645;background:rgba(5,8,6,.82);display:grid;place-items:center;padding:18px;';
+    const card=document.createElement('div');card.className='menu-card';card.style.cssText='width:min(480px,94vw);padding:18px;background:#20291f;border:1px solid #7f8956;color:#efe2b0;';
+    const title=document.createElement('h2');title.textContent=mode==='resistance'?'RESISTANCE · CHOOSE MAP':'SKIRMISH MULTIPLAYER · CHOOSE MAP';title.style.margin='0 0 8px';
+    const copy=document.createElement('p');copy.textContent=mode==='resistance'?'Survive escalating enemy waves.':'Two players, separate forces, ten escalating waves. Highest enemy-clearing score wins.';
+    copy.style.cssText='font:13px/1.45 system-ui,sans-serif;color:#c9c5aa;margin:0 0 12px';
+    const actions=document.createElement('div');actions.style.cssText='display:grid;gap:7px';
+    MAPS.forEach(map=>{const b=document.createElement('button');b.className='menu-button';b.type='button';b.textContent=map.label;b.onclick=()=>launch(mode,map.index);actions.appendChild(b)});
+    const cancel=document.createElement('button');cancel.className='menu-button';cancel.type='button';cancel.textContent='BACK';cancel.onclick=()=>overlay.remove();actions.appendChild(cancel);
+    card.append(title,copy,actions);overlay.appendChild(card);document.body.appendChild(overlay);actions.querySelector('button')?.focus({preventScroll:true});
+  }
+
+  function installMenu(){
+    if(typeof document==='undefined')return;
+    const mission=document.getElementById('menuMissionSelect'),multi=document.getElementById('menuMultiplayer'),campaign=document.getElementById('menuStart');
+    if(!mission||!multi||!campaign)return;
+    multi.textContent='SKIRMISH MULTIPLAYER';
+    if(!document.getElementById('menuResistance')){
+      const resistance=document.createElement('button');resistance.id='menuResistance';resistance.className='menu-button';resistance.type='button';resistance.textContent='RESISTANCE';
+      mission.insertAdjacentElement('afterend',resistance);
+      resistance.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();picker('resistance')},true);
+    }
+    let bypass=false;
+    multi.addEventListener('click',e=>{
+      if(bypass)return;
+      e.preventDefault();e.stopImmediatePropagation();picker('skirmish');
+    },true);
+    campaign.addEventListener('click',()=>clearMode(),true);
+    mission.addEventListener('click',()=>clearMode(),true);
+    let open=false;try{open=storage()?.getItem(SKIRMISH_OPEN_KEY)==='1';storage()?.removeItem(SKIRMISH_OPEN_KEY)}catch(_){}
+    if(open&&state.mode==='skirmish')setTimeout(()=>{bypass=true;try{multi.click()}finally{bypass=false}},60);
+  }
+
+  readMode();
+  if(typeof document!=='undefined'){
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installMenu,{once:true});
+    else setTimeout(installMenu,0);
+  }
+  return{active,mode:()=>state.mode,state:()=>({...state,templates:state.templates?.length||0}),waveSize,maxWaves,fixedUpdate,frame,setMode,clearMode,launch,installMenu};
+});
