@@ -77,7 +77,7 @@
     else if(threatened||u.suppression>.32){
      const reserved=[...states.entries()].filter(([actor,s])=>actor!==u&&['TAKE_COVER','BREAK_CONTACT'].includes(s.state)).map(([,s])=>s.point);
      const cover=findCover(u,threat,anchor,reserved);
-     if(cover)route(u,cover,target?'COVER_ADVANCE':'TAKE_COVER',1.8);
+     if(cover){u.companionIntent=target?'COVER_ADVANCE':'TAKE_COVER';route(u,cover,'TAKE_COVER',1.8)}
      else{nav.cancelPath(u);u.companionState=target?'ENGAGE':'WATCH_DIRECTION';if(shared)u.dir=Math.atan2(shared.y-u.y,shared.x-u.x)}
     }else if(order==='HOLD'||context.mode==='DEFEND'||context.mode==='INTERACT_SUPPORT'){
      const point=points[i];if(Math.hypot(u.x-point.x,u.y-point.y)>18)route(u,point,order==='HOLD'?'HOLD':'MOVE_TO_SUPPORT');else{nav.cancelPath(u);u.companionState='WATCH_DIRECTION';if(Number.isFinite(context.threatDirection))u.dir=context.threatDirection;}
