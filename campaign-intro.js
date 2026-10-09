@@ -50,7 +50,21 @@
     root.BadFodderMusic?.audio?.pause();
     skip.focus({preventScroll:true});
     const attempt=video.play();
-    if(attempt&&typeof attempt.catch==='function')attempt.catch(()=>{video.controls=true;skip.textContent='SKIP INTRO';});
+    if(attempt&&typeof attempt.catch==='function')attempt.catch(()=>{
+      if(finished)return;
+      // Mobile autoplay with audio may be blocked. Require an explicit tap,
+      // rather than leaving a paused black video with browser controls.
+      const start=document.createElement('button');
+      start.type='button';
+      start.textContent='PLAY INTRO';
+      start.setAttribute('aria-label','Play campaign introduction');
+      start.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2;padding:16px 26px;border:2px solid #f1dfaa;border-radius:8px;background:#202a20;color:#f1dfaa;font:700 16px system-ui,sans-serif;cursor:pointer;';
+      start.addEventListener('click',()=>{
+        const retry=video.play();
+        if(retry&&typeof retry.then==='function')retry.then(()=>start.remove()).catch(()=>{start.textContent='TAP TO PLAY';});
+      });
+      overlay.appendChild(start);
+    });
   }
 
   // The mission controller owns playback and advances directly to the briefing.
