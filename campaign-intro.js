@@ -2,7 +2,17 @@
 (function(root){
   'use strict';
   const ASSET='assets/menu/rabbitscampaign.mp4';
+  const MODES_SCRIPT='game-modes.js';
   let active=false;
+
+  function loadGameModes(){
+    if(typeof document==='undefined'||root.BadFodderGameModes||document.querySelector('script[data-game-modes-loader]'))return;
+    const script=document.createElement('script');
+    script.dataset.gameModesLoader='1';
+    script.src=root.BadFodderAssetUrl?.(MODES_SCRIPT)||MODES_SCRIPT;
+    document.head.appendChild(script);
+  }
+  loadGameModes();
 
   function play(done){
     if(active||typeof document==='undefined'){done?.();return;}
@@ -50,6 +60,7 @@
   }
 
   function install(){
+    loadGameModes();
     const button=document.getElementById('menuStart');
     if(!button||button.dataset.campaignIntroBound==='1')return;
     button.dataset.campaignIntroBound='1';
