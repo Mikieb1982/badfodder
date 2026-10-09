@@ -83,7 +83,11 @@
     if(!root.document||state.resultShown)return;state.resultShown=true;ensureStyle();
     if(!result){result=root.document.createElement('div');result.id='arcadeResult';result.hidden=true;(root.document.querySelector('.viewport')||root.document.body).appendChild(result)}
     result.hidden=false;result.innerHTML=`<div class="arcade-card"><h2>${title}</h2><p>${copy}</p><div class="arcade-actions"><button id="arcadeRetry" class="menu-button primary" type="button">PLAY AGAIN</button><button id="arcadeMain" class="menu-button" type="button">MAIN MENU</button></div></div>`;
-    result.querySelector('#arcadeRetry').onclick=()=>{try{storage()?.setItem(AUTO_KEY,'1')}catch(_){}root.location?.reload?.()};
+    const retryButton=result.querySelector('#arcadeRetry');
+    if(state.mode==='skirmish'){
+      const host=root.BadFodderCoop?.mode==='host';retryButton.textContent=host?'PLAY AGAIN':'PLAYER 1 STARTS NEXT';retryButton.disabled=!host;
+      retryButton.onclick=()=>{if(!host)return;resetState(state);root.BadFodderCoop?.restart?.()};
+    }else retryButton.onclick=()=>{try{storage()?.setItem(AUTO_KEY,'1')}catch(_){}root.location?.reload?.()};
     result.querySelector('#arcadeMain').onclick=()=>{clear();try{storage()?.removeItem(LAUNCH_KEY);storage()?.removeItem(AUTO_KEY);storage()?.removeItem('badfodder.coop.resume')}catch(_){}root.location?.reload?.()};
   }
 
@@ -169,11 +173,17 @@
       if(Math.hypot(target.x-unit.x,target.y-unit.y)<=520)bridge.shootGarrison(unit,target);
     }
   }
+  function resetState(state){
+    state.clock=0;state.initialised=false;state.wave=0;state.kills=0;state.score=0;state.nextWaveAt=0;state.between=false;state.templates=[];state.anchors=[];state.counted=new WeakSet();state.resultShown=false;state.aiClock=0;state.skirmishAnchor=null;hideResult();
+  }
+  function skirmishOutcome(state){
+    const p1=state.env.squad.slice(0,2).some(combatReady),p2=state.env.squad.slice(2,4).some(combatReady);
+    if(p1&&p2){if(state.resultShown){state.resultShown=false;hideResult();}return null}
+    return{title:!p1&&!p2?'DRAW':p1?'PLAYER 1 WINS':'PLAYER 2 WINS',copy:'The opposing squad can no longer continue.'};
+  }
   function skirmishStep(state,dt){
     if(!state.initialised)initSkirmish(state);state.clock+=dt;skirmishHits(state,dt);skirmishCompanions(state,dt);
-    const p1=state.env.squad.slice(0,2).some(combatReady),p2=state.env.squad.slice(2,4).some(combatReady);
-    if(!p1||!p2){const title=!p1&&!p2?'DRAW':p1?'PLAYER 1 WINS':'PLAYER 2 WINS';showResult(state,title,'The opposing squad can no longer continue.');}
-    paintHud(state);
+    const outcome=skirmishOutcome(state);if(outcome)showResult(state,outcome.title,outcome.copy);paintHud(state);
   }
 
   function wrapEnvironment(env,state){
@@ -234,6 +244,7 @@
     if(!coop||coop.__arcadeModesPatched)return false;coop.__arcadeModesPatched=true;
     if(coop.manual?.decode){const original=coop.manual.decode.bind(coop.manual);coop.manual.decode=text=>decodeConnectionCode(text,original)}
     if(typeof coop.open==='function'){const open=coop.open.bind(coop);coop.open=function(...args){write({mode:'skirmish'});const value=open(...args);customiseCoopPanel();setTimeout(customiseCoopPanel,0);return value}}
+    if(typeof coop.clientFrame==='function'){const clientFrame=coop.clientFrame.bind(coop);coop.clientFrame=function(dt){const value=clientFrame(dt);if(mode()==='skirmish'&&lastRuntime){lastRuntime.mode='skirmish';const outcome=skirmishOutcome(lastRuntime);if(outcome)showResult(lastRuntime,outcome.title,outcome.copy);paintHud(lastRuntime)}return value}}
     return true;
   }
   function watch(name,patch){
