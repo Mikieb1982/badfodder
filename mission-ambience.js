@@ -46,13 +46,11 @@ async function sync(){
  if(!unlocked||!mission)return;
  if(!audio.paused){fadeTo(volume,300);return}
  audio.volume=0;
- const attempt=++generation,attemptSource=audio.src;
+ const attempt=++generation;
  try{
   await audio.play();
-  if(attempt!==generation||!allowed()){
-   if(audio.src===attemptSource){audio.pause();audio.volume=0}
-   return;
-  }
+  if(attempt!==generation)return;
+  if(!allowed()){audio.pause();audio.volume=0;return}
   fadeTo(volume,900);
  }catch(_){/* Retry on next gesture. */}
 }
