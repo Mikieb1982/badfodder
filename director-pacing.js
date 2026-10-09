@@ -7,6 +7,7 @@
   'use strict';
   const clamp=(n,a=0,b=1)=>Math.max(a,Math.min(b,Number(n)||0));
   const alive=u=>u&&u.alive!==false&&!u.surrendered;
+  const STRESS_SMOOTH_SECONDS=6;
   function unitHealth(u){const max=Math.max(1,Number(u?.maxHp)||Number(u?.hpMax)||Number(u?.hp)||1);return{current:Math.max(0,Number(u?.hp)||0),max}}
   function calculateStress(squad=[],enemies=[],mapState={}){
     let hp=0,maxHp=0,downed=0;
@@ -26,18 +27,26 @@
     return clamp(squadHealthFactor*.35+hostileProximityFactor*.30+ammoStressFactor*.15+recentDownedFactor*.20);
   }
 
-  function createState(){return{phase:'BUILD_UP',stressScore:0,clock:0,sampleClock:0,fadeUntil:0,peakUntil:0,lastHp:null,lastDowned:0,contact:false,result:{phase:'BUILD_UP',spawnRateModifier:.55,allowFlankers:false}}}
+  function createState(){return{phase:'BUILD_UP',stressScore:0,rawStressScore:0,stressInitialized:false,clock:0,sampleClock:0,sampleElapsed:0,fadeUntil:0,peakUntil:0,lastHp:null,lastDowned:0,contact:false,result:{phase:'BUILD_UP',spawnRateModifier:.55,allowFlankers:false}}}
   function totals(squad){let hp=0,max=0,downed=0;for(const u of squad){if(!u)continue;const h=unitHealth(u);hp+=h.current;max+=h.max;if(u.downed||u.healthState==='DOWN')downed++}return{hp,max:Math.max(1,max),downed}}
   function contactNow(squad,enemies){for(const e of enemies){if(!alive(e))continue;for(const s of squad)if(alive(s)&&Math.hypot((e.x||0)-(s.x||0),(e.y||0)-(s.y||0))<=190&&(e.alert||e.target||e.fireTimer>0))return true}return squad.some(s=>s?.atObjectiveBoundary||s?.objectiveContact)}
+  function smoothStress(state,raw,elapsed){
+    state.rawStressScore=raw;
+    if(!state.stressInitialized){state.stressScore=raw;state.stressInitialized=true;return raw}
+    const alpha=1-Math.exp(-Math.max(.001,elapsed)/STRESS_SMOOTH_SECONDS);
+    state.stressScore=clamp(state.stressScore+(raw-state.stressScore)*alpha);
+    return state.stressScore;
+  }
   function updateState(state,dt,squad=[],enemies=[],mapState={}){
-    state.clock+=Math.max(0,Number(dt)||0);state.sampleClock-=Math.max(0,Number(dt)||0);
-    if(state.sampleClock>0)return state.result;state.sampleClock=.25;
-    const t=totals(squad),stress=calculateStress(squad,enemies,mapState),contact=contactNow(squad,enemies);
+    const elapsed=Math.max(0,Number(dt)||0);state.clock+=elapsed;state.sampleClock-=elapsed;state.sampleElapsed+=elapsed;
+    if(state.sampleClock>0)return state.result;
+    const sampleElapsed=Math.max(.001,state.sampleElapsed);state.sampleElapsed=0;state.sampleClock=.25;
+    const t=totals(squad),rawStress=calculateStress(squad,enemies,mapState),stress=smoothStress(state,rawStress,sampleElapsed),contact=contactNow(squad,enemies);
     const heavyDamage=state.lastHp!==null&&(state.lastHp-t.hp)/t.max>=.18;
     const newDown=t.downed>state.lastDowned;
     if(heavyDamage||newDown)state.fadeUntil=Math.max(state.fadeUntil,state.clock+18);
     if(contact&&!state.contact)state.peakUntil=Math.max(state.peakUntil,state.clock+7);
-    state.contact=contact;state.lastHp=t.hp;state.lastDowned=t.downed;state.stressScore=stress;
+    state.contact=contact;state.lastHp=t.hp;state.lastDowned=t.downed;
     let phase;
     if(state.clock<state.fadeUntil)phase='FADE_DOWN';
     else if(state.clock<state.peakUntil)phase='PEAK';

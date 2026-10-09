@@ -50,6 +50,7 @@ const MIX_VERSION_KEY='badfodder.music.mix.v2';
 const DEFAULT_VOLUME=.04;
 let enabled=true;
 let volume=DEFAULT_VOLUME;
+let mixScale=1;
 try{
   const store=typeof BadFodderStorage!=='undefined'?BadFodderStorage.local:localStorage;
   const saved=store.getItem(KEY);
@@ -78,6 +79,7 @@ const button=document.getElementById('menuMusic');
 const volumeInput=document.getElementById('menuMusicVolume');
 const volumeValue=document.getElementById('menuMusicVolumeValue');
 let started=false,loadError=false,pending=false,raf=0,generation=0;
+const effectiveVolume=()=>Math.max(0,Math.min(1,volume*mixScale));
 function render(){
   button.textContent=loadError?'MUSIC: RETRY':enabled?'MUSIC: ON':'MUSIC: OFF';
   button.setAttribute('aria-pressed',String(enabled&&!loadError));
@@ -92,7 +94,8 @@ function fadeTo(target,duration){
   const initial=audio.volume,from=performance.now();
   const tick=now=>{
     const progress=Math.max(0,Math.min(1,(now-from)/duration));
-    audio.volume=Math.max(0,Math.min(1,initial+(target-initial)*progress));
+    const eased=progress*progress*(3-2*progress);
+    audio.volume=Math.max(0,Math.min(1,initial+(target-initial)*eased));
     if(progress<1)raf=requestAnimationFrame(tick);
     else if(!enabled)audio.muted=true;
   };
@@ -112,7 +115,7 @@ async function start(){
     if(attempt!==generation){audio.pause();return}
     started=true;
     if(document.hidden){audio.pause();return}
-    if(enabled){audio.muted=false;fadeTo(volume,1200)}
+    if(enabled){audio.muted=false;fadeTo(effectiveVolume(),1200)}
     else{audio.muted=true;cancelAnimationFrame(raf);audio.volume=0}
     render();
   }catch(e){
@@ -140,7 +143,7 @@ function setEnabled(on){
   enabled=!!on;
   try{(typeof BadFodderStorage!=='undefined'?BadFodderStorage.local:localStorage).setItem(KEY,enabled?'1':'0')}catch(e){}
   if(enabled){
-    if(started&&!audio.paused&&!loadError){audio.muted=false;fadeTo(volume,500)}
+    if(started&&!audio.paused&&!loadError){audio.muted=false;fadeTo(effectiveVolume(),500)}
     else start();
   }else fadeTo(0,350);
   render();
@@ -156,9 +159,15 @@ function setVolume(value){
   }catch(e){}
   if(enabled&&started&&!audio.paused&&!loadError){
     audio.muted=false;
-    fadeTo(volume,120);
+    fadeTo(effectiveVolume(),120);
   }
   render();
+}
+function setMixScale(value,duration=700){
+  const next=Math.max(0,Math.min(1,Number(value)));
+  if(!Number.isFinite(next)||Math.abs(next-mixScale)<.001)return;
+  mixScale=next;
+  if(enabled&&started&&!audio.paused&&!loadError){audio.muted=false;fadeTo(effectiveVolume(),Math.max(0,Number(duration)||0))}
 }
 function toggle(){setEnabled(loadError?true:!enabled)}
 function arm(event){
@@ -194,8 +203,9 @@ audio.addEventListener('error',()=>{
 });
 audio.addEventListener('canplay',render);
 window.BadFodderMusic={
-  toggle,setEnabled,setVolume,start,switchSource,playHome,playMission,audio,
+  toggle,setEnabled,setVolume,setMixScale,start,switchSource,playHome,playMission,audio,
   get volume(){return volume},
+  get mixScale(){return mixScale},
   get source(){return source}
 };
 render();

@@ -6,6 +6,52 @@
 })(typeof window!=='undefined'?window:globalThis,function(){
   'use strict';
   function create(env){
+  const previousPositions=new WeakMap();
+  let previousCamera=null,interpolationReady=false;
+  const MAX_INTERPOLATION_DISTANCE=160;
+
+  function renderables(){
+    const list=[],seen=new Set();
+    const add=collection=>{
+      if(!collection)return;
+      const values=Array.isArray(collection)?collection:(typeof collection.values==='function'?collection.values():[]);
+      for(const ent of values){
+        if(!ent||typeof ent!=='object'||seen.has(ent)||!Number.isFinite(ent.x)||!Number.isFinite(ent.y))continue;
+        seen.add(ent);list.push(ent);
+      }
+    };
+    add(env.squad);add(env.enemies);add(env.civilians);add(env.projectiles);add(env.bullets);add(env.grenades);
+    add(env.resistanceRuntime?.units);add(env.barcelonaRuntime?.units);add(env.barcelonaRuntime?.actors);
+    add(env.missionController?.state?.actors);add(env.missionCrowd?.people);
+    return list;
+  }
+
+  function captureRenderState(){
+    for(const ent of renderables())previousPositions.set(ent,{x:ent.x,y:ent.y});
+    const camera=env.camera;
+    previousCamera=camera&&Number.isFinite(camera.x)&&Number.isFinite(camera.y)?{x:camera.x,y:camera.y}:null;
+  }
+
+  function drawInterpolated(alpha){
+    if(!interpolationReady||env.commands?.mode==='client'||!env.FIXED_DT){env.drawWorld();return}
+    const t=Math.max(0,Math.min(1,Number(alpha)||0)),saved=[];
+    for(const ent of renderables()){
+      const prev=previousPositions.get(ent);if(!prev)continue;
+      const x=ent.x,y=ent.y,dx=x-prev.x,dy=y-prev.y;
+      if(dx*dx+dy*dy>MAX_INTERPOLATION_DISTANCE*MAX_INTERPOLATION_DISTANCE)continue;
+      saved.push([ent,x,y]);ent.x=prev.x+dx*t;ent.y=prev.y+dy*t;
+    }
+    const camera=env.camera,cameraSaved=camera&&Number.isFinite(camera.x)&&Number.isFinite(camera.y)?{x:camera.x,y:camera.y}:null;
+    if(cameraSaved&&previousCamera){
+      const dx=cameraSaved.x-previousCamera.x,dy=cameraSaved.y-previousCamera.y;
+      if(dx*dx+dy*dy<=MAX_INTERPOLATION_DISTANCE*MAX_INTERPOLATION_DISTANCE*9){camera.x=previousCamera.x+dx*t;camera.y=previousCamera.y+dy*t}
+    }
+    try{env.drawWorld()}finally{
+      for(const [ent,x,y] of saved){ent.x=x;ent.y=y}
+      if(cameraSaved){camera.x=cameraSaved.x;camera.y=cameraSaved.y}
+    }
+  }
+
   function simulateStep(dt){
     if(env.commands?.mode==='client')return;
     env.tacticsRuntime?.fixedUpdate(dt);
@@ -64,6 +110,8 @@
     env.updateHud();
   }
 
+  function simulateRenderStep(dt){captureRenderState();simulateStep(dt);interpolationReady=true}
+
   function handleRuntimeFault(err){
     const now=performance.now();
     env.runtimeFaultTotal++;
@@ -73,6 +121,7 @@
     console.error('If I Can Shoot Rabbits runtime fault',err);
     env.releaseInterruptedInput();
     env.simulationAccumulator=0;
+    interpolationReady=false;
 
     if(env.runtimeFaultCount>=3){
       env.lifecycle.transition('RECOVERY');
@@ -96,14 +145,17 @@
       env.last=now;
 
       const measuredAt=env.diagnostics.enabled?performance.now():0;
-      env.simulationAccumulator=BadFodderRuntime.fixedFrame({dt:frameDt,accumulator:env.simulationAccumulator,fixedDt:env.FIXED_DT,maxSteps:env.MAX_CATCHUP_STEPS,simulate:simulateStep,onSteps:env.diagnostics.steps,active:env.commands?.mode!=='client'&&env.started&&!env.finished&&((env.commands?.mode==='host')||(!env.menuOpen&&!env.paused&&!env.mapOpen))});
+      const simulationActive=env.commands?.mode!=='client'&&env.started&&!env.finished&&((env.commands?.mode==='host')||(!env.menuOpen&&!env.paused&&!env.mapOpen));
+      if(!simulationActive)interpolationReady=false;
+      env.simulationAccumulator=BadFodderRuntime.fixedFrame({dt:frameDt,accumulator:env.simulationAccumulator,fixedDt:env.FIXED_DT,maxSteps:env.MAX_CATCHUP_STEPS,simulate:simulateRenderStep,onSteps:env.diagnostics.steps,active:simulationActive});
       const simulatedAt=env.diagnostics.enabled?performance.now():0;
 
       if(env.commands?.mode==='client'){
         if(env.started&&!env.menuOpen&&!env.paused&&!env.finished&&!env.mapOpen){env.applyTouchMovement(frameDt);if((env.rightHeld||env.macFireHeld||env.keyboardFireHeld)&&env.cursorWorld&&!env.bothLatched)env.squadFireAt(env.cursorWorld.x,env.cursorWorld.y);if(env.touchState.fireHeld)env.fireMobile();}
         window.BadFodderCoop?.clientFrame(frameDt);
       }
-      BadFodderRuntime.renderFrame({started:env.started,menuOpen:env.menuOpen,draw:env.drawWorld});
+      const alpha=env.FIXED_DT?env.simulationAccumulator/env.FIXED_DT:1;
+      BadFodderRuntime.renderFrame({started:env.started,menuOpen:env.menuOpen,draw:()=>drawInterpolated(alpha)});
       if(env.diagnostics.enabled)env.diagnostics.record(elapsedMs,simulatedAt-measuredAt,performance.now()-simulatedAt);
       if(env.runtimeFaultCount&&now-env.runtimeFaultAt>3000)env.runtimeFaultCount=0;
     }catch(err){
