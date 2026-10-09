@@ -9,6 +9,7 @@
   const experience=()=>typeof window!=='undefined'?window.BadFodderExperience:null;
   const missionKey=()=>env.activeMission?.()?.map||env.activeMission?.()?.id||env.MAP_DATA?.key||'';
   const campaignMode=()=>!!env.missionLaunch?.isCampaign?.();
+  const localCampaign=()=>campaignMode()&&(!env.commands||env.commands.mode==='local');
   function experienceState(state,key=missionKey()){try{experience()?.setState?.(state,key)}catch(_){}}
   function togglePause(){
     if(env.commands?.mode==='host'){env.setStatus('Co-op continues while the menu is open.');}
@@ -44,7 +45,13 @@
     if(!env.started)return;
     window.BadFodderMusic?.playMission(env.activeMission());
     try{env.resetGame()}catch(err){env.runtimeFaultCount=2;env.handleRuntimeFault(err);return}
-    try{experience()?.missionStart?.({campaign:campaignMode()&&(!env.commands||env.commands.mode==='local'),key:missionKey(),squad:env.squad})}catch(_){}
+    try{
+      const xp=experience(),history=xp?.continuity?.()?.history||[],last=history[history.length-1];
+      // Campaign chapters use different people and eras. Carry wounds only when replaying the same cast,
+      // while still recording every chapter in the wider campaign chronicle.
+      const resumeSameCast=localCampaign()&&last?.mission===missionKey();
+      xp?.missionStart?.({campaign:resumeSameCast,key:missionKey(),squad:env.squad});
+    }catch(_){}
     env.lifecycle.transition('PLAYING');experienceState('PLAYING');
     env.menu.close();env.syncTouchControlState();env.root.focus({preventScroll:true});
     env.refreshCursorWorld();
@@ -76,10 +83,12 @@
     env.releaseInterruptedInput();env.lifecycle.transition('RESULT');experienceState('RESULT');env.mapOpen=false;
     env.menu.showResult(env.missionIdentity,env.win,env.win&&hasPlayableNextMission());
     let summary=null;
-    if(env.barcelonaRuntime){summary=env.barcelonaRuntime.summary();document.getElementById('resultFlavour').textContent=summary.characters.filter(s=>s.alive).length+' neighbours survived · '+summary.characters.filter(s=>!s.alive).length+' casualties · '+summary.characters.filter(s=>s.alive&&s.health!=='FIT').length+' hurt · '+summary.alliesLost+' friendly losses · '+summary.civiliansRescued+'/'+summary.civiliansFound+' civilians rescued · '+summary.civiliansLost+' lost · '+(summary.breached?'barricade breached':'barricade standing');}
+    if(env.barcelonaRuntime)summary=env.barcelonaRuntime.summary();
+    try{experience()?.missionEnd?.({campaign:localCampaign(),key:missionKey(),squad:env.squad,win:env.win,civiliansRescued:summary?.civiliansRescued||0,civiliansLost:summary?.civiliansLost||0});experience()?.decorateResult?.()}catch(_){}
+    // Authored mission aftermath remains primary; the continuity layer supplies the survivor summary above it.
+    if(summary){document.getElementById('resultFlavour').textContent=summary.characters.filter(s=>s.alive).length+' neighbours survived · '+summary.characters.filter(s=>!s.alive).length+' casualties · '+summary.characters.filter(s=>s.alive&&s.health!=='FIT').length+' hurt · '+summary.alliesLost+' friendly losses · '+summary.civiliansRescued+'/'+summary.civiliansFound+' civilians rescued · '+summary.civiliansLost+' lost · '+(summary.breached?'barricade breached':'barricade standing');}
     if(!env.win&&env.badBelzigRuntime){document.getElementById('resultTitle').textContent='NO ONE CAN CONTINUE';document.getElementById('resultFlavour').textContent='No conscious survivor remains. Losing people or a route alone does not end the mission.';}
     if(env.win&&env.badBelzigRuntime?.summary){document.getElementById('resultTitle').textContent='HOME: WHAT WE COULD PROTECT';document.getElementById('resultFlavour').textContent=env.badBelzigRuntime.summary();}
-    try{experience()?.missionEnd?.({campaign:campaignMode()&&(!env.commands||env.commands.mode==='local'),key:missionKey(),squad:env.squad,win:env.win,civiliansRescued:summary?.civiliansRescued||0,civiliansLost:summary?.civiliansLost||0});experience()?.decorateResult?.()}catch(_){}
     env.syncTouchControlState();
   }
 
