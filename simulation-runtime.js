@@ -52,6 +52,25 @@
     }
   }
 
+  function simulateAlternateMode(dt){
+    const modes=window.BadFodderGameModes;
+    if(!modes?.active?.())return false;
+    env.processEnemyPathQueue();
+    modes.fixedUpdate(env,dt);
+    env.updateEnemies(dt);
+    env.updateCivilians(dt);
+    env.updateProjectiles(dt);
+    env.resistanceRuntime?.update(dt);env.resistanceRuntime?.units.forEach(ent=>env.art.animate(ent,dt));
+    env.barcelonaRuntime?.update(dt);
+    env.opportunitiesRuntime?.fixedUpdate(dt);
+    env.squad.forEach(ent=>env.art.animate(ent,dt));
+    env.enemies.forEach(ent=>env.art.animate(ent,dt));
+    env.civilians.forEach(ent=>env.art.animate(ent,dt));
+    env.updateCamera(dt);
+    env.updateHud();
+    return true;
+  }
+
   function simulateStep(dt){
     if(env.commands?.mode==='client')return;
     env.tacticsRuntime?.fixedUpdate(dt);
@@ -66,6 +85,8 @@
     env.squad.forEach((s,i)=>{s.aiming=s.selected&&env.actionAllowed('firearms')&&(env.rightHeld||env.macFireHeld||env.keyboardFireHeld||env.touchState.fireHeld);s.streetActor=env.missionController?.state.actors.get('player-'+i)});
     env.updateSquad(dt);
     window.BadFodderHealth.fixedUpdate(dt);
+
+    if(simulateAlternateMode(dt))return;
 
     if(env.missionController){
       if(env.missionInteractionLayer){
@@ -154,6 +175,7 @@
         if(env.started&&!env.menuOpen&&!env.paused&&!env.finished&&!env.mapOpen){env.applyTouchMovement(frameDt);if((env.rightHeld||env.macFireHeld||env.keyboardFireHeld)&&env.cursorWorld&&!env.bothLatched)env.squadFireAt(env.cursorWorld.x,env.cursorWorld.y);if(env.touchState.fireHeld)env.fireMobile();}
         window.BadFodderCoop?.clientFrame(frameDt);
       }
+      window.BadFodderGameModes?.frame?.(env);
       const alpha=env.FIXED_DT?env.simulationAccumulator/env.FIXED_DT:1;
       BadFodderRuntime.renderFrame({started:env.started,menuOpen:env.menuOpen,draw:()=>drawInterpolated(alpha)});
       if(env.diagnostics.enabled)env.diagnostics.record(elapsedMs,simulatedAt-measuredAt,performance.now()-simulatedAt);
