@@ -16,6 +16,42 @@
  }
  bootstrapArcade();
 
+ // Arcade adds the Resistance panel after the base menu constructor has bound
+ // its normal panels. Keep that dynamic panel inside the same menu-layout so it
+ // receives the menu card layout, focus handling and visible stacking rules.
+ function patchResistanceMenu(){
+  const Menu=root.BadFodderMenu;
+  if(!Menu||Menu.__resistancePanelLayoutPatched)return;
+  class ResistanceMenu extends Menu{
+   constructor(actions){super(actions);this.fixResistancePanel();}
+   fixResistancePanel(){
+    const panel=this.screen?.querySelector('[data-view="resistance"]');
+    const layout=this.screen?.querySelector('.menu-layout');
+    if(!panel||!layout)return;
+    if(panel.parentElement!==layout){
+     const footer=this.get?.('menuHelp');
+     if(footer?.parentElement===layout)layout.insertBefore(panel,footer);
+     else layout.appendChild(panel);
+    }
+    const back=panel.querySelector('[data-back]');
+    if(back&&back.dataset.resistanceBackBound!=='1'){
+     back.dataset.resistanceBackBound='1';
+     back.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();this.showPanel('main');});
+    }
+   }
+   showPanel(panel){this.fixResistancePanel();return super.showPanel(panel);}
+   keydown(event){
+    if(event.key==='Escape'&&this.panel==='resistance'){
+     event.preventDefault();event.stopPropagation();this.showPanel('main');return;
+    }
+    return super.keydown(event);
+   }
+  }
+  ResistanceMenu.__resistancePanelLayoutPatched=true;
+  root.BadFodderMenu=ResistanceMenu;
+ }
+ patchResistanceMenu();
+
  function script(file){return new Promise((resolve,reject)=>{const el=document.createElement('script');el.src=root.BadFodderAssetUrl?.(file.split('?')[0])||file;const timer=setTimeout(()=>{el.remove();reject(new Error('Mission load timed out: '+file))},15000);el.onload=()=>{clearTimeout(timer);resolve()};el.onerror=()=>{clearTimeout(timer);el.remove();reject(new Error('Mission file failed: '+file))};document.head.appendChild(el);});}
  async function loadFile(file){try{return await script(file)}catch(first){await delay(250);try{return await script(file)}catch(second){second.cause=first;throw second}}}
  async function loadModule(file){
@@ -46,7 +82,7 @@
   return pending.get(key);
  }
  const ready=(async()=>{
-  if(!root.BadFodderArcade)await loadModule('arcade-modes.js');
+  if(!root.BadFodderArcade){await loadModule('arcade-modes.js');patchResistanceMenu();}
   const missions=await registry();
   const launch=BadFodderMissionLaunch.create({storage:BadFodderStorage.session,missions:BadFodderCampaign.missions,campaign:BadFodderCampaign,historicalMissions:BadFodderHistoricalMissions.missions,registry:missions});
   const current=launch.current(),definition=missions.get(current);
