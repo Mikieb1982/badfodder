@@ -77,7 +77,9 @@ function objectivePulse(){
 function observeObjectives(){
  if(objectiveObserver||!root.MutationObserver)return;
  const nodes=[doc.getElementById('hudStage'),doc.getElementById('hudMission'),doc.getElementById('hudInstruction')].filter(Boolean);if(!nodes.length)return;
- let armed=false,timer=0;objectiveObserver=new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(()=>{if(armed)objectivePulse();armed=true},35)});nodes.forEach(n=>objectiveObserver.observe(n,{childList:true,subtree:true,characterData:true,attributes:n.id==='hudInstruction',attributeFilter:['hidden']}));setTimeout(()=>{armed=true},500);
+ let armed=false,timer=0;objectiveObserver=new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(()=>{if(armed)objectivePulse();armed=true},35)});
+ nodes.forEach(n=>{const options={childList:true,subtree:true,characterData:true};if(n.id==='hudInstruction'){options.attributes=true;options.attributeFilter=['hidden']}objectiveObserver.observe(n,options)});
+ setTimeout(()=>{armed=true},500);
 }
 function shakeFrame(){
  shakeRaf=0;const canvas=doc.getElementById('game');if(!canvas||reduce()||performance.now()>=shakeUntil){if(canvas&&'translate' in canvas.style)canvas.style.translate='';shakeStrength=0;return}
