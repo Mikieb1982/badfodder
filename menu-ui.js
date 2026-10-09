@@ -3,6 +3,16 @@
   'use strict';
 
   const PRESENTATION_PROMPT_KEY='badfodder.presentation.prompted.v1';
+  const CAMPAIGN_INTRO_SCRIPT='campaign-intro.js';
+
+  function loadCampaignIntro(){
+    if(window.BadFodderCampaignIntro||document.querySelector('script[data-campaign-intro-loader]'))return;
+    const script=document.createElement('script');
+    script.dataset.campaignIntroLoader='1';
+    script.src=window.BadFodderAssetUrl?.(CAMPAIGN_INTRO_SCRIPT)||CAMPAIGN_INTRO_SCRIPT;
+    document.head.appendChild(script);
+  }
+  loadCampaignIntro();
 
   function ensureMobileManifest(){
     if(!document.querySelector('link[rel="manifest"]')){
