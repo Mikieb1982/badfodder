@@ -64,7 +64,11 @@ function drawCombatCue(g,ent,team){
 function patchArt(){
  const art=root.BadFodderArt;if(!art||artPatched||art.__professionalFeelPatched||typeof art.drawActor!=='function')return false;
  const original=art.drawActor;
- art.drawActor=function(g,ent,team='squad',...rest){const result=original.call(this,g,ent,team,...rest);drawCombatCue(g,ent,team);drawStateCue(g,ent,team);return result};
+ art.drawActor=function(g,ent,team='squad',...rest){
+   const a=angleOf(ent),hit=Math.max(0,Number(ent?.hitTimer)||0),fire=Math.max(0,Number(ent?.fireTimer)||0),hitPhase=Math.min(1,hit/.18),firePhase=Math.min(1,fire/.12),kick=hitPhase*2.6+firePhase*.9;
+   let result;if(kick&&g?.save){g.save();g.translate(-Math.cos(a)*kick,-Math.sin(a)*kick*.58);try{result=original.call(this,g,ent,team,...rest)}finally{g.restore()}}else result=original.call(this,g,ent,team,...rest);
+   drawCombatCue(g,ent,team);drawStateCue(g,ent,team);return result;
+ };
  art.__professionalFeelPatched=true;artPatched=true;return true;
 }
 function objectivePulse(){
