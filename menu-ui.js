@@ -287,3 +287,27 @@ window.BadFodderMenu=class{
     if(e.key==='Enter')e.stopPropagation();
   }
 };
+
+(function(){
+  const BaseMenu=window.BadFodderMenu;
+  if(!BaseMenu||BaseMenu.__desktopWheelZoom)return;
+  window.BadFodderMenu=class extends BaseMenu{
+    constructor(actions){
+      super(actions);
+      const viewport=actions.root?.querySelector?.('.viewport')||document.querySelector('.viewport');
+      if(!viewport)return;
+      const finePointer=window.matchMedia?.('(pointer:fine)');
+      let wheelZoom=Math.max(.55,Math.min(3.2,Number(actions.zoomValue)||1.3));
+      const zoomControl=this.get?.('menuZoom');
+      zoomControl?.addEventListener('change',()=>{const value=Number(zoomControl.value);if(Number.isFinite(value))wheelZoom=value;});
+      viewport.addEventListener('wheel',event=>{
+        if(!this.screen.hidden||event.ctrlKey||event.metaKey||!event.deltaY)return;
+        if(finePointer&&!finePointer.matches)return;
+        event.preventDefault();
+        wheelZoom=Math.max(.55,Math.min(3.2,Math.round((wheelZoom+(event.deltaY<0?.15:-.15))*100)/100));
+        actions.zoom(wheelZoom);
+      },{passive:false});
+    }
+  };
+  window.BadFodderMenu.__desktopWheelZoom=true;
+})();
