@@ -1,96 +1,24 @@
 /* Stress-driven pacing layer for the local adaptive director. */
-(function(root,factory){
-  const api=factory(root||{});
-  if(typeof module==='object'&&module.exports)module.exports=api;
-  if(root)root.BadFodderDirectorPacing=api;
-})(typeof window!=='undefined'?window:globalThis,function(root){
-  'use strict';
-  const clamp=(n,a=0,b=1)=>Math.max(a,Math.min(b,Number(n)||0));
-  const alive=u=>u&&u.alive!==false&&!u.surrendered;
-  const STRESS_SMOOTH_SECONDS=6;
-  function unitHealth(u){const max=Math.max(1,Number(u?.maxHp)||Number(u?.hpMax)||Number(u?.hp)||1);return{current:Math.max(0,Number(u?.hp)||0),max}}
-  function calculateStress(squad=[],enemies=[],mapState={}){
-    let hp=0,maxHp=0,downed=0;
-    for(const u of squad){if(!u)continue;const h=unitHealth(u);hp+=h.current;maxHp+=h.max;if(u.downed||u.healthState==='DOWN'||u.healthState==='BADLY_WOUNDED')downed++}
-    const squadHealthFactor=maxHp?clamp(1-hp/maxHp):0;
-    let aiming=0;for(const e of enemies){if(!alive(e))continue;let close=false;for(const s of squad){if(!alive(s))continue;if(Math.hypot((e.x||0)-(s.x||0),(e.y||0)-(s.y||0))<=160){close=true;break}}if(close&&(e.aiming!==false)&&(e.alert||e.target||e.fireTimer>0||e.commandOrder))aiming++}
-    const hostileProximityFactor=clamp(aiming/Math.max(4,Math.min(8,enemies.length||4)));
-    let ammoStressFactor=0,ammoKnown=false;
-    if(Number.isFinite(mapState.ammoStressFactor)){ammoStressFactor=clamp(mapState.ammoStressFactor);ammoKnown=true}
-    else if(Number.isFinite(mapState.ammo)){ammoStressFactor=1-clamp(mapState.ammo);ammoKnown=true}
-    else{
-      let ammo=0,capacity=0;for(const s of squad){if(Number.isFinite(s?.ammo)){ammo+=Math.max(0,s.ammo);capacity+=Math.max(1,Number(s.maxAmmo)||Number(s.ammoCapacity)||30);ammoKnown=true}if(Number.isFinite(s?.grenades)){ammo+=Math.max(0,s.grenades)*6;capacity+=Math.max(1,Number(s.maxGrenades)||3)*6;ammoKnown=true}}
-      if(Number.isFinite(mapState.squadGrenades)){ammo+=Math.max(0,mapState.squadGrenades)*6;capacity+=18;ammoKnown=true}
-      if(ammoKnown)ammoStressFactor=clamp(1-ammo/Math.max(1,capacity));
-    }
-    const recentDownedFactor=clamp(downed/Math.max(1,squad.length*.5));
-    return clamp(squadHealthFactor*.35+hostileProximityFactor*.30+ammoStressFactor*.15+recentDownedFactor*.20);
-  }
-
-  function createState(){return{phase:'BUILD_UP',stressScore:0,rawStressScore:0,stressInitialized:false,clock:0,sampleClock:0,sampleElapsed:0,fadeUntil:0,peakUntil:0,lastHp:null,lastDowned:0,contact:false,result:{phase:'BUILD_UP',spawnRateModifier:.55,allowFlankers:false}}}
-  function totals(squad){let hp=0,max=0,downed=0;for(const u of squad){if(!u)continue;const h=unitHealth(u);hp+=h.current;max+=h.max;if(u.downed||u.healthState==='DOWN')downed++}return{hp,max:Math.max(1,max),downed}}
-  function contactNow(squad,enemies){for(const e of enemies){if(!alive(e))continue;for(const s of squad)if(alive(s)&&Math.hypot((e.x||0)-(s.x||0),(e.y||0)-(s.y||0))<=190&&(e.alert||e.target||e.fireTimer>0))return true}return squad.some(s=>s?.atObjectiveBoundary||s?.objectiveContact)}
-  function smoothStress(state,raw,elapsed){
-    state.rawStressScore=raw;
-    if(!state.stressInitialized){state.stressScore=raw;state.stressInitialized=true;return raw}
-    const alpha=1-Math.exp(-Math.max(.001,elapsed)/STRESS_SMOOTH_SECONDS);
-    state.stressScore=clamp(state.stressScore+(raw-state.stressScore)*alpha);
-    return state.stressScore;
-  }
-  function updateState(state,dt,squad=[],enemies=[],mapState={}){
-    const elapsed=Math.max(0,Number(dt)||0);state.clock+=elapsed;state.sampleClock-=elapsed;state.sampleElapsed+=elapsed;
-    if(state.sampleClock>0)return state.result;
-    const sampleElapsed=Math.max(.001,state.sampleElapsed);state.sampleElapsed=0;state.sampleClock=.25;
-    const t=totals(squad),rawStress=calculateStress(squad,enemies,mapState),stress=smoothStress(state,rawStress,sampleElapsed),contact=contactNow(squad,enemies);
-    const heavyDamage=state.lastHp!==null&&(state.lastHp-t.hp)/t.max>=.18;
-    const newDown=t.downed>state.lastDowned;
-    if(heavyDamage||newDown)state.fadeUntil=Math.max(state.fadeUntil,state.clock+18);
-    if(contact&&!state.contact)state.peakUntil=Math.max(state.peakUntil,state.clock+7);
-    state.contact=contact;state.lastHp=t.hp;state.lastDowned=t.downed;
-    let phase;
-    if(state.clock<state.fadeUntil)phase='FADE_DOWN';
-    else if(state.clock<state.peakUntil)phase='PEAK';
-    else if(contact||stress>=.35)phase='SUSTAIN';
-    else phase='BUILD_UP';
-    state.phase=phase;
-    const config={BUILD_UP:[.55,false],PEAK:[1.15,true],SUSTAIN:[.78,true],FADE_DOWN:[0,false]}[phase];
-    state.result={phase,spawnRateModifier:config[0],allowFlankers:config[1],stressScore:stress};return state.result;
-  }
-  const defaultState=createState();
-  function updatePacing(dt,squad,enemies,mapState={}){return updateState(defaultState,dt,squad,enemies,mapState)}
-
-  const AGGRESSIVE=new Set(['PRESSURE','MAJOR_PUSH','FLANK_LEFT','FLANK_RIGHT','REINFORCE','AMBUSH','PRESSURE_MAIN','PRESSURE_SIDE','ESCALATE_PRESSURE','MOUNTED_PRESSURE']);
-  const FLANKS=new Set(['FLANK_LEFT','FLANK_RIGHT','SWITCH_PRESSURE']);
-  function actionAllowed(action,pacing,enemies){
-    if(pacing.phase==='FADE_DOWN'&&AGGRESSIVE.has(action))return false;
-    if(!pacing.allowFlankers&&FLANKS.has(action))return false;
-    if(pacing.phase==='BUILD_UP'&&['MAJOR_PUSH','REINFORCE','ESCALATE_PRESSURE','MOUNTED_PRESSURE'].includes(action))return false;
-    if(pacing.phase==='SUSTAIN'){
-      let aggressive=0;for(const e of enemies)if(alive(e)&&e.commandOrder&&AGGRESSIVE.has(e.commandOrder.type))aggressive++;
-      let living=0;for(const e of enemies)if(alive(e))living++;const cap=Math.max(3,Math.ceil(living*.45));if(aggressive>=cap&&AGGRESSIVE.has(action))return false;
-    }
-    return true;
-  }
-  function patchAdaptive(adaptive){
-    if(!adaptive||adaptive.__directorPacingPatched)return false;
-    if(typeof adaptive.createCommander==='function'){
-      const originalCommander=adaptive.createCommander;adaptive.createCommander=function(options={}){const commander=originalCommander.call(this,options);commander.__getSquad=options.getSquad||(()=>[]);commander.__getEnemies=options.getEnemies||(()=>[]);return commander};
-    }
-    if(typeof adaptive.create==='function'){
-      const originalCreate=adaptive.create;adaptive.create=function(options={}){
-        const source=options.adapter||{},state=createState();
-        const squad=()=>{try{return source.__getSquad?.()||[]}catch(_){return[]}},enemies=()=>{try{return source.__getEnemies?.()||[]}catch(_){return[]}};let latestMapState={};
-        const paced=Object.create(source);if(typeof source.sample==='function')paced.sample=function(time){const sample=source.sample(time)||{};latestMapState=sample;return sample};
-        paced.valid=function(action,s,time){const base=typeof source.valid==='function'?source.valid(action,s,time)!==false:true;return base&&actionAllowed(action,state.result,enemies())};
-        paced.execute=function(action,s,time){if(!actionAllowed(action,state.result,enemies()))return false;return typeof source.execute==='function'?source.execute(action,s,time):false};
-        const director=originalCreate.call(this,{...options,adapter:paced}),baseUpdate=director.update?.bind(director);
-        director.update=function(dt){const p=updateState(state,dt,squad(),enemies(),latestMapState);if(director.state){director.state.pacingPhase=p.phase;director.state.stressScore=p.stressScore;director.state.spawnRateModifier=p.spawnRateModifier;director.state.allowFlankers=p.allowFlankers}return baseUpdate?baseUpdate(dt):true};
-        director.pacing=state;return director;
-      };
-    }
-    adaptive.__directorPacingPatched=true;return true;
-  }
-  function chainProperty(name,patch){const d=Object.getOwnPropertyDescriptor(root,name);if(d&&!d.configurable){patch(root[name]);return}if(d&&(d.get||d.set)){const g=d.get,s=d.set;Object.defineProperty(root,name,{configurable:true,enumerable:d.enumerable!==false,get(){return g?g.call(root):undefined},set(v){s?.call(root,v);patch(g?g.call(root):v)}});patch(g?g.call(root):undefined);return}let value=d&&'value'in d?d.value:root[name];Object.defineProperty(root,name,{configurable:true,enumerable:true,get(){return value},set(v){value=v;patch(v)}});patch(value)}
-  chainProperty('BadFodderAdaptive',patchAdaptive);if(root.document)root.document.addEventListener('DOMContentLoaded',()=>patchAdaptive(root.BadFodderAdaptive),{once:true});
-  return{calculateStress,updatePacing,createState,updateState,patchAdaptive};
+(function(root,factory){const api=factory(root||{});if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.BadFodderDirectorPacing=api;})(typeof window!=='undefined'?window:globalThis,function(root){
+'use strict';
+const clamp=(n,a=0,b=1)=>Math.max(a,Math.min(b,Number(n)||0)),alive=u=>u&&u.alive!==false&&!u.surrendered,STRESS_SMOOTH_SECONDS=6;
+function unitHealth(u){const max=Math.max(1,Number(u?.maxHp)||Number(u?.hpMax)||Number(u?.hp)||1);return{current:Math.max(0,Number(u?.hp)||0),max}}
+function calculateStress(squad=[],enemies=[],mapState={}){let hp=0,maxHp=0,downed=0;for(const u of squad){if(!u)continue;const h=unitHealth(u);hp+=h.current;maxHp+=h.max;if(u.downed||u.healthState==='DOWN'||u.healthState==='BADLY_WOUNDED')downed++}const squadHealthFactor=maxHp?clamp(1-hp/maxHp):0;let aiming=0;for(const e of enemies){if(!alive(e))continue;let close=false;for(const s of squad){if(!alive(s))continue;if(Math.hypot((e.x||0)-(s.x||0),(e.y||0)-(s.y||0))<=160){close=true;break}}if(close&&(e.aiming!==false)&&(e.alert||e.target||e.fireTimer>0||e.commandOrder))aiming++}const hostileProximityFactor=clamp(aiming/Math.max(4,Math.min(8,enemies.length||4)));let ammoStressFactor=0,ammoKnown=false;if(Number.isFinite(mapState.ammoStressFactor)){ammoStressFactor=clamp(mapState.ammoStressFactor);ammoKnown=true}else if(Number.isFinite(mapState.ammo)){ammoStressFactor=1-clamp(mapState.ammo);ammoKnown=true}else{let ammo=0,capacity=0;for(const s of squad){if(Number.isFinite(s?.ammo)){ammo+=Math.max(0,s.ammo);capacity+=Math.max(1,Number(s.maxAmmo)||Number(s.ammoCapacity)||30);ammoKnown=true}if(Number.isFinite(s?.grenades)){ammo+=Math.max(0,s.grenades)*6;capacity+=Math.max(1,Number(s.maxGrenades)||3)*6;ammoKnown=true}}if(Number.isFinite(mapState.squadGrenades)){ammo+=Math.max(0,mapState.squadGrenades)*6;capacity+=18;ammoKnown=true}if(ammoKnown)ammoStressFactor=clamp(1-ammo/Math.max(1,capacity))}const recentDownedFactor=clamp(downed/Math.max(1,squad.length*.5));return clamp(squadHealthFactor*.35+hostileProximityFactor*.30+ammoStressFactor*.15+recentDownedFactor*.20)}
+function createState(){return{phase:'BUILD_UP',stressScore:0,rawStressScore:0,stressInitialized:false,clock:0,sampleClock:0,sampleElapsed:0,fadeUntil:0,peakUntil:0,lastHp:null,lastDowned:0,contact:false,objectiveToken:null,result:{phase:'BUILD_UP',spawnRateModifier:.55,allowFlankers:false}}}
+function totals(squad){let hp=0,max=0,downed=0;for(const u of squad){if(!u)continue;const h=unitHealth(u);hp+=h.current;max+=h.max;if(u.downed||u.healthState==='DOWN')downed++}return{hp,max:Math.max(1,max),downed}}
+function contactNow(squad,enemies){for(const e of enemies){if(!alive(e))continue;for(const s of squad)if(alive(s)&&Math.hypot((e.x||0)-(s.x||0),(e.y||0)-(s.y||0))<=190&&(e.alert||e.target||e.fireTimer>0))return true}return squad.some(s=>s?.atObjectiveBoundary||s?.objectiveContact)}
+function smoothStress(state,raw,elapsed){state.rawStressScore=raw;if(!state.stressInitialized){state.stressScore=raw;state.stressInitialized=true;return raw}const alpha=1-Math.exp(-Math.max(.001,elapsed)/STRESS_SMOOTH_SECONDS);state.stressScore=clamp(state.stressScore+(raw-state.stressScore)*alpha);return state.stressScore}
+function updateState(state,dt,squad=[],enemies=[],mapState={}){
+ const elapsed=Math.max(0,Number(dt)||0);state.clock+=elapsed;state.sampleClock-=elapsed;state.sampleElapsed+=elapsed;if(state.sampleClock>0)return state.result;
+ const sampleElapsed=Math.max(.001,state.sampleElapsed);state.sampleElapsed=0;state.sampleClock=.25;const t=totals(squad),rawStress=calculateStress(squad,enemies,mapState),stress=smoothStress(state,rawStress,sampleElapsed),contact=contactNow(squad,enemies);
+ const token=mapState.phase??mapState.objectiveStage??mapState.stage??null;if(token!==null&&token!==undefined&&token!==state.objectiveToken){if(state.objectiveToken!==null)state.fadeUntil=Math.max(state.fadeUntil,state.clock+5);state.objectiveToken=token}
+ const heavyDamage=state.lastHp!==null&&(state.lastHp-t.hp)/t.max>=.18,newDown=t.downed>state.lastDowned;if(heavyDamage||newDown)state.fadeUntil=Math.max(state.fadeUntil,state.clock+18);if(contact&&!state.contact)state.peakUntil=Math.max(state.peakUntil,state.clock+7);if(!contact&&state.contact&&stress<.45)state.fadeUntil=Math.max(state.fadeUntil,state.clock+3.5);
+ state.contact=contact;state.lastHp=t.hp;state.lastDowned=t.downed;let phase;if(state.clock<state.fadeUntil)phase='FADE_DOWN';else if(state.clock<state.peakUntil)phase='PEAK';else if(contact||stress>=.35)phase='SUSTAIN';else phase='BUILD_UP';state.phase=phase;const config={BUILD_UP:[.55,false],PEAK:[1.15,true],SUSTAIN:[.78,true],FADE_DOWN:[0,false]}[phase];state.result={phase,spawnRateModifier:config[0],allowFlankers:config[1],stressScore:stress};return state.result;
+}
+const defaultState=createState();function updatePacing(dt,squad,enemies,mapState={}){return updateState(defaultState,dt,squad,enemies,mapState)}
+const AGGRESSIVE=new Set(['PRESSURE','MAJOR_PUSH','FLANK_LEFT','FLANK_RIGHT','REINFORCE','AMBUSH','PRESSURE_MAIN','PRESSURE_SIDE','ESCALATE_PRESSURE','MOUNTED_PRESSURE']),FLANKS=new Set(['FLANK_LEFT','FLANK_RIGHT','SWITCH_PRESSURE']);
+function actionAllowed(action,pacing,enemies){if(pacing.phase==='FADE_DOWN'&&AGGRESSIVE.has(action))return false;if(!pacing.allowFlankers&&FLANKS.has(action))return false;if(pacing.phase==='BUILD_UP'&&['MAJOR_PUSH','REINFORCE','ESCALATE_PRESSURE','MOUNTED_PRESSURE'].includes(action))return false;if(pacing.phase==='SUSTAIN'){let aggressive=0;for(const e of enemies)if(alive(e)&&e.commandOrder&&AGGRESSIVE.has(e.commandOrder.type))aggressive++;let living=0;for(const e of enemies)if(alive(e))living++;const cap=Math.max(3,Math.ceil(living*.45));if(aggressive>=cap&&AGGRESSIVE.has(action))return false}return true}
+function patchAdaptive(adaptive){if(!adaptive||adaptive.__directorPacingPatched)return false;if(typeof adaptive.createCommander==='function'){const originalCommander=adaptive.createCommander;adaptive.createCommander=function(options={}){const commander=originalCommander.call(this,options);commander.__getSquad=options.getSquad||(()=>[]);commander.__getEnemies=options.getEnemies||(()=>[]);return commander}}if(typeof adaptive.create==='function'){const originalCreate=adaptive.create;adaptive.create=function(options={}){const source=options.adapter||{},state=createState();const squad=()=>{try{return source.__getSquad?.()||[]}catch(_){return[]}},enemies=()=>{try{return source.__getEnemies?.()||[]}catch(_){return[]}};let latestMapState={};const paced=Object.create(source);if(typeof source.sample==='function')paced.sample=function(time){const sample=source.sample(time)||{};latestMapState=sample;return sample};paced.valid=function(action,s,time){const base=typeof source.valid==='function'?source.valid(action,s,time)!==false:true;return base&&actionAllowed(action,state.result,enemies())};paced.execute=function(action,s,time){if(!actionAllowed(action,state.result,enemies()))return false;return typeof source.execute==='function'?source.execute(action,s,time):false};const director=originalCreate.call(this,{...options,adapter:paced}),baseUpdate=director.update?.bind(director);director.update=function(dt){const p=updateState(state,dt,squad(),enemies(),latestMapState);if(director.state){director.state.pacingPhase=p.phase;director.state.stressScore=p.stressScore;director.state.spawnRateModifier=p.spawnRateModifier;director.state.allowFlankers=p.allowFlankers}return baseUpdate?baseUpdate(dt):true};director.pacing=state;return director}}adaptive.__directorPacingPatched=true;return true}
+function chainProperty(name,patch){const d=Object.getOwnPropertyDescriptor(root,name);if(d&&!d.configurable){patch(root[name]);return}if(d&&(d.get||d.set)){const g=d.get,s=d.set;Object.defineProperty(root,name,{configurable:true,enumerable:d.enumerable!==false,get(){return g?g.call(root):undefined},set(v){s?.call(root,v);patch(g?g.call(root):v)}});patch(g?g.call(root):undefined);return}let value=d&&'value'in d?d.value:root[name];Object.defineProperty(root,name,{configurable:true,enumerable:true,get(){return value},set(v){value=v;patch(v)}});patch(value)}
+chainProperty('BadFodderAdaptive',patchAdaptive);if(root.document)root.document.addEventListener('DOMContentLoaded',()=>patchAdaptive(root.BadFodderAdaptive),{once:true});return{calculateStress,updatePacing,createState,updateState,patchAdaptive};
 });

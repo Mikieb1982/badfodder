@@ -14,9 +14,10 @@
  }
  function load(src,ready){
   if(root.document.querySelector('script[data-runtime-support="'+src+'"]'))return;
-  const script=root.document.createElement('script');script.src=src;script.dataset.runtimeSupport=src;if(ready)script.addEventListener('load',ready,{once:true});root.document.head.appendChild(script);
+  const script=root.document.createElement('script');script.src=root.BadFodderAssetUrl?.(src)||src;script.dataset.runtimeSupport=src;if(ready)script.addEventListener('load',ready,{once:true});root.document.head.appendChild(script);
  }
  root.BadFodderInput={joystick};
  load('controller-support.js',()=>{if(lastJoystick)root.BadFodderController?.bindJoystick?.(lastJoystick)});
+ load('experience-polish.js');
  load('install-app.js');
 })(window);

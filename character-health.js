@@ -22,6 +22,13 @@
  }
  function sync(unit){if(unit)unit.healthState=stateFor(unit);return unit?.healthState}
  function isSquad(unit){return squad().includes(unit)}
+ function feedback(target,amount,hitX,hitY){
+  if(!target||!(Number(amount)>0))return;
+  const team=isSquad(target)?'squad':'enemy';
+  try{root.BadFodderSfx?.impact?.(team==='squad'?'body':'target')}catch(_){}
+  try{root.BadFodderExperience?.hit?.({team,x:hitX,y:hitY,amount})}catch(_){}
+  target.hitTimer=Math.max(Number(target.hitTimer)||0,.14);target.flash=Math.max(Number(target.flash)||0,.11);
+ }
  function freezeDowned(unit){
   if(!unit)return;
   unit.path=null;unit.pendingPath=null;unit.pathIndex=0;unit.target=null;unit.isFormationLeader=false;unit.followRepath=0;
@@ -42,7 +49,6 @@
   if(helper)runtimeSupportAction?.({phase:'begin',actor:helper,action:'stabilise',target:unit,duration:.8});
   return true;
  }
- // Explicit refuge/aid-station recovery; never called from the simulation tick.
  function recover(unit,amount=2){
   if(!unit?.alive||!Number.isFinite(unit.maxHp)||unit.maxHp<=0||!Number.isFinite(amount)||amount<=0||unit.downed&&!unit.stabilised||!unit.downed&&unit.hp>=unit.maxHp)return false;
   if(unit.carriedBy)dropCarry(unit.carriedBy);
@@ -112,8 +118,10 @@
   patchedDamage=true;return true;
  }
  function handleDamage(target,amount,hitX,hitY,source=null){
-   if(!isSquad(target)||target?._healthFinalising)return originalDamage(target,amount,hitX,hitY,source);
-   if((target.damageGrace||0)>0)return;
+   if(!target||target?._healthFinalising)return originalDamage(target,amount,hitX,hitY,source);
+   if(isSquad(target)&&(target.damageGrace||0)>0)return;
+   feedback(target,amount,hitX,hitY);
+   if(!isSquad(target))return originalDamage(target,amount,hitX,hitY,source);
    if(target.downed){const result=originalDamage(target,Math.max(1,amount),hitX,hitY,source);target.downed=false;target.healthState=target.alive===false?'DEAD':stateFor(target);if(target.carriedBy)dropCarry(target.carriedBy);if(target.carryingUnit)dropCarry(target);return result}
    const hp=Number(target.hp)||0,next=hp-(Number(amount)||0);
    if(next<=0&&target.alive!==false){
