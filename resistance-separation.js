@@ -2,12 +2,38 @@
 (function(root){
  'use strict';
 
+ const UNSUPPORTED_RESISTANCE_MAPS=new Set(['cable-street']);
  function active(){return root.BadFodderArcade?.active?.('resistance')===true;}
+ function selectedMap(){return root.BadFodderArcade?.read?.()?.map||null;}
  function mapLabel(){
-  const selected=root.BadFodderArcade?.read?.()?.map;
+  const selected=selectedMap();
   return root.BadFodderArcade?.MAPS?.find?.(map=>map.key===selected)?.label||'Resistance';
  }
  function wave(){return Math.max(1,Number(root.BadFodderArcade?.runtime?.wave)||1);}
+ function removeUnsupportedMapButtons(){
+  root.document?.querySelectorAll?.('[data-view="resistance"] [data-arcade-map="cable-street"]').forEach(button=>button.remove());
+ }
+ function enforceMapPolicy(){
+  removeUnsupportedMapButtons();
+  if(!active()||!UNSUPPORTED_RESISTANCE_MAPS.has(selectedMap()))return;
+  root.BadFodderArcade?.clear?.();
+  try{
+   const store=root.BadFodderStorage?.session||root.sessionStorage;
+   store?.removeItem('badfodder.launch.v1');
+   store?.removeItem('badfodder.launch.autostart.v1');
+  }catch(_){}
+  root.location?.reload?.();
+ }
+ function installMapPolicy(){
+  if(!root.document)return;
+  enforceMapPolicy();
+  const target=root.document.documentElement;
+  if(target&&typeof root.MutationObserver==='function'){
+   const observer=new root.MutationObserver(removeUnsupportedMapButtons);
+   observer.observe(target,{childList:true,subtree:true});
+  }
+  root.document.addEventListener?.('DOMContentLoaded',enforceMapPolicy,{once:true});
+ }
  function cleanPresentation(env){
   if(!active()||!env)return;
   const currentWave=wave();
@@ -98,7 +124,7 @@
   Object.defineProperty(root,name,{configurable:true,enumerable:true,get(){return value;},set(next){value=next;patch(next);}});
   patch(value);
  }
- function install(){watch('BadFodderHudController',patchHud);watch('BadFodderMissionController',patchMissionController);}
+ function install(){watch('BadFodderHudController',patchHud);watch('BadFodderMissionController',patchMissionController);installMapPolicy();}
  install();
- root.BadFodderResistanceSeparation={active,cleanPresentation,patchHud,patchMissionController,install};
+ root.BadFodderResistanceSeparation={active,selectedMap,cleanPresentation,removeUnsupportedMapButtons,enforceMapPolicy,patchHud,patchMissionController,install};
 })(typeof window!=='undefined'?window:globalThis);
