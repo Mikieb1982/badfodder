@@ -4,6 +4,7 @@ const root=path.join(__dirname,'..');
 const MissionLaunch=require('../mission-launch.js');
 const index=require('./engine-source.cjs')(fs.readFileSync(path.join(root,'index.html'),'utf8'));
 const menu=fs.readFileSync(path.join(root,'menu-ui.js'),'utf8');
+const missionAssets=fs.readFileSync(path.join(root,'mission-assets.js'),'utf8');
 const campaignSource=fs.readFileSync(path.join(root,'campaign.js'),'utf8');
 
 function campaign(){
@@ -74,7 +75,11 @@ assert(menu.includes("this.get('menuMissionSelect').addEventListener"),'Mission 
 assert(menu.includes("actions.selectMission(0)")&&menu.includes("actions.selectMission(1)"),'Both playable mission choices are not wired');
 assert(menu.includes('window.BadFodderMusic?.playMission(identity);'),'Mission music must switch when the briefing opens');
 assert(menu.includes("if(this.mode==='title')window.BadFodderMusic?.playHome()"),'Backing out of a title-screen briefing must restore title music');
+assert(missionAssets.includes("OPTIONAL_MODULES=new Set(['wigan-network.js'])"),'Wigan presentation layer must remain optional');
+assert(missionAssets.includes("if(!OPTIONAL_MODULES.has(base(file)))throw error"),'Required mission assets must still fail closed');
+assert(missionAssets.includes("Optional Wigan network disabled"),'Wigan network install failure must not block the core mission');
 
 console.log('PASS: main menu offers Campaign and Mission Select with Bad Belzig and Wigan.');
 console.log('PASS: standalone mission choice is session-scoped and does not alter campaign progression; campaign mode still advances in order.');
 console.log('PASS: mission music starts with the briefing and title music is restored when backing out.');
+console.log('PASS: optional Wigan presentation cannot block core Wigan mission loading.');
