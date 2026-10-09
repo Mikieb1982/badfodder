@@ -1,7 +1,7 @@
 /* Offline application shell for If I Can Shoot Rabbits. */
 'use strict';
 
-const CACHE_NAME='if-i-can-shoot-rabbits-offline-v6';
+const CACHE_NAME='if-i-can-shoot-rabbits-offline-v7';
 const SHELL=['./','./index.html','./manifest.webmanifest'];
 const unavailable=()=>new Response('',{status:503,statusText:'Offline'});
 
