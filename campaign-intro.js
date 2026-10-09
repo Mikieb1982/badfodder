@@ -38,6 +38,10 @@
     };
 
     video.addEventListener('ended',finish,{once:true});
+    // Some mobile browsers stop on the last frame without dispatching ended.
+    video.addEventListener('timeupdate',()=>{
+      if(Number.isFinite(video.duration)&&video.duration>0&&video.currentTime>=video.duration-0.15)finish();
+    });
     video.addEventListener('error',finish,{once:true});
     skip.addEventListener('click',finish);
     overlay.addEventListener('keydown',event=>{if(event.key==='Escape')finish();});
