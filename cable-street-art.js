@@ -206,9 +206,49 @@
       if(bounds&&(x+w<bounds.x||x>bounds.x+bounds.w||y+h<bounds.y||y>bounds.y+bounds.h))continue;
       const asphalt=art&&typeof art.texture==='function'?art.texture(ctx,'urban-asphalt'):'#696b61';
       const paving=art&&typeof art.texture==='function'?art.texture(ctx,'urban-paving'):'#8b8779';
-      // Match Wigan's road material stack: dark kerb edge, paving strip, then the shared asphalt texture.
+      // Preserve the established grey road material, then add only a faint handcrafted surface pass.
       ctx.save();
       polygon(ctx,pts,asphalt,'#777969',S(2.5));
+      if(typeof ctx.clip==='function'){
+        ctx.save();polygon(ctx,pts,null);ctx.clip();
+        let tile=drawStreetSurface._textureTile;
+        if(!tile){
+          let canvas=null;
+          if(typeof OffscreenCanvas!=='undefined')canvas=new OffscreenCanvas(256,256);
+          else if(typeof document!=='undefined'&&document.createElement){canvas=document.createElement('canvas');canvas.width=256;canvas.height=256}
+          if(canvas){
+            const t=canvas.getContext('2d');
+            if(t){
+              const textureSeed=hashText('cable-street-surface');
+              for(let i=0;i<180;i++){
+                const px=seededUnit(textureSeed,i*4+1)*256,py=seededUnit(textureSeed,i*4+2)*256,r=.35+seededUnit(textureSeed,i*4+3)*1.2;
+                t.fillStyle=i%3===0?'rgba(31,33,31,.035)':'rgba(218,218,207,.018)';t.fillRect(px,py,r,r);
+              }
+              if(typeof t.createRadialGradient==='function')for(let i=0;i<7;i++){
+                const px=seededUnit(textureSeed,900+i*3)*256,py=seededUnit(textureSeed,901+i*3)*256,r=24+seededUnit(textureSeed,902+i*3)*36;
+                const g=t.createRadialGradient(px,py,0,px,py,r);g.addColorStop(0,'rgba(30,32,30,.035)');g.addColorStop(1,'rgba(30,32,30,0)');t.fillStyle=g;t.fillRect(px-r,py-r,r*2,r*2);
+              }
+              drawStreetSurface._textureTile=tile=canvas;
+            }
+          }
+        }
+        if(tile&&typeof ctx.createPattern==='function'){
+          const pattern=ctx.createPattern(tile,'repeat');
+          if(pattern){ctx.globalAlpha=.42;ctx.fillStyle=pattern;ctx.fillRect(x,y,w,h);ctx.globalAlpha=1}
+        }
+        const surfaceSeed=hashText(raw.map(p=>p.join(',')).join('|'));
+        if(typeof ctx.createRadialGradient==='function')for(let i=0;i<3;i++){
+          const px=x+w*(.2+seededUnit(surfaceSeed,30+i*3)*.6),py=y+h*(.2+seededUnit(surfaceSeed,31+i*3)*.6),r=Math.max(S(18),Math.min(w,h)*(.12+seededUnit(surfaceSeed,32+i*3)*.08));
+          const g=ctx.createRadialGradient(px,py,0,px,py,r);g.addColorStop(0,'rgba(35,37,34,.035)');g.addColorStop(1,'rgba(35,37,34,0)');ctx.fillStyle=g;ctx.fillRect(px-r,py-r,r*2,r*2);
+        }
+        if(w>S(90)&&h>S(30)){
+          const cx=x+w*(.28+seededUnit(surfaceSeed,70)*.38),cy=y+h*(.3+seededUnit(surfaceSeed,71)*.35),len=Math.min(S(22),w*.08);
+          line(ctx,cx-len*.5,cy,cx-len*.08,cy+S(1.6),'rgba(45,47,43,.055)',Math.max(.35,S(.32)));
+          line(ctx,cx-len*.08,cy+S(1.6),cx+len*.5,cy-S(.7),'rgba(45,47,43,.045)',Math.max(.3,S(.28)));
+        }
+        polygon(ctx,pts,null,'rgba(43,45,42,.08)',Math.max(S(2.2),1));
+        ctx.restore();
+      }
       polygon(ctx,pts,null,paving,S(1.5));
       ctx.restore();
     }
