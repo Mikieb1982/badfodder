@@ -9,7 +9,7 @@
     if(window.BadFodderCampaignIntro||document.querySelector('script[data-campaign-intro-loader]'))return;
     const script=document.createElement('script');
     script.dataset.campaignIntroLoader='1';
-    script.src=window.BadFodderAssetUrl?.(CAMPAIGN_INTRO_SCRIPT)||CAMPAIGN_INTRO_SCRIPT;
+    script.src=(window.BadFodderAssetUrl?.(CAMPAIGN_INTRO_SCRIPT)||CAMPAIGN_INTRO_SCRIPT)+'?v=20261009-mobile-intro';
     document.head.appendChild(script);
   }
   loadCampaignIntro();
