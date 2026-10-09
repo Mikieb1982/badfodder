@@ -35,6 +35,7 @@
   return pending.get(key);
  }
  const ready=(async()=>{
+  await loadModule('arcade-modes.js');
   const missions=await registry();
   const launch=BadFodderMissionLaunch.create({storage:BadFodderStorage.session,missions:BadFodderCampaign.missions,campaign:BadFodderCampaign,historicalMissions:BadFodderHistoricalMissions.missions,registry:missions});
   const current=launch.current(),definition=missions.get(current);
