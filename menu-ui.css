@@ -29,23 +29,3 @@
 .loading small{display:block;margin:8px 0;color:#e3d6a7;letter-spacing:.12em;}
 @media(max-width:650px){.menu-screen[data-panel="briefing"] .menu-layout{padding:12px;}.menu-screen[data-panel="briefing"] .menu-panel.mission-briefing{padding:18px 14px;}.briefing-columns{grid-template-columns:1fr;gap:0;}.briefing-columns p{font-size:13px;}.briefing-actions{gap:8px;}.briefing-characters{gap:14px;}}
 @media(max-height:500px) and (orientation:landscape){.menu-screen[data-panel="briefing"] .menu-panel.mission-briefing{padding:18px;}.briefing-columns{grid-template-columns:1.2fr 1fr;}.briefing-columns p{font-size:12px;}.briefing-actions .menu-button{min-height:40px;}}
-
-/* Shared game identity: crisp at desktop size while leaving the existing scene art intact. */
-.menu-screen[data-panel="main"] .menu-layout::before{
-  content:"";
-  position:absolute;
-  top:clamp(18px,4.5vh,52px);
-  left:50%;
-  width:min(760px,74vw);
-  aspect-ratio:1475/287;
-  transform:translateX(-50%);
-  background:url('assets/menu/logo-brand.png') center/contain no-repeat;
-  filter:drop-shadow(0 8px 18px #000b);
-  pointer-events:none;
-}
-@media(max-width:720px),(pointer:coarse){
-  .menu-screen[data-panel="main"] .menu-layout::before{top:clamp(10px,2.5vh,24px);width:min(560px,76vw)}
-}
-@media(max-height:500px) and (orientation:landscape){
-  .menu-screen[data-panel="main"] .menu-layout::before{top:6px;width:min(500px,52vw)}
-}
