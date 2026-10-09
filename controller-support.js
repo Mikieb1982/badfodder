@@ -23,14 +23,30 @@ function move(gp){if(!binding||binding.state.movePointer!==null||!binding.canMov
 function aim(gp){const v=radial(Number(gp.axes[2])||0,Number(gp.axes[3])||0);if(!v.mag)return;const canvas=document.getElementById('game');if(!canvas)return;const r=canvas.getBoundingClientRect(),radius=Math.min(r.width,r.height)*.42,x=r.left+r.width/2+v.x*radius,y=r.top+r.height/2+v.y*radius;try{canvas.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerType:'mouse',clientX:x,clientY:y}))}catch(_){canvas.dispatchEvent(new MouseEvent('mousemove',{bubbles:true,clientX:x,clientY:y}))}}
 function cycle(delta,multi=false){const units=[...document.querySelectorAll('.hud-unit')];const count=units.length||4;for(let i=0;i<count;i++){cycleIndex=(cycleIndex+delta+count)%count;if(!units[cycleIndex]?.disabled){tap(String(cycleIndex+1),'Digit'+(cycleIndex+1),{shiftKey:multi});return}}}
 function menuInput(gp){releaseMove();hold('f',false,'KeyF');if(edge(gp,12))focus(-1);if(edge(gp,13))focus(1);if(edge(gp,14)){if(!adjust(-1))focus(-1)}if(edge(gp,15)){if(!adjust(1))focus(1)}if(edge(gp,0)){const el=document.activeElement;if(el?.tagName==='BUTTON'||(el?.tagName==='INPUT'&&el.type==='checkbox'))el.click();else focus(1)}if(edge(gp,1)||edge(gp,9))tap('Escape','Escape')}
-function gameplayInput(gp){move(gp);aim(gp);if(edge(gp,0))tap('e','KeyE');if(edge(gp,1))tap('x','KeyX');if(edge(gp,2))click('stopBtn');if(edge(gp,3))tap('h','KeyH');if(edge(gp,5))tap('g','KeyG');if(edge(gp,8))click('touchMap')||click('mapBtn');if(edge(gp,9))click('touchPause')||click('pauseBtn');if(edge(gp,12))tap('a','KeyA');if(edge(gp,13))tap('r','KeyR');if(edge(gp,14))cycle(-1,down(gp,4));if(edge(gp,15))cycle(1,down(gp,4));hold('f',down(gp,7),'KeyF')}
+function gameplayInput(gp){
+  move(gp);aim(gp);
+  // Standard gamepad face buttons follow the on-screen action diamond:
+  // bottom A/Cross = FIRE, right B/Circle = GRENADE,
+  // left X/Square = ACTION, top Y/Triangle = GARRISON.
+  hold('f',down(gp,0)||down(gp,7),'KeyF');
+  if(edge(gp,1))tap('g','KeyG');
+  if(edge(gp,2))tap('e','KeyE');
+  if(edge(gp,3))tap('h','KeyH');
+  if(edge(gp,5))tap('g','KeyG');
+  if(edge(gp,8))click('touchMap')||click('mapBtn');
+  if(edge(gp,9))click('touchPause')||click('pauseBtn');
+  if(edge(gp,12))tap('a','KeyA');
+  if(edge(gp,13))tap('r','KeyR');
+  if(edge(gp,14))cycle(-1,down(gp,4));
+  if(edge(gp,15))cycle(1,down(gp,4));
+}
 function reset(){releaseMove();for(const k of [...held])hold(k,false,k==='f'?'KeyF':k);previous=[]}
 function loop(){const gp=pad();if(!gp){reset();requestAnimationFrame(loop);return}if(menuOpen())menuInput(gp);else gameplayInput(gp);requestAnimationFrame(loop)}
 function installLegend(){
  const panel=document.querySelector('[data-view="controls"]');const dl=panel?.querySelector('dl');
  if(dl&&!document.getElementById('controllerControlHelp')){
   const dt=document.createElement('dt');dt.id='controllerControlHelp';dt.textContent='CONTROLLER';
-  const dd=document.createElement('dd');dd.textContent='Left stick: move · Right stick: aim · RT/R2: fire or shove · RB/R1: grenade/throw · A/Cross: action · B/Circle: cancel/drop · Y/Triangle: garrison · X/Square: stop · D-pad up: all squad · D-pad down: regroup · D-pad left/right: squad selection · LB/L1 + D-pad left/right: add/remove squad member · View/Create: map · Start/Options: pause.';
+  const dd=document.createElement('dd');dd.textContent='Left stick: move · Right stick: aim · RT/R2: fire or shove · RB/R1: grenade/throw · A/Cross (bottom): fire · B/Circle (right): grenade · X/Square (left): action · Y/Triangle (top): garrison · D-pad up: all squad · D-pad down: regroup · D-pad left/right: squad selection · LB/L1 + D-pad left/right: add/remove squad member · View/Create: map · Start/Options: pause.';
   dl.append(dt,dd);
  }
  const hint=document.querySelector('#menuScreen .menu-hint');if(hint&&!/CONTROLLER/.test(hint.textContent||''))hint.textContent=(hint.textContent||'')+' · CONTROLLER';
