@@ -2,9 +2,19 @@
 (function(root){
  'use strict';
  const pending=new Map();
+ const OPTIONAL_MODULES=new Set(['wigan-network.js']);
+ const base=file=>String(file).split('?')[0].split('/').pop();
  const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  function script(file){return new Promise((resolve,reject)=>{const el=document.createElement('script');el.src=root.BadFodderAssetUrl?.(file.split('?')[0])||file;const timer=setTimeout(()=>{el.remove();reject(new Error('Mission load timed out: '+file))},15000);el.onload=()=>{clearTimeout(timer);resolve()};el.onerror=()=>{clearTimeout(timer);el.remove();reject(new Error('Mission file failed: '+file))};document.head.appendChild(el);});}
  async function loadFile(file){try{return await script(file)}catch(first){await delay(250);try{return await script(file)}catch(second){second.cause=first;throw second}}}
+ async function loadModule(file){
+  try{await loadFile(file);return true}
+  catch(error){
+   if(!OPTIONAL_MODULES.has(base(file)))throw error;
+   console.warn('Optional mission presentation failed to load:',file,error);
+   return false;
+  }
+ }
  async function registry(){
   if(root.BadFodderMissionRegistry)return root.BadFodderMissionRegistry;
   if(!root.BadFodderMissionDefinition)await loadFile('mission-definition.js');
@@ -16,7 +26,12 @@
   const missions=await registry(),definition=missions.get(ref);
   if(!definition)throw new Error('Unknown mission: '+ref);
   const key=definition.key;
-  if(!pending.has(key))pending.set(key,(async()=>{for(const file of definition.modules)await loadFile(file);})().catch(error=>{pending.delete(key);throw error}));
+  if(!pending.has(key))pending.set(key,(async()=>{
+   for(const file of definition.modules)await loadModule(file);
+   if(key==='wigan'&&root.BadFodderWiganNetwork?.install){
+    try{root.BadFodderWiganNetwork.install(root)}catch(error){console.warn('Optional Wigan network disabled:',error)}
+   }
+  })().catch(error=>{pending.delete(key);throw error}));
   return pending.get(key);
  }
  const ready=(async()=>{
