@@ -24,7 +24,9 @@ function transcodeMusic(){
 function transcodeCampaignVideo(){
  const source=path.join(root,'assets/menu/rabbitscampaign.mp4');if(!fs.existsSync(source)||!hasFfmpeg())return;
  const rel='assets/menu/rabbitscampaign-mobile.mp4',target=path.join(out,rel);fs.mkdirSync(path.dirname(target),{recursive:true});
- const args=['-y','-loglevel','error','-i',source,'-vf','scale=min(1280\\,iw):-2','-c:v','libx264','-profile:v','baseline','-level','3.1','-pix_fmt','yuv420p','-preset','veryfast','-crf','24','-movflags','+faststart','-c:a','aac','-b:a','96k','-ac','2',target];
+ // 960px H.264 Baseline + AAC is deliberately conservative for Android Chrome and iOS Safari.
+ // Faststart moves the MP4 metadata to the front so playback can begin before the full file downloads.
+ const args=['-y','-loglevel','error','-i',source,'-vf','scale=min(960\\,iw):-2,fps=30','-c:v','libx264','-profile:v','baseline','-level','3.0','-pix_fmt','yuv420p','-preset','veryfast','-crf','25','-maxrate','1600k','-bufsize','3200k','-movflags','+faststart','-c:a','aac','-b:a','80k','-ac','2','-ar','44100',target];
  const run=cp.spawnSync('ffmpeg',args,{stdio:'inherit'});if(run.status!==0){fs.rmSync(target,{force:true});console.warn('Could not create mobile campaign intro; original MP4 fallback retained.');return}mobileCampaignVideo='./'+rel;
 }
 transcodeMusic();transcodeCampaignVideo();
