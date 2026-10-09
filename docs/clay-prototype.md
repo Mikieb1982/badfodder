@@ -1,20 +1,20 @@
-# Bad Belzig clay presentation prototype
+# Bad Belzig clay miniature prototype
 
-Open `https://bad-fodder.web.app/?clay=1`, then SELECT MISSION → BAD BELZIG → BEGIN. Remove `?clay=1` for the original art. Only Bad Belzig supports this sample.
+Open https://bad-fodder.web.app/?clay=1&study=1 for the animated material study. The study displays the same assets used by the live renderer together, including the actual selected Bad Belzig building mesh. Return to the menu, then SELECT MISSION → BAD BELZIG → BEGIN for gameplay. The study shortcut is available in the menu only, so it cannot cover live aiming information or touch controls. Removing `clay=1` restores the original presentation.
 
-The sample selects Karl, the nearest original enemy and civilian, one original tree, one ordinary building, the road nearest the opening spawn, a bounded grass patch and one existing decorative sandbag stack. Karl's checkpoint cover bags also use the material helper. Locations and geometry are unchanged; the selected tree is north of the opening area. Only the first explosion is converted, including its smoke stages. Restarting the squad resets that effect selection.
+This revision replaces the primitive oval/capsule artwork with three compressed, locally served WebP atlases (1.93 MB total): detailed plasticine player/enemy/civilian miniatures, scenic trees and stitched sandbags, eight sculpted explosion/smoke replacements, grass, paving, plaster and roof materials. Generated source artwork is cropped using inspected per-object rectangles rather than assuming a perfectly regular atlas. Faces, clothing folds, scarves, belts, equipment and footwear remain readable at close zoom. Enemy equipment and civilian proportions provide distinctions beyond colour.
 
-`clay-prototype.js` provides one deterministic Canvas clay material, soft grounding shadows, sculpted clothing/limbs, layered scenic foliage and cached replacement explosion stages. The building retains the original roof mesh, wall polygons, doors, windows and architectural detail. Scenery uses the existing tile cache. The shared pose/asset cache is capped at 320 canvases, rendered at 3× nominal resolution.
+`clay-prototype.js` supplies shared material patterns, deterministic selection and imperfections, upper-left lighting, soft contact shadows and cached poses/effects. Reflected texture edges remove hard repeat seams; the grass is a single feathered patch. Roof materials use the existing roof-plane transform. Building footprints, roofs, original windows/doors and collision geometry remain unchanged. Cache capacity remains 320 canvases; there are no full-screen filters, blur, changing noise or new runtime dependencies. Loading is opt-in and bounded by a ten-second timeout; unavailable artwork falls back to the original renderer.
 
-Pose snapshots use `floor(presentationClock × 12)` rather than changing the update loop. Logical coordinates interpolate normally; body poses hold for approximately 83.33 ms. Shots, hits and death begin immediately, then their poses step. Recoil, held recoil and recovery are three discrete presentations of the existing fire state. The explosion uses 15 visual steps per second. There are no gameplay timers, simulation writes or random-number calls in the prototype.
+The live sample converts Karl, the nearest original enemy and civilian, one original tree, one representative building with both footprint dimensions over 40 world pixels, the road nearest the opening spawn, a bounded grass patch and one existing decorative sandbag stack. Karl's checkpoint cover bags also use the shared sandbag asset. The isolated study arranges these materials for review without relocating world entities. The actual selected tree/building/enemy may lie beyond the opening screen. Only the first existing explosion uses the replacement stages; a squad restart resets that selection. Wigan, Cable Street and Barcelona retain their existing art.
 
-The HUD, aiming markers, camera and input remain smooth. No tilt-shift, full-screen filters or environmental wobble are used. Other missions and the default URL retain the existing rendering.
+Pose snapshots use `floor(presentationClock × 12)`. The existing illustrated-character limb replacement technique gives the detailed sprites held walking/running poses, occasional idle poses, recoil/hold/recovery, hit and collapse. The larger death cache prevents clipping. Logical coordinates continue to move normally; shots/hits/death start immediately. Explosion/smoke artwork replaces at 15 Hz. Simulation, input, camera, HUD and weapon timing are untouched.
 
 Validation:
 
-- `node tests/clay-prototype.cjs`
-- `node tests/animation.cjs`, `tests/actor-scale.cjs`, `tests/painted-art.cjs`, `tests/enemy-art.cjs`, `tests/buildings.cjs`, `tests/scenery.cjs`, `tests/checkpoint-assaults.cjs`, `tests/garrison.cjs`
-- `node tests/clay-prototype-browser.cjs` with installed Playwright Chromium: desktop 1280 × 900 and landscape touch 915 × 412, tactical zoom 1.3 and maximum zoom 3.2. Captures go to `/tmp/clay-review` by default. The test fixture adds inspection helpers only to its local HTTP responses.
-- Production build and packaging checks.
+- `node tests/clay-prototype.cjs`: 12 held updates in 60 ticks, immediate events, immutable entities, warmed asset reuse and opt-in/mission isolation.
+- Existing directly relevant animation, actor-scale, painted-art, enemy-art, buildings, scenery, checkpoint-assaults and garrison tests.
+- `node tests/clay-prototype-browser.cjs` with Playwright Chromium: desktop 1280 × 900 and landscape touch 915 × 412, tactical zoom 1.3 and maximum zoom 3.2, animated study, working desktop/touch movement, unchanged entity/map geometry after render, bounded caches and zero runtime errors. Screenshot directory can be set with `BADFODDER_SCREENSHOTS`.
+- Production build and offline packaging checks.
 
-Browser checks assert working desktop/touch movement, exactly 12 held pose updates across 60 simulation ticks, unchanged entities and world geometry after drawing, bounded caching and zero runtime faults. Measurements are headless desktop emulation, not a physical phone performance guarantee.
+Rendering timings are comparative headless viewport measurements, not measurements on a physical phone. No strong tilt-shift or full-game conversion is included.

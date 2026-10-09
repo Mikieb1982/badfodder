@@ -1109,7 +1109,7 @@
   }
 
   async function preload(){
-    await Promise.all([art.preloadPainted(MAP_DATA.key),art.preloadMissionArt?.(missionIdentity.key)]);
+    await Promise.all([art.preloadPainted(MAP_DATA.key),art.preloadMissionArt?.(missionIdentity.key),window.BadFodderClay?.preload(MAP_DATA.key)]);
     if(MAP_DATA.key==='bad-belzig'){
       ['castle','butter','post','rathaus','reissiger','briccius','marien'].forEach(art.landmark);
     }
@@ -2822,7 +2822,7 @@
     }
     // Project each actual roof slope, including its texture, into the town view.
     for(const plane of [...mesh.planes].sort((a,b)=>a.points.reduce((n,p)=>n+p[1],0)/a.points.length-b.points.reduce((n,p)=>n+p[1],0)/b.points.length)){
-      const clayRoof=window.BadFodderClay?.buildingMaterial(ctx,b,plane.points,tint(b.roof,plane.sign<0?8:-16));
+      const clayRoof=window.BadFodderClay?.buildingMaterial(ctx,b,plane.points,tint(b.roof,plane.sign<0?8:-16),{transform:plane.transform,length:mesh.length,half:mesh.half});
       if(!clayRoof)polygon(plane.points,b.roof,'#38352c',2);
       ctx.save();polygon(plane.points,null);ctx.clip();
       if(art.paintedReady&&!clayRoof){
@@ -3005,7 +3005,7 @@
   }
 
   const wartimeProps=window.BadFodderWartimeScenery?.prepare(MAP_DATA)||[];
-  window.BadFodderClay?.configure({key:MAP_DATA.key,anchor:(MAP_DATA.spawns?.squad?.[0]||[180,180]).map(S),trees:treeDots,buildings,roads:drawingRoads,areas,props:wartimeProps,getActors:()=>({squad,enemy:enemies,civilian:civilians})});
+  window.BadFodderClay?.configure({key:MAP_DATA.key,anchor:(MAP_DATA.spawns?.squad?.[0]||[180,180]).map(S),trees:treeDots,buildings,roads:drawingRoads,areas,props:wartimeProps,getActors:()=>({squad,enemy:enemies,civilian:civilians}),renderBuilding:(target,b)=>{const live=ctx,prior=sceneryBounds;ctx=target;sceneryBounds={x:b.minX-80,y:b.minY-b.height-80,w:b.maxX-b.minX+160,h:b.maxY-b.minY+b.height+160};try{drawBuilding(b)}finally{ctx=live;sceneryBounds=prior}}});
 
   function paintScenery(target,x,y,scale=1,light=false){
     const live=ctx;ctx=target.getContext('2d',{alpha:false});
