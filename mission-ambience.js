@@ -2,8 +2,8 @@
 (function(){
 'use strict';
 function loadExperience(){
- if(window.BadFodderExperience||document.querySelector('script[data-experience-polish]'))return;
- const script=document.createElement('script');script.dataset.experiencePolish='1';script.src=window.BadFodderAssetUrl?.('experience-polish.js')||'experience-polish.js';document.head.appendChild(script);
+ if(window.BadFodderExperience||!document.head||document.querySelector?.('script[data-experience-polish]'))return;
+ const script=document.createElement('script');script.setAttribute('data-experience-polish','1');script.src=window.BadFodderAssetUrl?.('experience-polish.js')||'experience-polish.js';document.head.appendChild(script);
 }
 loadExperience();
 const TRACKS={
