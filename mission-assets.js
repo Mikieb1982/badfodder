@@ -5,6 +5,17 @@
  const OPTIONAL_MODULES=new Set(['wigan-network.js']);
  const base=file=>String(file).split('?')[0].split('/').pop();
  const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+
+ // Arcade modes patch the simulation factory. During normal page parsing they
+ // must therefore load before the inline game bootstrap creates its runtime.
+ // Keep the async path below as a fallback for non-parser/test environments.
+ function bootstrapArcade(){
+  if(root.BadFodderArcade||typeof document==='undefined'||document.readyState!=='loading')return;
+  const src=root.BadFodderAssetUrl?.('arcade-modes.js')||'arcade-modes.js';
+  document.write('<script src="'+src+'"><\\/script>');
+ }
+ bootstrapArcade();
+
  function script(file){return new Promise((resolve,reject)=>{const el=document.createElement('script');el.src=root.BadFodderAssetUrl?.(file.split('?')[0])||file;const timer=setTimeout(()=>{el.remove();reject(new Error('Mission load timed out: '+file))},15000);el.onload=()=>{clearTimeout(timer);resolve()};el.onerror=()=>{clearTimeout(timer);el.remove();reject(new Error('Mission file failed: '+file))};document.head.appendChild(el);});}
  async function loadFile(file){try{return await script(file)}catch(first){await delay(250);try{return await script(file)}catch(second){second.cause=first;throw second}}}
  async function loadModule(file){
@@ -35,7 +46,7 @@
   return pending.get(key);
  }
  const ready=(async()=>{
-  await loadModule('arcade-modes.js');
+  if(!root.BadFodderArcade)await loadModule('arcade-modes.js');
   const missions=await registry();
   const launch=BadFodderMissionLaunch.create({storage:BadFodderStorage.session,missions:BadFodderCampaign.missions,campaign:BadFodderCampaign,historicalMissions:BadFodderHistoricalMissions.missions,registry:missions});
   const current=launch.current(),definition=missions.get(current);
