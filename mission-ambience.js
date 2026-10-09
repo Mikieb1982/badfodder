@@ -21,10 +21,11 @@ try{
 }catch(_){}
 function render(){if(input)input.value=String(Math.round(volume*100));if(output)output.textContent=Math.round(volume*100)+'%'}
 function allowed(){return state==='PLAYING'&&!document.hidden&&window.BadFodderSfx?.enabled!==false&&volume>0&&!failed}
+function canAnimateFade(){return typeof requestAnimationFrame==='function'&&typeof performance!=='undefined'}
 function stopFade(){if(typeof cancelAnimationFrame==='function'&&raf)cancelAnimationFrame(raf);raf=0}
 function fadeTo(target,duration,{pause=false}={}){
  target=Math.max(0,Math.min(1,Number(target)||0));stopFade();
- if(typeof requestAnimationFrame!=='function'||typeof performance==='undefined'||duration<=0){audio.volume=target;if(pause&&target===0)audio.pause();return}
+ if(!canAnimateFade()||duration<=0){audio.volume=target;if(pause&&target===0)audio.pause();return}
  const initial=audio.volume,from=performance.now();
  const tick=now=>{
   const progress=Math.max(0,Math.min(1,(now-from)/duration)),eased=progress*progress*(3-2*progress);
@@ -48,7 +49,9 @@ async function sync(){
  audio.volume=0;
  const attempt=++generation;
  try{
-  await audio.play();
+  const pendingPlay=audio.play();
+  if(!canAnimateFade())audio.volume=volume;
+  await pendingPlay;
   if(attempt!==generation)return;
   if(!allowed()){audio.pause();audio.volume=0;return}
   fadeTo(volume,900);
