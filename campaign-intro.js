@@ -49,5 +49,25 @@
     if(attempt&&typeof attempt.catch==='function')attempt.catch(()=>{video.controls=true;skip.textContent='SKIP INTRO';});
   }
 
+  function install(){
+    const button=document.getElementById('menuStart');
+    if(!button||button.dataset.campaignIntroBound==='1')return;
+    button.dataset.campaignIntroBound='1';
+    let bypass=false;
+    button.addEventListener('click',event=>{
+      if(bypass||root.__testGame)return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      play(()=>{
+        bypass=true;
+        try{button.click()}finally{bypass=false}
+      });
+    },true);
+  }
+
   root.BadFodderCampaignIntro={play};
+  if(typeof document!=='undefined'){
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
+    else install();
+  }
 })(typeof window!=='undefined'?window:globalThis);
