@@ -91,7 +91,8 @@
     ctx.closePath();
   }
 
-  function drawBag(ctx,x,y,a,w,h,index,row){
+  function drawBag(ctx,x,y,a,w,h,index,row,clay=false){
+    if(clay&&(typeof window!=='undefined'?window:null)?.BadFodderClay?.coverBag(ctx,x,y,a,w,h,index,row))return;
     const jitter=(noise(index,row)+.5),rot=(jitter-.5)*.16;
     const palettes=[
       ['#70583b','#7d6242','#654e34'],
@@ -141,7 +142,7 @@
         if(half==='front'&&!front)continue;
         const radial=(noise(i,spec.row)-.5)*r*.035;
         const x=cx+Math.cos(a)*(spec.radius+radial),y=cy+Math.sin(a)*(spec.radius+radial);
-        drawBag(ctx,x,y,a,spec.w*(.94+Math.abs(noise(i,5))*.12),spec.h,spec.row*100+i,spec.row);
+        drawBag(ctx,x,y,a,spec.w*(.94+Math.abs(noise(i,5))*.12),spec.h,spec.row*100+i,spec.row,(typeof window!=='undefined'?window:null)?.BadFodderClay?.actorSelected(ent,'squad'));
       }
     }
     if(half!=='front'){

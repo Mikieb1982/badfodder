@@ -557,8 +557,9 @@
 <script src="painted-art.js?v=20261003-visual-2"></script>
 <script src="mission-character-art.js?v=20261003-visual-2"></script>
 <script src="enemy-character-art.js"></script>
-<script src="actor-scale.js"></script>
 <script src="wartime-scenery.js?v=20261003-wartime-1"></script>
+<script src="clay-prototype.js"></script>
+<script src="actor-scale.js"></script>
 <script src="building-art.js"></script>
 <script src="scenery-cache.js"></script>
 <script src="menu-ui.js?v=20261003-wartime-1"></script>
@@ -2727,6 +2728,7 @@
     }
     if(MAP_DATA.key==='wigan'){BadFodderWigan.road(ctx,r,S,art);return;}
     const path=/footway|path|track|steps/.test(r.kind),w=roadHalfWidth(r.kind)*2;
+    if(window.BadFodderClay?.road(ctx,r,w))return;
     ctx.lineCap='round';ctx.lineJoin='round';
     ctx.beginPath();ctx.moveTo(r.points[0][0],r.points[0][1]);
     r.points.slice(1).forEach(p=>ctx.lineTo(p[0],p[1]));
@@ -2765,8 +2767,9 @@
       const wall=ctx.createLinearGradient(0,a[1]-h,0,a[1]);
       const shade=d[1]>a[1]?-24:-8;
       wall.addColorStop(0,tint(b.wall,shade));wall.addColorStop(1,tint(b.wall,shade-18));
-      polygon(side,wall,'#4f4a3c',1.1);
-      if(art.paintedReady){
+      const clayWall=window.BadFodderClay?.buildingMaterial(ctx,b,side,tint(b.wall,shade));
+      if(!clayWall)polygon(side,wall,'#4f4a3c',1.1);
+      if(art.paintedReady&&!clayWall){
         ctx.save();polygon(side,null);ctx.clip();ctx.globalAlpha=.6;ctx.globalCompositeOperation='multiply';ctx.fillStyle=art.texture(ctx,'stucco');
         ctx.fillRect(Math.min(a[0],d[0])-1,Math.min(a[1],d[1])-h-mesh.rise-1,Math.abs(a[0]-d[0])+2,Math.abs(a[1]-d[1])+h+mesh.rise+2);ctx.restore();
       }
@@ -2819,9 +2822,10 @@
     }
     // Project each actual roof slope, including its texture, into the town view.
     for(const plane of [...mesh.planes].sort((a,b)=>a.points.reduce((n,p)=>n+p[1],0)/a.points.length-b.points.reduce((n,p)=>n+p[1],0)/b.points.length)){
-      polygon(plane.points,b.roof,'#38352c',2);
+      const clayRoof=window.BadFodderClay?.buildingMaterial(ctx,b,plane.points,tint(b.roof,plane.sign<0?8:-16));
+      if(!clayRoof)polygon(plane.points,b.roof,'#38352c',2);
       ctx.save();polygon(plane.points,null);ctx.clip();
-      if(art.paintedReady){
+      if(art.paintedReady&&!clayRoof){
         ctx.transform(...plane.transform);ctx.fillStyle=art.texture(ctx,b.family==='stone'||b.roof==='#548291'?'roof-slate':'roof');
         ctx.fillRect(-mesh.length/2-2,-mesh.half-2,mesh.length+4,mesh.half*2+4);
       }
@@ -2917,6 +2921,7 @@
         ?({paving:'urban-paving',asphalt:'urban-asphalt',railbed:'urban-asphalt'}[a.type]||a.type)
         :a.type));
     });
+    window.BadFodderClay?.ground(ctx);
   }
 
   function drawVegetation(){
@@ -3000,6 +3005,7 @@
   }
 
   const wartimeProps=window.BadFodderWartimeScenery?.prepare(MAP_DATA)||[];
+  window.BadFodderClay?.configure({key:MAP_DATA.key,anchor:(MAP_DATA.spawns?.squad?.[0]||[180,180]).map(S),trees:treeDots,buildings,roads:drawingRoads,areas,props:wartimeProps,getActors:()=>({squad,enemy:enemies,civilian:civilians})});
 
   function paintScenery(target,x,y,scale=1,light=false){
     const live=ctx;ctx=target.getContext('2d',{alpha:false});
@@ -3380,6 +3386,7 @@
         }
         ctx.restore();return;
       }
+      if(window.BadFodderClay?.blast(ctx,f))return;
       if(f.type==='blast'){art.blast(ctx,f.x,f.y,1-Math.min(1,f.life/.55));return;}
       const age=1-Math.min(1,f.life/.15);
       ctx.save();ctx.globalAlpha=1-age;
