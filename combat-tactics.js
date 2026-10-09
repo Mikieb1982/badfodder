@@ -26,8 +26,11 @@
     if(distance>=radius||!canSee(ax+t*dx,ay+t*dy,u.x,u.y))continue;
     seen.add(u);
     // A projectile contributes once per actor, even when it spans several frames.
-    const amount=.32*(1-distance/radius)*(coveredAgainst(u,ax,ay)?.45:1)*resistance(u);
-    u.suppression=Math.min(1,suppression(u)+amount);
+    const before=suppression(u),amount=.32*(1-distance/radius)*(coveredAgainst(u,ax,ay)?.45:1)*resistance(u);
+    u.suppression=Math.min(1,before+amount);
+    if(owner!=='squad'&&before<.28&&u.suppression>=.28){
+      try{globalThis.BadFodderExperience?.event?.('UNDER_FIRE',{unit:u})}catch(_){}
+    }
    }
   }
   function snapshot(){const pack=list=>list.map(u=>[Math.round(suppression(u)*100)/100,u.coverMask||0]);return{squad:pack(getSquad()),enemies:pack(getEnemies())};}
