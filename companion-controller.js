@@ -46,12 +46,12 @@
    const points=group.slots([leader,...companions],anchor,{spacing:config.spacing},true,heading).slice(1);
    const enemies=getHostiles().filter(e=>e.alive&&!e.surrendered&&!e.missionDormant);
    const visible=(u,radius)=>enemies.filter(e=>Math.hypot(e.x-u.x,e.y-u.y)<=radius&&Math.hypot(e.x-anchor.x,e.y-anchor.y)<=config.leash&&canSee(u,e));
-   const sharedThreats=visible(leader,config.engagement+45);
+   const sharedThreats=visible(leader,config.engagement+55);
    if(aid&&(!ai(aid.helper)||!aid.target.alive||!aid.target.downed||aid.target.stabilised||order==='REGROUP'||visible(aid.helper,config.engagement).length>1||(aid.helper.suppression||0)>.45)){cancel(aid.helper);aid=null;}
    if(!aid&&order!=='REGROUP'&&context.casualtyAid!==false){
     for(const target of squad())if(target.alive&&target.downed&&!target.stabilised&&!target.carriedBy){
-     const helper=companions.find(u=>!u.carryingUnit&&!isBusy(u)&&!support?.isSupporting(u)&&Math.hypot(u.x-target.x,u.y-target.y)<=health.AID_RANGE&&(order!=='HOLD'||Math.hypot(target.x-anchor.x,target.y-anchor.y)<=config.comfortable)&&(u.suppression||0)<.35&&!visible(u,config.engagement).length&&nav.routeClear(u.x,u.y,target.x,target.y,nav.NAV_RADIUS));
-     if(helper){aid={helper,target};break}
+     const helper=companions.filter(u=>!u.carryingUnit&&!isBusy(u)&&!support?.isSupporting(u)&&(u.suppression||0)<.35&&!visible(u,config.engagement).length&&(order!=='HOLD'||Math.hypot(target.x-anchor.x,target.y-anchor.y)<=config.comfortable*1.5)).sort((a,b)=>Math.hypot(a.x-target.x,a.y-target.y)-Math.hypot(b.x-target.x,b.y-target.y))[0];
+     if(helper&&Math.hypot(helper.x-target.x,helper.y-target.y)<=config.engagement&&nav.routeClear(helper.x,helper.y,target.x,target.y,nav.NAV_RADIUS)){aid={helper,target};break}
     }
    }
    for(let i=0;i<companions.length;i++){
@@ -60,23 +60,31 @@
     let target=null,best=Infinity;for(const e of targets){const d=Math.hypot(u.x-e.x,u.y-e.y);if(d<best){target=e;best=d}}
     let shared=null,sharedBest=Infinity;for(const e of sharedThreats){const d=Math.hypot(u.x-e.x,u.y-e.y);if(d<sharedBest){shared=e;sharedBest=d}}
     const threat=target||shared;
-    if(aid?.helper===u){nav.cancelPath(u);releaseCover(u);u.companionState='AID';health.stabilise(aid.target,u);aid=null;continue;}
+    if(aid?.helper===u){
+      const d=Math.hypot(u.x-aid.target.x,u.y-aid.target.y);
+      if(d>health.AID_RANGE*.82){route(u,{x:aid.target.x,y:aid.target.y},'PROTECT_CASUALTY');continue}
+      nav.cancelPath(u);releaseCover(u);u.companionState='AID';health.stabilise(aid.target,u);try{globalThis.BadFodderExperience?.event?.('STABILISED',{unit:aid.target})}catch(_){}aid=null;continue;
+    }
     const threatened=!!threat&&(threat.alert||threat.fireTimer>0||threat.target||u.suppression>.12);
     const coverState=states.get(u),settledCover=coverState?.state==='TAKE_COVER'&&coverState.until>decisionClock&&Math.hypot(u.x-coverState.point.x,u.y-coverState.point.y)<=26;
-    if(order==='HOLD'&&u.checkpointCover&&distance<=config.comfortable){nav.cancelPath(u);u.companionState='HOLD';}
+    if((u.suppression||0)>.65&&threat){
+      const reserved=[...states.entries()].filter(([actor,s])=>actor!==u&&s.state==='TAKE_COVER').map(([,s])=>s.point),cover=findCover(u,threat,anchor,reserved);
+      if(cover){route(u,cover,'BREAK_CONTACT',2.3);continue}
+    }
+    if(order==='HOLD'&&u.checkpointCover&&distance<=config.comfortable){nav.cancelPath(u);u.companionState='WATCH_DIRECTION';if(Number.isFinite(context.threatDirection))u.dir=context.threatDirection;}
     else if(distance>config.catchUp||order==='REGROUP'){route(u,points[i],'REGROUP');continue;}
-    else if(settledCover&&threatened){nav.cancelPath(u);u.companionState='TAKE_COVER';}
+    else if(settledCover&&threatened){nav.cancelPath(u);u.companionState=target?'SUPPRESS':'TAKE_COVER';}
     else if(threatened||u.suppression>.32){
-     const reserved=[...states.entries()].filter(([actor,s])=>actor!==u&&s.state==='TAKE_COVER').map(([,s])=>s.point);
+     const reserved=[...states.entries()].filter(([actor,s])=>actor!==u&&['TAKE_COVER','BREAK_CONTACT'].includes(s.state)).map(([,s])=>s.point);
      const cover=findCover(u,threat,anchor,reserved);
-     if(cover)route(u,cover,'TAKE_COVER',1.8);
-     else{nav.cancelPath(u);u.companionState='ENGAGE'}
+     if(cover)route(u,cover,target?'COVER_ADVANCE':'TAKE_COVER',1.8);
+     else{nav.cancelPath(u);u.companionState=target?'ENGAGE':'WATCH_DIRECTION';if(shared)u.dir=Math.atan2(shared.y-u.y,shared.x-u.x)}
     }else if(order==='HOLD'||context.mode==='DEFEND'||context.mode==='INTERACT_SUPPORT'){
-     const point=points[i];if(Math.hypot(u.x-point.x,u.y-point.y)>18)route(u,point,order==='HOLD'?'HOLD':'MOVE_TO_SUPPORT');else{nav.cancelPath(u);u.companionState='HOLD';if(Number.isFinite(context.threatDirection))u.dir=context.threatDirection;}
+     const point=points[i];if(Math.hypot(u.x-point.x,u.y-point.y)>18)route(u,point,order==='HOLD'?'HOLD':'MOVE_TO_SUPPORT');else{nav.cancelPath(u);u.companionState='WATCH_DIRECTION';if(Number.isFinite(context.threatDirection))u.dir=context.threatDirection;}
     }else if(distance>config.comfortable){route(u,points[i],'FOLLOW');}
-    else if(states.get(u)?.state==='TAKE_COVER'){route(u,points[i],'FOLLOW');}
+    else if(['TAKE_COVER','COVER_ADVANCE','BREAK_CONTACT'].includes(states.get(u)?.state)){route(u,points[i],'FOLLOW');}
     else if(!u.path?.length)u.companionState='FOLLOW';
-    if(target&&firearmsAllowed()&&!u.carryingUnit){
+    if(target&&firearmsAllowed()&&!u.carryingUnit&&(u.suppression||0)<.78){
      const dx=target.x-u.x,dy=target.y-u.y,l2=dx*dx+dy*dy;
      const blocked=squad().some(a=>{if(a===u||!a.alive)return false;const t=l2?((a.x-u.x)*dx+(a.y-u.y)*dy)/l2:0;return t>0&&t<1&&Math.hypot(a.x-u.x-t*dx,a.y-u.y-t*dy)<nav.NAV_RADIUS+4});
      if(!blocked)fire(u,target);
