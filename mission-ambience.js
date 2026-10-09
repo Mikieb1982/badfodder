@@ -1,11 +1,12 @@
 /* Local CC0 mission beds. Independent of music, governed by SFX mute and lifecycle. */
 (function(){
 'use strict';
-function loadExperience(){
- if(window.BadFodderExperience||!document.head||document.querySelector?.('script[data-experience-polish]'))return;
- const script=document.createElement('script');script.setAttribute('data-experience-polish','1');script.src=window.BadFodderAssetUrl?.('experience-polish.js')||'experience-polish.js';document.head.appendChild(script);
+function loadSupport(name,attribute,ready){
+ if(ready?.()||!document.head||document.querySelector?.('script['+attribute+']'))return;
+ const script=document.createElement('script');script.setAttribute(attribute,'1');script.src=window.BadFodderAssetUrl?.(name)||name;document.head.appendChild(script);
 }
-loadExperience();
+loadSupport('experience-polish.js','data-experience-polish',()=>window.BadFodderExperience);
+loadSupport('professional-feel.js','data-professional-feel',()=>window.BadFodderProfessionalFeel);
 const TRACKS={
  'bad-belzig':['assets/audio/ambience/bad-belzig.webm','assets/audio/ambience/bad-belzig.mp3'],
  wigan:['assets/audio/ambience/wigan.webm','assets/audio/ambience/wigan.mp3'],
