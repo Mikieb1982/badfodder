@@ -15,6 +15,12 @@
   document.write('<script src="'+src+'"></'+'script>');
  }
  bootstrapArcade();
+ function bootstrapResistanceSeparation(){
+  if(root.BadFodderResistanceSeparation||typeof document==='undefined'||document.readyState!=='loading')return;
+  const src=root.BadFodderAssetUrl?.('resistance-separation.js')||'resistance-separation.js';
+  document.write('<script src="'+src+'"></'+'script>');
+ }
+ bootstrapResistanceSeparation();
 
  // Arcade adds the Resistance panel after the base menu constructor has bound
  // its normal panels. Keep that dynamic panel inside the same menu-layout so it
@@ -75,7 +81,7 @@
   const key=definition.key;
   if(!pending.has(key))pending.set(key,(async()=>{
    for(const file of definition.modules)await loadModule(file);
-   if(key==='wigan'&&root.BadFodderWiganNetwork?.install){
+   if(key==='wigan'&&!root.BadFodderArcade?.active?.()&&root.BadFodderWiganNetwork?.install){
     try{root.BadFodderWiganNetwork.install(root)}catch(error){console.warn('Optional Wigan network disabled:',error)}
    }
   })().catch(error=>{pending.delete(key);throw error}));
@@ -83,6 +89,7 @@
  }
  const ready=(async()=>{
   if(!root.BadFodderArcade){await loadModule('arcade-modes.js');patchResistanceMenu();}
+  if(!root.BadFodderResistanceSeparation)await loadModule('resistance-separation.js');
   const missions=await registry();
   const launch=BadFodderMissionLaunch.create({storage:BadFodderStorage.session,missions:BadFodderCampaign.missions,campaign:BadFodderCampaign,historicalMissions:BadFodderHistoricalMissions.missions,registry:missions});
   const current=launch.current(),definition=missions.get(current);
