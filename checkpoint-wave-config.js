@@ -5,16 +5,16 @@
     if(!campaign?.missions||campaign.__largeCheckpointWaves)return campaign;
     const profiles=[
       {
-        checkpoint:{style:'siege',count:8,intermission:.45,waves:[{style:'siege',count:14}]},
-        brief:'Clear the defenders, form the sandbag position and survive two heavy siege assaults.'
+        checkpoint:{style:'siege',count:8,intermission:5,waves:[{style:'siege',count:14}]},
+        brief:'Clear the defenders, form the sandbag position and survive two heavy siege assaults. Use the lull between attacks to regroup and help the wounded.'
       },
       {
-        checkpoint:{style:'pincer',count:8,intermission:.45,waves:[{style:'pincer',count:16},{style:'siege',count:18}]},
-        brief:'Take the checkpoint, dig in behind the sandbags and survive three escalating counterattack waves.'
+        checkpoint:{style:'pincer',count:8,intermission:6,waves:[{style:'pincer',count:16},{style:'siege',count:18}]},
+        brief:'Take the checkpoint, dig in behind the sandbags and survive three escalating counterattack waves. Watch both approaches and use each pause to reposition.'
       },
       {
-        checkpoint:{style:'siege',count:8,intermission:.4,waves:[{style:'siege',count:18},{style:'pincer',count:20},{style:'last-stand',count:24}]},
-        brief:'Take the final checkpoint and make a last stand through four escalating waves attacking from multiple directions.'
+        checkpoint:{style:'siege',count:8,intermission:7,waves:[{style:'siege',count:18},{style:'pincer',count:20},{style:'last-stand',count:24}]},
+        brief:'Take the final checkpoint and make a last stand through four escalating waves attacking from multiple directions. Recover, reload and stabilise casualties between assaults.'
       }
     ];
     for(const mission of campaign.missions){
