@@ -62,7 +62,7 @@
     const threat=target||shared;
     if(aid?.helper===u){
       const d=Math.hypot(u.x-aid.target.x,u.y-aid.target.y);
-      if(d>health.AID_RANGE*.82){route(u,{x:aid.target.x,y:aid.target.y},'PROTECT_CASUALTY');continue}
+      if(d>health.AID_RANGE){route(u,{x:aid.target.x,y:aid.target.y},'PROTECT_CASUALTY');continue}
       nav.cancelPath(u);releaseCover(u);u.companionState='AID';health.stabilise(aid.target,u);try{globalThis.BadFodderExperience?.event?.('STABILISED',{unit:aid.target})}catch(_){}aid=null;continue;
     }
     const threatened=!!threat&&(threat.alert||threat.fireTimer>0||threat.target||u.suppression>.12);
