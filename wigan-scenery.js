@@ -77,7 +77,7 @@
    BadFodderWiganDetails.facade(g,b,wall,BadFodderWiganDetails.isFront(b,wall,walls));
   }
   if(flat){
-   const roof=p.map(a=>[a[0],a[1]-h]);poly(g,roof,art.texture(g,'urban-roof'),'#535347',2.5);
+   const roof=p.map(a=>[a[0],a[1]-h]);poly(g,roof,art.texture(g,window.BadFodderClay?.full?'miniature-flat':'urban-roof'),'#535347',2.5);
    g.save();poly(g,roof,null);g.clip();
    if(b.landmark==='grandArcade'){
     // A clipped glass lantern gives the shopping centre a distinct roof without moving it.

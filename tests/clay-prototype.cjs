@@ -28,7 +28,10 @@ const frozen=JSON.stringify(groups);art.drawActor(ctx,player,'squad');art.drawAc
 const n=canvases;art.drawActor(ctx,player,'squad');art.drawActor(ctx,enemy,'enemy');art.tree(ctx,tree);clay.ground(ctx);assert.equal(canvases,n,'Warmed rendering reuses cached assets');
 assert.equal(clay.noise(13,2),clay.noise(13,2));assert(clay.cacheSize<320);
 for(const key of ['wigan','cable-street','barcelona']){clay.configure(config(key));assert(!clay.sample.enabled);const n=previous;art.drawActor(ctx,player,'squad');art.tree(ctx,tree);assert.equal(previous,n+2);assert(!clay.road(ctx,road,20));assert(!clay.blast(ctx,{type:'blast',life:.4}))}
-scope.window.location.search='';clay.configure(config('bad-belzig'));assert(!clay.sample.enabled,'Prototype is opt-in; normal game visuals remain unchanged');
-console.log('PASS: 12 Hz held poses at 60 Hz, immediate events, entity immutability, cached deterministic materials, one actor per role, mission isolation and opt-in fallback.');
+scope.window.location.search='';
+for(const key of ['bad-belzig','wigan','cable-street','barcelona']){clay.configure(config(key));assert(clay.full,'Default presentation covers each current mission');assert(clay.actorSelected(other,'squad'),'All squad members receive miniature presentation');assert(clay.actorSelected(enemy,'enemy'));const frozen=JSON.stringify(groups);art.drawActor(ctx,other,'squad');art.drawActor(ctx,enemy,'enemy');art.tree(ctx,tree);assert.equal(JSON.stringify(groups),frozen);assert(clay.buildingMaterial(ctx,b,b.points,'#ad9971'));assert(clay.blast(ctx,{type:'blast',x:20,y:30,life:.3}));assert(clay.blast(ctx,{type:'blast',x:40,y:30,life:.2}));let before=art.pose(enemy),changes=0;for(let i=1;i<=60;i++){enemy.visual.clock=i/60;const now=art.pose(enemy);if(now!==before){changes++;before=now}}assert.equal(changes,12);enemy.visual.clock=0;}
+scope.window.location.search='?miniatures=0';clay.configure(config('bad-belzig'));assert(!clay.sample.enabled,'Original art remains available for comparison and fallback');
+
+console.log('PASS: 12 Hz held poses at 60 Hz, immediate events, entity immutability, cached deterministic materials, isolated reference study, default four-mission coverage, preserved identities and original-art fallback.');
 
 })().catch(error=>{console.error(error);process.exitCode=1});
