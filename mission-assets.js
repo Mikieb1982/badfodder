@@ -12,7 +12,7 @@
  function bootstrapArcade(){
   if(root.BadFodderArcade||typeof document==='undefined'||document.readyState!=='loading')return;
   const src=root.BadFodderAssetUrl?.('arcade-modes.js')||'arcade-modes.js';
-  document.write('<script src="'+src+'"><\\/script>');
+  document.write('<script src="'+src+'"></'+'script>');
  }
  bootstrapArcade();
 
