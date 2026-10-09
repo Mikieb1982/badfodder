@@ -77,7 +77,7 @@ function complete(ref=state.current){
  state.completed.sort((a,b)=>a-b);
  state.unlocked=Math.max(state.unlocked,Math.min(missions.length-1,index+1));save();return state;
 }
-function resetProgress(){state=defaults();save();return state}
+function resetProgress(){state=defaults();save();try{storage().removeItem('badfodder.continuity.v1')}catch(_){}return state}
 window.BadFodderCampaign={missions,futureChapters,get state(){return state},mission,indexOf,current:()=>mission(),setCurrent,complete,resetProgress,save};
 save();
 })();
