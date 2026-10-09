@@ -1,0 +1,18 @@
+'use strict';
+const assert=require('node:assert/strict');
+const Arcade=require('../arcade-modes.js');
+assert.equal(Arcade.waveSize(1),11);
+assert.equal(Arcade.waveSize(5),23);
+assert.equal(Arcade.waveSize(50),40);
+assert.equal(Arcade.teamForSource(0),1);
+assert.equal(Arcade.teamForSource(1),1);
+assert.equal(Arcade.teamForSource(2),2);
+assert.equal(Arcade.teamForSource(3),2);
+assert.equal(Arcade.teamForSource(null),0);
+assert.deepEqual(Arcade.opposingIndices(0),[2,3]);
+assert.deepEqual(Arcade.opposingIndices(3),[0,1]);
+assert(Arcade.combatReady({alive:true,downed:false,healthState:'FIT'}));
+assert(!Arcade.combatReady({alive:true,downed:true,healthState:'DOWN'}));
+assert.deepEqual(Arcade.MAPS.map(m=>m.key),['bad-belzig','wigan','cable-street','barcelona']);
+assert.deepEqual(Arcade.SKIRMISH_MAPS.map(m=>m.key),['bad-belzig','wigan']);
+console.log('PASS: arcade Resistance and Skirmish mode rules.');
