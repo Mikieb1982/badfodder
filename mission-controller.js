@@ -51,7 +51,10 @@
     void BadFodderMissionAssets.load(mission.map).catch(()=>env.setStatus('Mission preload failed. Begin Mission retries the load.'));
   }
 
-  function startCampaignFromMenu(){
+  function startCampaignFromMenu(skipIntro=false){
+    const intro=typeof window!=='undefined'?window.BadFodderCampaignIntro:null;
+    const debug=typeof window!=='undefined'&&new URLSearchParams(window.location.search).has('debug');
+    if(!skipIntro&&!debug&&intro?.play){intro.play(()=>startCampaignFromMenu(true));return;}
     if(env.commands&&env.commands.mode!=='local')showTitle();
     let next=env.campaign.state.current;while(next<env.campaign.state.unlocked&&env.campaign.state.completed.includes(next))next++;
     requestMissionBriefing(env.campaign.missions[next]||env.campaign.missions[0],()=>{env.campaign.setCurrent(next);launchCampaign();},'main');
