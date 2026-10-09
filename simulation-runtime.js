@@ -52,32 +52,13 @@
     }
   }
 
-  function simulateAlternateMode(dt){
-    const modes=window.BadFodderGameModes;
-    if(!modes?.active?.()||!modes.fixedUpdate(env,dt))return false;
-    env.processEnemyPathQueue();
-    env.updateEnemies(dt);
-    env.updateCivilians(dt);
-    env.updateProjectiles(dt);
-    env.resistanceRuntime?.update(dt);env.resistanceRuntime?.units.forEach(ent=>env.art.animate(ent,dt));
-    env.barcelonaRuntime?.update(dt);
-    env.opportunitiesRuntime?.fixedUpdate(dt);
-    env.squad.forEach(ent=>env.art.animate(ent,dt));
-    env.enemies.forEach(ent=>env.art.animate(ent,dt));
-    env.civilians.forEach(ent=>env.art.animate(ent,dt));
-    env.updateCamera(dt);
-    env.updateHud();
-    return true;
-  }
-
   function simulateStep(dt){
     if(env.commands?.mode==='client')return;
-    const alternateMode=window.BadFodderGameModes?.active?.()===true;
     env.tacticsRuntime?.fixedUpdate(dt);
     env.enemyBehaviour?.fixedUpdate(dt);
     if(env.badBelzigRuntime)env.squad.forEach(s=>s.touchMoveSpeed=0);
     window.BadFodderCoop?.remoteStep(dt);
-    if(!alternateMode)env.runAdaptive(()=>env.adaptiveDirector.update(dt));
+    env.runAdaptive(()=>env.adaptiveDirector.update(dt));
     if(!env.menuOpen&&!env.paused&&!env.mapOpen)env.applyTouchMovement(dt);
     if(env.keyboardFireHeld&&env.actionAllowed('firearms'))env.refreshCursorWorld();
     if(!env.menuOpen&&!env.paused&&!env.mapOpen&&env.actionAllowed('firearms')&&(env.rightHeld||env.macFireHeld||env.keyboardFireHeld)&&env.cursorWorld&&!env.bothLatched)env.squadFireAt(env.cursorWorld.x,env.cursorWorld.y);
@@ -86,13 +67,15 @@
     env.updateSquad(dt);
     window.BadFodderHealth.fixedUpdate(dt);
 
-    if(simulateAlternateMode(dt))return;
-
     if(env.missionController){
       if(env.missionInteractionLayer){
-        env.missionInteractionLayer.syncActors(env.squad.map((s,i)=>({id:'player-'+i,name:s.name,x:s.x,y:s.y,active:s.alive})));
+        env.missionInteractionLayer.syncActors(env.squad.map((s,i)=>({
+          id:'player-'+i,name:s.name,x:s.x,y:s.y,active:s.alive
+        })));
         env.missionInteractionLayer.fixedUpdate(dt);
-      }else env.missionController.fixedUpdate(dt);
+      }else{
+        env.missionController.fixedUpdate(dt);
+      }
       if(env.missionDirector){
         env.missionDirector.fixedUpdate(dt);
         const historicalProgress=env.missionDirector.snapshot();
@@ -130,34 +113,56 @@
   function simulateRenderStep(dt){captureRenderState();simulateStep(dt);interpolationReady=true}
 
   function handleRuntimeFault(err){
-    const now=performance.now();env.runtimeFaultTotal++;
+    const now=performance.now();
+    env.runtimeFaultTotal++;
     const fault=BadFodderRuntime.fault({time:now,last:env.runtimeFaultAt,count:env.runtimeFaultCount});
-    env.runtimeFaultAt=fault.at;env.runtimeFaultCount=fault.count;env.diagnostics.rememberFault(err);
-    console.error('If I Can Shoot Rabbits runtime fault',err);env.releaseInterruptedInput();env.simulationAccumulator=0;interpolationReady=false;
-    if(env.runtimeFaultCount>=3){env.lifecycle.transition('RECOVERY');env.setStatus('Runtime recovery paused the mission after repeated errors.');if(env.menu){const detail=err&&err.message?String(err.message).slice(0,140):'Unknown runtime error';env.menu.showRecovery('The mission hit a repeated runtime error: '+detail+'. Restart the mission.')}env.syncTouchControlState()}
+    env.runtimeFaultAt=fault.at;env.runtimeFaultCount=fault.count;
+    env.diagnostics.rememberFault(err);
+    console.error('If I Can Shoot Rabbits runtime fault',err);
+    env.releaseInterruptedInput();
+    env.simulationAccumulator=0;
+    interpolationReady=false;
+
+    if(env.runtimeFaultCount>=3){
+      env.lifecycle.transition('RECOVERY');
+      env.setStatus('Runtime recovery paused the mission after repeated errors.');
+      if(env.menu){
+        const detail=err&&err.message?String(err.message).slice(0,140):'Unknown runtime error';
+        env.menu.showRecovery('The mission hit a repeated runtime error: '+detail+'. Restart the mission.');
+      }
+      env.syncTouchControlState();
+    }
   }
 
   function tick(now){
-    requestAnimationFrame(tick);if(env.runtimeSafeStop)return;
+    // Schedule first: a runtime exception must never kill the animation loop.
+    requestAnimationFrame(tick);
+    if(env.runtimeSafeStop)return;
+
     try{
-      const elapsedMs=Math.max(0,now-env.last),frameDt=Math.min(.1,elapsedMs/1000||0);env.last=now;
+      const elapsedMs=Math.max(0,now-env.last);
+      const frameDt=Math.min(.1,elapsedMs/1000||0);
+      env.last=now;
+
       const measuredAt=env.diagnostics.enabled?performance.now():0;
       const simulationActive=env.commands?.mode!=='client'&&env.started&&!env.finished&&((env.commands?.mode==='host')||(!env.menuOpen&&!env.paused&&!env.mapOpen));
       if(!simulationActive)interpolationReady=false;
       env.simulationAccumulator=BadFodderRuntime.fixedFrame({dt:frameDt,accumulator:env.simulationAccumulator,fixedDt:env.FIXED_DT,maxSteps:env.MAX_CATCHUP_STEPS,simulate:simulateRenderStep,onSteps:env.diagnostics.steps,active:simulationActive});
       const simulatedAt=env.diagnostics.enabled?performance.now():0;
+
       if(env.commands?.mode==='client'){
-        if(env.started&&!env.menuOpen&&!env.paused&&!env.finished&&!env.mapOpen){env.applyTouchMovement(frameDt);if((env.rightHeld||env.macFireHeld||env.keyboardFireHeld)&&env.cursorWorld&&!env.bothLatched)env.squadFireAt(env.cursorWorld.x,env.cursorWorld.y);if(env.touchState.fireHeld)env.fireMobile()}
+        if(env.started&&!env.menuOpen&&!env.paused&&!env.finished&&!env.mapOpen){env.applyTouchMovement(frameDt);if((env.rightHeld||env.macFireHeld||env.keyboardFireHeld)&&env.cursorWorld&&!env.bothLatched)env.squadFireAt(env.cursorWorld.x,env.cursorWorld.y);if(env.touchState.fireHeld)env.fireMobile();}
         window.BadFodderCoop?.clientFrame(frameDt);
       }
-      window.BadFodderGameModes?.frame?.(env);
       const alpha=env.FIXED_DT?env.simulationAccumulator/env.FIXED_DT:1;
       BadFodderRuntime.renderFrame({started:env.started,menuOpen:env.menuOpen,draw:()=>drawInterpolated(alpha)});
       if(env.diagnostics.enabled)env.diagnostics.record(elapsedMs,simulatedAt-measuredAt,performance.now()-simulatedAt);
       if(env.runtimeFaultCount&&now-env.runtimeFaultAt>3000)env.runtimeFaultCount=0;
-    }catch(err){handleRuntimeFault(err)}
+    }catch(err){
+      handleRuntimeFault(err);
+    }
   }
-  return{simulateStep,handleRuntimeFault,tick};
+  return {simulateStep,handleRuntimeFault,tick};
   }
-  return{create};
+  return {create};
 });
