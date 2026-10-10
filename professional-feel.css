@@ -1,0 +1,36 @@
+/* Shared presentation rules for professional-feel.js. Kept static so CSS owns presentation. */
+#menuScreen :is(button,select,input,[tabindex]):focus-visible,
+#campaignIntro button:focus-visible{
+  outline:3px solid var(--ui-focus)!important;
+  outline-offset:3px!important;
+  box-shadow:0 0 0 2px rgba(15,20,16,.92),0 0 22px rgba(240,217,142,.24)!important;
+}
+
+.hud-mission{position:relative}
+.hud-mission.pro-objective-pulse{animation:proObjectivePulse .72s cubic-bezier(.2,.7,.2,1)}
+#hudStage{letter-spacing:.1em;text-shadow:0 1px 2px rgba(0,0,0,.8)}
+#hudMission{font-weight:var(--ui-weight-heavy);text-wrap:balance;text-shadow:0 1px 2px rgba(0,0,0,.75)}
+#hudInstruction:not([hidden]){
+  border-left:3px solid rgba(240,217,142,.78);
+  padding:5px 8px;
+  background:linear-gradient(90deg,rgba(24,31,24,.72),rgba(24,31,24,.18));
+  border-radius:var(--ui-radius-small);
+  max-width:min(72vw,640px);
+}
+#hudNotice.show{box-shadow:0 8px 22px rgba(0,0,0,.28)}
+
+@keyframes proObjectivePulse{
+  0%{filter:brightness(1);transform:translateY(0)}
+  35%{filter:brightness(1.22);transform:translateY(-1px)}
+  100%{filter:brightness(1);transform:translateY(0)}
+}
+
+@media(pointer:coarse){
+  #menuScreen button,#campaignIntro button{min-height:48px}
+  button[id^="touch"]{min-width:52px;min-height:52px;touch-action:manipulation}
+  #hudInstruction:not([hidden]){font-size:max(11px,2.8vw);line-height:1.25;max-width:82vw}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .hud-mission.pro-objective-pulse{animation:none!important}
+}
