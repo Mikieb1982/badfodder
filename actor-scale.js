@@ -117,6 +117,35 @@
   if(castle)Object.defineProperty(c,'__badFodderCastleLandmark',{value:true});
   landmarkCache.set(key,{source,canvas:c});return c;
  }
+ function installRenderPipeline(art){
+  if(!art||typeof art.drawActor!=='function')return null;
+  if(art.actorRenderPipeline)return art.actorRenderPipeline;
+  let current=art.drawActor;
+  const layers=[{name:'base-renderer',kind:'base'}];
+  const snapshot=()=>current;
+  const api={
+   register(name,{before,after,around}={}){
+    if(!name||layers.some(layer=>layer.name===name))return false;
+    const previous=current;
+    current=function(ctx,ent,team='squad',...rest){
+     before?.(ctx,ent,team,...rest);
+     const invoke=()=>previous.call(this,ctx,ent,team,...rest);
+     const result=around?around.call(this,invoke,ctx,ent,team,...rest):invoke();
+     after?.(ctx,ent,team,result,...rest);return result;
+    };
+    layers.push({name:String(name),kind:'registered'});return true;
+   },
+   list(){return layers.map(layer=>({...layer}))},
+   get renderer(){return snapshot()}
+  };
+  Object.defineProperty(art,'drawActor',{
+   configurable:true,enumerable:true,
+   get(){const draw=snapshot();return function(...args){return draw.apply(this,args)}},
+   set(next){if(typeof next!=='function'||next===current)return;current=next;layers.push({name:next.__actorRenderLayer||next.name||`legacy-wrapper-${layers.length}`,kind:'legacy'})}
+  });
+  Object.defineProperty(art,'actorRenderPipeline',{value:api,configurable:true,enumerable:false});
+  return api;
+ }
  function installArt(art){
   if(!art||art.actorScaleInstalled)return;
   installCastleElevationDraw();
@@ -133,6 +162,7 @@
    if('shadowColor' in ctx){ctx.shadowColor='rgba(245,236,205,.32)';ctx.shadowBlur=1.6;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;}
    try{return draw.call(this,ctx,ent,...args)}finally{ctx.restore()}
   };
+  installRenderPipeline(art);
   art.actorScaleInstalled=true;
  }
  function installNavigation(nav){
@@ -141,5 +171,5 @@
   nav.followPath=function(ent,pace,dt){return follow.call(this,ent,pace*speed,dt)};
   nav.actorScaleInstalled=true;
  }
- return Object.freeze({size,speed,installArt,installNavigation});
+ return Object.freeze({size,speed,installArt,installNavigation,installRenderPipeline});
 });
