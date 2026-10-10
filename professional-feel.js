@@ -41,14 +41,23 @@ function drawCombatCue(g,ent,team){
    g.save();g.globalAlpha=.35+.45*phase;g.strokeStyle='#f6e9bf';g.lineWidth=1.1;for(let i=0;i<3;i++){const q=i*2.094+(ent.variant||0)*.3;g.beginPath();g.moveTo(ent.x+Math.cos(q)*2,ent.y-7+Math.sin(q)*2);g.lineTo(ent.x+Math.cos(q)*r,ent.y-7+Math.sin(q)*r);g.stroke()}g.restore();
  }
 }
+function renderActorFeedback(invoke,g,ent,team='squad'){
+ const a=angleOf(ent),hit=Math.max(0,Number(ent?.hitTimer)||0),fire=Math.max(0,Number(ent?.fireTimer)||0),hitPhase=Math.min(1,hit/.18),firePhase=Math.min(1,fire/.12),kick=hitPhase*2.6+firePhase*.9;
+ let result;
+ if(kick&&g?.save){g.save();g.translate(-Math.cos(a)*kick,-Math.sin(a)*kick*.58);try{result=invoke()}finally{g.restore()}}
+ else result=invoke();
+ drawCombatCue(g,ent,team);drawStateCue(g,ent,team);return result;
+}
 function patchArt(){
  const art=root.BadFodderArt;if(!art||artPatched||art.__professionalFeelPatched||typeof art.drawActor!=='function')return false;
- const original=art.drawActor;
- art.drawActor=function(g,ent,team='squad',...rest){
-   const a=angleOf(ent),hit=Math.max(0,Number(ent?.hitTimer)||0),fire=Math.max(0,Number(ent?.fireTimer)||0),hitPhase=Math.min(1,hit/.18),firePhase=Math.min(1,fire/.12),kick=hitPhase*2.6+firePhase*.9;
-   let result;if(kick&&g?.save){g.save();g.translate(-Math.cos(a)*kick,-Math.sin(a)*kick*.58);try{result=original.call(this,g,ent,team,...rest)}finally{g.restore()}}else result=original.call(this,g,ent,team,...rest);
-   drawCombatCue(g,ent,team);drawStateCue(g,ent,team);return result;
- };
+ const pipeline=art.actorRenderPipeline;
+ if(pipeline?.register){
+   const registered=pipeline.register('professional-feel',{around:(invoke,g,ent,team='squad')=>renderActorFeedback(invoke,g,ent,team)});
+   if(!registered&&!pipeline.list().some(layer=>layer.name==='professional-feel'))return false;
+ }else{
+   const original=art.drawActor;
+   art.drawActor=function(g,ent,team='squad',...rest){return renderActorFeedback(()=>original.call(this,g,ent,team,...rest),g,ent,team)};
+ }
  art.__professionalFeelPatched=true;artPatched=true;return true;
 }
 function objectivePulse(){
