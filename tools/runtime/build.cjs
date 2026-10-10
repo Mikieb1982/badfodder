@@ -1,13 +1,14 @@
 'use strict';
 // Curated, dependency-free production copy with content-addressed static URLs.
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),cp=require('node:child_process');
+const manifest=require('./production-manifest.cjs');
 const root=path.resolve(__dirname,'../..'),out=path.join(root,'dist');
 fs.rmSync(out,{recursive:true,force:true});fs.mkdirSync(out);
-const allowed=fs.readdirSync(root).filter(n=>/\.(js|css)$/.test(n));
-allowed.push('index.html','join.html','manifest.webmanifest','favicon.ico','multiplayer-config.json');
+const allowed=fs.readdirSync(root).filter(manifest.isRootRuntime);
+allowed.push(...manifest.shellFiles);
 function files(dir){return fs.readdirSync(path.join(root,dir),{withFileTypes:true}).flatMap(e=>e.isDirectory()?files(dir+'/'+e.name):[dir+'/'+e.name]);}
-allowed.push(...files('assets').filter(n=>/\.(png|webp|mp3|mp4|webm|ico|json)$/i.test(n)&&!(n.startsWith('assets/characters/')&&n.endsWith('.png')&&fs.existsSync(path.join(root,n.replace(/\.png$/,'.webp'))))));
-if(fs.existsSync(path.join(root,'audio')))allowed.push(...files('audio').filter(n=>/\.mp3$/i.test(n)&&fs.statSync(path.join(root,n)).size>128));
+allowed.push(...files('assets').filter(n=>manifest.shouldShipAsset(n,{hasWebpSibling:file=>fs.existsSync(path.join(root,file.replace(/\.png$/,'.webp')))})));
+if(fs.existsSync(path.join(root,'audio')))allowed.push(...files('audio').filter(n=>manifest.shouldShipVoice(n,fs.statSync(path.join(root,n)).size)));
 const availableAudio=allowed.filter(n=>n.startsWith('audio/')&&/\.mp3$/i.test(n));
 const stableRuntime=new Set(['service-worker.js']);
 const hashes=new Map(allowed.filter(n=>/\.(js|css|png|webp|mp3|mp4|webm|ico)$/i.test(n)&&!n.startsWith('audio/')&&!stableRuntime.has(n)).map(n=>[n,crypto.createHash('sha256').update(fs.readFileSync(path.join(root,n))).digest('hex').slice(0,16)]));
@@ -36,4 +37,5 @@ for(const n of allowed){
 }
 const offlineAssets=[...new Set(['./','./index.html','./manifest.webmanifest',...allowed.map(publicUrl),...generatedAudio.map(n=>'./'+n),...(mobileCampaignVideo?[mobileCampaignVideo]:[])])];
 fs.writeFileSync(path.join(out,'offline-assets.json'),JSON.stringify(offlineAssets));
+fs.writeFileSync(path.join(out,'production-assets.json'),JSON.stringify(manifest.report(allowed,root),null,2));
 console.log('Built curated dist, release '+release+' with '+offlineAssets.length+' offline assets');
