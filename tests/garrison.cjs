@@ -37,18 +37,19 @@ assert.equal(enemy.hp,1,'Released soldier kept auto-firing');
 assert.equal(scope.BadFodderGarrison.toggleGarrison(),true,'Garrison could not be re-entered');
 assert.equal(scope.BadFodderGarrison.toggleGarrison(),false,'Second H/button press did not still release garrison');
 
-// Regroup expands the selection to all survivors, releases personal holds and moves them back to the chosen survivor.
+// Regroup preserves the directly controlled survivor, releases every living personal hold and gives the companions a regroup destination.
 const wing={x:260,y:180,alive:true,hp:8,manualGarrison:true,garrisonAnchorX:260,garrisonAnchorY:180};
 runtimeSquad=[soldier,wing];soldier.manualGarrison=true;soldier.garrisonAnchorX=soldier.x;soldier.garrisonAnchorY=soldier.y;
 let currentSelection=[soldier],selectionCommand=null,moveCommand=null;
 scope.selectedUnits=()=>currentSelection;
-scope.setSelection=value=>{selectionCommand=value;if(value==='all')currentSelection=runtimeSquad.filter(s=>s.alive)};
+scope.setSelection=value=>{selectionCommand=value};
 scope.setMoveTargets=point=>{moveCommand=point};
 assert.equal(scope.BadFodderGarrison.regroup(),true,'Regroup command was not accepted');
-assert.equal(selectionCommand,'all','Regroup did not select all surviving squad members');
-assert.equal(soldier.manualGarrison,false,'Regroup did not release the selected soldier');
+assert.equal(selectionCommand,null,'Regroup must preserve the current directly controlled soldier');
+assert.equal(currentSelection.length,1,'Regroup must not reintroduce multi-selection');
+assert.equal(soldier.manualGarrison,false,'Regroup did not release the controlled soldier');
 assert.equal(wing.manualGarrison,false,'Regroup did not release a separated squad member');
-assert.equal(moveCommand.x,soldier.x,'Regroup did not use the previously selected survivor as the anchor');
+assert.equal(moveCommand.x,soldier.x,'Regroup did not use the directly controlled survivor as the anchor');
 assert.equal(moveCommand.y,soldier.y,'Regroup anchor Y is incorrect');
 assert.equal(moveCommand.regroup,true,'Regroup movement is not marked as a regroup order');
 
@@ -75,18 +76,18 @@ assert(source.includes("btn.textContent=active?'RELEASE':'GARRISON'"),'Mobile co
 assert(source.includes("target?.id==='game'")&&source.includes("target?.id==='touchJoystick'"),'Desktop/mobile movement release hook missing');
 assert(source.includes('lockCheckpointGarrisons')&&source.includes('checkpointAnchorX'),'Fixed POI garrison lock missing');
 assert(!source.includes("querySelector('.hud-tools')"),'Garrison should not live with map/pause HUD tools');
-console.log('PASS: selection-aware regroup releases personal holds while POI garrisons remain fixed during defence.');
+console.log('PASS: active-soldier regroup releases squad personal holds while POI garrisons remain fixed during defence.');
 
 // Live closure callbacks work without exporting engine functions on window.
 delete scope.selectedUnits;delete scope.setSelection;delete scope.setMoveTargets;
 let liveActive=true,held=0,shots=0,visible=true;currentSelection=[soldier];
-scope.BadFodderGarrison.bindRuntime({getSquad:()=>runtimeSquad,getEnemies:()=>[enemy],getSelected:()=>currentSelection,select:value=>{selectionCommand=value;currentSelection=runtimeSquad.filter(s=>s.alive&&!s.downed)},move:p=>moveCommand=p,isActive:()=>liveActive,firearmsAllowed:()=>true,prepareHold:()=>held++,canSee:()=>visible,shoot:()=>shots++});
+scope.BadFodderGarrison.bindRuntime({getSquad:()=>runtimeSquad,getEnemies:()=>[enemy],getSelected:()=>currentSelection,select:value=>{selectionCommand=value},move:p=>moveCommand=p,isActive:()=>liveActive,firearmsAllowed:()=>true,prepareHold:()=>held++,canSee:()=>visible,shoot:()=>shots++});
 soldier.manualGarrison=false;assert(scope.BadFodderGarrison.toggleGarrison());assert(held);
 visible=false;commander.maintain(100);assert.equal(shots,0,'Walls must block garrison fire');
 visible=true;commander.maintain(101);assert.equal(shots,1,'Live garrisons must use normal projectiles');
-assert(scope.BadFodderGarrison.regroup());assert.equal(selectionCommand,'all');assert(!soldier.manualGarrison);
-assert.equal(scope.BadFodderGarrison.selectedOne(),null,'A subgroup cannot silently garrison its first member');
+selectionCommand=null;wing.manualGarrison=true;assert(scope.BadFodderGarrison.regroup());assert.equal(selectionCommand,null);assert(!soldier.manualGarrison);assert(!wing.manualGarrison);
+assert.equal(scope.BadFodderGarrison.selectedOne(),soldier,'Regroup must keep one directly controlled soldier');
 liveActive=false;assert(!scope.BadFodderGarrison.regroup());assert(!scope.BadFodderGarrison.toggleGarrison(soldier));
 // Unactivated Barcelona patrols cannot waste a garrison's limited ammunition.
 liveActive=true;const shotsBeforeDormant=shots;enemy.alive=true;enemy.surrendered=false;enemy.missionDormant=true;enemy.hp=3;runtimeSquad=[soldier];soldier.alive=true;soldier.downed=false;soldier.manualGarrison=true;soldier.garrisonNextFire=0;commander.maintain(100);assert.equal(soldier.garrisonTarget,null);assert.equal(enemy.hp,3);assert.equal(shots,shotsBeforeDormant);enemy.missionDormant=false;
-console.log('PASS: explicit live squad callbacks, normal garrison shots, line-of-sight, group selection and paused command guards.');
+console.log('PASS: explicit live squad callbacks, normal garrison shots, line-of-sight, active selection and paused command guards.');
