@@ -80,7 +80,7 @@ function gameplayInput(gp){
  if(edge(gp,5))semantic('SECONDARY_ACTION','press',{},()=>tap('g','KeyG'));
  if(edge(gp,8))semantic('MAP','press',{},()=>click('touchMap')||click('mapBtn'));
  if(edge(gp,9))semantic('PAUSE','press',{},()=>click('touchPause')||click('pauseBtn'));
- if(edge(gp,12))semantic('FOLLOW','press',{},()=>tap('a','KeyA'));
+ if(edge(gp,12))semantic('SELECT_ALL','press',{},()=>tap('a','KeyA'));
  if(edge(gp,13))semantic('REGROUP','press',{},()=>tap('r','KeyR'));
  if(edge(gp,14))semantic('SELECT_PREVIOUS','press',{multi:down(gp,4)},()=>cycle(-1,down(gp,4)));
  if(edge(gp,15))semantic('SELECT_NEXT','press',{multi:down(gp,4)},()=>cycle(1,down(gp,4)));
