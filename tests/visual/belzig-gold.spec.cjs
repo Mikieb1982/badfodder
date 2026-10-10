@@ -19,26 +19,23 @@ async function sceneShot(page,name,file){
   await expect(page).toHaveScreenshot(file,{fullPage:true});
 }
 
-test('Belzig gold-standard presentation states',async({page})=>{
-  await openBelzig(page);
-  for(const [name,file] of [
-    ['opening','belzig-opening.png'],
-    ['movement','belzig-movement.png'],
-    ['first-firefight','belzig-first-firefight.png'],
-    ['checkpoint-garrison','belzig-checkpoint-garrison.png'],
-    ['wounded-down','belzig-wounded-down.png'],
-    ['town-centre','belzig-town-centre.png'],
-    ['burg-final','belzig-burg-final.png']
-  ])await sceneShot(page,name,file);
-});
+for(const [name,file] of [
+  ['opening','belzig-opening.png'],
+  ['movement','belzig-movement.png'],
+  ['first-firefight','belzig-first-firefight.png'],
+  ['checkpoint-garrison','belzig-checkpoint-garrison.png'],
+  ['wounded-down','belzig-wounded-down.png'],
+  ['town-centre','belzig-town-centre.png'],
+  ['burg-final','belzig-burg-final.png']
+])test('Belzig gold '+name,async({page})=>{await openBelzig(page);await sceneShot(page,name,file)});
 
-test('Belzig completion presentation',async({page})=>{
+test('Belzig gold completion',async({page})=>{
   await openBelzig(page);
   expect(await page.evaluate(()=>window.__visual.scene('completion'))).toBe(true);
   await expect(page).toHaveScreenshot('belzig-completion.png',{fullPage:true});
 });
 
-test('Belzig landscape mobile gameplay HUD',async({browser})=>{
+test('Belzig gold landscape mobile gameplay HUD',async({browser})=>{
   const context=await browser.newContext({viewport:{width:915,height:412},isMobile:true,hasTouch:true,locale:'en-GB',colorScheme:'dark',reducedMotion:'reduce'});
   const page=await context.newPage();
   await openBelzig(page);
