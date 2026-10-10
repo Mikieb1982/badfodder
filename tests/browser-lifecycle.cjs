@@ -40,7 +40,18 @@ civilians:()=>({counts:civilianRuntime.counts(),rows:civilianRuntime.snapshot(),
 prepareResidents:()=>{enemies.forEach(e=>e.alive=false);squad.forEach(s=>{s.path=null;s.target=null});const c=civilians[0],z=civilianRuntime.zones[0];squad[1].x=z.x+z.r+40;squad[1].y=z.y;c.x=squad[1].x+10;c.y=squad[1].y;setSelection(1);updateHud(true)},
 evacuateResident:()=>{const c=civilians[0],z=civilianRuntime.zones[0];c.x=z.x;c.y=z.y;civilianRuntime.update(.1);updateMissionProgress(.1);updateHud(true)},
 downForRescue:()=>{adaptiveDirector=null;clearSquadFormation();squad.forEach(s=>{s.path=null;s.target=null});enemies.forEach(e=>e.alive=false);squad[0].x=squad[1].x-25;squad[0].y=squad[1].y;squad[0].hp=2;squad[0].damageGrace=0;applyDamage(squad[0],3,squad[0].x,squad[0].y);setSelection(1);updateHud(true);},
-objectiveTransition:()=>{const first=currentObjectivePhase(),zone=phaseZone(first);enemies.forEach(e=>e.alive=false);squad.forEach(s=>{s.x=zone.x;s.y=zone.y});updateMissionProgress(first.hold||.1);const result={stage:missionStage,statuses:missionObjectivesRuntime.manager.all().filter(o=>!o.optional).map(o=>o.status)};resetGame();return result},
+objectiveTransition:()=>{
+ const manager=missionObjectivesRuntime.manager;
+ if(MAP_DATA.key==='bad-belzig'){
+  for(const id of ['opening-contact','opening-route']){
+   const objective=manager.get(id),zone=phaseZone(objective);if(!objective||!zone)throw new Error('Missing Bad Belzig authored opening objective: '+id);
+   squad.forEach(s=>{s.path=null;s.target=null;s.x=zone.x;s.y=zone.y});simulateStep(1/60);
+  }
+ }else{
+  const first=currentObjectivePhase(),zone=phaseZone(first);enemies.forEach(e=>e.alive=false);squad.forEach(s=>{s.x=zone.x;s.y=zone.y});updateMissionProgress(first.hold||.1);
+ }
+ const result={stage:missionStage,current:manager.current()?.id,statuses:Object.fromEntries(manager.all().filter(o=>!o.optional).map(o=>[o.id,o.status]))};resetGame();return result
+},
 adaptive:()=>({enabled:!!adaptiveDirector&&!adaptiveDirector.state.disabled,decisions:adaptiveDirector?.state.decisions,commander:!!enemyCommander,militaryEnemies:enemies.length}),
 directorFault:()=>{adaptiveDirector.update=()=>{throw new Error('Injected optional Director fault')};simulateStep(1/60)},
 
@@ -212,7 +223,12 @@ async function runLifecycle(providedBrowser, testInfo){
   await page.locator('#menuMissionSelect').click();await page.locator(button).click();assert.equal((await page.evaluate(()=>window.__testGame.state())).menuOpen,true);assert(await page.locator('#briefingStory').isVisible());assert.equal(await page.locator('#briefingCharacters canvas').count(),4);await page.evaluate(()=>BadFodderArt.preloadMissionArt(document.getElementById('briefingTitle').textContent.toLowerCase()));if(process.env.BADFODDER_SCREENSHOTS)await page.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS||'/tmp',map+'-briefing.png')});await page.locator('#briefingBack').click();assert(await page.locator(button).isVisible());await page.locator('[data-view="missions"] [data-back]').click();
   await select(button);assert.equal((await active()).map,map);
   const objectiveTransition=await page.evaluate(()=>window.__testGame.objectiveTransition());
-  assert.equal(objectiveTransition.stage,1);assert.deepEqual(objectiveTransition.statuses,['COMPLETED','ACTIVE','PENDING']);
+  if(map==='bad-belzig'){
+   assert.equal(objectiveTransition.stage,0);assert.equal(objectiveTransition.current,'phase-0');
+   assert.equal(objectiveTransition.statuses['opening-contact'],'COMPLETED');assert.equal(objectiveTransition.statuses['opening-route'],'COMPLETED');assert.equal(objectiveTransition.statuses['phase-0'],'ACTIVE');
+  }else{
+   assert.equal(objectiveTransition.stage,1);assert.equal(objectiveTransition.current,'phase-1');assert.equal(objectiveTransition.statuses['phase-0'],'COMPLETED');assert.equal(objectiveTransition.statuses['phase-1'],'ACTIVE');assert.equal(objectiveTransition.statuses['phase-2'],'PENDING');
+  }
   assert.equal((await page.evaluate(()=>window.__testGame.objectives())).manager.objectives[0].status,'ACTIVE','Restart must reset objective state');
   await controllerSelection();
   const characters=await page.evaluate(()=>window.__testGame.characters());
