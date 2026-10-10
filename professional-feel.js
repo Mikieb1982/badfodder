@@ -6,26 +6,6 @@ const doc=root.document;
 const reduce=()=>root.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
 let artPatched=false,experiencePatched=false,sfxPatched=false,objectiveObserver=null,shakeRaf=0,shakeUntil=0,shakeStrength=0;
 
-function installStyle(){
- if(doc.getElementById('professionalFeelStyle'))return;
- const style=doc.createElement('style');style.id='professionalFeelStyle';style.textContent=`
- :root{--pro-accent:#f0d98e;--pro-panel:rgba(20,27,21,.88);--pro-line:rgba(240,217,142,.36)}
- #menuScreen :is(button,select,input,[tabindex]):focus-visible,#campaignIntro button:focus-visible{outline:3px solid var(--pro-accent)!important;outline-offset:3px!important;box-shadow:0 0 0 2px rgba(15,20,16,.92),0 0 22px rgba(240,217,142,.24)!important}
- .hud-mission{position:relative}
- .hud-mission.pro-objective-pulse{animation:proObjectivePulse .72s cubic-bezier(.2,.7,.2,1)}
- #hudStage{letter-spacing:.1em;text-shadow:0 1px 2px rgba(0,0,0,.8)}
- #hudMission{font-weight:800;text-wrap:balance;text-shadow:0 1px 2px rgba(0,0,0,.75)}
- #hudInstruction:not([hidden]){border-left:3px solid rgba(240,217,142,.78);padding:5px 8px;background:linear-gradient(90deg,rgba(24,31,24,.72),rgba(24,31,24,.18));border-radius:3px;max-width:min(72vw,640px)}
- #hudNotice.show{box-shadow:0 8px 22px rgba(0,0,0,.28)}
- @keyframes proObjectivePulse{0%{filter:brightness(1);transform:translateY(0)}35%{filter:brightness(1.22);transform:translateY(-1px)}100%{filter:brightness(1);transform:translateY(0)}}
- @media (pointer:coarse){
-   #menuScreen button,#campaignIntro button{min-height:48px}
-   button[id^="touch"]{min-width:52px;min-height:52px;touch-action:manipulation}
-   #hudInstruction:not([hidden]){font-size:max(11px,2.8vw);line-height:1.25;max-width:82vw}
- }
- @media (prefers-reduced-motion:reduce){.hud-mission.pro-objective-pulse{animation:none!important}}
- `;doc.head.appendChild(style);
-}
 function angleOf(ent){let a=Number(ent?.dir)||0;if(Math.abs(a)>Math.PI*2+.01)a=(a%8)*Math.PI/4;return a}
 function canDraw(g){return !!(g?.save&&g?.restore&&g?.beginPath&&g?.arc&&g?.fill&&g?.stroke)}
 function drawStateCue(g,ent,team){
@@ -102,7 +82,7 @@ function patchSfx(){
  if(typeof sfx.explosion==='function'){const explode=sfx.explosion.bind(sfx);sfx.explosion=function(...args){const result=explode(...args);impulse(3.5,260);return result}}
  sfx.__professionalFeelPatched=true;sfxPatched=true;return true;
 }
-function install(){installStyle();observeObjectives();patchArt();patchExperience();patchSfx();doc.documentElement.classList.add('professional-game-feel')}
+function install(){observeObjectives();patchArt();patchExperience();patchSfx();doc.documentElement.classList.add('professional-game-feel')}
 if(doc.readyState==='loading')doc.addEventListener('DOMContentLoaded',install,{once:true});else install();
 let attempts=0;const poll=setInterval(()=>{install();if((artPatched&&experiencePatched&&sfxPatched)||++attempts>40)clearInterval(poll)},250);
 root.BadFodderProfessionalFeel={install,impulse,get artPatched(){return artPatched},get experiencePatched(){return experiencePatched},get sfxPatched(){return sfxPatched}};
