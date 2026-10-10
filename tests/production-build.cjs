@@ -4,6 +4,10 @@ const sourceRoot=path.resolve(__dirname,'..'),root=path.resolve(sourceRoot,'dist
 assert.equal(config.hosting.public,'dist');for(const n of ['tests','tools','authoring','docs','data','.git','package.json','README.md','multiplayer-database.rules.json'])assert(!fs.existsSync(path.join(root,n)),'Development content published: '+n);
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');assert(html.includes('href="manifest.webmanifest"'));assert(!html.includes('site.webmanifest'));assert(!fs.existsSync(path.join(root,'site.webmanifest')));
 const manifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.webmanifest')));assert(manifest.icons.length===2&&manifest.orientation==='landscape');
+const productionAssets=JSON.parse(fs.readFileSync(path.join(root,'production-assets.json'),'utf8'));
+assert.equal(productionAssets.version,1);assert.equal(productionAssets.unclassified.length,0,'Unowned production assets: '+productionAssets.unclassified.join(', '));
+for(const group of ['core-runtime','menu-branding','painted-world','miniature-world','characters','wigan-world','mission-audio','voice-audio'])assert(productionAssets.groups[group]?.files>0,'Missing production ownership group: '+group);
+assert(productionAssets.totalFiles>0&&productionAssets.totalBytes>0);assert(productionAssets.largest.length>0&&productionAssets.largest.length<=20);
 function check(dir){for(const e of fs.readdirSync(dir,{withFileTypes:true})){const f=path.join(dir,e.name);if(e.isDirectory()){check(f);continue}if(/\.(html|js|css|webmanifest|json)$/.test(f)){for(const m of fs.readFileSync(f,'utf8').matchAll(/\/static\/[a-f0-9]{16}\/[a-zA-Z0-9_.\/-]+/g))assert(fs.existsSync(path.join(root,m[0])),'Broken versioned asset: '+m[0]);}}}
 check(root);assert(config.hosting.headers.some(h=>h.source==='/static/**'&&h.headers[0].value.includes('immutable')));
 assert(!fs.existsSync(path.join(root,'assets/characters/belzig.png')));assert(html.includes('/assets/characters/belzig.webp'));assert(!fs.existsSync(path.join(root,'assets/characters/belzig.webp')));
@@ -20,7 +24,7 @@ if(ffmpegAvailable){
   assert(offline.includes('./assets/audio/'+name+'.webm'),'Modern audio missing from offline cache manifest: '+name);
  }
 }
-console.log('PASS: curated production output, generated Opus music with MP3 fallbacks, authoritative manifest, briefing audio and cache policy.');
+console.log('PASS: curated production output, explicit asset ownership, size report, generated Opus music with MP3 fallbacks, authoritative manifest, briefing audio and cache policy.');
 const offlineAmbience=JSON.parse(fs.readFileSync(path.join(root,'offline-assets.json'),'utf8'));
 for(const name of ['bad-belzig','wigan','cable-street','barcelona']){
  for(const ext of ['mp3','webm']){
