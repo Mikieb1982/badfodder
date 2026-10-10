@@ -6,7 +6,7 @@ test('main menu and briefing',async({page})=>{await prepare(page);await expect(p
 for(const [key,button] of [['bad-belzig','#menuMissionBad'],['wigan','#menuMissionWigan'],['cable-street','#menuHistoricalCable']])test(key+' scenery and actors',async({page})=>{
  await prepare(page);await choose(page,button);await page.locator('#briefingBegin').click();await page.waitForFunction(()=>window.__visual?.state().started&&!window.__visual.state().menuOpen&&window.__visual.state().actors===4);await page.evaluate(()=>window.__visual.freeze());expect(await page.evaluate(()=>window.__visual.state().faults)).toBe(0);await expect(page.locator('.viewport')).toHaveScreenshot(key+'.png');
 });
-test('barcelona scenery actors and roster',async({page})=>{await prepare(page);await choose(page,'#menuMissionBarcelona');await page.locator('#briefingBegin').click();await page.waitForFunction(()=>window.__visual?.state().started&&!window.__visual.state().menuOpen&&window.__visual.state().actors===4);await page.evaluate(()=>window.__visual.freeze());expect(await page.evaluate(()=>window.__visual.state().faults)).toBe(0);await expect(page.locator('.viewport')).toHaveClass(/barcelona-mission/);await expect(page.locator('.hud-unit')).toHaveCount(4);});
+test('barcelona scenery actors and roster',async({page})=>{await prepare(page);await choose(page,'#menuMissionBarcelona');await page.locator('#briefingBegin').click();await page.waitForFunction(()=>window.__visual?.state().started&&!window.__visual.state().menuOpen&&window.__visual.state().actors===4);await page.evaluate(()=>window.__visual.freeze());expect(await page.evaluate(()=>window.__visual.state().faults)).toBe(0);await expect(page.locator('.viewport')).toHaveClass(/barcelona-mission/);await expect(page.locator('.hud-unit')).toHaveCount(4);await expect(page.locator('.viewport')).toHaveScreenshot('barcelona.png');});
 test('mobile HUD',async({browser})=>{const context=await browser.newContext({viewport:{width:915,height:412},hasTouch:true,isMobile:true,reducedMotion:'reduce',locale:'en-GB',colorScheme:'dark'});const page=await context.newPage();await prepare(page);await choose(page,'#menuMissionBad');await page.locator('#briefingBegin').click();await page.waitForFunction(()=>window.__visual?.state().started&&!window.__visual.state().menuOpen&&window.__visual.state().actors===4);await page.evaluate(()=>window.__visual.freeze());await expect(page.locator('.viewport')).toHaveScreenshot('mobile-hud.png');
  const layout=await page.evaluate(()=>{
   const rect=el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height}};
@@ -48,18 +48,20 @@ test('double-click releases selected checkpoint defenders',async({page})=>{
  await page.evaluate(()=>{window.__visual.freeze();for(const u of BadFodderCoopBridge.squad()){u.checkpointGarrison=0;u.checkpointCover=true;u.checkpointHeld=0;u.checkpointFortified=true;u.checkpointAnchorX=u.x;u.checkpointAnchorY=u.y;}});
  const canvas=page.locator('#game');const box=await canvas.boundingBox();
  await page.mouse.dblclick(box.x+box.width*.7,box.y+box.height*.7);
- const released=await page.evaluate(()=>BadFodderCoopBridge.squad().map(u=>({cover:u.checkpointCover,phase:u.checkpointGarrison,held:u.checkpointHeld,fortified:u.checkpointFortified,exit:u.checkpointExitPhase,anchor:u.checkpointAnchorX})));
- for(const unit of released)expect(unit).toEqual({cover:false,phase:null,held:null,fortified:false,exit:0,anchor:null});
+ const released=await page.evaluate(()=>BadFodderCoopBridge.squad().map(u=>({selected:u.selected,cover:u.checkpointCover,phase:u.checkpointGarrison,held:u.checkpointHeld,fortified:u.checkpointFortified,exit:u.checkpointExitPhase,anchor:u.checkpointAnchorX})));
+ expect(released.filter(u=>u.selected)).toHaveLength(1);
+ for(const unit of released){if(unit.selected)expect(unit).toEqual({selected:true,cover:false,phase:null,held:null,fortified:false,exit:0,anchor:null});else{expect(unit.cover).toBe(true);expect(unit.phase).toBe(0);expect(unit.fortified).toBe(true);}}
 });
-test('double-tap releases checkpoint defenders on touchscreens',async({browser})=>{
+test('touch taps release only the controlled checkpoint defender',async({browser})=>{
  const context=await browser.newContext({viewport:{width:915,height:412},hasTouch:true,isMobile:true});
  const page=await context.newPage();await prepare(page);await choose(page,'#menuMissionBad');await page.locator('#briefingBegin').click();
  await page.waitForFunction(()=>window.__visual?.state().started&&!window.__visual.state().menuOpen);
  await page.evaluate(()=>{window.__visual.freeze();for(const u of BadFodderCoopBridge.squad()){u.checkpointGarrison=0;u.checkpointCover=true;u.checkpointFortified=true;}});
  const box=await page.locator('#game').boundingBox();
  await page.touchscreen.tap(box.x+box.width*.7,box.y+box.height*.7);
- expect(await page.evaluate(()=>BadFodderCoopBridge.squad().every(u=>u.checkpointCover))).toBe(true);
+ expect(await page.evaluate(()=>BadFodderCoopBridge.squad().filter(u=>u.selected).length)).toBe(1);
+ expect(await page.evaluate(()=>BadFodderCoopBridge.squad().every(u=>u.selected?!u.checkpointCover&&u.checkpointExitPhase===0:u.checkpointCover&&u.checkpointFortified))).toBe(true);
  await page.touchscreen.tap(box.x+box.width*.7,box.y+box.height*.7);
- expect(await page.evaluate(()=>BadFodderCoopBridge.squad().every(u=>!u.checkpointCover&&!u.checkpointFortified&&u.checkpointExitPhase===0))).toBe(true);
+ expect(await page.evaluate(()=>BadFodderCoopBridge.squad().every(u=>u.selected?!u.checkpointCover&&!u.checkpointFortified&&u.checkpointExitPhase===0:u.checkpointCover&&u.checkpointFortified))).toBe(true);
  await context.close();
 });

@@ -115,7 +115,7 @@ async function runLifecycle(providedBrowser, testInfo){
  async function pauseMenuResume(){await page.evaluate(()=>window.__testGame.pause());await page.locator('#menuMain').click();assert(await page.locator('#menuResume').isVisible());await page.locator('#menuResume').click();await active()}
  async function controllerGather(p){
   await p.evaluate(()=>{window.__originalGamepads=navigator.getGamepads.bind(navigator);window.__testPad={index:0,connected:true,axes:[0,0,0,0],buttons:Array.from({length:16},()=>({pressed:false,value:0}))};Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[window.__testPad]});window.BadFodderController.reset();});
-  await p.waitForTimeout(100);await p.evaluate(()=>window.__testPad.buttons[0].pressed=true);await p.waitForFunction(()=>window.__testGame.civilians().counts.following>=6);
+  await p.waitForTimeout(100);await p.evaluate(()=>window.__testPad.buttons[2].pressed=true);await p.waitForFunction(()=>window.__testGame.civilians().counts.following>=6);
   await p.evaluate(()=>{window.BadFodderController.reset();Object.defineProperty(navigator,'getGamepads',{configurable:true,value:window.__originalGamepads});delete window.__testPad;delete window.__originalGamepads;});
  }
  async function controllerSelection(){
@@ -125,27 +125,36 @@ async function runLifecycle(providedBrowser, testInfo){
    window.__testPad={index:0,connected:true,axes:[0,0,0,0],buttons:Array.from({length:16},()=>({pressed:false,value:0}))};
    Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[window.__testPad]});
    window.BadFodderController.reset();
+   window.__testSelectionEvents=[];
+   window.__testSelectionOff=['SELECT_NEXT','SELECT_ALL'].map(action=>BadFodderInputActions.register(action,event=>{window.__testSelectionEvents.push({action:event.action,multi:event.multi});return false}));
   });
-  async function press(indices,count){
+  async function press(indices){
+   const before=await page.evaluate(()=>({active:BadFodderCommands.active(),events:window.__testSelectionEvents.length}));
    await page.evaluate(()=>window.__testPad.buttons.forEach(b=>b.pressed=false));await page.waitForTimeout(100);
    await page.evaluate(indices=>indices.forEach(i=>window.__testPad.buttons[i].pressed=true),indices);
-   await page.waitForFunction(count=>window.__testGame.state().units.filter(u=>u.selected).length===count,count);
+   await page.waitForFunction(events=>window.__testSelectionEvents.length>events&&window.__testGame.state().units.filter(u=>u.selected).length===1,before.events,{timeout:10000});
+   const selected=await page.evaluate(()=>window.__testGame.state().units.filter(u=>u.selected).length);
+   assert.equal(selected,1,'Controller must retain one directly controlled character');
+   return{before:before.active,after:await page.evaluate(()=>BadFodderCommands.active())};
   }
-  await press([15],1);await press([4,15],2);await press([12],4);
-  await page.evaluate(()=>{window.BadFodderController.reset();Object.defineProperty(navigator,'getGamepads',{configurable:true,value:window.__originalGamepads});delete window.__testPad;delete window.__originalGamepads;});
+  const next=await press([15]),modified=await press([4,15]),all=await press([12]);
+  assert.notEqual(next.after,modified.after,'LB + D-pad must still switch via the selection handler');
+  assert.notEqual(modified.after,all.after,'D-pad up must retain the existing next-character assignment');
+  assert.deepEqual(await page.evaluate(()=>window.__testSelectionEvents),[{action:'SELECT_NEXT',multi:false},{action:'SELECT_NEXT',multi:true},{action:'SELECT_ALL',multi:false}]);
+  await page.evaluate(()=>{window.__testSelectionOff.forEach(off=>off());delete window.__testSelectionOff;delete window.__testSelectionEvents;window.BadFodderController.reset();Object.defineProperty(navigator,'getGamepads',{configurable:true,value:window.__originalGamepads});delete window.__testPad;delete window.__originalGamepads;});
  }
  async function casualtyCycle(p,touch=false){
   await p.evaluate(()=>window.__testGame.downForRescue());
   assert.equal((await p.evaluate(()=>window.__testGame.health()))[0][0],'DOWN');
   await p.evaluate(()=>window.__testGame.pause());const before=(await p.evaluate(()=>window.__testGame.health()))[0][3];
   await p.waitForTimeout(300);assert.equal((await p.evaluate(()=>window.__testGame.health()))[0][3],before,'Pause consumed the rescue window');
-  await p.evaluate(()=>window.__testGame.pause());
+  await p.evaluate(()=>{window.__testGame.pause();window.__rescueFrame=BadFodderRuntime.fixedFrame;BadFodderRuntime.fixedFrame=()=>0});
   async function action(){if(touch)await p.locator('#touchAid').dispatchEvent('pointerdown',{pointerId:71,pointerType:'touch'});else await p.keyboard.press('e');}
   await action();assert((await p.evaluate(()=>window.__testGame.health()))[0][2],'Contextual action did not stabilise casualty');
   await action();assert.equal((await p.evaluate(()=>window.__testGame.health()))[1][5],0,'Contextual action did not carry casualty');
   if(process.env.BADFODDER_SCREENSHOTS)await p.screenshot({path:path.join(process.env.BADFODDER_SCREENSHOTS,'casualty-'+(touch?'touch':'desktop')+'.png')});
   await action();assert.equal((await p.evaluate(()=>window.__testGame.health()))[1][5],null,'Contextual action did not drop casualty');
-  await p.evaluate(()=>window.__testGame.restart());
+  await p.evaluate(()=>{BadFodderRuntime.fixedFrame=window.__rescueFrame;delete window.__rescueFrame;window.__testGame.restart()});
  }
  async function assertTouchLayout(p,label){
   const rects=await p.evaluate(()=>{
