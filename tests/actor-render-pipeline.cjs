@@ -1,5 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
+const fs=require('node:fs');
 const ActorScale=require('../actor-scale.js');
 
 const calls=[];
@@ -39,4 +40,7 @@ assert.equal(layers[1].kind,'legacy');
 assert.equal(layers[2].name,'state-cues');
 assert.equal(layers[2].kind,'registered');
 assert.equal(typeof pipeline.renderer,'function');
+
+const professional=fs.readFileSync(require.resolve('../professional-feel.js'),'utf8');
+assert(professional.includes("pipeline.register('professional-feel'"),'Professional actor feedback must use the named render pipeline');
 console.log('actor render pipeline ok');
