@@ -205,12 +205,21 @@
   }
   function patchArt(art=root.BadFodderArt){
     if(!art||art.__manualGarrisonPatched||typeof art.drawActor!=='function')return false;
-    const original=art.drawActor;
-    art.drawActor=function(ctx,ent,team='squad'){
-      if(team==='squad'&&ent?.manualGarrison)drawPersonalSandbags(ctx,ent,'back');
-      const result=original.call(this,ctx,ent,team);
-      if(team==='squad'&&ent?.manualGarrison)drawPersonalSandbags(ctx,ent,'front');return result;
-    };
+    const pipeline=art.actorRenderPipeline;
+    if(pipeline?.register){
+      const registered=pipeline.register('manual-garrison',{
+        before(ctx,ent,team='squad'){if(team==='squad'&&ent?.manualGarrison)drawPersonalSandbags(ctx,ent,'back')},
+        after(ctx,ent,team='squad'){if(team==='squad'&&ent?.manualGarrison)drawPersonalSandbags(ctx,ent,'front')}
+      });
+      if(!registered&&!pipeline.list().some(layer=>layer.name==='manual-garrison'))return false;
+    }else{
+      const original=art.drawActor;
+      art.drawActor=function(ctx,ent,team='squad',...rest){
+        if(team==='squad'&&ent?.manualGarrison)drawPersonalSandbags(ctx,ent,'back');
+        const result=original.call(this,ctx,ent,team,...rest);
+        if(team==='squad'&&ent?.manualGarrison)drawPersonalSandbags(ctx,ent,'front');return result;
+      };
+    }
     art.__manualGarrisonPatched=true;return true;
   }
   function applyGarrisonShot(s,target){
