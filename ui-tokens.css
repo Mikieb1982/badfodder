@@ -75,3 +75,20 @@
 @media(prefers-reduced-motion:reduce){
   :root{--ui-motion-fast:.01ms;--ui-motion-standard:.01ms}
 }
+
+/* Experience panels and shared material states consume the existing tokens. */
+:root{
+  --ui-font-number:var(--ui-font-mono);
+  --ui-type-caption:11px;--ui-type-body:13px;--ui-type-title:20px;
+  --ui-weight-body:var(--ui-weight-regular);
+  --ui-panel-glass:rgba(24,32,27,.92);--ui-panel-quiet:rgba(24,32,27,.82);
+  --ui-muted:var(--ui-text-muted);--ui-line:var(--ui-border);
+  --ui-selected:var(--ui-accent-soft);
+  --ui-warning:#efc18a;--ui-danger:#f3b7a1;--ui-friendly:#a9d1e2;
+  --ui-radius-control:var(--ui-radius-small);--ui-radius-panel:var(--ui-radius-medium);
+  --ui-shadow-panel:0 8px 24px #0006,inset 0 0 0 1px #101810;
+  --ui-shadow-control:0 2px 6px #0005;
+  --ui-focus-width:3px;--ui-focus-offset:3px;
+  --ui-disabled-opacity:.55;--ui-duration-fast:var(--ui-motion-fast);--ui-duration-panel:var(--ui-motion-standard);
+  --ui-z-menu:12;--ui-z-beat:40;
+}
