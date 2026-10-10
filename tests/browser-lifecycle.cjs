@@ -53,7 +53,7 @@ objectiveTransition:()=>{
  const result={stage:missionStage,current:manager.current()?.id,statuses:Object.fromEntries(manager.all().filter(o=>!o.optional).map(o=>[o.id,o.status]))};resetGame();return result
 },
 adaptive:()=>({enabled:!!adaptiveDirector&&!adaptiveDirector.state.disabled,decisions:adaptiveDirector?.state.decisions,commander:!!enemyCommander,militaryEnemies:enemies.length}),
-directorFault:()=>{adaptiveDirector.update=()=>{throw new Error('Injected optional Director fault')};simulateStep(1/60)},
+directorFault:()=>{adaptiveDirector.update=()=>{throw new Error('Injected optional Director fault')};if(badBelzigRuntime&&!badBelzigRuntime.combatReady)return adaptiveDirector.guard(()=>adaptiveDirector.update(1/60));simulateStep(1/60)},
 
 prepare:()=>{if(missionController){const b=[...missionController.state.barricades.values()][0];Object.assign(squad[0],b.workPoints[0]);missionInteractionLayer.syncActors(squad.map((s,i)=>({id:'player-'+i,x:s.x,y:s.y,active:true})));}}, action:performHistoricalNearestAction,
 battle:()=>{resetGame();missionDirector.enterPhase(1);const b=[...missionController.state.barricades.values()][0],f=[...missionController.state.formations.values()][0];Object.assign(f,{x:b.workPoints[0].x+35,y:b.workPoints[0].y,state:'dismantle',stateTime:0,resistance:0});squad.forEach((s,i)=>{Object.assign(s,{x:b.workPoints[0].x,y:b.workPoints[0].y+i*5,path:null,target:null});missionInteractionLayer.cancelJob('player-'+i)});missionInteractionLayer.syncActors(squad.map((s,i)=>({id:'player-'+i,x:s.x,y:s.y,active:true})));missionController.state.actors.forEach(a=>{a.stamina=100;a.attackCooldown=0;a.stunned=0});setSelection('all');cursorWorld=null;updateHud(true)}};
