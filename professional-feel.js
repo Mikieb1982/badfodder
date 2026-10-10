@@ -15,10 +15,11 @@ function healthOf(ent){
  try{return root.BadFodderHealth?.stateFor?.(ent)||(ent?.alive===false?'DEAD':ent?.downed?'DOWN':'FIT')}catch(_){return ent?.alive===false?'DEAD':ent?.downed?'DOWN':'FIT'}
 }
 function poseOf(ent){try{return root.BadFodderArt?.pose?.(ent)||null}catch(_){return null}}
+function presentationClock(ent,pose=poseOf(ent)){const clock=Number(pose?.clock);return Number.isFinite(clock)?clock:((root.performance?.now?.()||0)/1000)}
 function visualOf(ent){
  let state=actorState.get(ent);if(!state){state={health:'FIT',garrison:false,changed:0};actorState.set(ent,state)}
  const health=healthOf(ent),garrison=!!(ent?.manualGarrison||ent?.checkpointCover||Number.isFinite(ent?.checkpointGarrison));
- if(state.health!==health||state.garrison!==garrison){state.health=health;state.garrison=garrison;state.changed=performance.now?.()||0}
+ if(state.health!==health||state.garrison!==garrison){state.health=health;state.garrison=garrison;state.changed=presentationClock(ent)}
  return state;
 }
 function line(g,x1,y1,x2,y2){g.beginPath();g.moveTo(x1,y1);g.lineTo(x2,y2);g.stroke()}
@@ -26,7 +27,7 @@ function drawConditionCue(g,ent,team){
  if(!canDraw(g)||!ent)return;
  const health=healthOf(ent),suppression=Math.max(0,Math.min(1,Number(ent.suppression)||0));
  if(team==='squad'&&health==='DOWN'){
-   const pulse=reduce()?0:(Math.sin((performance.now?.()||0)/190)+1)*.5;
+   const pulse=reduce()?0:(Math.sin(presentationClock(ent)*5.25)+1)*.5;
    g.save();g.globalAlpha=.6+.2*pulse;g.strokeStyle='#f0d98e';g.lineWidth=1.5;g.beginPath();g.arc(ent.x,ent.y,12.5+pulse*1.5,0,Math.PI*2);g.stroke();
    g.fillStyle='#f3e6ba';g.fillRect(ent.x-1.2,ent.y-17,2.4,7);g.fillRect(ent.x-3.5,ent.y-14.7,7,2.4);g.restore();return;
  }
@@ -42,7 +43,7 @@ function drawConditionCue(g,ent,team){
 function drawOrderCue(g,ent,team){
  if(!canDraw(g)||team!=='squad'||!ent||ent.alive===false||ent.downed)return;
  const state=String(ent.companionState||ent.order||''),garrison=!!(ent.manualGarrison||ent.checkpointCover||Number.isFinite(ent.checkpointGarrison));
- const tracked=visualOf(ent),age=(performance.now?.()||0)-tracked.changed,transition=Math.max(0,1-age/460);
+ const tracked=visualOf(ent),age=(presentationClock(ent)-tracked.changed)*1000,transition=Math.max(0,1-age/460);
  if(!garrison&&!state&&!transition)return;
  const x=ent.x,y=ent.y-20;g.save();g.lineWidth=1.15;g.strokeStyle='#e7dbb0';g.fillStyle='rgba(27,35,27,.74)';
  if(garrison){
@@ -79,7 +80,7 @@ function belzigTransform(g,ent,team,invoke){
  if(!isBelzig()||!g?.save||!ent)return invoke();
  const pose=poseOf(ent),health=healthOf(ent),a=angleOf(ent),fire=Math.max(0,Number(ent.fireTimer)||0),hit=Math.max(0,Number(ent.hitTimer)||0);
  const moving=!!(pose?.moving||/walk|run/.test(String(pose?.state||ent.state||''))),phase=Number(pose?.phase)||0;
- const still=ent.alive!==false&&!ent.downed&&!moving,clock=(performance.now?.()||0)/1000+(Number(ent.variant)||0)*.73;
+ const still=ent.alive!==false&&!ent.downed&&!moving,clock=presentationClock(ent,pose)+(Number(ent.variant)||0)*.73;
  const firePhase=Math.min(1,fire/.12),hitPhase=Math.min(1,hit/.18),garrison=!!(ent.manualGarrison||ent.checkpointCover||Number.isFinite(ent.checkpointGarrison));
  let ox=0,oy=0,rot=0;
  if(!reduce()){
