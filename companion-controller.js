@@ -4,7 +4,7 @@
   const viable=u=>!!u&&u.alive!==false&&!u.downed&&!u.carriedBy;
   function create({getSquad,commands,navigation:nav,groupMovement:group,health,support,getHostiles=()=>[],canSee=()=>false,fire=()=>false,firearmsAllowed=()=>false,getContext=()=>null,findCover=()=>null,isBusy=()=>false,releaseCover=()=>{},exitBuilding=()=>{},profile={}}){
   const config={spacing:30,comfortable:50,catchUp:96,leash:270,engagement:190,...profile};
-  let order='FOLLOW',hold=null,clock=0,decisionClock=0,context={mode:'FOLLOW'},states=new Map(),aid=null,manualAidUntil=0;
+  let order='FOLLOW',hold=null,clock=0,decisionClock=0,context={mode:'FOLLOW'},states=new Map(),aid=null,manualAidUntil=0,regroupVisibleUntil=0;
   const squad=()=>getSquad(),active=(p=commands.player)=>squad()[commands.active(p)]||null;
   const ai=u=>viable(u)&&commands.owner(squad().indexOf(u))<0;
   function cancel(u,{keepCover=false}={}){if(!u)return;support?.directOrder(u);nav.cancelPath(u);if(!keepCover)releaseCover(u);states.delete(u);if(aid?.helper===u)aid=null;u.companionState=null;}
@@ -26,7 +26,7 @@
   function setOrder(value){
    if(!['FOLLOW','HOLD','REGROUP'].includes(value))return false;
    order=value;hold=value==='HOLD'&&active()?{x:active().x,y:active().y}:null;aid=null;
-   for(const u of squad())if(ai(u)){cancel(u,{keepCover:value==='HOLD'});exitBuilding(u)}clock=0;decisionClock=0;manualAidUntil=0;return true;
+   for(const u of squad())if(ai(u)){cancel(u,{keepCover:value==='HOLD'});exitBuilding(u)}clock=0;decisionClock=0;manualAidUntil=0;regroupVisibleUntil=value==='REGROUP'?.45:0;return true;
   }
   function setContext(value={}){context={mode:'FOLLOW',...value};}
   function route(u,point,state,holdFor=0){
@@ -93,12 +93,12 @@
      if(!blocked)fire(u,target);
     }
    }
-   if(order==='REGROUP'&&companions.every(u=>Math.hypot(u.x-leader.x,u.y-leader.y)<=config.comfortable*1.5))order='FOLLOW';
+   if(order==='REGROUP'&&decisionClock>=regroupVisibleUntil&&companions.every(u=>Math.hypot(u.x-leader.x,u.y-leader.y)<=config.comfortable*1.5))order='FOLLOW';
   }
   function speedScale(u){const anchor=order==='HOLD'?hold:context.anchor||active(0)||active();return ai(u)&&anchor&&Math.hypot(u.x-anchor.x,u.y-anchor.y)>config.catchUp?1.38:1;}
-  function reset(){for(const u of states.keys())cancel(u);states.clear();aid=null;order='FOLLOW';hold=null;context={mode:'FOLLOW'};clock=0;decisionClock=0;manualAidUntil=0;}
+  function reset(){for(const u of states.keys())cancel(u);states.clear();aid=null;order='FOLLOW';hold=null;context={mode:'FOLLOW'};clock=0;decisionClock=0;manualAidUntil=0;regroupVisibleUntil=0;}
   function snapshot(){return{version:1,active:commands.snapshot(),order,hold:hold&&{...hold}};}
-  function restore(saved){reset();if(saved?.version!==1)return;commands.restore(saved.active);order=['FOLLOW','HOLD','REGROUP'].includes(saved.order)?saved.order:'FOLLOW';hold=order==='HOLD'&&Number.isFinite(saved.hold?.x)&&Number.isFinite(saved.hold?.y)?{...saved.hold}:null;if(order==='HOLD'&&!hold)order='FOLLOW';ensureActive();}
+  function restore(saved){reset();if(saved?.version!==1)return;commands.restore(saved.active);order=['FOLLOW','HOLD','REGROUP'].includes(saved.order)?saved.order:'FOLLOW';hold=order==='HOLD'&&Number.isFinite(saved.hold?.x)&&Number.isFinite(saved.hold?.y)?{...saved.hold}:null;if(order==='HOLD'&&!hold)order='FOLLOW';if(order==='REGROUP')regroupVisibleUntil=.45;ensureActive();}
   return{update,switchTo,next,ensureActive,speedScale,setOrder,setCompanionContext:setContext,reset,snapshot,restore,isCompanion:ai,active,get order(){return order},get context(){return context}};
  }
  return{create,viable};
