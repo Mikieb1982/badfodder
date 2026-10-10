@@ -43,4 +43,6 @@ assert.equal(typeof pipeline.renderer,'function');
 
 const professional=fs.readFileSync(require.resolve('../professional-feel.js'),'utf8');
 assert(professional.includes("pipeline.register('professional-feel'"),'Professional actor feedback must use the named render pipeline');
+const garrison=fs.readFileSync(require.resolve('../garrison-control.js'),'utf8');
+assert(garrison.includes("pipeline.register('manual-garrison'"),'Garrison sandbags must use the named render pipeline');
 console.log('actor render pipeline ok');
