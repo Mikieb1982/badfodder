@@ -96,6 +96,7 @@
 
     env.processEnemyPathQueue();
     env.updateEnemies(dt);
+    env.badBelzigRuntime?.update?.(dt);
     env.updateCivilians(dt);
     env.updateProjectiles(dt);
     env.resistanceRuntime?.update(dt);env.resistanceRuntime?.units.forEach(ent=>env.art.animate(ent,dt));
