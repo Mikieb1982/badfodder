@@ -13,11 +13,11 @@
   for(const type of ['pointerup','pointercancel','lostpointercapture'])element.addEventListener(type,end);
  }
  function load(src,ready){
-  if(root.document.querySelector('script[data-runtime-support="'+src+'"]'))return;
+  if(root.document.querySelector('script[data-runtime-support="'+src+'"]')){ready?.();return;}
   const script=root.document.createElement('script');script.src=root.BadFodderAssetUrl?.(src)||src;script.dataset.runtimeSupport=src;if(ready)script.addEventListener('load',ready,{once:true});root.document.head.appendChild(script);
  }
- root.BadFodderInput={joystick};
- load('controller-support.js',()=>{if(lastJoystick)root.BadFodderController?.bindJoystick?.(lastJoystick)});
+ root.BadFodderInput={joystick,get actions(){return root.BadFodderInputActions||null}};
+ load('input-actions.js',()=>load('controller-support.js',()=>{if(lastJoystick)root.BadFodderController?.bindJoystick?.(lastJoystick)}));
  load('experience-polish.js');
  load('install-app.js');
 })(window);
