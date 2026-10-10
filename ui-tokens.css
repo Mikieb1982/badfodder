@@ -1,0 +1,25 @@
+/* Shared presentation contract. Keep world palettes and touch geometry separate. */
+:root{
+  --ui-font-display:Georgia,"Times New Roman",serif;
+  --ui-font-body:"Trebuchet MS",Arial,sans-serif;
+  --ui-font-number:"Courier New",monospace;
+  --ui-type-caption:11px;--ui-type-body:13px;--ui-type-title:20px;
+  --ui-weight-body:600;--ui-weight-strong:800;
+  --ui-space-1:4px;--ui-space-2:8px;--ui-space-3:12px;--ui-space-4:16px;--ui-space-5:24px;
+  --ui-bg:#111916;--ui-panel:#202c27;--ui-panel-raised:#2c3d34;
+  --ui-panel-glass:rgba(24,32,27,.92);--ui-panel-quiet:rgba(24,32,27,.82);
+  --ui-text:#f0ecd9;--ui-muted:#bdc4b5;--ui-line:#7a806c;
+  --ui-accent:#f0d98e;--ui-selected:#394536;
+  --ui-warning:#efc18a;--ui-danger:#f3b7a1;--ui-friendly:#a9d1e2;
+  --ui-border-width:1px;--ui-radius-control:4px;--ui-radius-panel:6px;
+  --ui-shadow-panel:0 8px 24px #0006,inset 0 0 0 1px #101810;
+  --ui-shadow-control:0 2px 6px #0005;
+  --ui-focus-width:3px;--ui-focus-offset:3px;
+  --ui-disabled-opacity:.55;--ui-duration-fast:120ms;--ui-duration-panel:180ms;
+  --ui-z-hud:8;--ui-z-menu:12;--ui-z-beat:40;--ui-z-modal:20000;
+  /* Legacy consumers share the same palette while they are migrated. */
+  --bg:var(--ui-bg);--panel:var(--ui-panel);--panel2:var(--ui-panel-raised);
+  --text:var(--ui-text);--muted:var(--ui-muted);--border:var(--ui-line);
+  --accent:var(--ui-accent);--accent-soft:var(--ui-selected);
+  --pro-accent:var(--ui-accent);--pro-panel:var(--ui-panel-glass);--pro-line:var(--ui-line);
+}
