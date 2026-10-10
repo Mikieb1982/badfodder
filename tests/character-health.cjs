@@ -49,3 +49,5 @@ assert.equal(copy[0].carriedBy,copy[1]);assert.equal(copy[1].carryingUnit,copy[0
 copy[1].damageGrace=0;health.handleDamage(copy[1],10,0,0);assert(copy[1].downed);assert.equal(copy[0].carriedBy,null,'An incapacitated carrier must drop their casualty');
 health.down(copy[2],2);health.fixedUpdate(3);assert.equal(copy[2].alive,false,'Simulation timer must finalise unstabilised casualties');
 console.log('PASS: explicit live binding, paused rescue timers, incapacitation, carrying replication and simulation-owned bleed-out.');
+
+assert.equal(health.handleContextInput(),false,'No casualty context leaves interaction to the mission');

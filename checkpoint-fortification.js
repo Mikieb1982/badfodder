@@ -277,13 +277,15 @@
   function patchArt(art){
     if(!art||art.__checkpointFortificationPatched)return !!art;
     if(typeof art.drawActor!=='function'||typeof art.animate!=='function')return false;
-    const drawActor=art.drawActor,animate=art.animate;
-    art.drawActor=function(ctx,ent,team='squad'){
-      if(team==='squad'&&ent.checkpointFortificationRearLead)drawSandbagRing(ctx,ent,'back');
-      const result=drawActor.call(this,ctx,ent,team);
-      if(team==='squad'&&ent.checkpointFortificationFrontLead)drawSandbagRing(ctx,ent,'front');
-      return result;
-    };
+    const owner=typeof window!=='undefined'?window:globalThis;
+    const pipeline=art.actorRenderPipeline||owner.BadFodderActorScale?.installRenderPipeline?.(art);
+    if(!pipeline?.register)return false;
+    const registered=pipeline.register('checkpoint-fortification',{
+      before(ctx,ent,team='squad'){if(team==='squad'&&ent?.checkpointFortificationRearLead)drawSandbagRing(ctx,ent,'back')},
+      after(ctx,ent,team='squad'){if(team==='squad'&&ent?.checkpointFortificationFrontLead)drawSandbagRing(ctx,ent,'front')}
+    });
+    if(!registered&&!pipeline.list().some(layer=>layer.name==='checkpoint-fortification'))return false;
+    const animate=art.animate;
     art.animate=function(ent,dt){if(ent?.checkpointFortified&&finite(ent.checkpointFacing))ent.dir=ent.checkpointFacing;return animate.call(this,ent,dt)};
     art.__checkpointFortificationPatched=true;return true;
   }
@@ -304,6 +306,8 @@
 
   function install(root){
     patchArt(root.BadFodderArt);
+    // Retry on late art/pipeline script loads without replacing the actor renderer.
+    root.document?.addEventListener('load',()=>patchArt(root.BadFodderArt),true);
     if(root.BadFodderAdaptive){patchAdaptive(root.BadFodderAdaptive);return}
     const existing=Object.getOwnPropertyDescriptor(root,'BadFodderAdaptive');
     if(!existing||existing.configurable){

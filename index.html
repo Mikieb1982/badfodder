@@ -3755,6 +3755,43 @@
   pauseBtn.addEventListener('click',togglePause);
   restartBtn.addEventListener('click',resetGame);
 
+  // Shared gameplay ownership for semantic controller input and legacy keyboard input.
+  function primaryGameplayInput(event){
+    if(event.phase==='release'){keyboardFireHeld=false;return true;}
+    if(menuOpen)return true;
+    if(missionInteractionLayer){if(!event.repeat)performStreetAttack('shove');return true;}
+    if(!actionAllowed('firearms'))return true;
+    refreshCursorWorld();keyboardFireHeld=true;
+    if(cursorWorld&&!event.repeat)squadFireAt(cursorWorld.x,cursorWorld.y);
+    return true;
+  }
+  function interactGameplayInput(event){
+    if(menuOpen)return true;
+    if(!event.repeat&&window.BadFodderHealth?.handleContextInput?.())return true;
+    if(!(missionInteractionLayer||civilianRuntime||buildingRuntime))return true;
+    if(!event.repeat){if(missionInteractionLayer)performHistoricalNearestAction();else performCivilianAction();}
+    return true;
+  }
+  let controllerCycleIndex=0;
+  BadFodderInput.gameplay={
+    primary:primaryGameplayInput,
+    interact:interactGameplayInput,
+    aim(event){
+      const v=event.value;if(!v||!Number.isFinite(v.x)||!Number.isFinite(v.y))return false;
+      const r=canvas.getBoundingClientRect(),radius=Math.min(r.width,r.height)*.42;
+      rememberCanvasPointer({clientX:r.left+r.width/2+v.x*radius,clientY:r.top+r.height/2+v.y*radius});return true;
+    },
+    select(event){if(event.index<squad.length){if(event.multi)toggleSelection(event.index);else setSelection(event.index);}return true;},
+    cycle(event){
+      const units=[...document.querySelectorAll('.hud-unit')],count=units.length||4;
+      for(let i=0;i<count;i++){
+        controllerCycleIndex=(controllerCycleIndex+event.delta+count)%count;
+        if(!units[controllerCycleIndex]?.disabled){this.select({...event,index:controllerCycleIndex});return true;}
+      }
+      return true;
+    }
+  };
+
   root.tabIndex=0;
   window.addEventListener('keydown',e=>{
     if(menuOpen)return;
@@ -3773,11 +3810,7 @@
     // MacBook/one-button mouse alternatives.
     if(key==='f'){
       e.preventDefault();
-      if(missionInteractionLayer){if(!e.repeat)performStreetAttack('shove');return}
-      if(!actionAllowed('firearms'))return;
-      refreshCursorWorld();
-      keyboardFireHeld=true;
-      if(cursorWorld&&!e.repeat)squadFireAt(cursorWorld.x,cursorWorld.y);
+      primaryGameplayInput({phase:'press',repeat:e.repeat});
       return;
     }
     if(key==='g'){
@@ -3789,7 +3822,7 @@
     }
     if(key==='e'&&(missionInteractionLayer||civilianRuntime||buildingRuntime)){
       e.preventDefault();
-      if(!e.repeat){if(missionInteractionLayer)performHistoricalNearestAction();else performCivilianAction();}
+      interactGameplayInput({repeat:e.repeat});
       return;
     }
 
@@ -3822,7 +3855,7 @@
   });
 
   window.addEventListener('keyup',e=>{
-    if(e.key.toLowerCase()==='f')keyboardFireHeld=false;
+    if(e.key.toLowerCase()==='f')primaryGameplayInput({phase:'release'});
   });
 
   function releaseInterruptedInput(){

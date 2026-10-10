@@ -173,13 +173,17 @@
   button=root.document.createElement('button');button.id='touchAid';button.type='button';button.className='touch-action touch-gameplay';button.hidden=true;button.setAttribute('aria-label','Contextual casualty action');button.addEventListener('pointerdown',event=>{event.preventDefault();event.stopPropagation();contextualAction();syncAidButton()});actions.appendChild(button);return button;
  }
  function syncAidButton(){const button=aidButton();if(!button)return;const label=contextualLabel();button.hidden=!label;if(label)button.textContent=label}
+ function handleContextInput(){
+  if(!contextualLabel())return false;
+  contextualAction();syncAidButton();return true;
+ }
  function keyboard(event){
   if(event.repeat||String(event.key||'').toLowerCase()!=='e')return;
   const tag=event.target?.tagName?.toLowerCase();if(tag==='input'||tag==='textarea'||tag==='select'||event.target?.isContentEditable)return;
-  if(contextualLabel()){event.preventDefault();event.stopImmediatePropagation?.();contextualAction();syncAidButton()}
+  if(handleContextInput()){event.preventDefault();event.stopImmediatePropagation?.()}
  }
  function install(){patchDamage();patchMovement();aidButton();root.addEventListener?.('keydown',keyboard,true);setInterval(()=>{if(simulationClock===null)tick()},120)}
  chainProperty('BadFodderAdaptive',patchAdaptive);
  if(root.document){if(root.document.readyState==='loading')root.document.addEventListener('DOMContentLoaded',install,{once:true});else install()}
- return{STATES,DOWN_SECONDS,CARRY_SPEED,AID_RANGE,stateFor,sync,down,stabilise,recover,beginCarry,dropCarry,contextualAction,contextualLabel,finalise,tick,patchDamage,patchMovement,patchAdaptive,bindRuntime,handleDamage,fixedUpdate,movementScale,snapshot,receive,remaining};
+ return{STATES,DOWN_SECONDS,CARRY_SPEED,AID_RANGE,stateFor,sync,down,stabilise,recover,beginCarry,dropCarry,contextualAction,contextualLabel,handleContextInput,finalise,tick,patchDamage,patchMovement,patchAdaptive,bindRuntime,handleDamage,fixedUpdate,movementScale,snapshot,receive,remaining};
 });
