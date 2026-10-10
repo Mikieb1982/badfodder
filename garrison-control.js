@@ -80,15 +80,13 @@
     if(runtime&&!runtime.isActive())return false;
     const ordered=runtime?.regroupCompanions?.();
     if(root.BadFodderCommands?.mode==='client')return ordered!==false;
-    const select=runtime?.select||root.setSelection,move=runtime?.move||root.setMoveTargets;
-    if(typeof select!=='function'||typeof move!=='function'){setNotice('Regroup unavailable.');return false}
-    const selected=getSelected().filter(s=>s?.alive&&!s.downed);
-    const preferred=selected[0]||null;
-    select('all');
-    const units=(runtime||typeof root.selectedUnits==='function'?getSelected():liveSquad()).filter(s=>s?.alive&&!s.downed);
+    const move=runtime?.move||root.setMoveTargets;
+    if(typeof move!=='function'){setNotice('Regroup unavailable.');return false}
+    const preferred=getSelected().find(s=>s?.alive&&!s.downed)||null;
+    const units=liveSquad().filter(s=>s?.alive&&!s.downed);
     if(!units.length)return false;
     const anchor=preferred&&units.includes(preferred)?preferred:units[0];
-    if(root.BadFodderCommands?.mode!=='client')for(const unit of units)if(unit?.manualGarrison)release(unit);
+    for(const unit of units)if(unit?.manualGarrison)release(unit);
     move({x:anchor.x,y:anchor.y,regroup:true});
     syncButtons();setNotice(units.length===1?'Selected survivor ready.':'Squad regrouping.');
     return ordered!==false;
