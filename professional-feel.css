@@ -20,10 +20,8 @@
 #hudNotice.show{box-shadow:0 8px 22px rgba(0,0,0,.28)}
 
 /* Variable-height objective copy must never collide with transient gameplay notices.
-   Touch layouts retain their fixed controller-safe notice slots in hud-zones.css. */
-@media(pointer:fine) and (min-width:721px){
-  .viewport #hudNotice{top:max(var(--barcelona-notice-top,72px),176px)}
-}
+   Touch layouts retain their fixed controller-safe notice slots in hud-zones.css via !important. */
+.viewport #hudNotice{top:max(var(--barcelona-notice-top,72px),176px)}
 
 @keyframes proObjectivePulse{
   0%{filter:brightness(1);transform:translateY(0)}
