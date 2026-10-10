@@ -36,33 +36,60 @@
   const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');
   g.drawImage(source,sx,sy,sw,sh,0,0,w,h);g.globalCompositeOperation='source-in';g.fillStyle=color;g.fillRect(0,0,w,h);return c;
  }
- function hillPolygon(g,points,color){
-  if(!g?.beginPath||!g?.moveTo||!g?.lineTo||!g?.fill)return;
-  g.fillStyle=color;g.beginPath();g.moveTo(points[0][0],points[0][1]);for(let i=1;i<points.length;i++)g.lineTo(points[i][0],points[i][1]);g.closePath();g.fill();
- }
- function drawCastleHill(g,w,h){
-  if(!g)return;
-  // Burg Eisenhardt sits above Bad Belzig. These broad terraces create that elevation
-  // entirely in the presentation layer: map coordinates, collision and navigation stay untouched.
-  const y=h;
-  hillPolygon(g,[[-8,y*.96],[8,y*.78],[42,y*.63],[92,y*.53],[151,y*.47],[215,y*.51],[271,y*.62],[312,y*.78],[328,y*.96]],'#4a4f3f');
-  hillPolygon(g,[[-5,y*.91],[24,y*.72],[68,y*.58],[126,y*.50],[188,y*.50],[246,y*.58],[294,y*.72],[325,y*.91]],'#60684d');
-  hillPolygon(g,[[18,y*.80],[56,y*.65],[106,y*.56],[160,y*.53],[217,y*.57],[268,y*.67],[304,y*.81],[304,y*.91],[18,y*.91]],'#707755');
-  hillPolygon(g,[[66,y*.67],[104,y*.58],[153,y*.55],[202,y*.58],[244,y*.68],[229,y*.73],[93,y*.73]],'#7c815d');
-  // Exposed earth/retaining cuts make the slope read as height rather than a green blob.
-  hillPolygon(g,[[9,y*.80],[44,y*.69],[88,y*.62],[91,y*.66],[48,y*.75],[15,y*.86]],'#655944');
-  hillPolygon(g,[[235,y*.68],[271,y*.75],[306,y*.87],[303,y*.92],[263,y*.82],[224,y*.73]],'#5d523f');
-  if(g.beginPath&&g.moveTo&&g.lineTo&&g.stroke){
-   // Winding pale approach up the slope.
-   g.save();g.strokeStyle='#9a9278';g.lineWidth=Math.max(4,w*.018);g.lineCap='round';g.lineJoin='round';g.globalAlpha=.72;
-   g.beginPath();g.moveTo(w*.51,h*.99);g.lineTo(w*.56,h*.86);g.lineTo(w*.47,h*.77);g.lineTo(w*.53,h*.68);g.lineTo(w*.49,h*.61);g.stroke();
-   g.strokeStyle='rgba(49,45,36,.42)';g.lineWidth=Math.max(1,w*.005);g.globalAlpha=.48;g.beginPath();g.moveTo(w*.51,h*.99);g.lineTo(w*.56,h*.86);g.lineTo(w*.47,h*.77);g.lineTo(w*.53,h*.68);g.lineTo(w*.49,h*.61);g.stroke();g.restore();
+ function drawCastleElevation(ctx,dx,dy,dw,dh){
+  // Top-down elevation is sold with broad hillshade, contour breaks and slope-direction texture.
+  // Keep it gradual: no literal green mound under the landmark and no gameplay-coordinate changes.
+  if(!ctx?.save||!ctx?.ellipse||!ctx?.stroke||!ctx?.createRadialGradient)return;
+  const cx=dx+dw*.5,crestY=dy+dh*.92;
+  ctx.save();
+  // Large feathered hillshade. Light comes from the upper-left, with the downhill face subtly darker.
+  ctx.save();ctx.translate(cx,crestY+dh*.82);ctx.scale(dw*2.1,dh*2.75);
+  let shade=ctx.createRadialGradient(-.13,-.38,.08,.04,.08,1);
+  shade.addColorStop(0,'rgba(246,237,194,.075)');shade.addColorStop(.38,'rgba(171,164,118,.018)');shade.addColorStop(.72,'rgba(52,49,38,.055)');shade.addColorStop(1,'rgba(40,38,31,0)');
+  ctx.globalCompositeOperation='multiply';ctx.fillStyle=shade;ctx.beginPath();ctx.arc(0,0,1,0,Math.PI*2);ctx.fill();ctx.restore();
+  // Progressive contour lips: the player crosses these one by one when moving uphill.
+  const bands=[
+   {rx:.72,ry:.32,cy:.22,a:.16,s:.10,e:.90},
+   {rx:1.02,ry:.58,cy:.46,a:.14,s:.08,e:.92},
+   {rx:1.34,ry:.90,cy:.78,a:.12,s:.06,e:.94},
+   {rx:1.68,ry:1.25,cy:1.12,a:.105,s:.05,e:.95},
+   {rx:2.02,ry:1.62,cy:1.50,a:.085,s:.04,e:.96}
+  ];
+  for(let i=0;i<bands.length;i++){
+   const b=bands[i],cy=crestY+dh*b.cy,rx=dw*b.rx,ry=dh*b.ry,start=Math.PI*b.s,end=Math.PI*b.e;
+   ctx.save();ctx.lineCap='round';
+   ctx.strokeStyle=`rgba(47,45,36,${b.a})`;ctx.lineWidth=Math.max(1.1,dw*.0105);ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,0,start,end);ctx.stroke();
+   ctx.translate(0,-Math.max(.8,dh*.012));ctx.strokeStyle=`rgba(232,221,177,${b.a*.60})`;ctx.lineWidth=Math.max(.7,dw*.0058);ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,0,start,end);ctx.stroke();ctx.restore();
   }
-  // Low-frequency texture: enough physical variation to sell earth/grass, not visible grunge.
-  g.save();let seed=0x5e17a1d3;for(let i=0;i<42;i++){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const x=(seed/4294967296)*w;seed=(Math.imul(seed,1664525)+1013904223)>>>0;const yy=h*.58+(seed/4294967296)*h*.36;g.globalAlpha=.09;g.fillStyle=i%3===0?'#302f27':'#a7a37d';g.fillRect(x,yy,1.5+(i%2),1);}
-  g.restore();
-  // Stronger downhill contact shadow is what makes the castle feel materially above the town.
-  if(g.createLinearGradient){const shade=g.createLinearGradient(0,h*.68,0,h);shade.addColorStop(0,'rgba(35,38,31,0)');shade.addColorStop(1,'rgba(29,31,27,.34)');g.fillStyle=shade;g.fillRect(0,h*.64,w,h*.36);}
+  // Sparse fall-line strokes make the grass surface read as a slope instead of a flat contour map.
+  ctx.save();let seed=0x7b31d2a9;ctx.lineCap='round';
+  for(let i=0;i<34;i++){
+   seed=(Math.imul(seed,1664525)+1013904223)>>>0;const u=seed/4294967296;
+   seed=(Math.imul(seed,1664525)+1013904223)>>>0;const v=seed/4294967296;
+   const x=cx+(u-.5)*dw*3.15,y=crestY+dh*(.34+v*1.82);
+   const nx=(x-cx)/(dw*1.72),ny=(y-(crestY+dh*.95))/(dh*1.70);if(nx*nx+ny*ny>1)continue;
+   const angle=Math.atan2(Math.max(.22,ny+.42),nx*.48),len=3.2+((seed>>>24)&7)*.55;
+   ctx.strokeStyle=i%3===0?'rgba(236,225,184,.085)':'rgba(54,51,40,.085)';ctx.lineWidth=.8;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(angle)*len,y+Math.sin(angle)*len);ctx.stroke();
+  }
+  ctx.restore();
+  // A restrained crest highlight gives the highest area a readable break.
+  ctx.save();ctx.globalCompositeOperation='screen';ctx.strokeStyle='rgba(239,228,184,.09)';ctx.lineWidth=Math.max(1,dw*.007);ctx.beginPath();ctx.ellipse(cx-dw*.08,crestY+dh*.16,dw*.63,dh*.24,0,Math.PI*.15,Math.PI*.85);ctx.stroke();ctx.restore();
+  ctx.restore();
+ }
+ function installCastleElevationDraw(){
+  if(typeof CanvasRenderingContext2D==='undefined')return;
+  const proto=CanvasRenderingContext2D.prototype;if(proto.__badFodderCastleElevationInstalled)return;
+  const native=proto.drawImage;
+  Object.defineProperty(proto,'__badFodderCastleElevationInstalled',{value:true,configurable:true});
+  proto.drawImage=function(source,...args){
+   if(source&&source.__badFodderCastleLandmark){
+    let dx,dy,dw,dh;
+    if(args.length===4){[dx,dy,dw,dh]=args;}
+    else if(args.length===8){dx=args[4];dy=args[5];dw=args[6];dh=args[7];}
+    if([dx,dy,dw,dh].every(Number.isFinite))drawCastleElevation(this,dx,dy,dw,dh);
+   }
+   return native.call(this,source,...args);
+  };
  }
  function finishLandmark(source,key){
   if(typeof document==='undefined'||!source||!landmarkKeys.has(key))return source;
@@ -72,13 +99,12 @@
   const b=alphaBounds(pg,w,h)||{x:0,y:0,w,h};
   const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');if(!g)return source;
   const castle=key==='castle';
-  if(castle)drawCastleHill(g,w,h);
-  // Burg is deliberately lifted and given more breathing room so its hill remains visible at normal game zoom.
-  const fill=castle?.78:key==='rathaus'?.88:.84,maxW=w*fill,maxH=h*(castle?.58:.84),scale=Math.min(maxW/b.w,maxH/b.h);
-  const dw=b.w*scale,dh=b.h*scale,dx=(w-dw)/2,dy=castle?h*.035:h-dh-h*.045;
+  // Keep the landmark itself crisp and normally proportioned. Elevation is now expressed in the surrounding terrain.
+  const fill=castle?.88:key==='rathaus'?.88:.84,maxW=w*fill,maxH=h*(castle?.76:.84),scale=Math.min(maxW/b.w,maxH/b.h);
+  const dw=b.w*scale,dh=b.h*scale,dx=(w-dw)/2,dy=h-dh-h*.045;
   const mask=silhouette(source,b.x,b.y,b.w,b.h,Math.max(1,Math.ceil(dw)),Math.max(1,Math.ceil(dh)),'#28342d');
   // Soft contact depth and a restrained cut-paper edge make the old POI sheet sit in the newer miniature world.
-  g.save();g.globalAlpha=castle?.31:.22;if('filter' in g)g.filter=castle?'blur(3.1px)':'blur(2.4px)';g.drawImage(mask,dx+(castle?5:3),dy+(castle?8:5),dw,dh);g.restore();
+  g.save();g.globalAlpha=.22;if('filter' in g)g.filter='blur(2.4px)';g.drawImage(mask,dx+3,dy+5,dw,dh);g.restore();
   g.save();g.globalAlpha=.22;for(const [ox,oy] of [[-1,0],[1,0],[0,-1],[0,1]])g.drawImage(mask,dx+ox,dy+oy,dw,dh);g.restore();
   g.drawImage(source,b.x,b.y,b.w,b.h,dx,dy,dw,dh);
   // Gentle directional light, warmer walls and darker lower edges. No high-frequency grunge.
@@ -88,10 +114,12 @@
   g.globalAlpha=.055;g.fillStyle='#4d4438';let seed=key.split('').reduce((n,ch)=>Math.imul(n^ch.charCodeAt(0),16777619)>>>0,2166136261);
   if(g.beginPath&&g.ellipse&&g.fill)for(let i=0;i<34;i++){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const x=dx+(seed/4294967296)*dw;seed=(Math.imul(seed,1664525)+1013904223)>>>0;const yy=dy+(seed/4294967296)*dh;g.beginPath();g.ellipse(x,yy,1.2,.55,-.35,0,Math.PI*2);g.fill();}
   g.restore();
+  if(castle)Object.defineProperty(c,'__badFodderCastleLandmark',{value:true});
   landmarkCache.set(key,{source,canvas:c});return c;
  }
  function installArt(art){
   if(!art||art.actorScaleInstalled)return;
+  installCastleElevationDraw();
   if(art.landmark&&typeof document!=='undefined'&&!art.landmarkFinishInstalled){
    const landmark=art.landmark;
    art.landmark=function(key){return finishLandmark(landmark.call(this,key),key)};
