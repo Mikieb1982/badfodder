@@ -3,7 +3,8 @@
 'use strict';
 const DEADZONE=.18;
 let binding=null,padIndex=-1,previous=[],moving=false,cycleIndex=0,menuAxisX=0,menuAxisY=0,menuNextX=0,menuNextY=0,lastSurface=null;
-const held=new Set();
+const held=new Set(),actionHeld=new Set();
+const names=()=>root.BadFodderInputActions?.ACTIONS||{};
 function bindJoystick(options){binding=options}
 function visible(el){return !!el&&!el.hidden&&el.getClientRects?.().length>0}
 function activeSurface(){
@@ -25,19 +26,40 @@ function adjust(delta){const el=document.activeElement;if(el?.tagName==='SELECT'
 function key(type,key,code=key,modifiers={}){const surface=activeSurface();let target=document.activeElement;if(surface&&(!target||!surface.contains(target)))target=surface;(target?.dispatchEvent?target:root).dispatchEvent(new KeyboardEvent(type,{key,code,bubbles:true,cancelable:true,...modifiers}))}
 function tap(k,c=k,modifiers={}){key('keydown',k,c,modifiers);key('keyup',k,c,modifiers)}
 function hold(k,down,c=k){if(down&&!held.has(k)){held.add(k);key('keydown',k,c)}else if(!down&&held.has(k)){held.delete(k);key('keyup',k,c)}}
+function semantic(action,phase='press',detail={},fallback=null){
+ const bus=root.BadFodderInputActions,known=names()[action]||action;
+ if(bus?.dispatch?.(known,phase,{source:'controller',...detail}))return true;
+ return fallback?fallback()!==false:false;
+}
+function semanticHold(action,down,fallback){
+ if(down&&!actionHeld.has(action)){actionHeld.add(action);return semantic(action,'press',{},()=>fallback(true))}
+ if(!down&&actionHeld.has(action)){actionHeld.delete(action);return semantic(action,'release',{},()=>fallback(false))}
+ return false;
+}
 function click(id){const el=document.getElementById(id);if(el&&!el.hidden&&!el.disabled){el.click();return true}return false}
 function notice(text){const el=document.getElementById('hudNotice');if(!el)return;el.textContent=text;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1600)}
 function radial(x,y){const m=Math.min(1,Math.hypot(x,y));if(m<=DEADZONE)return{x:0,y:0,mag:0};const s=(m-DEADZONE)/(1-DEADZONE),f=s/m;return{x:x*f,y:y*f,mag:s}}
 function pad(){let pads;try{pads=navigator.getGamepads?.()}catch(_){return null}if(!pads)return null;if(padIndex>=0&&pads[padIndex]?.connected)return pads[padIndex];const found=[...pads].find(Boolean);if(found){padIndex=found.index;previous=[];menuAxisX=menuAxisY=0}return found||null}
 function down(gp,i){const b=gp.buttons[i];return !!b&&(b.pressed||b.value>.45)}
 function edge(gp,i){const d=down(gp,i),was=!!previous[i];previous[i]=d;return d&&!was}
-function releaseMove(){if(!moving||!binding)return;const s=binding.state;s.moveX=0;s.moveY=0;s.moveMag=0;binding.stick.style.transform='translate(0px,0px)';binding.element.classList.remove('active');try{root.BadFodderCoop?.releaseStick?.()}catch(_){ }moving=false}
-function move(gp){if(!binding||binding.state.movePointer!==null||!binding.canMove()){releaseMove();return}const v=radial(Number(gp.axes[0])||0,Number(gp.axes[1])||0);if(!v.mag){releaseMove();return}if(!moving)try{root.BadFodderGarrison?.releaseForMovement?.()}catch(_){ }moving=true;binding.state.moveX=v.x;binding.state.moveY=v.y;binding.state.moveMag=v.mag;const max=binding.element.getBoundingClientRect().width*.34||38;binding.stick.style.transform=`translate(${v.x*max}px,${v.y*max}px)`;binding.element.classList.add('active')}
-function aim(gp){const v=radial(Number(gp.axes[2])||0,Number(gp.axes[3])||0);if(!v.mag)return;const canvas=document.getElementById('game');if(!canvas)return;const r=canvas.getBoundingClientRect(),radius=Math.min(r.width,r.height)*.42,x=r.left+r.width/2+v.x*radius,y=r.top+r.height/2+v.y*radius;try{canvas.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerType:'mouse',clientX:x,clientY:y}))}catch(_){canvas.dispatchEvent(new MouseEvent('mousemove',{bubbles:true,clientX:x,clientY:y}))}}
-function cycle(delta,multi=false){const units=[...document.querySelectorAll('.hud-unit')];const count=units.length||4;for(let i=0;i<count;i++){cycleIndex=(cycleIndex+delta+count)%count;if(!units[cycleIndex]?.disabled){tap(String(cycleIndex+1),'Digit'+(cycleIndex+1),{shiftKey:multi});return}}}
+function applyLegacyMove(v){
+ if(!binding)return false;const s=binding.state;
+ if(!v.mag){if(!moving)return true;s.moveX=0;s.moveY=0;s.moveMag=0;binding.stick.style.transform='translate(0px,0px)';binding.element.classList.remove('active');try{root.BadFodderCoop?.releaseStick?.()}catch(_){ }moving=false;return true}
+ if(!moving)try{root.BadFodderGarrison?.releaseForMovement?.()}catch(_){ }
+ moving=true;s.moveX=v.x;s.moveY=v.y;s.moveMag=v.mag;const max=binding.element.getBoundingClientRect().width*.34||38;binding.stick.style.transform=`translate(${v.x*max}px,${v.y*max}px)`;binding.element.classList.add('active');return true;
+}
+function releaseMove(){if(!moving&&!binding)return;const v={x:0,y:0,mag:0};semantic('MOVE_VECTOR','release',{value:v},()=>applyLegacyMove(v))}
+function move(gp){
+ if(!binding||binding.state.movePointer!==null||!binding.canMove()){releaseMove();return}
+ const v=radial(Number(gp.axes[0])||0,Number(gp.axes[1])||0);if(!v.mag){releaseMove();return}
+ semantic('MOVE_VECTOR','change',{value:v},()=>applyLegacyMove(v));
+}
+function legacyAim(v){const canvas=document.getElementById('game');if(!canvas)return false;const r=canvas.getBoundingClientRect(),radius=Math.min(r.width,r.height)*.42,x=r.left+r.width/2+v.x*radius,y=r.top+r.height/2+v.y*radius;try{canvas.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerType:'mouse',clientX:x,clientY:y}))}catch(_){canvas.dispatchEvent(new MouseEvent('mousemove',{bubbles:true,clientX:x,clientY:y}))}return true}
+function aim(gp){const v=radial(Number(gp.axes[2])||0,Number(gp.axes[3])||0);if(!v.mag)return;semantic('AIM_VECTOR','change',{value:v},()=>legacyAim(v))}
+function cycle(delta,multi=false){const units=[...document.querySelectorAll('.hud-unit')];const count=units.length||4;for(let i=0;i<count;i++){cycleIndex=(cycleIndex+delta+count)%count;if(!units[cycleIndex]?.disabled){tap(String(cycleIndex+1),'Digit'+(cycleIndex+1),{shiftKey:multi});return true}}return false}
 function navigateMenu(dx,dy,surface){if(dx&&adjust(dx))return true;return spatialFocus(dx,dy,surface)}
 function menuInput(gp){
- releaseMove();hold('f',false,'KeyF');const surface=activeSurface();if(!surface)return;
+ releaseMove();semanticHold('PRIMARY_ACTION',false,down=>hold('f',down,'KeyF'));const surface=activeSurface();if(!surface)return;
  if(surface!==lastSurface){lastSurface=surface;menuAxisX=menuAxisY=0;menuNextX=menuNextY=0;if(!surface.contains(document.activeElement))linearFocus(1,surface)}
  const now=typeof performance!=='undefined'?performance.now():Date.now();
  const y=Number(gp.axes[1])||0,x=Number(gp.axes[0])||0,ay=y>.55?1:y<-.55?-1:0,ax=x>.55?1:x<-.55?-1:0;
@@ -49,14 +71,21 @@ function menuInput(gp){
  if(edge(gp,1)||edge(gp,9)){if(surface.id==='campaignIntro'){const skip=[...surface.querySelectorAll('button')].find(b=>/skip|continue/i.test(b.textContent||''));if(skip)skip.click();else tap('Escape','Escape')}else tap('Escape','Escape')}
 }
 function gameplayInput(gp){
-  move(gp);aim(gp);
-  // Standard face buttons mirror the on-screen action diamond.
-  hold('f',down(gp,0)||down(gp,7),'KeyF');
-  if(edge(gp,1))tap('g','KeyG');if(edge(gp,2))tap('e','KeyE');if(edge(gp,3))tap('h','KeyH');if(edge(gp,5))tap('g','KeyG');
-  if(edge(gp,8))click('touchMap')||click('mapBtn');if(edge(gp,9))click('touchPause')||click('pauseBtn');
-  if(edge(gp,12))tap('a','KeyA');if(edge(gp,13))tap('r','KeyR');if(edge(gp,14))cycle(-1,down(gp,4));if(edge(gp,15))cycle(1,down(gp,4));
+ move(gp);aim(gp);
+ // Controller layout now emits device-independent gameplay actions. Legacy key adapters remain only as a migration fallback.
+ semanticHold('PRIMARY_ACTION',down(gp,0)||down(gp,7),down=>hold('f',down,'KeyF'));
+ if(edge(gp,1))semantic('SECONDARY_ACTION','press',{},()=>tap('g','KeyG'));
+ if(edge(gp,2))semantic('INTERACT','press',{},()=>tap('e','KeyE'));
+ if(edge(gp,3))semantic('GARRISON','press',{},()=>tap('h','KeyH'));
+ if(edge(gp,5))semantic('SECONDARY_ACTION','press',{},()=>tap('g','KeyG'));
+ if(edge(gp,8))semantic('MAP','press',{},()=>click('touchMap')||click('mapBtn'));
+ if(edge(gp,9))semantic('PAUSE','press',{},()=>click('touchPause')||click('pauseBtn'));
+ if(edge(gp,12))semantic('FOLLOW','press',{},()=>tap('a','KeyA'));
+ if(edge(gp,13))semantic('REGROUP','press',{},()=>tap('r','KeyR'));
+ if(edge(gp,14))semantic('SELECT_PREVIOUS','press',{multi:down(gp,4)},()=>cycle(-1,down(gp,4)));
+ if(edge(gp,15))semantic('SELECT_NEXT','press',{multi:down(gp,4)},()=>cycle(1,down(gp,4)));
 }
-function reset(){releaseMove();for(const k of [...held])hold(k,false,k==='f'?'KeyF':k);previous=[];menuAxisX=menuAxisY=0;menuNextX=menuNextY=0;lastSurface=null}
+function reset(){releaseMove();semanticHold('PRIMARY_ACTION',false,down=>hold('f',down,'KeyF'));for(const k of [...held])hold(k,false,k==='f'?'KeyF':k);actionHeld.clear();previous=[];menuAxisX=menuAxisY=0;menuNextX=menuNextY=0;lastSurface=null}
 function loop(){const gp=pad();if(!gp){reset();requestAnimationFrame(loop);return}if(menuOpen())menuInput(gp);else{lastSurface=null;gameplayInput(gp)}requestAnimationFrame(loop)}
 function installLegend(){
  const panel=document.querySelector('[data-view="controls"]');const dl=panel?.querySelector('dl');
@@ -68,6 +97,6 @@ function installLegend(){
  const hint=document.querySelector('#menuScreen .menu-hint');if(hint&&!/CONTROLLER/.test(hint.textContent||''))hint.textContent=(hint.textContent||'')+' · CONTROLLER';
 }
 function install(){if(!navigator.getGamepads)return;installLegend();root.addEventListener('gamepadconnected',e=>{padIndex=e.gamepad.index;reset();notice('Controller connected: '+(e.gamepad.id||'gamepad'))});root.addEventListener('gamepaddisconnected',e=>{if(e.gamepad.index===padIndex){padIndex=-1;reset();notice('Controller disconnected.')}});root.addEventListener('blur',reset);document.addEventListener('visibilitychange',()=>{if(document.hidden)reset()});requestAnimationFrame(loop)}
-root.BadFodderController={bindJoystick,reset,connected:()=>!!pad()};
+root.BadFodderController={bindJoystick,reset,connected:()=>!!pad(),dispatch:semantic};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })(window);
