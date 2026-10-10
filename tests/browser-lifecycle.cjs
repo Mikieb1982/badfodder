@@ -22,7 +22,7 @@ barcelonaBattle:({east=false,wounded=false,low=false}={})=>{
 },
 barcelonaAmmo:value=>{const before=squad[0].ammo;squad[0].ammo=value;updateHud(true);return before},
 barcelonaFire:()=>squadFireAt(squad[0].x+50,squad[0].y-30),
-state:()=>({started,paused,menuOpen,finished,runtimeSafeStop,lifecycle:lifecycle.state,zoom,map:MAP_DATA.key,mode:missionLaunch.mode(),faults:runtimeFaultCount,touch:{...touchState},units:squad.map(s=>({x:s.x,y:s.y,hp:s.hp,selected:s.selected,garrison:!!s.manualGarrison,building:s.insideBuilding||null})),progress:missionDirector?.snapshot(),controllerDisposed:missionController?.disposed,streetActors:missionController?[...missionController.state.actors.values()].map(a=>({stamina:a.stamina,attackKind:a.attackKind})):[]}),
+state:()=>({started,paused,menuOpen,finished,runtimeSafeStop,lifecycle:lifecycle.state,zoom,map:MAP_DATA.key,mode:missionLaunch.mode(),faults:runtimeFaultCount,touch:{...touchState},units:squad.map(s=>({x:s.x,y:s.y,hp:s.hp,selected:s.selected,garrison:!!s.manualGarrison,building:s.insideBuilding||null})),companionOrder:companions?.order,progress:missionDirector?.snapshot(),controllerDisposed:missionController?.disposed,streetActors:missionController?[...missionController.state.actors.values()].map(a=>({stamina:a.stamina,attackKind:a.attackKind})):[]}),
 step:n=>{for(let i=0;i<n;i++)simulateStep(1/60)}, moveTarget:()=>{const s=squad[0],r=canvas.getBoundingClientRect();for(const [dx,dy] of [[70,0],[-70,0],[0,70],[0,-70]]){const x=s.x+dx,y=s.y+dy;if(routeClear(s.x,s.y,x,y,NAV_RADIUS))return{x:(x-camera.x)*zoom/VIEW_W*r.width,y:(y-camera.y)*zoom/VIEW_H*r.height}}throw new Error('No open movement test target')},
 fault:()=>{for(let i=0;i<3;i++)handleRuntimeFault(new Error('Injected unrecoverable test fault'))},
 restart:beginMission, pause:togglePause, main:showTitle, resume:resumeMission,
@@ -198,7 +198,10 @@ async function runLifecycle(providedBrowser, testInfo){
   if(touch)await p.locator('#touchGarrison').dispatchEvent('pointerdown',{pointerId:75,pointerType:'touch'});else await p.keyboard.press('h');
   const held=(await p.evaluate(()=>__testGame.state())).units[1];assert(held.garrison);assert.equal(held.building,null,'Defensive hold must use the reachable doorway');
   if(touch)await p.locator('#touchRegroup').dispatchEvent('pointerdown',{pointerId:76,pointerType:'touch'});else await p.keyboard.press('r');
-  const regrouped=(await p.evaluate(()=>__testGame.state())).units;assert(regrouped.every(u=>u.selected&&!u.garrison),'Live regroup did not release and select the squad');
+  const regroupState=await p.evaluate(()=>__testGame.state()),regrouped=regroupState.units;
+  assert(regrouped.every(u=>!u.garrison),'Live regroup did not release the squad');
+  assert.equal(regrouped.filter(u=>u.selected).length,1,'Live regroup must retain one directly controlled soldier');
+  assert.equal(regroupState.companionOrder,'REGROUP','Live regroup did not order companions to regroup');
   await p.evaluate(()=>__testGame.restart());
  }
  async function civilianCycle(p,touch=false){
@@ -246,19 +249,19 @@ async function runLifecycle(providedBrowser, testInfo){
   const identity=await page.evaluate(()=>window.__testGame.identity());assert.equal(identity.year,map==='wigan'?1941:1945);assert.equal(await page.locator('#loadingEra').textContent(),identity.loading);assert((await page.locator('#hudSquadBar').textContent()).includes(identity.characters[0].name));assert(/assets\/audio\/mission\.(?:webm|mp3)$/.test(await page.evaluate(()=>BadFodderMusic.source)));
   const chips=page.locator('#hudSquadBar .hud-unit');
   await chips.nth(0).click();
-  assert.deepEqual(await page.evaluate(()=>window.__testGame.state().units.map(u=>u.selected)),[true,false,false,false],'Portrait tap must isolate one soldier');
+  assert.deepEqual(await page.evaluate(()=>window.__testGame.state().units.map(u=>u.selected)),[true,false,false,false],'Portrait tap must select one soldier');
   await chips.nth(0).click();
-  assert.deepEqual(await page.evaluate(()=>window.__testGame.state().units.map(u=>u.selected)),[false,true,true,true],'Tapping the lone selected soldier must switch to the other three');
-  await page.locator('#hudAll').click();await chips.nth(0).click();await chips.nth(1).click();
-  assert.deepEqual(await page.evaluate(()=>window.__testGame.state().units.map(u=>u.selected)),[true,true,false,false],'Two-soldier subgroup selection failed');
-  const pairBefore=await page.evaluate(()=>window.__testGame.state().units.slice(0,2));
-  await page.locator('#game').click({position:await page.evaluate(()=>window.__testGame.moveTarget())});await page.waitForTimeout(500);
-  const pairAfter=await page.evaluate(()=>window.__testGame.state().units.slice(0,2));
-  assert(pairAfter.every((u,i)=>Math.hypot(u.x-pairBefore[i].x,u.y-pairBefore[i].y)>1),'Selected pair did not move as a subgroup');
+  assert.deepEqual(await page.evaluate(()=>window.__testGame.state().units.map(u=>u.selected)),[true,false,false,false],'Repeated portrait tap must keep one directly controlled soldier');
   await page.locator('#hudAll').click();
+  assert.equal((await page.evaluate(()=>window.__testGame.state().units.filter(u=>u.selected).length)),1,'Next-character control must retain one directly controlled soldier');
+  await chips.nth(1).click();
+  assert.deepEqual(await page.evaluate(()=>window.__testGame.state().units.map(u=>u.selected)),[false,true,false,false],'Portrait tap must switch the directly controlled soldier');
+  await chips.nth(0).click();
   const before=await page.evaluate(()=>window.__testGame.state().units[0]);
   await page.locator('#game').click({position:await page.evaluate(()=>window.__testGame.moveTarget())});await page.waitForTimeout(700);
-  const after=await page.evaluate(()=>window.__testGame.state().units[0]);assert(Math.hypot(before.x-after.x,before.y-after.y)>1,'Click movement did not move leader');
+  const after=await page.evaluate(()=>window.__testGame.state().units[0]);assert(Math.hypot(before.x-after.x,before.y-after.y)>1,'Click movement did not move selected soldier');
+  await page.locator('#companionFOLLOW').click();
+  assert.equal((await page.evaluate(()=>window.__testGame.state())).companionOrder,'FOLLOW','Follow command did not reach companions');
   await page.mouse.click(660,550,{button:'right'});await page.keyboard.press('g');
   await page.waitForTimeout(600);await active();
   assert((await page.evaluate(()=>window.__testGame.adaptive())).enabled,'Military Director did not initialise');
