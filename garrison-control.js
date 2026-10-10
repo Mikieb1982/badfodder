@@ -88,8 +88,6 @@
     const anchor=preferred&&units.includes(preferred)?preferred:units[0];
     for(const unit of units)if(unit?.manualGarrison)release(unit);
     move({x:anchor.x,y:anchor.y,regroup:true});
-    for(const unit of units)unit.selected=true;
-    setTimeout(()=>{const controlled=getSelected().find(s=>s?.alive&&!s.downed)||null;for(const unit of units)unit.selected=unit===controlled},420);
     syncButtons();setNotice(units.length===1?'Selected survivor ready.':'Squad regrouping.');
     return ordered!==false;
   }
