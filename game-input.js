@@ -17,7 +17,7 @@
   const script=root.document.createElement('script');script.src=root.BadFodderAssetUrl?.(src)||src;script.dataset.runtimeSupport=src;if(ready)script.addEventListener('load',ready,{once:true});root.document.head.appendChild(script);
  }
  root.BadFodderInput={joystick,get actions(){return root.BadFodderInputActions||null}};
- load('input-actions.js',()=>load('controller-support.js',()=>{if(lastJoystick)root.BadFodderController?.bindJoystick?.(lastJoystick)}));
+ load('input-actions.js',()=>load('gameplay-input-adapter.js',()=>load('controller-support.js',()=>{if(lastJoystick)root.BadFodderController?.bindJoystick?.(lastJoystick)})));
  load('experience-polish.js');
  load('install-app.js');
 })(window);
