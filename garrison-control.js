@@ -78,7 +78,8 @@
   }
   function regroup(){
     if(runtime&&!runtime.isActive())return false;
-    if(runtime?.regroupCompanions)return runtime.regroupCompanions();
+    const ordered=runtime?.regroupCompanions?.();
+    if(root.BadFodderCommands?.mode==='client')return ordered!==false;
     const select=runtime?.select||root.setSelection,move=runtime?.move||root.setMoveTargets;
     if(typeof select!=='function'||typeof move!=='function'){setNotice('Regroup unavailable.');return false}
     const selected=getSelected().filter(s=>s?.alive&&!s.downed);
@@ -87,10 +88,10 @@
     const units=(runtime||typeof root.selectedUnits==='function'?getSelected():liveSquad()).filter(s=>s?.alive&&!s.downed);
     if(!units.length)return false;
     const anchor=preferred&&units.includes(preferred)?preferred:units[0];
-    if(root.BadFodderCommands?.mode!=='client')for(const unit of units)if(unit?.manualGarrison)release(unit);
+    for(const unit of units)if(unit?.manualGarrison)release(unit);
     move({x:anchor.x,y:anchor.y,regroup:true});
     syncButtons();setNotice(units.length===1?'Selected survivor ready.':'Squad regrouping.');
-    return true;
+    return ordered!==false;
   }
   function toggleGarrison(chosen=null){
     if(runtime&&!runtime.isActive())return false;
@@ -248,9 +249,11 @@
           if(!Number.isFinite(s.garrisonAnchorX)){s.garrisonAnchorX=s.x;s.garrisonAnchorY=s.y}
           s.x=s.garrisonAnchorX;s.y=s.garrisonAnchorY;s.path=null;s.pendingPath=null;s.pathIndex=0;s.target=null;
           let target=null,best=RANGE*scale;
-          for(const e of enemies){if(!e?.alive||e.surrendered||e.missionDormant||runtime?.canSee&&!runtime.canSee(s,e))continue;const d=Math.hypot(e.x-s.x,e.y-s.y);if(d<best){best=d;target=e}}
-          s.garrisonTarget=target||null;if(!target)continue;s.dir=Math.atan2(target.y-s.y,target.x-s.x);
-          if((s.garrisonNextFire||0)>time)continue;if(firearmsAllowed()){applyGarrisonShot(s,target);s.garrisonNextFire=time+FIRE_INTERVAL}
+          for(const e of enemies){if(!e?.alive||e.surrendered||e.missionDormant)continue;const d=Math.hypot(e.x-s.x,e.y-s.y);if(d>=best)continue;if(runtime?.canSee&&!runtime.canSee(s,e))continue;target=e;best=d}
+          s.garrisonTarget=target;
+          if(!target||!firearmsAllowed())continue;
+          const now=Number.isFinite(time)?time:0;if(now<(s.garrisonNextFire||0))continue;s.garrisonNextFire=now+FIRE_INTERVAL;
+          applyGarrisonShot(s,target);
         }
         return result;
       };
@@ -258,20 +261,11 @@
     };
     adaptive.__manualGarrisonPatched=true;return true;
   }
-  function chainProperty(name,patch){
-    const d=Object.getOwnPropertyDescriptor(root,name);
-    if(d&&!d.configurable){patch(root[name]);return false}
-    if(d&&(d.get||d.set)){
-      const oldGet=d.get,oldSet=d.set;
-      Object.defineProperty(root,name,{configurable:true,enumerable:d.enumerable!==false,get(){return oldGet?oldGet.call(root):undefined},set(value){if(oldSet)oldSet.call(root,value);const current=oldGet?oldGet.call(root):value;patch(current)}});
-      patch(oldGet?oldGet.call(root):undefined);return true;
-    }
-    let value=d&&'value'in d?d.value:root[name];
-    Object.defineProperty(root,name,{configurable:true,enumerable:true,get(){return value},set(next){value=next;patch(next)}});patch(value);return true;
+  function install(){
+    installButtons();installKeyboard();installMovementRelease();installCheckpointLock();patchArt();patchAdaptive();
   }
-  function install(){installButtons();installKeyboard();installMovementRelease();installCheckpointLock();patchArt();patchAdaptive()}
-
-  root.BadFodderGarrison={bindRuntime,toggleGarrison,regroup,release,releaseCheckpoint,releaseForMovement,selectedOne,selectedForMovement,lockCheckpointGarrisons,drawPersonalSandbags,patchArt,patchAdaptive,install};
-  chainProperty('BadFodderArt',patchArt);chainProperty('BadFodderAdaptive',patchAdaptive);
   if(root.document){if(root.document.readyState==='loading')root.document.addEventListener('DOMContentLoaded',install,{once:true});else install()}
+  else patchAdaptive();
+  let attempts=0;const retry=setInterval(()=>{patchArt();patchAdaptive();if((root.BadFodderArt?.__manualGarrisonPatched&&root.BadFodderAdaptive?.__manualGarrisonPatched)||++attempts>40)clearInterval(retry)},250);
+  root.BadFodderGarrison={bindRuntime,toggleGarrison,regroup,release,releaseCheckpoint,releaseForMovement,lockCheckpointGarrisons,selectedOne,syncButtons,install};
 })(typeof window!=='undefined'?window:globalThis);
