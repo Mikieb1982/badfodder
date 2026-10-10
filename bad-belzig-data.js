@@ -8,7 +8,9 @@
 
   TOWN_MAP.spawns={
     squad:[
-      [786,1450],[803,1450],[786,1467],[803,1467]
+      // Begin in the south-west corner so the opening moves diagonally across the town
+      // toward the first civilians instead of starting almost directly underneath them.
+      [178,1442],[196,1442],[178,1460],[196,1460]
     ],
     enemies:[
       [770,1285],[703.1,1237.4],[550,1190],
