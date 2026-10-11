@@ -35,8 +35,8 @@ const server=http.createServer((req,res)=>{
  context=await browsers[engine].launchPersistentContext(profile,options);
  if(engine==='webkit'){
   // Playwright #42775: WebKit's offline emulation kills even synthetic SW
-  // responses. Shut down the origin and block uncached requests instead.
-  await context.route('**/*',route=>route.abort());
+  // responses. The origin is shut down instead; all game assets are local.
+  // WebKit interception also runs before the SW, so do not route cached URLs.
   await context.addInitScript(()=>Object.defineProperty(navigator,'onLine',{get:()=>false}));
  }else await context.setOffline(true);
  page=await context.newPage();const errors=[];page.on('pageerror',error=>errors.push(error.message));
