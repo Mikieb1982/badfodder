@@ -12,8 +12,6 @@ if(fs.existsSync(path.join(root,'audio')))allowed.push(...files('audio').filter(
 const availableAudio=allowed.filter(n=>n.startsWith('audio/')&&/\.mp3$/i.test(n));
 const stableRuntime=new Set(['service-worker.js']);
 const hashes=new Map(allowed.filter(n=>/\.(js|css|png|webp|mp3|mp4|webm|ico)$/i.test(n)&&!n.startsWith('audio/')&&!stableRuntime.has(n)).map(n=>[n,crypto.createHash('sha256').update(fs.readFileSync(path.join(root,n))).digest('hex').slice(0,16)]));
-const release=crypto.createHash('sha256').update(allowed.map(n=>n+fs.readFileSync(path.join(root,n))).join('')).digest('hex').slice(0,16);
-const prefix='static/'+release+'/';
 function rewrite(text){for(const n of [...hashes.keys()].sort((a,b)=>b.length-a.length)){const escaped=n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');text=text.replace(new RegExp('(["\\\'`(])'+escaped+'(?:\\?[^"\\\'`\\s)]*)?(?=["\\\'`)])','g'),(_,lead)=>lead+'/'+prefix+n)}return text}
 function publicUrl(n){return hashes.has(n)&&n!=='favicon.ico'?'./'+prefix+n:'./'+n}
 const generatedAudio=[];let mobileCampaignVideo=null;
@@ -31,6 +29,13 @@ function transcodeCampaignVideo(){
  const run=cp.spawnSync('ffmpeg',args,{stdio:'inherit'});if(run.status!==0){fs.rmSync(target,{force:true});console.warn('Could not create mobile campaign intro; original MP4 fallback retained.');return}mobileCampaignVideo='./'+rel;
 }
 transcodeMusic();transcodeCampaignVideo();
+// Generated codec variants are part of the installed release too. Builds without
+// an encoder must not share a cache identity with builds that include them.
+const generatedFiles=[...generatedAudio,...(mobileCampaignVideo?[mobileCampaignVideo.slice(2)]:[])];
+const releaseHash=crypto.createHash('sha256').update(allowed.map(n=>n+fs.readFileSync(path.join(root,n))).join(''));
+for(const name of generatedFiles)releaseHash.update(name).update(fs.readFileSync(path.join(out,name)));
+const release=releaseHash.digest('hex').slice(0,16);
+const prefix='static/'+release+'/';
 for(const n of allowed){
  let data=fs.readFileSync(path.join(root,n));if(/\.(html|css|js|webmanifest|json)$/.test(n)){let text=rewrite(data.toString());if(n==='service-worker.js')text=text.replace('__OFFLINE_RELEASE__',release);if(n==='index.html'){const map=Object.fromEntries([...hashes.keys()].map(k=>[k,'/'+prefix+k]));text=text.replace('<script src=', '<script>window.BadFodderBuild='+JSON.stringify({release,commit:cp.execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim()})+';window.BadFodderAvailableAudio='+JSON.stringify(availableAudio)+';window.BadFodderCampaignVideoMobile='+JSON.stringify(mobileCampaignVideo)+';window.BadFodderAssetUrl=(path)=>('+JSON.stringify(map)+')[path]||path;</script>\n<script src="'+publicUrl('campaign-intro.js')+'"></script>\n<script src=');}data=Buffer.from(text)}
  const target=path.join(out,hashes.has(n)&&n!=='favicon.ico'?prefix+n:n);fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,data);if(n==='favicon.ico'){const immutable=path.join(out,prefix,n);fs.mkdirSync(path.dirname(immutable),{recursive:true});fs.writeFileSync(immutable,data)}
