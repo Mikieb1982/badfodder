@@ -55,14 +55,14 @@ jobs:
           sudo apt-get install -y --no-install-recommends pulseaudio
           pulseaudio -n --daemonize=yes --exit-idle-time=-1 --load=module-native-protocol-unix --load=module-null-sink
       - run: npm run build
-      - name: Exercise mission lifecycle and touch controls
-        run: npm run test:browser -- --project=${{ matrix.browser }}
-        env:
-          BADFODDER_TEST_DIST: '1'
       - name: Verify installed single player with the network disconnected
         run: npm run test:offline:browser
         env:
           BADFODDER_BROWSER: ${{ matrix.browser }}
+      - name: Exercise mission lifecycle and touch controls
+        run: npm run test:browser -- --project=${{ matrix.browser }}
+        env:
+          BADFODDER_TEST_DIST: '1'
       - name: Exercise two-browser co-op experience
         if: matrix.browser == 'chromium'
         env:
