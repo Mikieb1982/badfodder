@@ -2,7 +2,7 @@
   "id": "./",
   "name": "If I Can Shoot Rabbits",
   "short_name": "Shoot Rabbits",
-  "description": "A top-down tactical action game with campaign, standalone missions and optional co-op.",
+  "description": "Download the complete single-player tactical game for offline play. Optional multiplayer requires internet.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

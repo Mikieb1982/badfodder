@@ -3988,6 +3988,7 @@
   };
   let coopLoadPromise=null;
   document.getElementById('menuMultiplayer').addEventListener('click',async()=>{
+    if(navigator.onLine===false){const note=document.getElementById('offlineStatus');if(note)note.textContent='Multiplayer requires internet. Single player is available offline.';return;}
     releaseInterruptedInput();paused=true;menuOpen=true;
     try{
       if(!coopLoadPromise)coopLoadPromise=(async()=>{for(const src of ['multiplayer-protocol.js','multiplayer-signalling.js','multiplayer-session.js']){

@@ -45,3 +45,9 @@ for(const name of ['occupation','barcelona','cable-street']){
 }
 assert(html.includes('/enemy-character-art.js'),'Enemy renderer is missing from the production page');
 console.log('PASS: painted enemy atlases and renderer packaged for offline play.');
+
+const builtWorker=fs.readFileSync(path.join(root,'service-worker.js'),'utf8');
+const buildRelease=html.match(/"release":"([a-f0-9]{16})"/)[1];
+assert(builtWorker.includes("const RELEASE='"+buildRelease+"'"),'Offline cache version must match the production release');
+assert(!builtWorker.includes('__OFFLINE_RELEASE__'),'Offline release placeholder leaked into production');
+console.log('PASS: offline worker and runtime share an immutable production release.');
