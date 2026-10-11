@@ -26,6 +26,16 @@ if(ffmpegAvailable){
 }
 console.log('PASS: curated production output, explicit asset ownership, size report, generated Opus music with MP3 fallbacks, authoritative manifest, briefing audio and cache policy.');
 const offlineAmbience=JSON.parse(fs.readFileSync(path.join(root,'offline-assets.json'),'utf8'));
+assert(!offlineAmbience.includes('./multiplayer-config.json'),'Room service configuration must remain network-only');
+const offlineSet=new Set(offlineAmbience.map(n=>path.resolve(root,n)));
+function checkOfflineFiles(dir){
+ for(const entry of fs.readdirSync(dir,{withFileTypes:true})){
+  const file=path.join(dir,entry.name);
+  if(entry.isDirectory())checkOfflineFiles(file);
+  else if(!['offline-assets.json','production-assets.json','multiplayer-config.json'].includes(path.relative(root,file)))assert(offlineSet.has(file),'Shipped runtime asset missing from offline download: '+path.relative(root,file));
+ }
+}
+checkOfflineFiles(root);
 for(const name of ['bad-belzig','wigan','cable-street','barcelona']){
  for(const ext of ['mp3','webm']){
   const suffix='/assets/audio/ambience/'+name+'.'+ext;

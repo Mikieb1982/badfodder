@@ -119,8 +119,17 @@ Belzig and Wigan support two soldiers per player through browser WebRTC. Single 
 
 ## Download and play offline
 
-Open the hosted game once while online. The main menu shows the full download progress. Keep the window open until **Single player is ready offline** appears, then choose **INSTALL GAME** (or use the browser's Install app / Add to Home Screen command). This installs a browser app on Chromebook, Windows, macOS, Android or iOS, with all four single-player missions, campaign intro, graphics, music and shipped voice recordings stored locally. No account or server is required for single player after downloading. Local saves and options stay on the same device and browser profile.
+Open the hosted game once while online. The main menu shows the full download progress. Keep the window open until **Single player is ready offline** appears, then choose **INSTALL GAME** (or use the browser's Install app / Add to Home Screen command). This installs a browser app on Chromebook, Windows, macOS, Android or iOS, with campaign, mission select, Resistance on all four maps, campaign intro, graphics, music and shipped voice recordings stored locally. Single player has no Firebase dependency. Serve `dist/` from any HTTPS static host (or localhost for testing); Firebase Hosting is optional. No account or server is required for single player after downloading. Local saves and options stay on the same device and browser profile.
 
 Multiplayer is still available when connected to the internet. Offline, its menu explains that a connection is required. Download failures show a retry control and never mark an incomplete installation as ready. A new release downloads separately while the installed release remains playable; **RESTART TO UPDATE** activates it when you choose. Do this from the main menu after saving your progress. Updates never automatically interrupt a mission. Browser data clearing removes the offline download and local saves; keep the app's site data.
 
-`npm run test:offline` checks transactional downloads, update failure/retry, cold navigation and cached media byte ranges. After building, `npm run test:offline:browser` installs into a persistent browser profile, closes it, reopens with networking disabled, and launches all four missions plus the campaign video. Set `BADFODDER_BROWSER=webkit` for Safari's engine. Both Chromium and WebKit run this check in CI.
+`npm run test:offline` checks transactional downloads, update failure/retry, cold navigation and cached media byte ranges. After building, `npm run test:offline:browser` installs into a persistent browser profile, closes it, reopens with networking disabled, and launches all four missions and Resistance maps plus the campaign video, and verifies actual campaign progress survives the restart. Set `BADFODDER_BROWSER=webkit` for Safari's engine. Both Chromium and WebKit run this check in CI.
+
+## Windows, Mac, Android and iOS packages
+
+Native installer sources and a manual **Build native game installers** workflow
+are included. These bundle the complete game for offline play from first launch.
+Installer output goes in `release/`; `dist/` remains the browser build.
+See [native installer builds and platform requirements](docs/NATIVE-INSTALLERS.md).
+Apple device distribution requires signing; the workflow's unsigned iOS archive
+is not an installable download.

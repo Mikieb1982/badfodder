@@ -27,7 +27,7 @@ const server=http.createServer((req,res)=>{
  const expected=JSON.parse(fs.readFileSync(path.join(root,'offline-assets.json'),'utf8'));
  const cached=await page.evaluate(async()=>{const names=await caches.keys(),cache=await caches.open(names.find(n=>n.includes('offline-')));return(await cache.keys()).map(r=>new URL(r.url).pathname)});
  for(const asset of expected)assert(cached.includes(new URL(asset,url+'/').pathname),'Missing offline asset: '+asset);
- await page.evaluate(()=>localStorage.setItem('offline-save-probe','saved'));
+ await page.evaluate(()=>{window.BadFodderCampaign.complete(0);window.BadFodderCampaign.setCurrent(1)});
  await page.screenshot({path:path.join(output,'download-ready.png')});
  await context.close();context=null;
  // Reopen the persisted app with no usable server or network.
@@ -42,7 +42,10 @@ const server=http.createServer((req,res)=>{
  page=await context.newPage();const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await page.goto(url+'/?seed=offline-cold-start',{waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>!!window.__offlineTest);
- assert.equal(await page.evaluate(()=>localStorage.getItem('offline-save-probe')),'saved');
+ assert.deepEqual(await page.evaluate(()=>({...window.BadFodderCampaign.state})),{current:1,unlocked:1,completed:[0]});
+ assert.equal(await page.evaluate(()=>!!window.BadFodderCoop),false,'Single-player startup must not load multiplayer');
+ // Reset only after checking real campaign progress survived closing the browser.
+ await page.evaluate(()=>window.BadFodderCampaign.resetProgress());
  const skip=page.locator('[data-presentation-skip]');if(await skip.isVisible())await skip.click();
  // Campaign intro must play from cached MP4 before the mission briefing.
  await page.locator('#menuStart').click();
@@ -58,6 +61,18 @@ const server=http.createServer((req,res)=>{
   await page.waitForTimeout(500);assert.equal((await page.evaluate(()=>window.__offlineTest())).faults,0);
   await page.screenshot({path:path.join(output,'offline-'+key+'.png')});
  }
+ // Resistance uses the same cached maps but a separate reload/autostart path.
+ for(const key of ['bad-belzig','wigan','cable-street','barcelona']){
+  await page.goto(url,{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>!!window.__offlineTest);
+  if(await skip.isVisible())await skip.click();
+  await page.locator('#menuResistance').click();
+  await page.locator('[data-arcade-map="'+key+'"]').click();
+  await page.waitForFunction(key=>{const s=window.__offlineTest?.();return window.BadFodderArcade?.active('resistance')&&s?.started&&!s.menuOpen&&s.map===key&&s.actors>0},key,{timeout:60000});
+  await page.waitForTimeout(500);assert.equal((await page.evaluate(()=>window.__offlineTest())).faults,0);
+  assert.equal(await page.evaluate(()=>!!window.BadFodderCoop),false);
+  await page.screenshot({path:path.join(output,'offline-resistance-'+key+'.png')});
+  await page.evaluate(()=>window.BadFodderArcade.clear());
+ }
  const media=await page.evaluate(async()=>{
   const paths=['assets/menu/rabbitscampaign.mp4','assets/audio/mission.mp3'],results=[];
   for(const path of paths){const r=await fetch(window.BadFodderAssetUrl(path),{headers:{Range:'bytes=0-127'}});results.push({status:r.status,size:(await r.arrayBuffer()).byteLength,range:r.headers.get('Content-Range')})}return results;
@@ -66,5 +81,5 @@ const server=http.createServer((req,res)=>{
  await page.goto(url,{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>!!window.__offlineTest);if(await skip.isVisible())await skip.click();
  await page.locator('#menuMultiplayer').click();assert((await page.locator('#offlineStatus').textContent()).includes('requires internet'));
  assert.equal(serverHits,hits,'Offline launch must make no server requests');assert.deepEqual(errors,[]);
- console.log('PASS: '+engine+' persisted offline cold start, all four missions, campaign video, audio/video ranges, local saves and online-only multiplayer message.');
+ console.log('PASS: '+engine+' persisted offline cold start, all four missions and Resistance maps, campaign progress, campaign video, audio/video ranges, local saves and online-only multiplayer message.');
 })().catch(async error=>{if(context)for(const [i,page]of context.pages().entries())await page.screenshot({path:path.join(output,'failure-'+i+'.png')}).catch(()=>{});console.error(error);process.exitCode=1}).finally(async()=>{await context?.close();await new Promise(resolve=>server.close(resolve));fs.rmSync(profile,{recursive:true,force:true})});

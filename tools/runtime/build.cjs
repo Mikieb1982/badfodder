@@ -9,6 +9,9 @@ allowed.push(...manifest.shellFiles);
 function files(dir){return fs.readdirSync(path.join(root,dir),{withFileTypes:true}).flatMap(e=>e.isDirectory()?files(dir+'/'+e.name):[dir+'/'+e.name]);}
 allowed.push(...files('assets').filter(n=>manifest.shouldShipAsset(n,{hasWebpSibling:file=>fs.existsSync(path.join(root,file.replace(/\.png$/,'.webp')))})));
 if(fs.existsSync(path.join(root,'audio')))allowed.push(...files('audio').filter(n=>manifest.shouldShipVoice(n,fs.statSync(path.join(root,n)).size)));
+// Source archives and offline build machines may not contain Git metadata.
+const gitRevision=cp.spawnSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'});
+const commit=gitRevision.status===0?gitRevision.stdout.trim():null;
 const availableAudio=allowed.filter(n=>n.startsWith('audio/')&&/\.mp3$/i.test(n));
 const stableRuntime=new Set(['service-worker.js']);
 const hashes=new Map(allowed.filter(n=>/\.(js|css|png|webp|mp3|mp4|webm|ico)$/i.test(n)&&!n.startsWith('audio/')&&!stableRuntime.has(n)).map(n=>[n,crypto.createHash('sha256').update(fs.readFileSync(path.join(root,n))).digest('hex').slice(0,16)]));
@@ -37,10 +40,10 @@ for(const name of generatedFiles)releaseHash.update(name).update(fs.readFileSync
 const release=releaseHash.digest('hex').slice(0,16);
 const prefix='static/'+release+'/';
 for(const n of allowed){
- let data=fs.readFileSync(path.join(root,n));if(/\.(html|css|js|webmanifest|json)$/.test(n)){let text=rewrite(data.toString());if(n==='service-worker.js')text=text.replace('__OFFLINE_RELEASE__',release);if(n==='index.html'){const map=Object.fromEntries([...hashes.keys()].map(k=>[k,'/'+prefix+k]));text=text.replace('<script src=', '<script>window.BadFodderBuild='+JSON.stringify({release,commit:cp.execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim()})+';window.BadFodderAvailableAudio='+JSON.stringify(availableAudio)+';window.BadFodderCampaignVideoMobile='+JSON.stringify(mobileCampaignVideo)+';window.BadFodderAssetUrl=(path)=>('+JSON.stringify(map)+')[path]||path;</script>\n<script src="'+publicUrl('campaign-intro.js')+'"></script>\n<script src=');}data=Buffer.from(text)}
+ let data=fs.readFileSync(path.join(root,n));if(/\.(html|css|js|webmanifest|json)$/.test(n)){let text=rewrite(data.toString());if(n==='service-worker.js')text=text.replace('__OFFLINE_RELEASE__',release);if(n==='index.html'){const map=Object.fromEntries([...hashes.keys()].map(k=>[k,'/'+prefix+k]));text=text.replace('<script src=', '<script>window.BadFodderBuild='+JSON.stringify({release,commit})+';window.BadFodderAvailableAudio='+JSON.stringify(availableAudio)+';window.BadFodderCampaignVideoMobile='+JSON.stringify(mobileCampaignVideo)+';window.BadFodderAssetUrl=(path)=>('+JSON.stringify(map)+')[path]||path;</script>\n<script src="'+publicUrl('campaign-intro.js')+'"></script>\n<script src=');}data=Buffer.from(text)}
  const target=path.join(out,hashes.has(n)&&n!=='favicon.ico'?prefix+n:n);fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,data);if(n==='favicon.ico'){const immutable=path.join(out,prefix,n);fs.mkdirSync(path.dirname(immutable),{recursive:true});fs.writeFileSync(immutable,data)}
 }
-const offlineAssets=[...new Set(['./','./index.html','./manifest.webmanifest',...allowed.map(publicUrl),...generatedAudio.map(n=>'./'+n),...(mobileCampaignVideo?[mobileCampaignVideo]:[])])];
+const offlineAssets=[...new Set(['./','./index.html','./manifest.webmanifest','./'+prefix+'favicon.ico',...allowed.filter(n=>n!=='multiplayer-config.json').map(publicUrl),...generatedAudio.map(n=>'./'+n),...(mobileCampaignVideo?[mobileCampaignVideo]:[])])];
 fs.writeFileSync(path.join(out,'offline-assets.json'),JSON.stringify(offlineAssets));
 fs.writeFileSync(path.join(out,'production-assets.json'),JSON.stringify(manifest.report(allowed,root),null,2));
 console.log('Built curated dist, release '+release+' with '+offlineAssets.length+' offline assets');

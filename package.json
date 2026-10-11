@@ -30,7 +30,11 @@
     "test:build": "npm run build && node tests/production-build.cjs",
     "check:runtime": "eslint *.js",
     "test:offline": "node tests/offline.cjs",
-    "test:offline:browser": "node tests/offline-browser.cjs"
+    "test:offline:browser": "node tests/offline-browser.cjs",
+    "desktop:prepare": "npm run build && node desktop/prepare.cjs",
+    "test:desktop": "node tests/desktop.cjs",
+    "mobile:prepare": "npm run build && node mobile/prepare.cjs",
+    "test:native": "node tests/desktop.cjs && node tests/mobile.cjs"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

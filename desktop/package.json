@@ -1,0 +1,62 @@
+{
+  "name": "if-i-can-shoot-rabbits-desktop",
+  "productName": "If I Can Shoot Rabbits",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Offline tactical game with optional online multiplayer",
+  "author": "If I Can Shoot Rabbits",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "package": "electron-builder --publish never",
+    "package:windows": "electron-builder --win nsis --x64 --publish never",
+    "package:linux": "electron-builder --linux deb --x64 --publish never",
+    "package:mac": "electron-builder --mac dmg --universal --publish never"
+  },
+  "devDependencies": {
+    "electron": "44.7.0",
+    "electron-builder": "26.17.0"
+  },
+  "build": {
+    "appId": "games.shootrabbits.desktop",
+    "productName": "If I Can Shoot Rabbits",
+    "directories": {
+      "output": "../release"
+    },
+    "files": [
+      "main.cjs",
+      "asset-path.cjs",
+      "game/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": "nsis",
+      "icon": "../assets/icons/icon-512.png"
+    },
+    "nsis": {
+      "artifactName": "Shoot-Rabbits-Install-${version}-${arch}.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "If I Can Shoot Rabbits",
+      "deleteAppDataOnUninstall": false
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.games",
+      "icon": "../assets/icons/icon-512.png"
+    },
+    "linux": {
+      "target": "deb",
+      "category": "Game",
+      "icon": "../assets/icons/icon-512.png",
+      "maintainer": "If I Can Shoot Rabbits"
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

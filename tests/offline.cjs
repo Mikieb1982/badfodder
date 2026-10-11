@@ -24,6 +24,7 @@ function harness({release='one',storage=new Map(),active=null,fail=''}={}){
  assert.equal(await(await game.request('/movie.mp4','bytes=-3')).text(),'789');assert.equal(await(await game.request('/movie.mp4','bytes=7-')).text(),'789');assert.equal((await game.request('/movie.mp4','bytes=99-')).status,416);
  assert.equal(await(await game.request('/music.mp3')).text(),'one');assert.equal(game.requests.length,count,'Installed game must not depend on network');
  assert.equal(await game.request('/__/firebase/init.json'),undefined,'Firebase endpoints must bypass cache');
+ assert.equal(await game.request('/multiplayer-config.json'),undefined,'Multiplayer configuration must stay network-only so installed clients see current room services');
  assert.equal((await game.request('/missing.js')).status,503);
  const update=harness({release:'two',storage:game.storage,active:{},fail:'/mission.js'});
  await assert.rejects(update.event('install'),/Could not download/);assert.equal(update.skipped,0);assert.equal(update.messages.find(m=>m.state==='error')?.state,'error');
