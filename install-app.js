@@ -7,7 +7,7 @@ function ui(){
   const nav=document.querySelector('#menuScreen .menu-actions');if(!nav)return;
   if(!document.getElementById('menuInstall')){
     const button=document.createElement('button');button.id='menuInstall';button.type='button';button.className='menu-button';button.textContent='DOWNLOAD / INSTALL GAME';button.addEventListener('click',promptInstall);nav.appendChild(button);
-    const note=document.createElement('small');note.id='offlineStatus';note.setAttribute('role','status');note.style.cssText='display:block;max-width:36em;white-space:normal;line-height:1.4;font-size:11px;color:inherit';nav.appendChild(note);
+    const note=document.createElement('small');note.id='offlineStatus';note.setAttribute('role','status');note.style.cssText='display:block;grid-column:1/-1;justify-self:center;text-align:center;max-width:36em;white-space:normal;line-height:1.4;font-size:11px;color:inherit';nav.appendChild(note);
   }
 }
 function render(value){
