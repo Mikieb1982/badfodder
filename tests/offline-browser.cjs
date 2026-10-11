@@ -32,7 +32,13 @@ const server=http.createServer((req,res)=>{
  await context.close();context=null;
  // Reopen the persisted app with no usable server or network.
  online=false;const hits=serverHits;
- context=await browsers[engine].launchPersistentContext(profile,options);await context.setOffline(true);
+ context=await browsers[engine].launchPersistentContext(profile,options);
+ if(engine==='webkit'){
+  // Playwright #42775: WebKit's offline emulation kills even synthetic SW
+  // responses. Shut down the origin and block uncached requests instead.
+  await context.route('**/*',route=>route.abort());
+  await context.addInitScript(()=>Object.defineProperty(navigator,'onLine',{get:()=>false}));
+ }else await context.setOffline(true);
  page=await context.newPage();const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await page.goto(url+'/?seed=offline-cold-start',{waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>!!window.__offlineTest);
