@@ -20,6 +20,7 @@ jobs:
       - run: npm run test:coop
       - run: npm run test:offline
       - run: npm run test:build
+      - run: node tests/chromebook-launch.cjs
       - run: npx playwright install --with-deps chromium
       - run: node tests/player-improvements-browser.cjs
       - run: npm run test:offline:browser

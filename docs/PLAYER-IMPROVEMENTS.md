@@ -25,6 +25,7 @@
 - `tests/companion-routing.cjs`
 - `tests/arcade-modes.cjs`
 - `tests/player-improvements-browser.cjs`
+- `tests/chromebook-launch.cjs`
 - `.github/workflows/native-installers.yml`
 - `docs/CHROMEBOOK-TESTING.md`
 - `docs/PLAYER-IMPROVEMENTS.md`
