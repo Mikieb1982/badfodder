@@ -45,7 +45,7 @@ No new asset downloads or Firebase dependency were added to single player.
 Regression coverage includes 100 Resistance waves, safe spawn deferral, rally
 bonuses, persistent quota failures, backup reloads, cyclic checkpoint graphs,
 resume/restart, multiplayer isolation, guest quality and companion stalls.
-`tests/checkpoints-browser.cjs` exercises production save/reload/resume and
+`tests/checkpoints-browser.cjs` exercises installed offline production save/reload/resume and
 continued play for all four missions and Wigan Resistance, with screenshots.
 The existing offline browser suite covers the installed offline game.
 

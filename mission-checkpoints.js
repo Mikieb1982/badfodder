@@ -53,8 +53,8 @@ let manager=null;
 function install(options){manager=create(options);if(!root.document)return manager;
  const main=root.document.querySelector('[data-view="main"] .menu-actions');if(main){
   const resume=root.document.createElement('button'),restart=root.document.createElement('button'),note=root.document.createElement('p');
-  resume.id='resumeSavedGame';restart.id='restartSavedGame';for(const button of [resume,restart]){button.type='button';button.className='menu-button';main.insertBefore(button,main.firstChild);}
-  resume.textContent='RESUME SAVED GAME';restart.textContent='RESTART SAVED MISSION';note.className='menu-copy';note.id='checkpointStatus';main.insertBefore(note,resume);
+  resume.id='resumeSavedGame';restart.id='restartSavedGame';for(const button of [restart,resume]){button.type='button';button.className='menu-button';main.insertBefore(button,main.firstChild);}
+  resume.textContent='RESUME SAVED GAME';restart.textContent='RESTART SAVED MISSION';note.className='menu-copy';note.id='checkpointStatus';note.style.cssText='grid-column:1/-1;margin:0;text-align:center';main.insertBefore(note,main.firstChild);
   function refresh(){const entry=manager.read();for(const node of [resume,restart,note])if(node.hidden!==!entry)node.hidden=!entry;note.textContent=entry?'Saved: '+entry.save.title+' · '+new Date(entry.save.savedAt).toLocaleString():'';}
   resume.onclick=()=>manager.request();restart.onclick=()=>manager.request(true);refresh();new MutationObserver(refresh).observe(root.document.getElementById('menuScreen'),{attributes:true,subtree:true,attributeFilter:['hidden']});
  }
