@@ -545,6 +545,7 @@
 </main>
 
 <script src="game-storage.js"></script>
+<script src="player-support.js"></script>
 <script src="game-rng.js"></script>
 <script src="game-lifecycle.js"></script>
 <script src="runtime-services.js"></script>
@@ -730,6 +731,7 @@
   const simulationEngine=BadFodderSimulationRuntime.create({
     get FIXED_DT(){return FIXED_DT;},
     get MAX_CATCHUP_STEPS(){return MAX_CATCHUP_STEPS;},
+    get missionKey(){return MAP_DATA.key;},
     get actionAllowed(){return actionAllowed;},
     get adaptiveDirector(){return adaptiveDirector;},
     get applyTouchMovement(){return applyTouchMovement;},
@@ -739,6 +741,7 @@
     get bothLatched(){return bothLatched;},
     get checkFailure(){return checkFailure;},
     get civilians(){return civilians;},
+    get canSpawnAt(){return (x,y)=>!obstacleAt(x,y,NAV_RADIUS);},
     get commands(){return commands;},
     get completeCurrentMission(){return completeCurrentMission;},
     get cursorWorld(){return cursorWorld;},
@@ -1480,6 +1483,7 @@
   }
 
   function resetGame(){
+    window.BadFodderPlayerSupport?.resetGuide();
     if(commands&&commands.mode!=='local'&&!commands.applying&&started){window.BadFodderCoop?.restart();return;}
     const mission=activeMission();
     companions?.reset();commands.configure(commands.mode,window.BadFodderCoop?.command);
@@ -3052,10 +3056,11 @@
     }});
   }
 
+  window.addEventListener('badfodder-quality',()=>{resizeGame();window.BadFodderExperience?.resize?.();});
   function resizeGame(){
     const r=canvas.getBoundingClientRect();if(!r.width||!r.height)return;
     const density=Math.min(2,window.devicePixelRatio||1);
-    const cap=LOW_POWER?1200:1600,scale=Math.min(density,cap/Math.max(r.width,r.height));
+    const cap=(LOW_POWER?1200:1600)*(window.BadFodderPlayerSupport?.quality.scale||1),scale=Math.min(density,cap/Math.max(r.width,r.height));
     const width=Math.max(1,Math.round(r.width*scale)),height=Math.max(1,Math.round(r.height*scale));
     if(canvas.width===width&&canvas.height===height&&frame.width===width&&frame.height===height)return;
     canvasScale=width/r.width;VIEW_W=width;VIEW_H=height;canvas.width=frame.width=VIEW_W;canvas.height=frame.height=VIEW_H;

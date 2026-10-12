@@ -158,6 +158,7 @@
       const alpha=env.FIXED_DT?env.simulationAccumulator/env.FIXED_DT:1;
       BadFodderRuntime.renderFrame({started:env.started,menuOpen:env.menuOpen,draw:()=>drawInterpolated(alpha)});
       if(env.diagnostics.enabled)env.diagnostics.record(elapsedMs,simulatedAt-measuredAt,performance.now()-simulatedAt);
+      window.BadFodderPlayerSupport?.frame(elapsedMs,simulationActive,env);
       if(env.runtimeFaultCount&&now-env.runtimeFaultAt>3000)env.runtimeFaultCount=0;
     }catch(err){
       handleRuntimeFault(err);

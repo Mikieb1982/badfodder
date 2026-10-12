@@ -207,6 +207,7 @@ window.BadFodderMenu=class{
   }
   showPanel(panel){
     this.actions.state?.(panel==='missions'?'MISSION_SELECT':panel==='briefing'?'BRIEFING':panel==='result'?'RESULT':this.mode==='recovery'?'RECOVERY':this.mode==='pause'?'PAUSED':'TITLE');
+    if(panel==='main'&&!this.get('menuStart').disabled){const campaign=window.BadFodderCampaign;this.get('menuStart').textContent=campaign?.state?.completed?.length?'CONTINUE · '+campaign.current().title.toUpperCase():'CAMPAIGN';}
     this.panel=panel;this.screen.dataset.panel=panel;this.screen.scrollTop=0;
     this.screen.querySelectorAll('[data-view]').forEach(p=>p.hidden=p.dataset.view!==panel);
     this.get('menuHelp').textContent=panel==='main'?(this.mode==='pause'?'ENTER / ESC TO RESUME':'SELECT AN OPTION TO BEGIN'):'ESC TO GO BACK';
@@ -248,7 +249,8 @@ window.BadFodderMenu=class{
   ready(loaded=true){
     this.loaded=loaded;
     this.get('menuStart').disabled=false;
-    this.get('menuStart').textContent='CAMPAIGN';
+    const campaign=window.BadFodderCampaign;
+    this.get('menuStart').textContent=campaign?.state?.completed?.length?'CONTINUE · '+campaign.current().title.toUpperCase():'CAMPAIGN';
     this.get('menuMissionSelect').disabled=false;
     this.get('menuMissionBad').disabled=false;
     this.get('menuMissionWigan').disabled=false;

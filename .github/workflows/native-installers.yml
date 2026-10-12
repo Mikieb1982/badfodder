@@ -6,7 +6,30 @@ on:
 permissions:
   contents: read
 jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: npm run check:runtime
+      - run: npm run test:player-improvements
+      - run: npm run test:coop
+      - run: npm run test:offline
+      - run: npm run test:build
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/player-improvements-browser.cjs
+      - run: npm run test:offline:browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: player-improvements-browser-evidence
+          path: test-results/
   desktop:
+    needs: checks
     strategy:
       fail-fast: false
       matrix:
@@ -36,6 +59,7 @@ jobs:
             release/*.exe
             release/*.dmg
   android:
+    needs: checks
     timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
@@ -65,6 +89,7 @@ jobs:
           if-no-files-found: error
           path: mobile/android/app/build/outputs/apk/debug/*.apk
   ios:
+    needs: checks
     timeout-minutes: 30
     runs-on: macos-latest
     steps:

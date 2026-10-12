@@ -133,3 +133,12 @@ Installer output goes in `release/`; `dist/` remains the browser build.
 See [native installer builds and platform requirements](docs/NATIVE-INSTALLERS.md).
 Apple device distribution requires signing; the workflow's unsigned iOS archive
 is not an installable download.
+
+## Test on a Chromebook
+
+From the project folder in the Chromebook's Linux Terminal, run
+`npm run chromebook`, then open **http://localhost:4173/** in Chrome.
+This builds and serves the complete game without Firebase or installing npm
+dependencies. See [Chromebook setup and offline test steps](docs/CHROMEBOOK-TESTING.md).
+
+Player improvements, verification and exact changed files: [Seven player improvements](docs/PLAYER-IMPROVEMENTS.md).

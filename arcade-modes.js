@@ -7,6 +7,10 @@
   'use strict';
 
   const MODE_KEY='badfodder.arcade.v1';
+  const RECORD_KEY='badfodder.resistance.records.v1';
+  function records(){try{const data=JSON.parse((root.BadFodderStorage?.local||root.localStorage)?.getItem(RECORD_KEY)||'{}');return data&&typeof data==='object'&&!Array.isArray(data)?data:{}}catch{return {}}}
+  function saveRecord(state){const key=read()?.map;if(!MAPS.some(m=>m.key===key))return;const data=records(),old=data[key];if(!old||state.score>old.score||state.score===old.score&&state.wave>old.wave){data[key]={wave:state.wave,kills:state.kills,score:state.score};try{(root.BadFodderStorage?.local||root.localStorage)?.setItem(RECORD_KEY,JSON.stringify(data))}catch{}}}
+  function wavePlan(wave,seed,anchorCount){const variant=(wave+seed)%3;return {name:['ENCIRCLED','FLANKING PATROLS','FOCUSED ASSAULT'][variant],anchorCount:variant===0?anchorCount:Math.min(anchorCount,variant===1?2:1),offset:(seed+wave*3)%Math.max(1,anchorCount),rest:variant===2?6.5:5.5};}
   const LAUNCH_KEY='badfodder.launch.v1';
   const AUTO_KEY='badfodder.launch.autostart.v1';
   const MAPS=Object.freeze([
@@ -54,7 +58,7 @@
   function ensureStyle(){
     if(!root.document||root.document.getElementById('arcadeModeStyle'))return;
     const style=root.document.createElement('style');style.id='arcadeModeStyle';style.textContent=`
-      #arcadeHud{position:absolute;left:50%;top:max(8px,env(safe-area-inset-top));transform:translateX(-50%);z-index:9;pointer-events:none;display:flex;gap:10px;align-items:center;padding:7px 10px;background:rgba(18,22,20,.88);border:1px solid rgba(236,229,207,.4);border-radius:5px;color:#f0eadb;font:800 10px/1.2 system-ui,sans-serif;letter-spacing:.08em;text-shadow:0 1px 2px #000;white-space:nowrap}
+      #arcadeHud{position:absolute;left:50%;top:max(8px,env(safe-area-inset-top));transform:translateX(-50%);z-index:9;pointer-events:none;display:flex;flex-wrap:wrap;justify-content:center;width:max-content;max-width:calc(100% - 24px);box-sizing:border-box;gap:10px;align-items:center;padding:7px 10px;background:rgba(18,22,20,.88);border:1px solid rgba(236,229,207,.4);border-radius:5px;color:#f0eadb;font:800 10px/1.2 system-ui,sans-serif;letter-spacing:.08em;text-shadow:0 1px 2px #000;white-space:nowrap}
       #arcadeHud strong{font-size:12px;color:#fff}#arcadeHud[hidden]{display:none}
       #arcadeResult{position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(9,12,11,.84);padding:16px}
       #arcadeResult[hidden]{display:none}#arcadeResult .arcade-card{width:min(460px,92vw);padding:20px;text-align:center;background:#20271f;border:1px solid #7f805f;color:#eee7d4}
@@ -72,7 +76,8 @@
     const el=ensureHud();if(!el)return;el.hidden=false;
     if(state.mode==='resistance'){
       const live=state.env.enemies.filter(e=>e?.alive&&!e.surrendered).length;
-      el.innerHTML=`<span>RESISTANCE</span><strong>WAVE ${state.wave}</strong><span>HOSTILES ${live}</span><span>KILLS ${state.kills}</span><span>SCORE ${state.score}</span>`;
+      const html=`<span>RESISTANCE</span><strong>WAVE ${state.wave}</strong><span>HOSTILES ${live}</span><span>KILLS ${state.kills}</span><span>SCORE ${state.score}</span><span>${state.plan?.name||'PREPARE'}</span>`;
+      if(el.dataset.content!==html){el.innerHTML=html;el.dataset.content=html;}
     }else{
       const p1=state.env.squad.slice(0,2).filter(combatReady).length,p2=state.env.squad.slice(2,4).filter(combatReady).length;
       el.innerHTML=`<span>SKIRMISH</span><strong>P1 ${p1}/2</strong><span>VS</span><strong>P2 ${p2}/2</strong>`;
@@ -80,7 +85,7 @@
   }
   function hideResult(){if(result)result.hidden=true}
   function showResult(state,title,copy){
-    if(!root.document||state.resultShown)return;state.resultShown=true;ensureStyle();
+    if(state.resultShown)return;state.resultShown=true;if(state.mode==='resistance')saveRecord(state);if(!root.document)return;ensureStyle();
     if(!result){result=root.document.createElement('div');result.id='arcadeResult';result.hidden=true;(root.document.querySelector('.viewport')||root.document.body).appendChild(result)}
     result.hidden=false;result.innerHTML=`<div class="arcade-card"><h2>${title}</h2><p>${copy}</p><div class="arcade-actions"><button id="arcadeRetry" class="menu-button primary" type="button">PLAY AGAIN</button><button id="arcadeMain" class="menu-button" type="button">MAIN MENU</button></div></div>`;
     const retryButton=result.querySelector('#arcadeRetry');
@@ -106,7 +111,7 @@
     for(const a of anchors){const next=(a.x-origin.x)**2+(a.y-origin.y)**2;if(next>d){d=next;best=a}}
     return best;
   }
-  function createState(env){return{mode:mode(),env,clock:0,initialised:false,wave:0,kills:0,score:0,nextWaveAt:0,between:false,templates:[],anchors:[],counted:new WeakSet(),resultShown:false,aiClock:0,skirmishAnchor:null}}
+  function createState(env){return{mode:mode(),env,clock:0,initialised:false,wave:0,kills:0,score:0,nextWaveAt:0,between:false,templates:[],anchors:[],counted:new WeakSet(),resultShown:false,aiClock:0,skirmishAnchor:null,seed:Math.floor(Math.random()*1000000),plan:null}}
   function setStatus(env,text){try{env.setStatus?.(text,2.2)}catch(_){} }
 
   function initResistance(state){
@@ -120,14 +125,15 @@
     env.enemies.length=0;state.nextWaveAt=.8;state.initialised=true;setStatus(env,'RESISTANCE · Prepare for wave 1');paintHud(state);
   }
   function spawnWave(state){
-    const env=state.env;state.wave++;state.between=false;const count=waveSize(state.wave),anchors=state.anchors;
+    const env=state.env;state.wave++;state.between=false;state.plan=wavePlan(state.wave,state.seed,state.anchors.length);const count=waveSize(state.wave),anchors=Array.from({length:state.plan.anchorCount},(_,i)=>state.anchors[(state.plan.offset+i)%state.anchors.length]);
     for(let i=0;i<count;i++){
       const anchor=anchors[i%anchors.length],template=state.templates[i%state.templates.length]||anchor.template;
       const ring=Math.floor(i/anchors.length),angle=(i*2.3999632297)+(state.wave*.37),radius=Math.min(42,ring*8);
-      const x=anchor.x+Math.cos(angle)*radius,y=anchor.y+Math.sin(angle)*radius;
+      let x=anchor.x+Math.cos(angle)*radius,y=anchor.y+Math.sin(angle)*radius;
+      if(env.canSpawnAt&&!env.canSpawnAt(x,y)){x=anchor.x;y=anchor.y;}
       env.enemies.push(resetEnemy(template,x,y,state.wave,i));
     }
-    setStatus(env,'WAVE '+state.wave+' · '+count+' hostiles');paintHud(state);
+    setStatus(env,'WAVE '+state.wave+' · '+state.plan.name+' · '+count+' hostiles');paintHud(state);
   }
   function countResistanceKills(state){
     for(const enemy of state.env.enemies){
@@ -136,10 +142,11 @@
     }
   }
   function resistanceStep(state,dt){
+    if(state.resultShown)return;
     if(!state.initialised)initResistance(state);state.clock+=dt;countResistanceKills(state);
     if(!state.env.squad.some(combatReady)){showResult(state,'RESISTANCE OVER','Wave '+state.wave+' · '+state.kills+' enemies defeated · '+state.score+' points');paintHud(state);return}
     const live=state.env.enemies.some(e=>e?.alive&&!e.surrendered);
-    if(!live&&state.wave>0&&!state.between){state.between=true;state.nextWaveAt=state.clock+4.5;setStatus(state.env,'WAVE '+state.wave+' CLEARED · Next wave in 5 seconds');}
+    if(!live&&state.wave>0&&!state.between){state.between=true;const ready=state.env.squad.filter(combatReady).length,rest=(state.plan?.rest||5.5)+(ready<3?2:0);state.score+=ready*75;saveRecord(state);state.nextWaveAt=state.clock+rest;setStatus(state.env,'WAVE '+state.wave+' CLEARED · Regroup for '+Math.ceil(rest)+' seconds');}
     if((state.wave===0||state.between)&&state.clock>=state.nextWaveAt)spawnWave(state);
     paintHud(state);
   }
@@ -195,7 +202,7 @@
       if(prop==='actionAllowed')return action=>action==='firearms'||action==='grenades'?true:target.actionAllowed(action);
       if(prop==='checkFailure')return()=>{};
       if(prop==='updateMissionProgress')return()=>{};
-      if(prop==='updateEnemies')return dt=>{if(state.mode==='resistance')resistanceStep(state,dt);else if(state.mode==='skirmish'&&target.commands?.mode!=='local')skirmishStep(state,dt);target.updateEnemies(dt)};
+      if(prop==='updateEnemies')return dt=>{if(state.mode==='resistance')resistanceStep(state,dt);else if(state.mode==='skirmish'&&target.commands?.mode!=='local')skirmishStep(state,dt);if(!state.resultShown)target.updateEnemies(dt)};
       if(prop==='updateProjectiles')return dt=>{if(state.mode==='skirmish'&&target.commands?.mode!=='local')skirmishHits(state,dt);target.updateProjectiles(dt)};
       if(prop==='updateHud')return(...args)=>{const value=target.updateHud(...args);paintHud(state);return value};
       return Reflect.get(target,prop,receiver);
@@ -215,7 +222,7 @@
     const panel=root.document.createElement('div');panel.className='menu-panel menu-card';panel.dataset.view='resistance';panel.hidden=true;
     panel.innerHTML='<h2>RESISTANCE</h2><p class="menu-copy">Choose a map. Survive escalating waves for as long as you can.</p><div class="menu-mission-list" data-resistance-maps></div><button class="menu-button" type="button" data-back>BACK</button>';
     menu.screen.appendChild(panel);const list=panel.querySelector('[data-resistance-maps]');
-    for(const map of MAPS){const button=root.document.createElement('button');button.type='button';button.className='menu-button';button.textContent=map.label;button.dataset.arcadeMap=map.key;button.onclick=()=>launchResistance(map.key);list.appendChild(button)}
+    for(const map of MAPS){const button=root.document.createElement('button');button.type='button';button.className='menu-button';const best=records()[map.key];button.textContent=map.label+(best?' · BEST WAVE '+best.wave+' · '+best.score+' PTS':'');button.dataset.arcadeMap=map.key;button.onclick=()=>launchResistance(map.key);list.appendChild(button)}
     resistance.onclick=()=>menu.showPanel('resistance');panel.querySelector('[data-back]').onclick=()=>menu.showPanel('main');
     const clearStandard=()=>clearForStandardPlay();menu.get('menuStart')?.addEventListener('click',clearStandard,true);missionSelect.addEventListener('click',clearStandard,true);
     menu.screen.querySelectorAll('#menuMissionBad,#menuMissionWigan,#menuHistoricalCable,#menuMissionBarcelona').forEach(b=>b.addEventListener('click',clearStandard,true));
@@ -254,5 +261,5 @@
   function install(){patchSimulation(root.BadFodderSimulationRuntime);patchMenu(root.BadFodderMenu);watch('BadFodderCoop',patchCoop);if(!active())hideHud();}
   if(root.document)install();
 
-  return{MODE_KEY,MAPS,SKIRMISH_MAPS,read,write,clear,mode,active,waveSize,teamForSource,opposingIndices,combatReady,launchResistance,patchSimulation,patchMenu,patchCoop,install,get runtime(){return lastRuntime}};
+  return{MODE_KEY,RECORD_KEY,records,wavePlan,createState,resistanceStep,MAPS,SKIRMISH_MAPS,read,write,clear,mode,active,waveSize,teamForSource,opposingIndices,combatReady,launchResistance,patchSimulation,patchMenu,patchCoop,install,get runtime(){return lastRuntime}};
 });

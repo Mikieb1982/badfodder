@@ -4,7 +4,7 @@
   const viable=u=>!!u&&u.alive!==false&&!u.downed&&!u.carriedBy;
   function create({getSquad,commands,navigation:nav,groupMovement:group,health,support,getHostiles=()=>[],canSee=()=>false,fire=()=>false,firearmsAllowed=()=>false,getContext=()=>null,findCover=()=>null,isBusy=()=>false,releaseCover=()=>{},exitBuilding=()=>{},profile={}}){
   const config={spacing:30,comfortable:50,catchUp:96,leash:270,engagement:190,...profile};
-  let order='FOLLOW',hold=null,clock=0,decisionClock=0,context={mode:'FOLLOW'},states=new Map(),aid=null,manualAidUntil=0,regroupVisibleUntil=0;
+  let order='FOLLOW',hold=null,clock=0,decisionClock=0,context={mode:'FOLLOW'},states=new Map(),aid=null,manualAidUntil=0,regroupVisibleUntil=0,aidRetryAt=0;
   const squad=()=>getSquad(),active=(p=commands.player)=>squad()[commands.active(p)]||null;
   const ai=u=>viable(u)&&commands.owner(squad().indexOf(u))<0;
   function cancel(u,{keepCover=false}={}){if(!u)return;support?.directOrder(u);nav.cancelPath(u);if(!keepCover)releaseCover(u);states.delete(u);if(aid?.helper===u)aid=null;u.companionState=null;}
@@ -26,14 +26,17 @@
   function setOrder(value){
    if(!['FOLLOW','HOLD','REGROUP'].includes(value))return false;
    order=value;hold=value==='HOLD'&&active()?{x:active().x,y:active().y}:null;aid=null;
-   for(const u of squad())if(ai(u)){cancel(u,{keepCover:value==='HOLD'});exitBuilding(u)}clock=0;decisionClock=0;manualAidUntil=0;regroupVisibleUntil=value==='REGROUP'?.45:0;return true;
+   for(const u of squad())if(ai(u)){cancel(u,{keepCover:value==='HOLD'});exitBuilding(u)}clock=0;decisionClock=0;manualAidUntil=0;aidRetryAt=0;regroupVisibleUntil=value==='REGROUP'?.45:0;return true;
   }
   function setContext(value={}){context={mode:'FOLLOW',...value};}
   function route(u,point,state,holdFor=0){
    releaseCover(u);exitBuilding(u);
    const old=states.get(u),changed=!old?.point||Math.hypot(point.x-old.point.x,point.y-old.point.y)>14||old.version!==nav.navigationVersion;
-   if(changed||!u.path?.length&&Math.hypot(u.x-point.x,u.y-point.y)>18)nav.assignPath(u,point.x,point.y);
-   states.set(u,{state,point:{x:point.x,y:point.y},version:nav.navigationVersion,until:holdFor?decisionClock+holdFor:old?.until||0});u.companionState=state;
+   let retryAt=old?.retryAt||0;
+   if((changed||!u.path?.length&&Math.hypot(u.x-point.x,u.y-point.y)>18)&&decisionClock>=retryAt){const found=nav.assignPath(u,point.x,point.y);retryAt=decisionClock+(found ? .4 : 1.2);}
+   // Keep failed searches bounded even when a moving formation changes destination.
+
+   states.set(u,{state,retryAt,point:{x:point.x,y:point.y},version:nav.navigationVersion,until:holdFor?decisionClock+holdFor:old?.until||0});u.companionState=state;
   }
   function update(dt){
    if(commands.mode==='client')return;
@@ -49,12 +52,16 @@
    const visible=(u,radius)=>enemies.filter(e=>Math.hypot(e.x-u.x,e.y-u.y)<=radius&&Math.hypot(e.x-anchor.x,e.y-anchor.y)<=config.leash&&canSee(u,e));
    const sharedThreats=visible(leader,config.engagement+55);
    if(aid&&(!ai(aid.helper)||!aid.target.alive||!aid.target.downed||aid.target.stabilised||order==='REGROUP'||visible(aid.helper,config.engagement).length>1||(aid.helper.suppression||0)>.45)){cancel(aid.helper);aid=null;}
-   if(!aid&&order!=='REGROUP'&&context.casualtyAid!==false){
+   if(!aid&&decisionClock>=aidRetryAt&&order!=='REGROUP'&&context.casualtyAid!==false){
     for(const target of squad())if(target.alive&&target.downed&&!target.stabilised&&!target.carriedBy){
      const playerPriority=decisionClock<=manualAidUntil&&!leader.carryingUnit&&!isBusy(leader)&&Math.hypot(leader.x-target.x,leader.y-target.y)<=health.AID_RANGE;
      if(playerPriority)continue;
-     const helper=companions.filter(u=>!u.carryingUnit&&!isBusy(u)&&!support?.isSupporting(u)&&(u.suppression||0)<.35&&!visible(u,config.engagement).length&&(order!=='HOLD'||Math.hypot(target.x-anchor.x,target.y-anchor.y)<=config.comfortable*1.5)).sort((a,b)=>Math.hypot(a.x-target.x,a.y-target.y)-Math.hypot(b.x-target.x,b.y-target.y))[0];
-     if(helper&&Math.hypot(helper.x-target.x,helper.y-target.y)<=config.engagement&&nav.routeClear(helper.x,helper.y,target.x,target.y,nav.NAV_RADIUS)){aid={helper,target};break}
+     const helper=companions.filter(u=>!u.carryingUnit&&!isBusy(u)&&!support?.isSupporting(u)&&(u.suppression||0)<.35&&!visible(u,config.engagement).length&&(order!=='HOLD'||Math.hypot(target.x-anchor.x,target.y-anchor.y)<=config.comfortable*1.5)).sort((a,b)=>Math.hypot(a.x-target.x,a.y-target.y)-Math.hypot(b.x-target.x,b.y-target.y));
+     for(const candidate of helper){if(Math.hypot(candidate.x-target.x,candidate.y-target.y)>config.engagement)continue;
+      if(nav.routeClear(candidate.x,candidate.y,target.x,target.y,nav.NAV_RADIUS)||nav.assignPath(candidate,target.x,target.y)){aid={helper:candidate,target};break}
+      aidRetryAt=decisionClock+1.2;
+     }
+     if(aid)break;
     }
    }
    for(let i=0;i<companions.length;i++){
@@ -96,7 +103,7 @@
    if(order==='REGROUP'&&decisionClock>=regroupVisibleUntil&&companions.every(u=>Math.hypot(u.x-leader.x,u.y-leader.y)<=config.comfortable*1.5))order='FOLLOW';
   }
   function speedScale(u){const anchor=order==='HOLD'?hold:context.anchor||active(0)||active();return ai(u)&&anchor&&Math.hypot(u.x-anchor.x,u.y-anchor.y)>config.catchUp?1.38:1;}
-  function reset(){for(const u of states.keys())cancel(u);states.clear();aid=null;order='FOLLOW';hold=null;context={mode:'FOLLOW'};clock=0;decisionClock=0;manualAidUntil=0;regroupVisibleUntil=0;}
+  function reset(){for(const u of states.keys())cancel(u);states.clear();aid=null;order='FOLLOW';hold=null;context={mode:'FOLLOW'};clock=0;decisionClock=0;manualAidUntil=0;aidRetryAt=0;regroupVisibleUntil=0;}
   function snapshot(){return{version:1,active:commands.snapshot(),order,hold:hold&&{...hold}};}
   function restore(saved){reset();if(saved?.version!==1)return;commands.restore(saved.active);order=['FOLLOW','HOLD','REGROUP'].includes(saved.order)?saved.order:'FOLLOW';hold=order==='HOLD'&&Number.isFinite(saved.hold?.x)&&Number.isFinite(saved.hold?.y)?{...saved.hold}:null;if(order==='HOLD'&&!hold)order='FOLLOW';if(order==='REGROUP')regroupVisibleUntil=.45;ensureActive();}
   return{update,switchTo,next,ensureActive,speedScale,setOrder,setCompanionContext:setContext,reset,snapshot,restore,isCompanion:ai,active,get order(){return order},get context(){return context}};
