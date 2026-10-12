@@ -4,11 +4,11 @@ on:
     inputs:
       run_id:
         description: Successful native installer build run ID
-        default: '38244828342'
+        default: '38251360330'
         required: true
       source_sha:
         description: Exact game source commit built by that run
-        default: fff5eeff72a24eb0875f2c2c92c5edd02ea9e860
+        default: df55d20975b2fb27105ad3f8de2947e8f6f4a6eb
         required: true
   push:
     branches: ["downloads/**"]
@@ -21,8 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      SOURCE_RUN_ID: ${{ inputs.run_id || '38244828342' }}
-      SOURCE_SHA: ${{ inputs.source_sha || 'fff5eeff72a24eb0875f2c2c92c5edd02ea9e860' }}
+      SOURCE_RUN_ID: ${{ inputs.run_id || '38251360330' }}
+      SOURCE_SHA: ${{ inputs.source_sha || 'df55d20975b2fb27105ad3f8de2947e8f6f4a6eb' }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
