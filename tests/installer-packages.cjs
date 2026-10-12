@@ -3,7 +3,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),os=require('nod
 const {packageInstaller}=require('../tools/installers/package.cjs');
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'rabbits-installers-'));
 try{
- for(const [platform,names] of Object.entries({windows:['game.exe'],mac:['game.dmg'],android:['app-debug.apk'],chromebook:['Shoot-Rabbits-Chromebook-0.1.0-x64.deb','Shoot-Rabbits-Chromebook-0.1.0-arm64.deb']})){
+ for(const [platform,names] of Object.entries({windows:['game.exe'],mac:['game.dmg'],android:['app-debug.apk'],chromebook:['Shoot-Rabbits-Chromebook-0.1.0-amd64.deb','Shoot-Rabbits-Chromebook-0.1.0-arm64.deb']})){
   const source=path.join(root,platform),output=path.join(root,platform+'-friend');fs.mkdirSync(source);
   fs.writeFileSync(path.join(source,'build-log.txt'),'Do not ship build files');
   for(const name of names)fs.writeFileSync(path.join(source,name),'installer '+name);

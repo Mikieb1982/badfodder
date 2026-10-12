@@ -60,5 +60,6 @@
   },
   "engines": {
     "node": ">=22"
-  }
+  },
+  "homepage": "https://github.com/Mikieb1982/badfodder"
 }

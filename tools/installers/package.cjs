@@ -14,7 +14,7 @@ function packageInstaller(platform,source,destination){
  if(destination===source||destination.startsWith(source+path.sep))throw Error('Output must be outside installer input');
  const installers=filesIn(source).filter(file=>path.extname(file)===extensions[platform]);
  if(installers.length!==(platform==='chromebook'?2:1))throw Error('Expected '+(platform==='chromebook'?'two':'one')+' '+extensions[platform]+' installer(s), found '+installers.length);
- if(platform==='chromebook')for(const arch of ['x64','arm64'])if(!installers.some(file=>file.endsWith('-'+arch+'.deb')))throw Error('Missing Chromebook architecture '+arch);
+ if(platform==='chromebook')for(const arch of ['amd64','arm64'])if(!installers.some(file=>file.endsWith('-'+arch+'.deb')))throw Error('Missing Chromebook architecture '+arch);
  fs.mkdirSync(destination,{recursive:true});
  for(const file of installers)fs.copyFileSync(file,path.join(destination,path.basename(file)));
  if(platform==='chromebook')fs.copyFileSync(path.join(__dirname,'INSTALL-CHROMEBOOK.sh'),path.join(destination,'INSTALL-CHROMEBOOK.sh'));

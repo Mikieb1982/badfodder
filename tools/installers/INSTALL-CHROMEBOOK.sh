@@ -2,7 +2,7 @@
 set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 case "$(dpkg --print-architecture)" in
-  amd64) package_arch=x64 ;;
+  amd64) package_arch=amd64 ;;
   arm64) package_arch=arm64 ;;
   *) echo 'This installer supports 64-bit Intel/AMD and ARM Chromebooks.' >&2; exit 1 ;;
 esac
