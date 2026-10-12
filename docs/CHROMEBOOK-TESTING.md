@@ -33,7 +33,7 @@ Press Ctrl+C to stop the server. Run the command again after changing game code.
 
 - Use landscape orientation; test keyboard, trackpad/mouse, and touch if available.
 - Play Campaign and verify mission completion is retained after closing Chrome.
-- Launch each map through Mission Select and Resistance.
+- Launch all four maps through Mission Select, then Bad Belzig, Wigan and Barcelona through Resistance. Cable Street is intentionally excluded from Resistance.
 - Check campaign intro video, music, voices and effects.
 - Wait for **Single player is ready offline**, then choose **INSTALL GAME**.
 - Close the game, stop the local server, switch Wi-Fi off, and reopen the installed
