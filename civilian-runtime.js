@@ -84,7 +84,7 @@
   function receive(rows){rows.forEach((r,i)=>{const c=getCivilians()[i];if(c){c.civilianState=r[0];c.leaderIndex=r[1];c.downUntil=r[2]===null?null:clock+r[2]}})}
   getCivilians().forEach(init);
   function add(c){init(c,getCivilians().length);getCivilians().push(c);return c}
-  return{add,update,interact,hint,nearest,damage,counts,snapshot,receive,zones};
+  return{checkpoint:()=>({clock}),restore(s){clock=s.clock;},add,update,interact,hint,nearest,damage,counts,snapshot,receive,zones};
  }
  return{STATES,create};
 });

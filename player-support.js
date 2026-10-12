@@ -13,27 +13,34 @@ function validateBackup(text){
   if(key===KEYS[0]&&(data.campaignSchema!==2||typeof data.currentId!=='string'||typeof data.unlockedId!=='string'||!Array.isArray(data.completedIds)||data.completedIds.some(id=>typeof id!=='string')))throw Error('Invalid campaign progress.');
   if(key===KEYS[0]){const ids=root.BadFodderCampaign?.missions?.map(m=>m.id)||['bad-belzig','wigan','cable-street','barcelona-1936'];if(![data.currentId,data.unlockedId,...data.completedIds].every(id=>ids.includes(id)))throw Error('Backup refers to an unknown campaign mission.');}
   if(key===KEYS[1]&&(data.version!==1||!object(data.slots)||!Array.isArray(data.history)))throw Error('Invalid squad history.');
+  if(key===KEYS[1]){
+   const states=['FIT','WOUNDED','BADLY_WOUNDED','DOWN','DEAD'];
+   for(const unit of Object.values(data.slots)){if(!object(unit)||typeof unit.name!=='string'||!states.includes(unit.health)||typeof unit.alive!=='boolean'||['experience','missions','rescues','timesDowned','stabilisations'].some(k=>unit[k]!==undefined&&(!Number.isFinite(unit[k])||unit[k]<0)))throw Error('Invalid saved fighter.');}
+   if(data.history.length>10000||data.history.some(row=>!object(row)||Object.values(row).some(v=>typeof v==='number'&&!Number.isFinite(v))))throw Error('Invalid mission history.');
+  }
+  if(key===KEYS[4]&&(data.quality!==undefined&&!['auto','original','performance'].includes(data.quality)||data.hints!==undefined&&typeof data.hints!=='boolean'||data.tutorial!==undefined&&(!object(data.tutorial)||Object.values(data.tutorial).some(v=>typeof v!=='boolean'))))throw Error('Invalid player preferences.');
   if(key===KEYS[2]&&Object.entries(data).some(([map,record])=>!['bad-belzig','wigan','cable-street','barcelona'].includes(map)||!object(record)||['wave','score','kills'].some(k=>!Number.isSafeInteger(record[k])||record[k]<0)))throw Error('Invalid Resistance records.');
  }
  return value;
 }
 function exportBackup(store){const saves={};for(const key of KEYS){const raw=store.getItem(key);if(raw!==null)saves[key]=raw;}return JSON.stringify({game:'badfodder',version:1,createdAt:new Date().toISOString(),saves},null,2);}
-function importBackup(store,text){const data=validateBackup(text),old=new Map();try{for(const [key,value] of Object.entries(data.saves)){old.set(key,store.getItem(key));if(store.setItem(key,value)===false)throw Error('Device storage could not save the backup.');}}catch(error){for(const [key,value] of old){if(value===null)store.removeItem(key);else store.setItem(key,value);}throw error;}return Object.keys(data.saves).length;}
+function importBackup(store,text){const data=validateBackup(text);if(store.importItems)return store.importItems(Object.entries(data.saves));const old=new Map();try{for(const [key,value] of Object.entries(data.saves)){old.set(key,store.getItem(key));if(store.setItem(key,value)===false)throw Error('Device storage could not save the backup.');}}catch(error){for(const [key,value] of old){if(value===null)store.removeItem(key);else store.setItem(key,value);}throw error;}return Object.keys(data.saves).length;}
 function createQuality(mode='auto'){
  let selected=['auto','original','performance'].includes(mode)?mode:'auto',scale=selected==='performance'?.75:1,samples=[],slow=0,fast=0,total=0,lastAverage=null,lastP95=null;
  return {get mode(){return selected},get scale(){return scale},setMode(value){if(!['auto','original','performance'].includes(value))return;selected=value;scale=value==='performance'?.75:1;samples=[];slow=fast=0;},sample(ms,active){if(!active||!Number.isFinite(ms)||ms<1||ms>120){samples=[];slow=fast=0;return false;}samples.push(ms);total++;if(samples.length<180)return false;const average=samples.reduce((a,b)=>a+b,0)/samples.length;lastAverage=average;lastP95=[...samples].sort((a,b)=>a-b)[Math.floor(samples.length*.95)];samples=[];slow=average>24?slow+1:0;fast=average<18?fast+1:0;const previous=scale;if(selected==='auto'){if(slow>=2&&scale>.75){scale=.75;slow=fast=0;}else if(fast>=8&&scale<1){scale=1;slow=fast=0;}}return scale!==previous;},report(){return {mode:selected,renderScale:scale,frames:total,averageFrameMs:lastAverage===null?null:Math.round(lastAverage*10)/10,p95FrameMs:lastP95===null?null:Math.round(lastP95*10)/10};}};
 }
-function createGuide(){let moved=false,fired=false,origin=null,elapsed=0;return{update(env,dt,touch=false){const squad=env.squad||[],unit=squad.find(u=>u?.selected&&u.alive&&!u.downed)||squad.find(u=>u?.alive&&!u.downed);if(!unit)return '';elapsed+=dt;origin??={x:unit.x,y:unit.y};if(Math.hypot(unit.x-origin.x,unit.y-origin.y)>40)moved=true;if(squad.some(u=>u.fireTimer>0))fired=true;
+function createGuide(saved={}){let moved=!!saved.moved,fired=!!saved.fired,mapped=!!saved.mapped,elapsed=0;return{action(type){if(type==='move')moved=true;if(type==='fire')fired=true;if(type==='map')mapped=true;},snapshot(){return {moved,fired,mapped}},update(env,dt,touch=false){const squad=env.squad||[],unit=squad.find(u=>u?.selected&&u.alive&&!u.downed)||squad.find(u=>u?.alive&&!u.downed);if(!unit)return '';elapsed+=dt;
  if(squad.some(u=>u?.alive&&u.downed&&!u.stabilised))return touch?'Casualty: move close and use the context action to stabilise.':'Casualty: move close and press E to stabilise when safe.';
  if((unit.suppression||0)>.58)return 'Under pressure: take cover and regroup before advancing.';
  if(!moved)return touch?'Move with the joystick. Your companions will follow.':'Click open ground to move. Your companions will follow.';
  if(!fired&&env.actionAllowed?.('firearms')!==false&&(env.enemies||[]).some(e=>e.alive&&!e.surrendered&&!e.missionDormant&&Math.hypot(e.x-unit.x,e.y-unit.y)<250))return touch?'Contact: hold FIRE. Use cover to reduce incoming fire.':'Contact: aim and hold F or right-click. Use cover.';
- if(elapsed<45)return touch?'Tap MAP for your route. Tap squad portraits to select a fighter.':'M opens the map. 1–4 selects a fighter; R regroups companions.';
- return '';},reset(){moved=fired=false;origin=null;elapsed=0;}};}
+ if(!mapped&&elapsed<45)return touch?'Tap MAP for your route. Tap squad portraits to select a fighter.':'M opens the map. 1–4 selects a fighter; R regroups companions.';
+ return '';},reset(){elapsed=0;}};}
 const store=()=>root.BadFodderStorage?.local||root.localStorage;
 let preferences={};try{preferences=JSON.parse(store()?.getItem(KEYS[4])||'{}')||{};}catch{}
-const quality=createQuality(preferences.quality),guide=createGuide();let notice=null,lastUi=0,wasStarted=false,pendingBackup=null;
+const quality=createQuality(preferences.quality),guide=createGuide(preferences.tutorial);let notice=null,lastUi=0,wasStarted=false,pendingBackup=null;
 function savePreferences(){store()?.setItem(KEYS[4],JSON.stringify(preferences));}
+function action(type){const before=JSON.stringify(guide.snapshot());guide.action(type);const after=guide.snapshot();if(before!==JSON.stringify(after)){preferences.tutorial=after;savePreferences();}}
 function qualityChanged(){root.dispatchEvent?.(new Event('badfodder-quality'));}
 function frame(ms,active,env){
  if(quality.sample(ms,active))qualityChanged();
@@ -47,7 +54,7 @@ function frame(ms,active,env){
 }
 function mount(){
  const panel=root.document.querySelector('[data-view="options"]');if(!panel||root.document.getElementById('playerTools'))return;
- const tools=root.document.createElement('div');tools.id='playerTools';tools.innerHTML='<label class="menu-setting">RENDER QUALITY <select id="renderQuality"><option value="auto">Auto</option><option value="original">Original</option><option value="performance">Performance</option></select></label><label class="menu-setting">CONTEXTUAL HINTS <input id="contextualHints" type="checkbox"></label><p id="saveStatus" class="menu-copy" role="status"></p><button id="exportProgress" class="menu-button" type="button">EXPORT PROGRESS</button><label class="menu-setting" style="display:block">CHOOSE PROGRESS BACKUP <input id="progressBackup" style="display:block;width:100%;max-width:100%;min-width:0;box-sizing:border-box;margin-top:8px;font-size:12px" type="file" accept=".json,application/json"></label><button id="restoreProgress" class="menu-button" type="button" disabled>RESTORE SELECTED BACKUP</button><p class="menu-copy">Progress includes completed campaign missions, squad history and Resistance records. Restoring replaces those saved entries and reloads the game. Active battles are not saved.</p><button id="performanceReport" class="menu-button" type="button">DOWNLOAD PERFORMANCE REPORT</button>';
+ const tools=root.document.createElement('div');tools.id='playerTools';tools.innerHTML='<label class="menu-setting">RENDER QUALITY <select id="renderQuality"><option value="auto">Auto</option><option value="original">Original</option><option value="performance">Performance</option></select></label><label class="menu-setting">CONTEXTUAL HINTS <input id="contextualHints" type="checkbox"></label><p id="saveStatus" class="menu-copy" role="status"></p><button id="exportProgress" class="menu-button" type="button">EXPORT PROGRESS</button><label class="menu-setting" style="display:block">CHOOSE PROGRESS BACKUP <input id="progressBackup" style="display:block;width:100%;max-width:100%;min-width:0;box-sizing:border-box;margin-top:8px;font-size:12px" type="file" accept=".json,application/json"></label><button id="restoreProgress" class="menu-button" type="button" disabled>RESTORE SELECTED BACKUP</button><p class="menu-copy">Progress includes completed campaign missions, squad history and Resistance records. Restoring replaces those saved entries and reloads the game. Local mission checkpoints are saved separately. Use RESUME SAVED GAME on the main menu.</p><button id="performanceReport" class="menu-button" type="button">DOWNLOAD PERFORMANCE REPORT</button>';
  panel.insertBefore(tools,panel.querySelector('[data-back]'));
  const $=id=>tools.querySelector('#'+id),status=$('saveStatus');
  $('renderQuality').value=quality.mode;$('renderQuality').onchange=e=>{quality.setMode(e.target.value);preferences.quality=quality.mode;savePreferences();qualityChanged();};
@@ -60,5 +67,5 @@ function mount(){
  const observer=new MutationObserver(()=>{if(panel.hidden)return;const state=store()?.status;status.textContent=state?.persisted===false?'Progress is only in memory: device storage is unavailable. Export a backup before closing.':state?.savedAt?'Progress saved on this device. Last write: '+new Date(state.savedAt).toLocaleTimeString():'Progress is stored on this device.';});observer.observe(panel,{attributes:true,attributeFilter:['hidden']});
 }
 if(root.document){if(root.document.readyState==='loading')root.document.addEventListener('DOMContentLoaded',mount,{once:true});else mount();}
-return {KEYS,validateBackup,exportBackup,importBackup,createQuality,createGuide,quality,frame,resetGuide:()=>guide.reset()};
+return {KEYS,validateBackup,exportBackup,importBackup,createQuality,createGuide,quality,frame,action,resetGuide:()=>guide.reset()};
 });

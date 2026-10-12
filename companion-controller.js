@@ -32,11 +32,20 @@
   function route(u,point,state,holdFor=0){
    releaseCover(u);exitBuilding(u);
    const old=states.get(u),changed=!old?.point||Math.hypot(point.x-old.point.x,point.y-old.point.y)>14||old.version!==nav.navigationVersion;
-   let retryAt=old?.retryAt||0;
-   if((changed||!u.path?.length&&Math.hypot(u.x-point.x,u.y-point.y)>18)&&decisionClock>=retryAt){const found=nav.assignPath(u,point.x,point.y);retryAt=decisionClock+(found ? .4 : 1.2);}
-   // Keep failed searches bounded even when a moving formation changes destination.
+   let retryAt=old?.retryAt||0,progressAt=old?.progressAt??decisionClock,lastX=old?.lastX??u.x,lastY=old?.lastY??u.y,failures=old?.failures||0,blocked=old?.blocked||false;
+   if(Math.hypot(u.x-lastX,u.y-lastY)>6){progressAt=decisionClock;lastX=u.x;lastY=u.y;failures=0;blocked=false;}
+   const stuck=Math.hypot(u.x-point.x,u.y-point.y)>18&&decisionClock-progressAt>2.4;
+   if((changed||stuck||!u.path?.length&&Math.hypot(u.x-point.x,u.y-point.y)>18)&&decisionClock>=retryAt){
+    let destination=point;
+    if(stuck){nav.cancelPath(u);failures++;progressAt=decisionClock;
+     // Casualty and cover destinations must remain exact; formation slots can move sideways.
+     if(['FOLLOW','REGROUP','HOLD','MOVE_TO_SUPPORT'].includes(state)){const side=failures%2?1:-1;destination={x:point.x+side*config.spacing,y:point.y+config.spacing};}
+    }
+    const found=nav.assignPath(u,destination.x,destination.y);blocked=!found||stuck;retryAt=decisionClock+(found ? .4 : 1.2);
+    if(stuck&&aid?.helper===u){aid=null;aidRetryAt=decisionClock+1.2;}
+   }
+   states.set(u,{state,retryAt,point:{x:point.x,y:point.y},version:nav.navigationVersion,until:holdFor?decisionClock+holdFor:old?.until||0,progressAt,lastX,lastY,failures,blocked});u.companionState=blocked?'CANNOT_REACH':state;
 
-   states.set(u,{state,retryAt,point:{x:point.x,y:point.y},version:nav.navigationVersion,until:holdFor?decisionClock+holdFor:old?.until||0});u.companionState=state;
   }
   function update(dt){
    if(commands.mode==='client')return;
@@ -57,10 +66,18 @@
      const playerPriority=decisionClock<=manualAidUntil&&!leader.carryingUnit&&!isBusy(leader)&&Math.hypot(leader.x-target.x,leader.y-target.y)<=health.AID_RANGE;
      if(playerPriority)continue;
      const helper=companions.filter(u=>!u.carryingUnit&&!isBusy(u)&&!support?.isSupporting(u)&&(u.suppression||0)<.35&&!visible(u,config.engagement).length&&(order!=='HOLD'||Math.hypot(target.x-anchor.x,target.y-anchor.y)<=config.comfortable*1.5)).sort((a,b)=>Math.hypot(a.x-target.x,a.y-target.y)-Math.hypot(b.x-target.x,b.y-target.y));
+     let bestHelper=null,bestCost=Infinity;
      for(const candidate of helper){if(Math.hypot(candidate.x-target.x,candidate.y-target.y)>config.engagement)continue;
-      if(nav.routeClear(candidate.x,candidate.y,target.x,target.y,nav.NAV_RADIUS)||nav.assignPath(candidate,target.x,target.y)){aid={helper:candidate,target};break}
-      aidRetryAt=decisionClock+1.2;
+      const direct=nav.routeClear(candidate.x,candidate.y,target.x,target.y,nav.NAV_RADIUS),reachable=direct||nav.assignPath(candidate,target.x,target.y);
+      if(!reachable){aidRetryAt=decisionClock+1.2;continue;}
+      let cost=0,previous=candidate;
+      for(const node of direct?[target]:candidate.path||[target]){const point=Array.isArray(node)?{x:node[0],y:node[1]}:node;cost+=Math.hypot(point.x-previous.x,point.y-previous.y);previous=point;}
+      cost+=Math.hypot(previous.x-target.x,previous.y-target.y);
+      const remaining=health.remaining?.(target);
+      if(Number.isFinite(remaining)&&cost/74>remaining){nav.cancelPath(candidate);continue;}
+      if(cost<bestCost){if(bestHelper)nav.cancelPath(bestHelper);bestHelper=candidate;bestCost=cost;}else nav.cancelPath(candidate);
      }
+     if(bestHelper)aid={helper:bestHelper,target};
      if(aid)break;
     }
    }

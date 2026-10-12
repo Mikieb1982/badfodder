@@ -14,7 +14,7 @@
  function fault({time,last,count}){return {at:time,count:(time-last>3000?0:count)+1};}
  function diagnostics({enabled=false,read}){
   const samples={frameMs:0,simulationMs:0,renderMs:0,fps:0,frames:0,simulationSteps:0,droppedSteps:0,cappedFrames:0,recentFaults:[]};
-  return {get enabled(){return enabled},start(){enabled=true},rememberFault(error){samples.recentFaults.push(String(error?.message||error).slice(0,300));if(samples.recentFaults.length>8)samples.recentFaults.shift();},steps({steps,dropped,capped}){samples.simulationSteps+=steps;samples.droppedSteps+=dropped;if(capped)samples.cappedFrames++;},record(frameMs,simulationMs,renderMs){if(!enabled)return;samples.frames++;samples.frameMs=samples.frameMs*.9+frameMs*.1;samples.simulationMs=samples.simulationMs*.9+simulationMs*.1;samples.renderMs=samples.renderMs*.9+renderMs*.1;samples.fps=samples.frameMs?1000/samples.frameMs:0;},snapshot(){return {...samples,...read()};}};
+  return {get enabled(){return enabled},start(){enabled=true},rememberFault(error){samples.recentFaults.push(String(error?.message||error).slice(0,300));if(samples.recentFaults.length>8)samples.recentFaults.shift();},steps({steps,dropped,capped}){samples.simulationSteps+=steps;samples.droppedSteps+=dropped;if(capped)samples.cappedFrames++;},record(frameMs,simulationMs,renderMs){samples.frames++;samples.frameMs=samples.frameMs*.9+frameMs*.1;samples.simulationMs=samples.simulationMs*.9+simulationMs*.1;samples.renderMs=samples.renderMs*.9+renderMs*.1;samples.fps=samples.frameMs?1000/samples.frameMs:0;},snapshot(){return {...samples,...read()};}};
  }
  return {fixedFrame,interrupt,renderFrame,fault,diagnostics};
 });

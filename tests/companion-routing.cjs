@@ -12,3 +12,6 @@ const move=(u,dx,dy,r)=>{if(!navigation.obstacleAt(u.x+dx,u.y,r))u.x+=dx;if(!nav
 const rescue=AI.create({getSquad:()=>squad,commands:Commands,navigation,groupMovement:group,health:Health});assert(!navigation.routeClear(110,180,230,180,navigation.NAV_RADIUS));
 for(let i=0;i<600&&!squad[2].stabilised;i++){rescue.update(1/60);for(const unit of squad)if(AI.viable(unit))group.follow(unit,120,1/60);Health.fixedUpdate(1/60);assert(squad.filter(AI.viable).every(u=>!navigation.obstacleAt(u.x,u.y,navigation.NAV_RADIUS)));}
 assert(squad[2].stabilised,'A companion must rescue around a real wall without clipping through it');console.log('PASS: real navigation carries casualty rescue around solid geometry.');
+f=fixture();f.nav.assignPath=(u,x,y)=>{f.calls.push({u,x,y});u.path=[{x,y}];return true;};
+for(let i=0;i<18;i++)f.ai.update(.25);assert(f.calls.length<8,'Successful but motionless paths use a bounded watchdog');assert(f.calls.some(c=>c.y!==80),'A stalled formation tries an alternative slot');assert.equal(f.squad[1].companionState,'CANNOT_REACH');f.squad[1].x=100;f.ai.update(.25);assert.notEqual(f.squad[1].companionState,'CANNOT_REACH','Progress clears the blocked indication');
+console.log('PASS: motion watchdog retries alternative slots without teleporting and clears on progress.');

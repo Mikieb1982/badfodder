@@ -1,0 +1,15 @@
+'use strict';
+const assert=require('node:assert/strict'),C=require('../mission-checkpoints'),S=require('../game-storage'),G=require('../game-rng');
+const fighter={alive:true,x:20,y:30,hp:5},enemy={alive:true,x:400,y:300};fighter.target=enemy;enemy.target=fighter;
+const squad=[fighter],payload={squad,enemies:[enemy],civilians:[],pickups:[],bullets:[],thrown:[],effects:[],missionStage:1,phaseHoldTime:4,squadGrenades:2,objectives:{},health:[],companion:{},historical:{jobs:new Map([['aid',{actor:fighter}]]),owners:new Set([fighter])},timer:-Infinity};
+const copy=C.decode(JSON.parse(JSON.stringify(C.encode(payload))));assert.equal(copy.enemies[0].target,copy.squad[0]);assert.equal(copy.squad[0].target,copy.enemies[0]);assert.equal(copy.historical.jobs.get('aid').actor,copy.squad[0]);assert(copy.historical.owners.has(copy.squad[0]));assert.equal(copy.timer,-Infinity);
+assert.throws(()=>C.decode({entry:{ref:0},nodes:[{type:'object',value:[['__proto__',{ref:0}]]}]}),/property/);assert.throws(()=>C.decode({entry:{ref:900},nodes:[]}),/reference/);
+const disk=new Map(),backend={getItem:k=>disk.get(k)??null,setItem:(k,v)=>disk.set(k,v),removeItem:k=>disk.delete(k)},local=S.create(()=>backend),session=S.create(()=>backend);let info={active:true,playable:true,networked:false,map:'wigan',missionId:'wigan',mode:'select',title:'Wigan',signature:'opening'},restored=null,launched=null;
+const options={local,session,context:()=>info,capture:()=>payload,restore:s=>restored=s,launch:s=>launched=s};let manager=C.create(options);assert(manager.save());assert.equal(manager.read().data.phaseHoldTime,4);assert(manager.request());assert.equal(launched.map,'wigan');
+manager=C.create({...options,local:S.create(()=>backend)});assert(manager.restoreCurrent());assert.equal(restored.enemies[0].target,restored.squad[0]);assert.equal(session.getItem(C.REQUEST),null,'Resume requests are one-use');
+assert(manager.request(true));assert.equal(local.getItem(C.KEY),null,'Restart explicitly discards the checkpoint');
+info.networked=true;assert.equal(manager.save(),false,'Multiplayer cannot overwrite local checkpoints');info.networked=false;manager=C.create(options);manager.frame(1,true);manager.frame(30,true);assert(manager.read());info.signature='objective completed';manager.frame(2,true);assert(manager.read());
+const good=local.getItem(C.KEY);const bad=JSON.parse(good);bad.version=99;assert.throws(()=>C.validate(JSON.stringify(bad)),/Unsupported/);local.setItem(C.KEY,JSON.stringify(bad));assert.equal(manager.read(),null);local.setItem(C.KEY,good);
+info.finished=true;info.active=false;manager.frame(1,false);assert.equal(local.getItem(C.KEY),null,'Completed missions remove their checkpoint');
+const rng=G.create();rng.random();const saved=rng.snapshot(),expected=rng.random();rng.restore(saved);assert.equal(rng.random(),expected,'Default gameplay RNG resumes from its exact saved state');
+console.log('PASS: graph identity, cycles, historical Maps/Sets, validation, local checkpoint reload/resume/restart, objective autosaves and multiplayer isolation.');

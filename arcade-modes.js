@@ -12,7 +12,7 @@
   const RECORD_KEY='badfodder.resistance.records.v1';
   function records(){try{const data=JSON.parse((root.BadFodderStorage?.local||root.localStorage)?.getItem(RECORD_KEY)||'{}');return data&&typeof data==='object'&&!Array.isArray(data)?data:{}}catch{return {}}}
   function saveRecord(state){const key=read()?.map;if(!MAPS.some(m=>m.key===key))return;const data=records(),old=data[key];if(!old||state.score>old.score||state.score===old.score&&state.wave>old.wave){data[key]={wave:state.wave,kills:state.kills,score:state.score};try{(root.BadFodderStorage?.local||root.localStorage)?.setItem(RECORD_KEY,JSON.stringify(data))}catch{}}}
-  function wavePlan(wave,seed,anchorCount){const variant=(wave+seed)%3;return {name:['ENCIRCLED','FLANKING PATROLS','FOCUSED ASSAULT'][variant],anchorCount:variant===0?anchorCount:Math.min(anchorCount,variant===1?2:1),offset:(seed+wave*3)%Math.max(1,anchorCount),rest:variant===2?6.5:5.5};}
+  function wavePlan(wave,seed,anchorCount){const variant=(wave+seed)%5,roles=[['RIFLEMAN','FLANKER'],['FLANKER','FLANKER','RIFLEMAN'],['SUPPRESSOR','AGGRESSOR','RIFLEMAN'],['AGGRESSOR','RIFLEMAN'],['SUPPRESSOR','FLANKER','COMMANDER']][variant];return {name:['ENCIRCLED','FLANKING PATROLS','FOCUSED ASSAULT','RAIDING PARTY','COORDINATED PUSH'][variant],roles,anchorCount:variant===0?anchorCount:Math.min(anchorCount,variant===1?2:1),offset:(seed+wave*3)%Math.max(1,anchorCount),rest:variant===2?6.5:5.5,coordinated:wave>=11};}
   const LAUNCH_KEY='badfodder.launch.v1';
   const AUTO_KEY='badfodder.launch.autostart.v1';
   const MAPS=Object.freeze([
@@ -78,7 +78,7 @@
     const el=ensureHud();if(!el)return;el.hidden=false;
     if(state.mode==='resistance'){
       const live=state.env.enemies.filter(e=>e?.alive&&!e.surrendered).length;
-      const html=`<span>RESISTANCE</span><strong>WAVE ${state.wave}</strong><span>HOSTILES ${live}</span><span>KILLS ${state.kills}</span><span>SCORE ${state.score}</span><span>${state.plan?.name||'PREPARE'}</span>`;
+      const html=`<span>RESISTANCE</span><strong>WAVE ${state.wave}</strong><span>HOSTILES ${live}</span><span>KILLS ${state.kills}</span><span>SCORE ${state.score}</span><span>${state.between?'NEXT '+(state.preview||'ASSAULT')+' · '+Math.ceil(Math.max(0,state.nextWaveAt-state.clock))+'s':state.plan?.name||'PREPARE'}</span><span>${state.recovery&&!state.recovery.done?'RALLY AT FLAG · +300':''}</span>`;
       if(el.dataset.content!==html){el.innerHTML=html;el.dataset.content=html;}
     }else{
       const p1=state.env.squad.slice(0,2).filter(combatReady).length,p2=state.env.squad.slice(2,4).filter(combatReady).length;
@@ -104,7 +104,7 @@
       id:'arcade-'+wave+'-'+index+'-'+Math.random().toString(36).slice(2,7),x,y,alive:true,hp:maxHp,maxHp,
       state:'idle',alert:true,missionDormant:false,surrendered:false,surrenderTimer:0,deadTimer:0,hitTimer:0,flash:0,fireTimer:0,
       cooldown:.25+(index%5)*.08,suppression:0,path:null,pendingPath:null,pathIndex:0,target:null,lastSeen:null,retreating:false,
-      checkpointWave:false,objectiveGroup:'arcade',groupId:'arcade-wave-'+wave
+      pathQueued:false,commandOrder:null,missionWithdrawn:false,checkpointWave:false,objectiveGroup:'arcade',groupId:'arcade-wave-'+wave
     };
   }
   function anchorsFrom(enemies){return enemies.filter(e=>e&&Number.isFinite(e.x)&&Number.isFinite(e.y)).map(e=>({x:e.x,y:e.y,template:e}))}
@@ -127,15 +127,37 @@
     env.enemies.length=0;state.nextWaveAt=.8;state.initialised=true;setStatus(env,'RESISTANCE · Prepare for wave 1');paintHud(state);
   }
   function spawnWave(state){
-    const env=state.env;state.wave++;state.between=false;state.plan=wavePlan(state.wave,state.seed,state.anchors.length);const count=waveSize(state.wave),anchors=Array.from({length:state.plan.anchorCount},(_,i)=>state.anchors[(state.plan.offset+i)%state.anchors.length]);
+    const env=state.env,wave=state.wave+1,plan=wavePlan(wave,state.seed,state.anchors.length),count=waveSize(wave);
+    const candidates=state.anchors.filter(a=>!env.safeSpawnAt||env.safeSpawnAt(a.x,a.y));
+    if(!candidates.length){state.nextWaveAt=state.clock+2;setStatus(env,'Next wave waiting for a safe approach. Move away from enemy entry routes.');return;}
+    const anchors=Array.from({length:Math.min(plan.anchorCount,candidates.length)},(_,i)=>candidates[(plan.offset+i)%candidates.length]),spawned=[];
     for(let i=0;i<count;i++){
       const anchor=anchors[i%anchors.length],template=state.templates[i%state.templates.length]||anchor.template;
-      const ring=Math.floor(i/anchors.length),angle=(i*2.3999632297)+(state.wave*.37),radius=Math.min(42,ring*8);
-      let x=anchor.x+Math.cos(angle)*radius,y=anchor.y+Math.sin(angle)*radius;
-      if(env.canSpawnAt&&!env.canSpawnAt(x,y)){x=anchor.x;y=anchor.y;}
-      env.enemies.push(resetEnemy(template,x,y,state.wave,i));
+      let point=null;
+      for(let attempt=0;attempt<32;attempt++){
+        const angle=(i+attempt)*2.3999632297+wave*.37,radius=12+Math.floor((i+attempt)/anchors.length)*8;
+        const x=anchor.x+Math.cos(angle)*radius,y=anchor.y+Math.sin(angle)*radius;
+        if(env.canSpawnAt&&!env.canSpawnAt(x,y)||env.safeSpawnAt&&!env.safeSpawnAt(x,y)||spawned.some(e=>Math.hypot(e.x-x,e.y-y)<12))continue;
+        point={x,y};break;
+      }
+      if(!point)continue;
+      const enemy=resetEnemy(template,point.x,point.y,wave,i);enemy.combatRole=plan.roles[i%plan.roles.length];enemy.coordinated=plan.coordinated;
+      enemy.role=enemy.combatRole==='FLANKER'?(i%2?'left':'right'):'anchor';enemy.arcadeWave=wave;spawned.push(enemy);
     }
-    setStatus(env,'WAVE '+state.wave+' · '+state.plan.name+' · '+count+' hostiles');paintHud(state);
+    if(!spawned.length){state.nextWaveAt=state.clock+2;return;}
+    state.wave=wave;state.between=false;state.plan=plan;state.recovery=null;env.enemies.push(...spawned);
+    setStatus(env,'WAVE '+wave+' · '+plan.name+' · '+spawned.length+' hostiles');paintHud(state);
+  }
+  function retireEnemies(state){
+    const enemies=state.env.enemies,retired=enemies.filter(e=>!e.alive||e.surrendered);
+    const keep=new Set(retired.slice(-24));
+    for(let i=enemies.length-1;i>=0;i--)if((!enemies[i].alive||enemies[i].surrendered)&&!keep.has(enemies[i])){state.env.retireEnemy?.(enemies[i]);enemies.splice(i,1);}
+  }
+  function recoveryStep(state,dt){
+    const recovery=state.recovery;if(!recovery||recovery.done)return;
+    const living=state.env.squad.filter(combatReady),radius=state.env.recoveryRadius||70;
+    if(living.every(u=>Math.hypot(u.x-recovery.x,u.y-recovery.y)<=radius))recovery.hold+=dt;else recovery.hold=0;
+    if(recovery.hold>=2){recovery.done=true;state.score+=300;state.env.resupply?.();setStatus(state.env,'RALLY COMPLETE · +300 points · supplies replenished');saveRecord(state);}
   }
   function countResistanceKills(state){
     for(const enemy of state.env.enemies){
@@ -145,10 +167,12 @@
   }
   function resistanceStep(state,dt){
     if(state.resultShown)return;
-    if(!state.initialised)initResistance(state);state.clock+=dt;countResistanceKills(state);
+    if(!state.initialised)initResistance(state);state.clock+=dt;countResistanceKills(state);retireEnemies(state);recoveryStep(state,dt);
     if(!state.env.squad.some(combatReady)){showResult(state,'RESISTANCE OVER','Wave '+state.wave+' · '+state.kills+' enemies defeated · '+state.score+' points');paintHud(state);return}
     const live=state.env.enemies.some(e=>e?.alive&&!e.surrendered);
-    if(!live&&state.wave>0&&!state.between){state.between=true;const ready=state.env.squad.filter(combatReady).length,rest=(state.plan?.rest||5.5)+(ready<3?2:0);state.score+=ready*75;saveRecord(state);state.nextWaveAt=state.clock+rest;setStatus(state.env,'WAVE '+state.wave+' CLEARED · Regroup for '+Math.ceil(rest)+' seconds');}
+    if(!live&&state.wave>0&&!state.between){state.between=true;const ready=state.env.squad.filter(combatReady).length,rest=(state.plan?.rest||5.5)+(ready<3?2:0)+(state.wave%3===0?6:0);state.score+=ready*75;saveRecord(state);state.nextWaveAt=state.clock+rest;const next=wavePlan(state.wave+1,state.seed,state.anchors.length);const anchor=state.anchors[next.offset%state.anchors.length],leader=state.env.squad.find(combatReady),dx=anchor.x-leader.x,dy=anchor.y-leader.y;state.preview=next.name+' · FROM '+(Math.abs(dx)>Math.abs(dy)?dx>0?'RIGHT':'LEFT':dy>0?'BELOW':'ABOVE');
+      if(state.wave%3===0){const leader=state.env.squad.find(combatReady);state.recovery={x:leader.x,y:leader.y,hold:0,done:false};}
+      setStatus(state.env,'WAVE '+state.wave+' CLEARED · NEXT: '+state.preview+' · '+Math.ceil(rest)+'s'+(state.recovery?' · Rally on the selected fighter for supplies':''));}
     if((state.wave===0||state.between)&&state.clock>=state.nextWaveAt)spawnWave(state);
     paintHud(state);
   }
@@ -183,7 +207,7 @@
     }
   }
   function resetState(state){
-    state.clock=0;state.initialised=false;state.wave=0;state.kills=0;state.score=0;state.nextWaveAt=0;state.between=false;state.templates=[];state.anchors=[];state.counted=new WeakSet();state.resultShown=false;state.aiClock=0;state.skirmishAnchor=null;hideResult();
+    state.clock=0;state.initialised=false;state.wave=0;state.kills=0;state.score=0;state.nextWaveAt=0;state.between=false;state.templates=[];state.anchors=[];state.counted=new WeakSet();state.resultShown=false;state.aiClock=0;state.skirmishAnchor=null;state.recovery=null;state.preview=null;hideResult();
   }
   function skirmishOutcome(state){
     const p1=state.env.squad.slice(0,2).some(combatReady),p2=state.env.squad.slice(2,4).some(combatReady);
@@ -260,8 +284,10 @@
     const descriptor=Object.getOwnPropertyDescriptor(root,name);if(descriptor&&!descriptor.configurable){patch(root[name]);return}
     let value=descriptor&&'value'in descriptor?descriptor.value:root[name];Object.defineProperty(root,name,{configurable:true,enumerable:true,get(){return value},set(next){value=next;patch(next)}});patch(value);
   }
+  function checkpoint(){if(!lastRuntime||lastRuntime.mode!=='resistance')return null;const {env,counted,...saved}=lastRuntime;return saved;}
+  function restoreCheckpoint(saved){if(!saved||!lastRuntime)return;Object.assign(lastRuntime,saved,{env:lastRuntime.env,counted:new WeakSet()});for(const e of lastRuntime.env.enemies)if(!e.alive)lastRuntime.counted.add(e);hideResult();paintHud(lastRuntime);}
   function install(){patchSimulation(root.BadFodderSimulationRuntime);patchMenu(root.BadFodderMenu);watch('BadFodderCoop',patchCoop);if(!active())hideHud();}
   if(root.document)install();
 
-  return{MODE_KEY,RECORD_KEY,records,wavePlan,createState,resistanceStep,MAPS,SKIRMISH_MAPS,read,write,clear,mode,active,waveSize,teamForSource,opposingIndices,combatReady,launchResistance,patchSimulation,patchMenu,patchCoop,install,get runtime(){return lastRuntime}};
+  return{checkpoint,restoreCheckpoint,MODE_KEY,RECORD_KEY,records,wavePlan,createState,resistanceStep,MAPS,SKIRMISH_MAPS,read,write,clear,mode,active,waveSize,teamForSource,opposingIndices,combatReady,launchResistance,patchSimulation,patchMenu,patchCoop,install,get runtime(){return lastRuntime}};
 });

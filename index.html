@@ -546,6 +546,7 @@
 
 <script src="game-storage.js"></script>
 <script src="player-support.js"></script>
+<script src="mission-checkpoints.js"></script>
 <script src="game-rng.js"></script>
 <script src="game-lifecycle.js"></script>
 <script src="runtime-services.js"></script>
@@ -741,7 +742,11 @@
     get bothLatched(){return bothLatched;},
     get checkFailure(){return checkFailure;},
     get civilians(){return civilians;},
-    get canSpawnAt(){return (x,y)=>!obstacleAt(x,y,NAV_RADIUS);},
+    get canSpawnAt(){return (x,y)=>x>NAV_RADIUS&&y>NAV_RADIUS&&x<WORLD_W-NAV_RADIUS&&y<WORLD_H-NAV_RADIUS&&!obstacleAt(x,y,NAV_RADIUS);},
+    get safeSpawnAt(){return (x,y)=>{const living=squad.filter(u=>u.alive&&!u.downed);return living.length>0&&living.every(u=>Math.hypot(u.x-x,u.y-y)>S(135))&&pathComponent(Math.floor(x/PATH_CELL),Math.floor(y/PATH_CELL))>0&&pathComponent(Math.floor(x/PATH_CELL),Math.floor(y/PATH_CELL))===pathComponent(Math.floor(living[0].x/PATH_CELL),Math.floor(living[0].y/PATH_CELL))&&living.every(u=>Math.hypot(u.x-x,u.y-y)>S(260)||lineBlocked(u.x,u.y,x,y));};},
+    get recoveryRadius(){return S(70);},
+    get retireEnemy(){return e=>{enemyPathQueue=enemyPathQueue.filter(actor=>actor!==e);e.pendingPath=null;e.pathQueued=false;for(const [key,group]of enemyCommander?.groups||[]){const i=group.indexOf(e);if(i>=0)group.splice(i,1);if(!group.length)enemyCommander.groups.delete(key);}};},
+    get resupply(){return ()=>{squadGrenades=Math.min(8,squadGrenades+1);for(const u of squad)if(u.alive&&u.equipmentManaged)u.ammo=Math.min(90,(u.ammo||0)+15);};},
     get commands(){return commands;},
     get completeCurrentMission(){return completeCurrentMission;},
     get cursorWorld(){return cursorWorld;},
@@ -1371,7 +1376,7 @@
   }
 
   function toggleMap(){
-    mapOpen=!mapOpen;
+    mapOpen=!mapOpen;if(mapOpen)window.BadFodderPlayerSupport?.action('map');
     mapBtn.classList.toggle('active',mapOpen);
     mapBtn.textContent=mapOpen?'Close Map (M)':'Map (M)';
     if(mapOpen){
@@ -1852,7 +1857,7 @@
   function squadFireAt(x,y){
     if(coopCommand('fire',{x,y}))return true;
     const unit=selectedUnits()[0];if(!unit)return false;coordinationSupport?.directOrder(unit);
-    return fireCharacterAt(unit,{x,y});
+    const fired=fireCharacterAt(unit,{x,y});if(fired)window.BadFodderPlayerSupport?.action('fire');return fired;
   }
   function companionCover(unit,enemy,anchor,reserved){
     if(!enemy)return null;
@@ -2516,7 +2521,7 @@
 
     if(units.length===1){
       clearSquadFormation();
-      if(!assignPath(units[0],tx,ty))setStatus('No clear route to that position.');
+      if(!assignPath(units[0],tx,ty))setStatus('No clear route to that position.');else window.BadFodderPlayerSupport?.action('move');
       return;
     }
 
@@ -2623,7 +2628,7 @@
     const dy=ny*speed*dt;
 
     updateFacing(leader,nx,ny);
-    moveEntity(leader,dx,dy,NAV_RADIUS);
+    const beforeX=leader.x,beforeY=leader.y;moveEntity(leader,dx,dy,NAV_RADIUS);if(Math.hypot(leader.x-beforeX,leader.y-beforeY)>.1)window.BadFodderPlayerSupport?.action('move');
     leader.touchMoveSpeed=speed;
     leader.state='walk';
   }
@@ -3300,6 +3305,9 @@
         ctx.fillText('SUPPLY',p.x,p.y-S(20));
       }
     });
+
+    const rally=window.BadFodderArcade?.runtime?.recovery;
+    if(window.BadFodderArcade?.active('resistance')&&rally&&!rally.done){ctx.save();ctx.strokeStyle='#c9bc8b';ctx.lineWidth=2;ctx.beginPath();ctx.arc(rally.x,rally.y,S(70),0,Math.PI*2);ctx.stroke();ctx.font='bold 12px system-ui';ctx.textAlign='center';ctx.fillStyle='#eee7d4';ctx.fillText('RALLY ⚑ · '+Math.max(0,2-rally.hold).toFixed(1)+'s',rally.x,rally.y-S(75));ctx.restore();}
 
     // Depth order avoids a whole team painting over everyone in front of it.
     const actors=[...civilians.filter(ent=>ent.civilianState!=='EVACUATED'||ent.storyVisible).map(ent=>({ent,team:'civilian'})),...enemies.filter(ent=>!ent.missionDormant).map(ent=>({ent,team:'enemy'})),...(resistanceRuntime?.units||[]).map(ent=>({ent,team:'resistance'})),...squad.map(ent=>({ent,team:'squad'}))];
@@ -3994,6 +4002,27 @@
     },
     menu:showTitle
   };
+  window.BadFodderCheckpoints.install({local:BadFodderStorage.local,session:BadFodderStorage.session,
+    context:()=>({map:MAP_DATA.key,missionId:activeMission().id,title:activeMission().title,mode:window.BadFodderArcade?.active('resistance')?'resistance':missionLaunch.mode(),networked:commands.mode!=='local'||window.BadFodderArcade?.active('skirmish'),active:started&&!finished,finished,playable:true,signature:JSON.stringify([missionStage,missionObjectivesRuntime?.manager.all().map(o=>[o.id,o.status]),window.BadFodderArcade?.runtime?.wave])}),
+    capture:()=>({...window.BadFodderCoopBridge.capture(),noise,enemyPathQueue,squadFormation,camera:{...camera},rng:gameplayRng.snapshot(),
+      historicalState:missionController?.state,historicalDirector:missionDirector?.state,historicalInteractions:missionInteractionLayer?.checkpoint(),crowd:missionCrowd?.checkpoint(),
+      civilianClock:civilianRuntime?.checkpoint(),barcelona:barcelonaRuntime?.snapshot(),allies:resistanceRuntime?.snapshot(),commander:enemyCommander?.snapshot(),director:adaptiveDirector?.snapshot(),opportunities:opportunitiesRuntime?.snapshot(),arcade:window.BadFodderArcade?.checkpoint()}),
+    restore:state=>{
+      coordinationSupport?.reset();squad.splice(0,squad.length,...state.squad);enemies=state.enemies;civilians=state.civilians;pickups=state.pickups;bullets=state.bullets;thrown=state.thrown;effects=state.effects;noise=state.noise||[];
+      enemyPathQueue=state.enemyPathQueue||[];missionStage=state.missionStage;phaseHoldTime=state.phaseHoldTime;squadGrenades=state.squadGrenades;finished=false;win=false;
+      missionObjectivesRuntime.restore(state.objectives);window.BadFodderHealth.receive(state.health);companions?.restore(state.companion);squadFormation=state.squadFormation;
+      gameplayRng.restore(state.rng);if(state.camera)Object.assign(camera,state.camera);
+      if(state.historicalState&&missionController){Object.assign(missionController.state,state.historicalState);for(const id of missionController.state.barricades.keys())missionController.syncBarricadeNavigation(id);}
+      if(state.historicalDirector&&missionDirector)Object.assign(missionDirector.state,state.historicalDirector);
+      if(state.historicalInteractions)missionInteractionLayer?.restore(state.historicalInteractions);if(state.crowd)missionCrowd?.restore(state.crowd);
+      if(state.civilianClock)civilianRuntime?.restore(state.civilianClock);if(state.civilianState)civilianRuntime?.receive(state.civilianState);if(state.buildingState)buildingRuntime?.receive(state.buildingState);badBelzigRuntime?.sync();
+      if(state.allies)resistanceRuntime?.restore(state.allies);if(state.barcelona){barcelonaRuntime?.restore(state.barcelona);barcelonaRuntime.allies.splice(0,barcelonaRuntime.allies.length,...resistanceRuntime.units);}
+      if(state.commander)enemyCommander?.restore(state.commander);if(state.director)adaptiveDirector?.restore(state.director);if(state.opportunities)opportunitiesRuntime?.restore(state.opportunities);if(state.arcade)window.BadFodderArcade?.restoreCheckpoint(state.arcade);
+      window.BadFodderMissionStats?.receive(state.stats);selection=[commands.active()];squad.forEach((u,i)=>u.selected=i===commands.active());releaseInterruptedInput();updateRoster(true);updateHud(true);setStatus('Local checkpoint restored.');
+    },
+    launch:save=>{window.BadFodderCoop?.leave();window.BadFodderArcade?.clear();if(save.mode==='resistance'){window.BadFodderArcade.launchResistance(save.map);return;}if(save.mode==='campaign'){campaign.setCurrent(campaign.missions.findIndex(m=>m.id===save.missionId));missionLaunch.useCampaign();}else if(save.mode==='historical')missionLaunch.selectHistorical(save.missionId);else missionLaunch.select(save.missionId);missionLaunch.requestAutoStart();location.reload();},
+    onError:message=>setStatus(message)
+  });
   let coopLoadPromise=null;
   document.getElementById('menuMultiplayer').addEventListener('click',async()=>{
     if(navigator.onLine===false){const note=document.getElementById('offlineStatus');if(note)note.textContent='Multiplayer requires internet. Single player is available offline.';return;}
