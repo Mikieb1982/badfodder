@@ -11,6 +11,7 @@ function validateBackup(text){
   if(!KEYS.includes(key)||typeof raw!=='string')throw Error('Backup contains unsupported data.');
   const data=JSON.parse(raw);if(!object(data))throw Error('Invalid saved data.');
   if(key===KEYS[0]&&(data.campaignSchema!==2||typeof data.currentId!=='string'||typeof data.unlockedId!=='string'||!Array.isArray(data.completedIds)||data.completedIds.some(id=>typeof id!=='string')))throw Error('Invalid campaign progress.');
+  if(key===KEYS[0]){const ids=root.BadFodderCampaign?.missions?.map(m=>m.id)||['bad-belzig','wigan','cable-street','barcelona-1936'];if(![data.currentId,data.unlockedId,...data.completedIds].every(id=>ids.includes(id)))throw Error('Backup refers to an unknown campaign mission.');}
   if(key===KEYS[1]&&(data.version!==1||!object(data.slots)||!Array.isArray(data.history)))throw Error('Invalid squad history.');
   if(key===KEYS[2]&&Object.entries(data).some(([map,record])=>!['bad-belzig','wigan','cable-street','barcelona'].includes(map)||!object(record)||['wave','score','kills'].some(k=>!Number.isSafeInteger(record[k])||record[k]<0)))throw Error('Invalid Resistance records.');
  }
