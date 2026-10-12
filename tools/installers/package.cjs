@@ -12,7 +12,9 @@ function packageInstaller(platform,source,destination){
  if(!Object.hasOwn(instructions,platform))throw Error('Unknown installer platform: '+platform);
  source=path.resolve(source);destination=path.resolve(destination);
  if(destination===source||destination.startsWith(source+path.sep))throw Error('Output must be outside installer input');
- const installers=filesIn(source).filter(file=>path.extname(file)===extensions[platform]);
+ // Electron also writes unpacked app/helper executables below this directory.
+ // Only top-level artifacts are distributable installers.
+ const installers=fs.readdirSync(source,{withFileTypes:true}).filter(entry=>entry.isFile()&&path.extname(entry.name)===extensions[platform]).map(entry=>path.join(source,entry.name));
  if(installers.length!==(platform==='chromebook'?2:1))throw Error('Expected '+(platform==='chromebook'?'two':'one')+' '+extensions[platform]+' installer(s), found '+installers.length);
  if(platform==='chromebook')for(const arch of ['amd64','arm64'])if(!installers.some(file=>file.endsWith('-'+arch+'.deb')))throw Error('Missing Chromebook architecture '+arch);
  fs.mkdirSync(destination,{recursive:true});

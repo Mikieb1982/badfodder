@@ -37,7 +37,11 @@
     "test:native": "node tests/desktop.cjs && node tests/mobile.cjs",
     "chromebook": "npm run build && node tools/runtime/serve.cjs",
     "test:player-improvements": "node tests/mission-checkpoints.cjs && node tests/client-quality.cjs && node tests/player-support.cjs && node tests/arcade-modes.cjs && node tests/companion-routing.cjs && node tests/companions.cjs && node tests/companion-aid-priority.cjs && node tests/runtime-services.cjs",
-    "test:installers": "node tests/installer-packages.cjs"
+    "test:installers": "node tests/installer-packages.cjs",
+    "installer:chromebook": "node tools/installers/build-local.cjs chromebook",
+    "installer:windows": "node tools/installers/build-local.cjs windows",
+    "installer:mac": "node tools/installers/build-local.cjs mac",
+    "installer:android": "node tools/installers/build-local.cjs android"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

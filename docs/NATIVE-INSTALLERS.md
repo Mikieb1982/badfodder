@@ -38,6 +38,27 @@ may block Linux. Google has deprecated the graphical `.deb` installer, so the
 included script uses APT. [Linux setup](https://support.google.com/chromebook/answer/9145439)
 and [ChromeOS changes](https://developers.google.com/chromeos/app-development/develop/news).
 
+## Build a ZIP from the code on your Chromebook
+
+In this project folder, run:
+
+```sh
+npm run installer:chromebook
+```
+
+This builds the current local code, installs the separate desktop build tools,
+and creates `release/Shoot-Rabbits-chromebook-SEND-TO-FRIENDS.zip`. Send that ZIP.
+No GitHub upload or hosted game is used by this command. It needs internet to
+obtain build tools, Node 22+, and Python 3 to create the ZIP. You can also run
+`bash BUILD-CHROMEBOOK-INSTALLER.sh` from the extracted project folder.
+
+On Windows, `npm run installer:windows` creates the Windows ZIP. On a Mac,
+`npm run installer:mac` creates the Mac ZIP. With Android SDK and Java 21 installed,
+`npm run installer:android` creates the Android test ZIP. All outputs go in
+`release/`. These commands compile the files in the local checkout. To produce
+all four without owning each build platform, use the included GitHub workflow
+with this project's current code.
+
 ## Building locally
 
 Use Node 22 or newer. Native build dependencies are separate from the browser

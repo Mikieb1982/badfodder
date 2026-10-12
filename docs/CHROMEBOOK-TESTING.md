@@ -1,3 +1,10 @@
+## Make an installer from your local code
+
+Run `npm run installer:chromebook` in this project folder. It builds your local
+files into `release/Shoot-Rabbits-chromebook-SEND-TO-FRIENDS.zip`, ready to send.
+Build requirements: Node 22+, Python 3 and internet for downloading build tools.
+Friends only need Linux enabled and the ZIP; they do not need these build tools.
+
 ## Install the downloadable game (no development tools)
 
 Download **Shoot-Rabbits-Chromebook-installer** from a successful installer build,
