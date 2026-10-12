@@ -69,9 +69,9 @@ const server=http.createServer((req,res)=>{
   assert.deepEqual(await page.locator('[data-arcade-map]').evaluateAll(buttons=>buttons.map(button=>button.dataset.arcadeMap)),['bad-belzig','wigan','barcelona'],'Preserve the existing Cable Street Resistance exclusion');
   await page.locator('[data-arcade-map="'+key+'"]').click();
   await page.waitForFunction(key=>{const s=window.__offlineTest?.();return window.BadFodderArcade?.active('resistance')&&s?.started&&!s.menuOpen&&s.map===key&&s.actors>0},key,{timeout:60000});
-  await page.waitForFunction(()=>window.BadFodderArcade.runtime.wave>=1,{},{timeout:15000});
+  await page.waitForFunction(()=>window.BadFodderArcade?.runtime?.wave>=1,{},{timeout:15000});
   await page.evaluate(()=>window.BadFodderArcade.runtime.env.enemies.forEach(enemy=>enemy.alive=false));
-  await page.waitForFunction(()=>window.BadFodderArcade.runtime.between&&window.BadFodderArcade.runtime.score>0);
+  await page.waitForFunction(()=>window.BadFodderArcade?.runtime?.between&&window.BadFodderArcade.runtime.score>0);
   assert.equal((await page.evaluate(()=>window.__offlineTest())).faults,0);
   assert.equal(await page.evaluate(()=>!!window.BadFodderCoop),false);
   await page.screenshot({path:path.join(output,'offline-resistance-'+key+'.png')});

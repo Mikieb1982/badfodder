@@ -1,5 +1,7 @@
 /* Resistance survival and competitive skirmish modes layered over existing missions/maps. */
 (function(root,factory){
+  // Parser bootstrap and async mission loading can request this script together.
+  if(root?.BadFodderArcade){if(typeof module==='object'&&module.exports)module.exports=root.BadFodderArcade;return;}
   const api=factory(root||{});
   if(typeof module==='object'&&module.exports)module.exports=api;
   if(root)root.BadFodderArcade=api;
