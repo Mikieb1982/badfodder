@@ -3060,10 +3060,13 @@
   function resizeGame(){
     const r=canvas.getBoundingClientRect();if(!r.width||!r.height)return;
     const density=Math.min(2,window.devicePixelRatio||1);
-    const cap=LOW_POWER?1200:1600,scale=Math.min(density,cap/Math.max(r.width,r.height))*(window.BadFodderPlayerSupport?.quality.scale||1);
+    const cap=LOW_POWER?1200:1600,scale=Math.min(density,cap/Math.max(r.width,r.height));
     const width=Math.max(1,Math.round(r.width*scale)),height=Math.max(1,Math.round(r.height*scale));
-    if(canvas.width===width&&canvas.height===height&&frame.width===width&&frame.height===height)return;
-    canvasScale=width/r.width;VIEW_W=width;VIEW_H=height;canvas.width=frame.width=VIEW_W;canvas.height=frame.height=VIEW_H;
+    const quality=window.BadFodderPlayerSupport?.quality.scale||1;
+    const bufferWidth=Math.max(1,Math.round(width*quality)),bufferHeight=Math.max(1,Math.round(height*quality));
+    if(canvas.width===bufferWidth&&canvas.height===bufferHeight&&VIEW_W===width&&VIEW_H===height)return;
+    // Logical view and pointer coordinates stay fixed while the render buffers shrink.
+    canvasScale=width/r.width;VIEW_W=width;VIEW_H=height;canvas.width=frame.width=bufferWidth;canvas.height=frame.height=bufferHeight;
     clampCamera();
     ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';display.imageSmoothingEnabled=false;
   }
@@ -3427,7 +3430,7 @@
     }
     display.setTransform(1,0,0,1,0,0);
     display.clearRect(0,0,VIEW_W,VIEW_H);
-    display.drawImage(frame,0,0,frame.width,frame.height,0,0,VIEW_W,VIEW_H);
+    display.drawImage(frame,0,0,frame.width,frame.height,0,0,canvas.width,canvas.height);
   }
 
   function pointerWorld(evt){
