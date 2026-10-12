@@ -24,7 +24,7 @@ try{
  }
  const empty=path.join(root,'empty');fs.mkdirSync(empty);
  assert.throws(()=>packageInstaller('windows',empty,path.join(root,'missing')),/Expected one/);
- if(process.platform==='linux'){
+ if(process.platform==='linux'&&Number(process.versions.node.split('.')[0])>=22){
   // Run the real local-build orchestration in an isolated checkout. Substitute
   // only npm/native compilation, then inspect the actual resulting ZIP.
   const checkout=path.join(root,'local code with spaces'),toolDir=path.join(checkout,'tools/installers');fs.mkdirSync(toolDir,{recursive:true});

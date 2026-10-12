@@ -49,7 +49,9 @@ npm run installer:chromebook
 This builds the current local code, installs the separate desktop build tools,
 and creates `release/Shoot-Rabbits-chromebook-SEND-TO-FRIENDS.zip`. Send that ZIP.
 No GitHub upload or hosted game is used by this command. It needs internet to
-obtain build tools, Node 22+, and Python 3 to create the ZIP. You can also run
+obtain build tools, npm, and Python 3 to create the ZIP. If your system Node is
+older than 22, the command downloads a private Node 22 build runtime automatically
+without changing your system installation. You can also run
 `bash BUILD-CHROMEBOOK-INSTALLER.sh` from the extracted project folder.
 
 On Windows, `npm run installer:windows` creates the Windows ZIP. On a Mac,

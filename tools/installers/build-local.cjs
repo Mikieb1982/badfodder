@@ -8,6 +8,12 @@ if(platform==='mac'&&process.platform!=='darwin')throw Error('Mac installers mus
 if(platform==='windows'&&process.platform!=='win32')throw Error('Use Windows to build this installer locally, or the included GitHub workflow');
 if(platform==='chromebook'&&process.platform!=='linux')throw Error('Build Chromebook installers in Chromebook Linux, Linux, or the included GitHub workflow');
 if(!process.env.npm_execpath)throw Error('Run this through npm run installer:'+platform);
+if(Number(process.versions.node.split('.')[0])<22){
+ console.log('Downloading a private Node 22 build runtime. Your system Node installation will stay unchanged.');
+ const bootstrap=spawnSync(process.execPath,[process.env.npm_execpath,'exec','--yes','--package=node@22.23.3','--','node',__filename,platform],{cwd:root,stdio:'inherit'});
+ if(bootstrap.error)throw bootstrap.error;
+ process.exit(bootstrap.status??1);
+}
 function run(command,args,cwd=root,extraEnv={}){const result=spawnSync(command,args,{cwd,stdio:'inherit',env:{...process.env,...extraEnv}});if(result.error)throw result.error;if(result.status!==0)throw Error(command+' failed with exit '+result.status)}
 function npm(args){run(process.execPath,[process.env.npm_execpath,...args])}
 const mobile=platform==='android',folder=mobile?'mobile':'desktop';
