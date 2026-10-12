@@ -32,7 +32,19 @@
 @media(pointer:coarse){
   #menuScreen button,#campaignIntro button{min-height:48px}
   button[id^="touch"]{min-width:52px;min-height:52px;touch-action:manipulation}
-  #hudInstruction:not([hidden]){font-size:max(11px,2.8vw);line-height:1.25;max-width:82vw}
+  /* Do not scale mission guidance from viewport width. On wide landscape phones the old
+     max(11px,2.8vw) rule could inflate this to ~26 CSS px and make the objective card
+     cover the companion controls. Keep it readable but bounded on every touch layout. */
+  #hudInstruction:not([hidden]){
+    font-size:clamp(10px,1.6vw,12px);
+    line-height:1.22;
+    max-width:100%;
+    overflow-wrap:anywhere;
+  }
+}
+
+@media(pointer:coarse) and (orientation:landscape){
+  #hudInstruction:not([hidden]){padding:4px 6px}
 }
 
 @media(prefers-reduced-motion:reduce){
