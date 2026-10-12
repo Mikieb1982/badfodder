@@ -1,0 +1,27 @@
+name: Export apksigner jar
+
+on:
+  push:
+    paths:
+      - '.github/workflows/export-apksigner.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Locate apksigner
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUILD_TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+          test -s "$BUILD_TOOLS/lib/apksigner.jar"
+          cp "$BUILD_TOOLS/lib/apksigner.jar" ./apksigner.jar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apksigner-jar
+          path: apksigner.jar
+          if-no-files-found: error
