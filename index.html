@@ -3060,7 +3060,7 @@
   function resizeGame(){
     const r=canvas.getBoundingClientRect();if(!r.width||!r.height)return;
     const density=Math.min(2,window.devicePixelRatio||1);
-    const cap=(LOW_POWER?1200:1600)*(window.BadFodderPlayerSupport?.quality.scale||1),scale=Math.min(density,cap/Math.max(r.width,r.height));
+    const cap=LOW_POWER?1200:1600,scale=Math.min(density,cap/Math.max(r.width,r.height))*(window.BadFodderPlayerSupport?.quality.scale||1);
     const width=Math.max(1,Math.round(r.width*scale)),height=Math.max(1,Math.round(r.height*scale));
     if(canvas.width===width&&canvas.height===height&&frame.width===width&&frame.height===height)return;
     canvasScale=width/r.width;VIEW_W=width;VIEW_H=height;canvas.width=frame.width=VIEW_W;canvas.height=frame.height=VIEW_H;
