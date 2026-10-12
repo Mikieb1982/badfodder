@@ -11,7 +11,8 @@
     "package": "electron-builder --publish never",
     "package:windows": "electron-builder --win nsis --x64 --publish never",
     "package:linux": "electron-builder --linux deb --x64 --publish never",
-    "package:mac": "electron-builder --mac dmg --universal --publish never"
+    "package:mac": "electron-builder --mac dmg --universal --publish never",
+    "package:chromebook": "electron-builder --linux deb --x64 --arm64 --publish never"
   },
   "devDependencies": {
     "electron": "44.7.0",
@@ -53,7 +54,8 @@
       "target": "deb",
       "category": "Game",
       "icon": "../assets/icons/icon-512.png",
-      "maintainer": "If I Can Shoot Rabbits"
+      "maintainer": "If I Can Shoot Rabbits",
+      "artifactName": "Shoot-Rabbits-Chromebook-${version}-${arch}.${ext}"
     }
   },
   "engines": {

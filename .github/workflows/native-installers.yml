@@ -21,6 +21,7 @@ jobs:
       - run: npm run test:offline
       - run: npm run test:build
       - run: node tests/chromebook-launch.cjs
+      - run: npm run test:installers
       - run: npx playwright install --with-deps chromium
       - run: node tests/player-improvements-browser.cjs
       - run: node tests/checkpoints-browser.cjs
@@ -53,13 +54,31 @@ jobs:
       - run: npm run package:${{ matrix.target }} --prefix desktop
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - run: node tools/installers/package.cjs ${{ matrix.target }} release friend-installer
       - uses: actions/upload-artifact@v4
         with:
           name: Shoot-Rabbits-${{ matrix.target }}-installer
           if-no-files-found: error
-          path: |
-            release/*.exe
-            release/*.dmg
+          path: friend-installer/
+  chromebook:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+      - run: npm run desktop:prepare
+      - run: npm run test:desktop
+      - run: npm install --prefix desktop
+      - run: npm run package:chromebook --prefix desktop
+      - run: node tools/installers/package.cjs chromebook release friend-installer
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Shoot-Rabbits-Chromebook-installer
+          if-no-files-found: error
+          path: friend-installer/
   android:
     needs: checks
     timeout-minutes: 30
@@ -85,11 +104,27 @@ jobs:
       # must use the owner's persistent Android signing key instead.
       - run: chmod +x gradlew && ./gradlew assembleDebug
         working-directory: mobile/android
+      - run: node tools/installers/package.cjs android mobile/android/app/build/outputs/apk/debug friend-installer
       - uses: actions/upload-artifact@v4
         with:
           name: Shoot-Rabbits-Android-test-installer
           if-no-files-found: error
-          path: mobile/android/app/build/outputs/apk/debug/*.apk
+          path: friend-installer/
+  friends:
+    needs: [desktop, chromebook, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: Shoot-Rabbits-*-installer
+          path: friends/
+      - run: cp docs/SEND-TO-FRIENDS.txt friends/START-HERE.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Shoot-Rabbits-SEND-TO-FRIENDS
+          if-no-files-found: error
+          path: friends/
   ios:
     needs: checks
     timeout-minutes: 30

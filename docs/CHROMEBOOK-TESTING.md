@@ -1,3 +1,18 @@
+## Install the downloadable game (no development tools)
+
+Download **Shoot-Rabbits-Chromebook-installer** from a successful installer build,
+or use its folder inside **Shoot-Rabbits-SEND-TO-FRIENDS**. Follow the included
+`READ-ME-FIRST.txt`: enable Linux once, extract the full folder into Linux files,
+and run `INSTALL-CHROMEBOOK.sh` with `bash` in Terminal. It selects Intel/AMD or
+ARM automatically and installs a launcher entry. Afterwards, open the game from
+Linux apps without npm, a server or internet. Initial Linux setup and system
+library installation may need internet. Managed Chromebooks can block Linux.
+
+Google has deprecated the graphical `.deb` installer; the script uses APT instead.
+See https://developers.google.com/chromeos/app-development/develop/news.
+
+The instructions below are only for testing changes to the source code.
+
 # Testing on a Chromebook
 
 This runs the same game and assets as the website in Chromebook Chrome. You do

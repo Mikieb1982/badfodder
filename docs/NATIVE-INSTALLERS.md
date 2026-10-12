@@ -8,11 +8,16 @@ Saves belong to each installed app; browser saves are not automatically imported
 
 ## Player downloads
 
-Run the **Build native game installers** workflow in GitHub Actions after pushing
-these files. Download its ZIP artifacts and extract them:
+Open the successful **Build native game installers** run in GitHub Actions.
+Download **Shoot-Rabbits-SEND-TO-FRIENDS** for one ZIP containing all four
+platforms, or download a platform ZIP below. Extract it and follow the included
+`READ-ME-FIRST.txt`. Send the downloaded ZIP directly to friends; they need no
+GitHub account or source code. GitHub downloads require your sign-in and expire,
+so retain a local copy. See [sharing instructions](SEND-TO-FRIENDS.txt).
 
 | Device | Artifact | Install |
 | --- | --- | --- |
+| Chromebook x64 / ARM64 | Chromebook installer ZIP | Enable Linux once, extract into Linux files, then run the included `INSTALL-CHROMEBOOK.sh` in Terminal. It selects the correct processor and creates a launcher entry. No Node or server needed. |
 | Windows x64 | Windows installer ZIP | Run `Shoot-Rabbits-Install-…exe`; launch the desktop or Start menu shortcut. |
 | Mac | Mac installer ZIP | Open the `.dmg` and drag the game into Applications. The universal app supports Intel and Apple Silicon. |
 | Android | Android test installer ZIP | Open the `.apk` on the device and allow installation from that download source. |
@@ -24,7 +29,14 @@ its signing identity can change between clean builds, so it is for testing rathe
 than permanent releases. Do not uninstall an existing test build to upgrade if
 you need its saves. A release signing key is required for stable Android updates.
 The iOS archive deliberately says **NOT-INSTALLABLE** in its artifact name.
-No installers have been built or device-tested until the workflow succeeds.
+The workflow must succeed before its installers are available. Automated build
+and asset checks do not establish that every physical device has been tested.
+
+ChromeOS requires its Linux environment for this downloadable installer. Linux
+setup and missing system libraries may require internet initially. Managed devices
+may block Linux. Google has deprecated the graphical `.deb` installer, so the
+included script uses APT. [Linux setup](https://support.google.com/chromebook/answer/9145439)
+and [ChromeOS changes](https://developers.google.com/chromeos/app-development/develop/news).
 
 ## Building locally
 
@@ -41,6 +53,11 @@ npm run package:windows --prefix desktop
 # On a Mac instead:
 npm run package:mac --prefix desktop
 ```
+
+For Chromebook packages on Linux, use `npm run package:chromebook --prefix desktop`
+after desktop preparation and dependency installation. This builds both x64 and
+ARM64 Debian packages. To add friend instructions and checksums, run
+`node tools/installers/package.cjs chromebook release friend-installer`.
 
 Output is in `release/`, separate from the website's `dist/`.
 To try the desktop app before packaging: `npm start --prefix desktop`.
