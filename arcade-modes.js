@@ -141,7 +141,7 @@
         point={x,y};break;
       }
       if(!point)continue;
-      const enemy=resetEnemy(template,point.x,point.y,wave,i);enemy.combatRole=plan.roles[i%plan.roles.length];enemy.coordinated=plan.coordinated;
+      const enemy=resetEnemy(template,point.x,point.y,wave,i);enemy.combatRole=plan.coordinated&&i%8===0?'COMMANDER':plan.roles[i%plan.roles.length];enemy.coordinated=plan.coordinated;
       enemy.role=enemy.combatRole==='FLANKER'?(i%2?'left':'right'):'anchor';enemy.arcadeWave=wave;spawned.push(enemy);
     }
     if(!spawned.length){state.nextWaveAt=state.clock+2;return;}

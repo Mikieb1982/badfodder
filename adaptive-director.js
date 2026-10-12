@@ -135,8 +135,8 @@
       }
       return true;
     })}
-    function snapshot(){return{state,memory,cooldowns,events,nextSample,last,still,lastCombat,combatUntil,nextSave,lastDecision,recoveryUntil};}
-    function restore(s){Object.assign(state,s.state);Object.assign(memory,s.memory);Object.assign(cooldowns,s.cooldowns);Object.assign(events,s.events);({nextSample,last,still,lastCombat,combatUntil,nextSave,lastDecision,recoveryUntil}=s);}
+    function snapshot(){return{state,memory,cooldowns,events,nextSample,last,still,lastCombat,combatUntil,nextSave,lastDecision,recoveryUntil,adapter:adapter.checkpoint?.()};}
+    function restore(s){Object.assign(state,s.state);Object.assign(memory,s.memory);Object.assign(cooldowns,s.cooldowns);Object.assign(events,s.events);({nextSample,last,still,lastCombat,combatUntil,nextSave,lastDecision,recoveryUntil}=s);if(s.adapter)adapter.restore?.(s.adapter);}
     return{snapshot,restore,state,memory,update,notify,guard,scores,disable};
   }
 
@@ -415,7 +415,7 @@
       return interactions.adaptiveAction(action,{time,phase:s.phase,crowd,director});
     }
     function release(){director.releaseAdaptivePressure();interactions.releaseAdaptivePressure()}
-    return{sample,valid,execute,release};
+    return{checkpoint:()=>({lastFightback,lastCycles}),restore(s){({lastFightback,lastCycles}=s);},sample,valid,execute,release};
   }
   return{create,createCommander,createCableAdapter,profile,loadProfile,choose,MILITARY,CABLE};
 });
