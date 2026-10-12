@@ -1,0 +1,46 @@
+name: Publish player downloads
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Successful native installer build run ID
+        default: '38244828342'
+        required: true
+      source_sha:
+        description: Exact game source commit built by that run
+        default: fff5eeff72a24eb0875f2c2c92c5edd02ea9e860
+        required: true
+  push:
+    branches: ["downloads/**"]
+    paths: [".github/workflows/publish-downloads.yml"]
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SOURCE_RUN_ID: ${{ inputs.run_id || '38244828342' }}
+      SOURCE_SHA: ${{ inputs.source_sha || 'fff5eeff72a24eb0875f2c2c92c5edd02ea9e860' }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Verify the tested source build
+        run: |
+          node tests/public-downloads.cjs
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > /tmp/source-run.json
+          node -e 'const r=require("/tmp/source-run.json");if(r.conclusion!=="success"||r.head_sha!==process.env.SOURCE_SHA||r.name!=="Build native game installers")throw Error("Expected a successful installer run of the exact source commit")'
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+          pattern: Shoot-Rabbits-*-installer
+          path: player-builds/
+      - name: Prepare direct installer downloads
+        run: python3 tools/installers/public-downloads.py player-builds public-downloads
+      - name: Publish public downloads
+        run: |
+          cp docs/PLAYER-DOWNLOADS.md /tmp/release-notes.md
+          printf '\nGame source: `%s`. Tested build: https://github.com/%s/actions/runs/%s\n' "$SOURCE_SHA" "$GITHUB_REPOSITORY" "$SOURCE_RUN_ID" >> /tmp/release-notes.md
+          gh release create "friends-$GITHUB_RUN_ID" public-downloads/* --repo "$GITHUB_REPOSITORY" --target "$SOURCE_SHA" --title "If I Can Shoot Rabbits — Download and play" --notes-file /tmp/release-notes.md --latest
