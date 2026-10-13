@@ -16,9 +16,9 @@
     overlay.style.cssText='position:fixed;inset:0;z-index:2147483646;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:manipulation;';
 
     const video=document.createElement('video');
-    video.preload='metadata';video.setAttribute('preload','metadata');video.playsInline=true;video.muted=false;video.controls=false;video.disablePictureInPicture=true;
+    video.preload=mobile?'auto':'metadata';video.setAttribute('preload',mobile?'auto':'metadata');video.playsInline=true;video.muted=false;video.controls=false;video.disablePictureInPicture=true;
     video.setAttribute('playsinline','');video.setAttribute('webkit-playsinline','');video.setAttribute('controlslist','nodownload noplaybackrate noremoteplayback');video.setAttribute('x-webkit-airplay','deny');
-    video.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;opacity:0;transition:opacity .14s ease;';
+    video.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;opacity:0;transition:opacity .14s ease;transform:translateZ(0);-webkit-transform:translateZ(0);backface-visibility:hidden;will-change:opacity;';
 
     const loading=document.createElement('div');
     loading.setAttribute('aria-live','polite');loading.textContent='LOADING INTRO…';

@@ -3,6 +3,11 @@
 'use strict';
 let deferred=null,registration=null,restarting=false;
 const standalone=()=>!!navigator.standalone||!!root.matchMedia?.('(display-mode: standalone)').matches;
+const nativeApp=()=>{try{return !!root.Capacitor?.isNativePlatform?.()||['android','ios'].includes(root.Capacitor?.getPlatform?.())}catch(_){return false}};
+async function cleanupNativeOffline(){
+  try{const regs=await navigator.serviceWorker?.getRegistrations?.();if(regs?.length)await Promise.all(regs.map(r=>r.unregister()))}catch(_){}
+  try{if('caches' in root){const names=await caches.keys();await Promise.all(names.filter(n=>n.startsWith('if-i-can-shoot-rabbits-offline-')).map(n=>caches.delete(n)))}}catch(_){}
+}
 function ui(){
   const nav=document.querySelector('#menuScreen .menu-actions');if(!nav)return;
   if(!document.getElementById('menuInstall')){
@@ -70,6 +75,7 @@ async function register(){
   }catch(error){render({state:'error'});console.warn('Offline download unavailable:',error)}
 }
 function install(){
+  if(nativeApp()){void cleanupNativeOffline();return}
   ui();root.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferred=event});
   root.addEventListener('appinstalled',()=>{deferred=null;if(root.BadFodderOfflineStatus)render(root.BadFodderOfflineStatus)});
   if(document.readyState==='complete')register();else root.addEventListener('load',register,{once:true});

@@ -672,6 +672,7 @@
     }
     function releaseAdaptivePressure(){adaptiveMountedAfter=0}
     return{
+      checkpoint:()=>({jobSequence,adaptiveMountedAfter,materialOpportunities,conflict}),restore(s){({jobSequence,adaptiveMountedAfter,materialOpportunities}=s);Object.assign(conflict,s.conflict);},
       settings,initialize,syncActors,fixedUpdate,streetAttack,
       canAdaptiveAction,adaptiveAction,releaseAdaptivePressure,
       contextAt,contextNearActor,assignJob,assignAt,assignNearest,cancelJob,

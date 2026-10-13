@@ -16,6 +16,7 @@
     if(env.finished||!env.started)return;
     if(env.menuOpen){if(env.menu&&env.menu.mode==='pause')resumeMission();return;}
     env.lifecycle.transition('PAUSED');experienceState('PAUSED');
+    window.BadFodderCheckpoints?.save();
     env.releaseAllFireInputs();
     env.releaseTouchMove();
     env.pauseBtn.textContent='Resume (Enter)';
@@ -52,6 +53,7 @@
       const resumeSameCast=localCampaign()&&last?.mission===missionKey();
       xp?.missionStart?.({campaign:resumeSameCast,key:missionKey(),squad:env.squad});
     }catch(_){}
+    try{window.BadFodderCheckpoints?.restoreCurrent();}catch(error){env.resetGame();env.setStatus(error.message);}
     env.lifecycle.transition('PLAYING');experienceState('PLAYING');
     env.menu.close();env.syncTouchControlState();env.root.focus({preventScroll:true});
     env.refreshCursorWorld();

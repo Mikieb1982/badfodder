@@ -146,6 +146,7 @@
 window.BadFodderMenu=class{
   constructor(actions){
     this.actions=actions;this.root=actions.root;this.screen=actions.screen;this.mode='title';this.panel='main';this.loaded=false;
+    window.BadFodderMenuInstance=this;
     this.mobilePresentation=window.BadFodderMobilePresentation?.install(this.root,actions)||null;
     this.get=id=>this.screen.querySelector('#'+id);
     for(const [id,action] of [['menuStart','start'],['menuResume','resume'],['menuRestart','restart'],['menuMain','main']])this.get(id).addEventListener('click',()=>actions[action]());
@@ -207,6 +208,7 @@ window.BadFodderMenu=class{
   }
   showPanel(panel){
     this.actions.state?.(panel==='missions'?'MISSION_SELECT':panel==='briefing'?'BRIEFING':panel==='result'?'RESULT':this.mode==='recovery'?'RECOVERY':this.mode==='pause'?'PAUSED':'TITLE');
+    if(panel==='main'&&!this.get('menuStart').disabled){const campaign=window.BadFodderCampaign;this.get('menuStart').textContent=campaign?.state?.completed?.length?'CONTINUE · '+campaign.current().title.toUpperCase():'CAMPAIGN';}
     this.panel=panel;this.screen.dataset.panel=panel;this.screen.scrollTop=0;
     this.screen.querySelectorAll('[data-view]').forEach(p=>p.hidden=p.dataset.view!==panel);
     this.get('menuHelp').textContent=panel==='main'?(this.mode==='pause'?'ENTER / ESC TO RESUME':'SELECT AN OPTION TO BEGIN'):'ESC TO GO BACK';
@@ -248,7 +250,8 @@ window.BadFodderMenu=class{
   ready(loaded=true){
     this.loaded=loaded;
     this.get('menuStart').disabled=false;
-    this.get('menuStart').textContent='CAMPAIGN';
+    const campaign=window.BadFodderCampaign;
+    this.get('menuStart').textContent=campaign?.state?.completed?.length?'CONTINUE · '+campaign.current().title.toUpperCase():'CAMPAIGN';
     this.get('menuMissionSelect').disabled=false;
     this.get('menuMissionBad').disabled=false;
     this.get('menuMissionWigan').disabled=false;
@@ -266,16 +269,17 @@ window.BadFodderMenu=class{
     this.get('menuHelp').textContent='The current mission failed to load. You can still try another mission from Mission Select.';
   }
   syncFullscreen(){this.get('menuFull').textContent=this.actions.isFullscreen()?'EXIT FULL SCREEN':'FULL SCREEN';}
+  back(){
+    if(this.panel==='briefing')this.leaveBriefing();
+    else if(this.panel==='result')this.actions.main();
+    else if(this.panel!=='main')this.showPanel('main');
+    else if(this.mode==='pause')this.actions.resume();
+  }
   buttons(){return [...this.screen.querySelectorAll('button,select,input')].filter(b=>!b.disabled&&!b.closest('[hidden]'));}
   keydown(e){
     if(e.repeat&&e.key==='Enter'){e.preventDefault();return;}
     if(e.key==='Escape'){
-      e.preventDefault();e.stopPropagation();
-      if(this.panel==='briefing')this.leaveBriefing();
-      else if(this.panel==='result')this.actions.main();
-      else if(this.panel!=='main')this.showPanel('main');
-      else if(this.mode==='pause')this.actions.resume();
-      return;
+      e.preventDefault();e.stopPropagation();this.back();return;
     }
     const buttons=this.buttons(),index=buttons.indexOf(document.activeElement);if(!buttons.length)return;
     if(e.key==='Tab'){
@@ -311,3 +315,14 @@ window.BadFodderMenu=class{
   };
   window.BadFodderMenu.__desktopWheelZoom=true;
 })();
+
+
+/* Native Android system Back routing. The app shell dispatches this event instead of closing. */
+if(!window.__badFodderAndroidBackInstalled){
+  window.__badFodderAndroidBackInstalled=true;
+  window.addEventListener('badfodder-android-back',()=>{
+    const menu=window.BadFodderMenuInstance;
+    if(menu&&!menu.screen.hidden){menu.back();return;}
+    window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',code:'Escape',bubbles:true,cancelable:true}));
+  });
+}

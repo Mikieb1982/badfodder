@@ -155,7 +155,9 @@ function create({map,objectives,getSquad,getEnemies,navigation,spawn,scale=1,spa
  function dispose(){navigation.removeDynamicObstacle(barrier.id)}
  getSquad().forEach((s,i)=>{s.weapon=i===0?'pistol':null;s.ammo=i===0?18:0;s.equipmentManaged=true});
  getEnemies().forEach(e=>{e.missionDormant=true});setGrenades(0);
- return{barrier,materialPoints,allies,guidance,ammoStatus,onDirectorDecision,hint,interact,update,damage,hit,directorContext,canDirect,summary,dispose,get carrying(){return carry},get armed(){return armed},get stage(){return{wave,eastWave,clock,recovery,breachTime,rescueAttack,rearguard,nextArrival}}};
+ function snapshot(){return{barrier:{...barrier},materialPoints:materialPoints.map(p=>({...p})),carry,armed,builds,wave,timer,secure,breachTime,recovery,clock,cooldown,previous,critical,openingShots,nextArrival,lastMajorPush,lastAlive,ammoFeedback,eastWave,rescueAttack,rearguard,residentsFound,supplyLoads,firstRouteHeld,secondRouteHeld};}
+ function restore(s){Object.assign(barrier,s.barrier);materialPoints.splice(0,materialPoints.length,...s.materialPoints);({carry,armed,builds,wave,timer,secure,breachTime,recovery,clock,cooldown,previous,critical,openingShots,nextArrival,lastMajorPush,lastAlive,ammoFeedback,eastWave,rescueAttack,rearguard,residentsFound,supplyLoads,firstRouteHeld,secondRouteHeld}=s);geometry();}
+ return{snapshot,restore,barrier,materialPoints,allies,guidance,ammoStatus,onDirectorDecision,hint,interact,update,damage,hit,directorContext,canDirect,summary,dispose,get carrying(){return carry},get armed(){return armed},get stage(){return{wave,eastWave,clock,recovery,breachTime,rescueAttack,rearguard,nextArrival}}};
 }
 return{create};
 });

@@ -9,7 +9,8 @@
  function validRoom(room,now=Date.now()){return !!room&&Object.keys(room).every(k=>['host','mission','created','expires','offer','joiner','answer'].includes(k))&&typeof room.host==='string'&&room.host.length>=8&&room.host.length<=64&&Number.isFinite(room.created)&&Number.isFinite(room.expires)&&room.created<=now+10000&&room.expires>now&&room.expires>room.created&&room.expires-room.created<=TTL&&['bad-belzig','wigan'].includes(room.mission)&&validDescription(room.offer,'offer')&&(!room.joiner||typeof room.joiner==='string'&&room.joiner.length>=8&&room.joiner.length<=64)&&(!room.answer||!!room.joiner&&validDescription(room.answer,'answer'));}
  function inviteUrl(code,href=root.location?.href||'https://bad-fodder.web.app/'){
   code=String(code||'').toUpperCase().trim();if(!validCode(code))return'';
-  const url=new URL('join.html',href);url.search='?room='+encodeURIComponent(code);url.hash='';return url.href;
+  // Desktop-local URLs are not shareable; invitations still open the web game.
+  const url=new URL('join.html',/^(?:rabbits|capacitor):|^https?:\/\/localhost(?=[:/]|$)/.test(String(href))?'https://bad-fodder.web.app/':href);url.search='?room='+encodeURIComponent(code);url.hash='';return url.href;
  }
  async function copyText(text){
   if(root.navigator?.clipboard?.writeText){try{await root.navigator.clipboard.writeText(text);return true}catch(_){}}

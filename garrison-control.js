@@ -179,7 +179,7 @@
   }
   function installCheckpointLock(){
     if(root.__checkpointGarrisonLock)return;root.__checkpointGarrisonLock=true;
-    setInterval(lockCheckpointGarrisons,16);
+    setInterval(lockCheckpointGarrisons,50);
   }
 
   function drawPersonalSandbags(ctx,ent,half){

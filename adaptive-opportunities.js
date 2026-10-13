@@ -28,7 +28,7 @@
     squadSize:squad.filter(s=>s.alive&&!s.downed).length,downed:squad.filter(s=>s.downed).length,suppression:squad.reduce((n,s)=>n+(s.suppression||0),0)/Math.max(1,squad.length),
     garrisonPositions:squad.filter(s=>s.alive&&!s.downed&&(s.manualGarrison||s.checkpointCover)).map(s=>({x:s.x,y:s.y})),objectiveProgress:objectives.filter(o=>o.status==='COMPLETED').length/Math.max(1,objectives.length),ammo:1};
   }
-  return{valid,execute,fixedUpdate,context};
+  return{snapshot:()=>({tracked,timer}),restore(s){timer=s.timer;tracked.clear();for(const [k,v]of s.tracked)tracked.set(k,v);},valid,execute,fixedUpdate,context};
  }
  return{create};
 });

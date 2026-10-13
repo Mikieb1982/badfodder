@@ -135,7 +135,9 @@
       }
       return true;
     })}
-    return{state,memory,update,notify,guard,scores,disable};
+    function snapshot(){return{state,memory,cooldowns,events,nextSample,last,still,lastCombat,combatUntil,nextSave,lastDecision,recoveryUntil,adapter:adapter.checkpoint?.()};}
+    function restore(s){Object.assign(state,s.state);Object.assign(memory,s.memory);Object.assign(cooldowns,s.cooldowns);Object.assign(events,s.events);({nextSample,last,still,lastCombat,combatUntil,nextSave,lastDecision,recoveryUntil}=s);if(s.adapter)adapter.restore?.(s.adapter);}
+    return{snapshot,restore,state,memory,update,notify,guard,scores,disable};
   }
 
   function createCommander({getEnemies,getSquad,getPhase,getZones,roads,scale=1,navigation,queuePath,blocked,getContext=()=>({}),opportunities=null,canGarrison=()=>true}={}){
@@ -383,7 +385,9 @@
       const moving=!stationary&&!reached&&!!e.path&&followPath(e,withdrawing?78:70,dt);
       return{moving,canFire:!withdrawing&&clock>=order.engageAt};
     }
-    return{sample,valid,execute,maintain,release,control,groups,knowledge,checkpointState,get clock(){return clock}};
+    function snapshot(){return{clock,failedUntil,groups,counts,checkpointStates};}
+    function restore(s){clock=s.clock;failedUntil=s.failedUntil;for(const [target,source]of [[groups,s.groups],[counts,s.counts],[checkpointStates,s.checkpointStates]]){target.clear();for(const [k,v]of source)target.set(k,v);}}
+    return{snapshot,restore,sample,valid,execute,maintain,release,control,groups,knowledge,checkpointState,get clock(){return clock}};
   }
 
   function createCableAdapter({controller,director,interactions,crowd,scale=1}={}){
@@ -411,7 +415,7 @@
       return interactions.adaptiveAction(action,{time,phase:s.phase,crowd,director});
     }
     function release(){director.releaseAdaptivePressure();interactions.releaseAdaptivePressure()}
-    return{sample,valid,execute,release};
+    return{checkpoint:()=>({lastFightback,lastCycles}),restore(s){({lastFightback,lastCycles}=s);},sample,valid,execute,release};
   }
   return{create,createCommander,createCableAdapter,profile,loadProfile,choose,MILITARY,CABLE};
 });
