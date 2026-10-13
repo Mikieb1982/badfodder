@@ -41,10 +41,37 @@
     max-width:100%;
     overflow-wrap:anywhere;
   }
+
+  /* A phone pause screen is a task menu, not the full title menu. Keep only the four
+     decisions needed mid-mission: resume, restart, options and main menu. */
+  #menuScreen[data-mode="pause"][data-panel="main"] .menu-actions>span,
+  #menuScreen[data-mode="pause"][data-panel="main"] #menuStart,
+  #menuScreen[data-mode="pause"][data-panel="main"] #menuMultiplayer,
+  #menuScreen[data-mode="pause"][data-panel="main"] #menuMissionSelect,
+  #menuScreen[data-mode="pause"][data-panel="main"] #menuControls,
+  #menuScreen[data-mode="pause"][data-panel="main"] #menuViewBriefing,
+  #menuScreen[data-mode="pause"][data-panel="main"] .menu-hint{
+    display:none!important;
+  }
+  #menuScreen[data-mode="pause"][data-panel="main"] .menu-actions{
+    grid-template-columns:repeat(2,minmax(150px,1fr));
+    width:min(520px,92vw);
+    margin-inline:auto;
+  }
+
+  /* Post-mission choice is deliberately short: continue/retry/menu. Briefing remains
+     available before a mission and from Mission Select, so it does not need to compete here. */
+  #menuScreen[data-mode="result"] #resultBriefing{display:none!important}
+  #menuScreen[data-mode="result"] .mission-result{width:min(410px,90vw)}
+  #menuScreen[data-mode="result"] .mission-result .menu-button{margin-top:9px}
 }
 
 @media(pointer:coarse) and (orientation:landscape){
   #hudInstruction:not([hidden]){padding:4px 6px}
+  #menuScreen[data-mode="pause"][data-panel="main"] .menu-actions{
+    grid-template-columns:repeat(4,minmax(110px,1fr));
+    width:min(760px,94vw);
+  }
 }
 
 @media(prefers-reduced-motion:reduce){
