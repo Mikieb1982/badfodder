@@ -364,7 +364,7 @@
       }
       return true;
     }
-    return{settings,people,fixedUpdate,renderState,anchor,initialize,syncHelperSupport,releaseHelperSupport,dispose,rally};
+    return{checkpoint:()=>({people,elapsed,routeBudget}),restore(s){people.splice(0,people.length,...s.people);elapsed=s.elapsed;routeBudget=s.routeBudget;},settings,people,fixedUpdate,renderState,anchor,initialize,syncHelperSupport,releaseHelperSupport,dispose,rally};
   }
 
   return{create};

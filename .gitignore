@@ -7,3 +7,10 @@ test-results/
 playwright-report/
 database-debug.log
 ui-debug.log
+
+# Generated desktop bundles and installers
+desktop/game/
+release/
+mobile/www/
+mobile/android/
+mobile/ios/

@@ -145,11 +145,11 @@
       const frameDt=Math.min(.1,elapsedMs/1000||0);
       env.last=now;
 
-      const measuredAt=env.diagnostics.enabled?performance.now():0;
+      const measuredAt=performance.now();
       const simulationActive=env.commands?.mode!=='client'&&env.started&&!env.finished&&((env.commands?.mode==='host')||(!env.menuOpen&&!env.paused&&!env.mapOpen));
       if(!simulationActive)interpolationReady=false;
       env.simulationAccumulator=BadFodderRuntime.fixedFrame({dt:frameDt,accumulator:env.simulationAccumulator,fixedDt:env.FIXED_DT,maxSteps:env.MAX_CATCHUP_STEPS,simulate:simulateRenderStep,onSteps:env.diagnostics.steps,active:simulationActive});
-      const simulatedAt=env.diagnostics.enabled?performance.now():0;
+      const simulatedAt=performance.now();
 
       if(env.commands?.mode==='client'){
         if(env.started&&!env.menuOpen&&!env.paused&&!env.finished&&!env.mapOpen){env.applyTouchMovement(frameDt);if((env.rightHeld||env.macFireHeld||env.keyboardFireHeld)&&env.cursorWorld&&!env.bothLatched)env.squadFireAt(env.cursorWorld.x,env.cursorWorld.y);if(env.touchState.fireHeld)env.fireMobile();}
@@ -157,7 +157,10 @@
       }
       const alpha=env.FIXED_DT?env.simulationAccumulator/env.FIXED_DT:1;
       BadFodderRuntime.renderFrame({started:env.started,menuOpen:env.menuOpen,draw:()=>drawInterpolated(alpha)});
-      if(env.diagnostics.enabled)env.diagnostics.record(elapsedMs,simulatedAt-measuredAt,performance.now()-simulatedAt);
+      env.diagnostics.record?.(elapsedMs,simulatedAt-measuredAt,performance.now()-simulatedAt);
+      const renderingActive=env.started&&!env.finished&&!env.menuOpen&&!env.paused&&!env.mapOpen;
+      window.BadFodderPlayerSupport?.frame(elapsedMs,renderingActive,env);
+      window.BadFodderCheckpoints?.frame(frameDt,simulationActive);
       if(env.runtimeFaultCount&&now-env.runtimeFaultAt>3000)env.runtimeFaultCount=0;
     }catch(err){
       handleRuntimeFault(err);

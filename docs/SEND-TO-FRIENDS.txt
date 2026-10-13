@@ -1,0 +1,16 @@
+IF I CAN SHOOT RABBITS - INSTALL AND PLAY
+
+Extract this ZIP first. Open the folder for your device and read READ-ME-FIRST.txt:
+
+Windows: Shoot-Rabbits-windows-installer. Run the .exe.
+Mac: Shoot-Rabbits-mac-installer. Open the .dmg and drag into Applications.
+Android: Shoot-Rabbits-Android-test-installer. Install the .apk on your device.
+Chromebook: Shoot-Rabbits-Chromebook-installer. Enable Linux once, then run the included INSTALL-CHROMEBOOK.sh using Terminal as explained in that folder. Both Intel/AMD and ARM versions are included; the script chooses automatically.
+
+All game content is included. Single player works offline from the first launch.
+Campaign progress and saved battles stay on your device. Multiplayer needs internet.
+You do not need npm, Node, the source code, GitHub or a localhost server to play.
+
+These are unsigned desktop builds and an Android test build. Read your platform's instructions before installing, including signing and update limitations. Chromebook Linux setup or missing system libraries may need internet once. School/work Chromebooks may block Linux.
+
+You can send this whole ZIP, or just the ZIP for your friend's device. Keep your downloaded ZIPs; GitHub build downloads expire. This package does not include an iPhone/iPad installer.

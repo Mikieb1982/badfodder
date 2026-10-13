@@ -99,7 +99,7 @@ async function rangedResponse(request,response){
 }
 self.addEventListener('fetch',event=>{
   const request=event.request,url=new URL(request.url);
-  if(request.method!=='GET'||url.origin!==self.location.origin||url.pathname.startsWith('/__/'))return;
+  if(request.method!=='GET'||url.origin!==self.location.origin||url.pathname.startsWith('/__/')||url.href===new URL('./multiplayer-config.json',self.location.href).href)return;
   event.respondWith((async()=>{
     const cached=await cachedResponse(request);
     if(cached)return request.headers.has('range')?rangedResponse(request,cached):cached;

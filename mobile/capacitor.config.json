@@ -1,0 +1,8 @@
+{
+  "appId": "games.shootrabbits.mobile",
+  "appName": "If I Can Shoot Rabbits",
+  "webDir": "www",
+  "server": {"hostname": "localhost", "androidScheme": "https", "iosScheme": "capacitor"},
+  "android": {"allowMixedContent": false},
+  "ios": {"contentInset": "never"}
+}
