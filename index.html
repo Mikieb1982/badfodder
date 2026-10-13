@@ -1225,6 +1225,26 @@
     return acted;
   }
 
+  function touchContextAt(point){
+    const helper=selectedUnits()[0];if(!helper)return false;
+    const radius=24*canvasScale/zoom;
+    const resident=civilianRuntime?.nearest(helper);
+    if(resident&&Math.hypot(resident.x-point.x,resident.y-point.y)<=radius){
+      if(coopCommand('interact'))return true;
+      civilianRuntime.interact(helper);updateHud(true);return true;
+    }
+    const site=buildingRuntime?.sites.find(s=>Math.hypot(s.door.x-point.x,s.door.y-point.y)<=radius);
+    if(site){
+      if(commands.mode!=='local'){if(buildingRuntime.nearest(helper)===site)performCivilianAction();}
+      else if(!buildingRuntime.perform(helper,buildingRuntime.nextAction(helper,site),site))setStatus('Move closer to the entrance, then tap it to interact.');
+      updateHud(true);return true;
+    }
+    const action=contextAction(helper);
+    const target=action?.type==='burg-command'?badBelzigRuntime?.commandPoint:action?.type==='belzig-story'?badBelzigRuntime?.guidance?.()?.target:action?.type==='barcelona'?barcelonaRuntime?.guidance?.()?.target:null;
+    if(target&&Math.hypot(target.x-point.x,target.y-point.y)<=radius){performCivilianAction();return true;}
+    return false;
+  }
+
   function performStreetAttack(kind){
     if(!missionInteractionLayer||!started||menuOpen||paused||finished||mapOpen)return false;
     const candidates=selectedUnits().map(unit=>({unit,id:'player-'+squad.indexOf(unit)}))
@@ -2960,7 +2980,7 @@
   function drawForegroundOccluders(actorEntries){
     const occludedSquad=new Set(),buildingSet=new Set(),treeSet=new Set();
     actorEntries.forEach(({ent,team})=>{
-      if(!ent.alive)return;
+      if(!ent.alive||ent.x<camera.x-60||ent.y<camera.y-60||ent.x>camera.x+VIEW_W/zoom+60||ent.y>camera.y+VIEW_H/zoom+60)return;
       nearbyBuildings(ent.x,ent.y,S(48)).forEach(b=>{
         if(buildingOccludesActor(b,ent)){
           buildingSet.add(b);
@@ -3067,13 +3087,14 @@
     const density=Math.min(2,window.devicePixelRatio||1);
     const cap=LOW_POWER?999:1600,scale=Math.min(LOW_POWER?1.25:density,cap/Math.max(r.width,r.height));
     const width=Math.max(1,Math.round(r.width*scale)),height=Math.max(1,Math.round(r.height*scale));
-    const quality=(window.BadFodderPlayerSupport?.quality.scale||1)*(MAP_DATA.key==='bad-belzig'?.82:1);
-    const bufferWidth=Math.max(1,Math.round(width*quality)),bufferHeight=Math.max(1,Math.round(height*quality));
+    const quality=window.BadFodderPlayerSupport?.quality.scale||1;
+    const backingScale=LOW_POWER?Math.min(1.5,density,1200/Math.max(r.width,r.height)):scale;
+    const bufferWidth=Math.max(1,Math.round(r.width*backingScale*quality)),bufferHeight=Math.max(1,Math.round(r.height*backingScale*quality));
     if(canvas.width===bufferWidth&&canvas.height===bufferHeight&&VIEW_W===width&&VIEW_H===height)return;
-    // geep logical view fixed as buffers shrink.
+    // Keep logical camera/input coordinates fixed as backing resolution changes.
     canvasScale=width/r.width;VIEW_W=width;VIEW_H=height;canvas.width=frame.width=bufferWidth;canvas.height=frame.height=bufferHeight;
     clampCamera();
-    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality=LOW_POWER?'high'  :'high';display.imageSmoothingEnabled=false;
+    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';display.imageSmoothingEnabled=false;
   }
 
   function missionObjectives(){
@@ -3266,7 +3287,7 @@
     const historicalClock=missionController?missionController.state.elapsed:performance.now()/1000;
     clampCamera();
     const frameScaleX=frame.width/VIEW_W,frameScaleY=frame.height/VIEW_H;
-    ctx.setTransform(frameScaleX,0,0,frameScaleY,0,0);ctx.clearRect(0,0,VIEW_W,VIEW_H);
+    ctx.setTransform(frameScaleX,0,0,frameScaleY,0,0);
     ctx.fillStyle='#c7c9a8';ctx.fillRect(0,0,VIEW_W,VIEW_H);
 
     const historicalRenderState=missionInteractionLayer?missionInteractionLayer.renderState():null;
@@ -3437,7 +3458,6 @@
       ctx.font='16px system-ui';if(finished)ctx.fillText(win&&hasPlayableNextMission()?'Click or press Enter for the next mission.':'Click or press Enter to retry.',VIEW_W/2,VIEW_H/2+25);
     }
     display.setTransform(1,0,0,1,0,0);
-    display.clearRect(0,0,VIEW_W,VIEW_H);
     display.drawImage(frame,0,0,frame.width,frame.height,0,0,canvas.width,canvas.height);
   }
 
@@ -3636,7 +3656,7 @@
           lastCheckpointTap=null;setMoveTargets({...p,exitCheckpoint:true});
           setStatus('Checkpoint released. Leave the circle, then return to defend.');return;
         }
-        if(!missionInteractionLayer){setMoveTargets(p);return;}
+        if(!missionInteractionLayer){if(!touchContextAt(p))setMoveTargets(p);return;}
         const selected=selectedHistoricalActor();
         if(selected&&missionInteractionLayer.contextAt(selected.id,p.x,p.y))performHistoricalContextActionAt(p.x,p.y);
         else setMoveTargets(p);
@@ -3667,11 +3687,13 @@
   });
 
 
+  touchJoystick.addEventListener('pointerdown',()=>{historicalTap=null;lastCheckpointTap=null;});
   BadFodderInput.joystick({element:touchJoystick,stick:touchStick,state:touchState,canMove:()=>started&&!menuOpen&&!paused&&!finished&&!mapOpen,release:releaseTouchMove});
 
   touchFire.addEventListener('pointerdown',evt=>{
     if(!actionAllowed('firearms')||!started||menuOpen||paused||finished||mapOpen)return;
     evt.preventDefault();evt.stopPropagation();
+    if(touchState.firePointer!==null)return;
     touchState.firePointer=evt.pointerId;
     touchState.fireHeld=true;
     touchFire.setPointerCapture?.(evt.pointerId);
@@ -3716,9 +3738,13 @@
     }
   },true);
 
+  const touchButtonPointers=new Map();
+  function claimTouchButton(button,evt){if(touchButtonPointers.has(button))return false;touchButtonPointers.set(button,evt.pointerId);try{button.setPointerCapture(evt.pointerId)}catch{}return true;}
+  for(const button of [touchGrenade,touchAction,touchShove,touchDebris])for(const type of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(type,evt=>{if(touchButtonPointers.get(button)===evt.pointerId){touchButtonPointers.delete(button);button.classList.remove('active');}});
   touchGrenade.addEventListener('pointerdown',evt=>{
     if(!actionAllowed('grenades')||!started||menuOpen||paused||finished||mapOpen)return;
     evt.preventDefault();evt.stopPropagation();
+    if(!claimTouchButton(touchGrenade,evt))return;
     touchGrenade.classList.add('active');
     grenadeMobile();
   });
@@ -3730,6 +3756,7 @@
   touchAction.addEventListener('pointerdown',evt=>{
     if(!started||menuOpen||paused||finished||mapOpen)return;
     evt.preventDefault();evt.stopPropagation();
+    if(!claimTouchButton(touchAction,evt))return;
     touchAction.classList.add('active');
     if(missionInteractionLayer)performHistoricalNearestAction();else performCivilianAction();
   });
@@ -3739,8 +3766,8 @@
   touchAction.addEventListener('pointerup',endTouchAction);
   touchAction.addEventListener('pointercancel',()=>touchAction.classList.remove('active'));
 
-  touchShove.addEventListener('pointerdown',evt=>{evt.preventDefault();evt.stopPropagation();performStreetAttack('shove')});
-  touchDebris.addEventListener('pointerdown',evt=>{evt.preventDefault();evt.stopPropagation();performStreetAttack('throw')});
+  touchShove.addEventListener('pointerdown',evt=>{evt.preventDefault();evt.stopPropagation();if(claimTouchButton(touchShove,evt))performStreetAttack('shove')});
+  touchDebris.addEventListener('pointerdown',evt=>{evt.preventDefault();evt.stopPropagation();if(claimTouchButton(touchDebris,evt))performStreetAttack('throw')});
 
   touchDrop.addEventListener('click',evt=>{evt.preventDefault();evt.stopPropagation();if(!touchDrop.disabled)cancelHistoricalAction(true)});
 
@@ -3875,15 +3902,22 @@
   });
 
   function releaseInterruptedInput(){
+    touchButtonPointers.clear();for(const button of [touchGrenade,touchAction,touchShove,touchDebris])button.classList.remove('active');
     BadFodderRuntime.interrupt({releaseFire:releaseAllFireInputs,releaseMove:releaseTouchMove,pointers:pinchPointers,resetGesture:()=>{pinchGesture=null;historicalTap=null;lastCheckpointTap=null;}});
   }
 
-  window.addEventListener('blur',releaseInterruptedInput);
+  function interruptMobileSession(){
+    releaseInterruptedInput();window.BadFodderController?.reset?.();last=performance.now();simulationAccumulator=0;
+    if(LOW_POWER&&started&&!finished&&!menuOpen&&!paused&&!mapOpen&&commands.mode==='local')togglePause();
+  }
+  window.addEventListener('badfodder-native-pause',interruptMobileSession);
+  window.addEventListener('badfodder-native-resume',()=>{releaseInterruptedInput();last=performance.now();simulationAccumulator=0;});
+  window.addEventListener('blur',interruptMobileSession);
   document.addEventListener('visibilitychange',()=>{
-    if(document.hidden)releaseInterruptedInput();
+    if(document.hidden)interruptMobileSession();else{last=performance.now();simulationAccumulator=0;}
   });
   window.addEventListener('pagehide',releaseInterruptedInput);
-  window.addEventListener('orientationchange',releaseInterruptedInput);
+  window.addEventListener('orientationchange',interruptMobileSession);
 
   function simulateStep(...args){return simulationEngine.simulateStep(...args);}
 

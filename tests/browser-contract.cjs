@@ -14,9 +14,9 @@ assert(html.includes('id="touchGrenade"'),'Touch GRENADE missing');
 assert(html.includes('id="touchFull"'),'Mobile fullscreen control missing');
 
 
-assert(html.includes("window.addEventListener('blur',releaseInterruptedInput)"),'Blur does not recover input');
+assert(html.includes("window.addEventListener('blur',interruptMobileSession)"),'Blur does not recover input');
 assert(html.includes("window.addEventListener('pagehide',releaseInterruptedInput)"),'Page hide does not recover input');
-assert(html.includes("window.addEventListener('orientationchange',releaseInterruptedInput)"),'Orientation change does not recover input');
+assert(html.includes("window.addEventListener('orientationchange',interruptMobileSession)"),'Orientation change does not recover input');
 assert(html.includes("document.addEventListener('visibilitychange'"),'Background visibility recovery missing');
 assert(html.includes("window.addEventListener('pointerup'"),'Global pointer release recovery missing');
 assert(html.includes("window.addEventListener('pointercancel'"),'Global pointer cancel recovery missing');

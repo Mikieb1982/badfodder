@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">If I Can Shoot Rabbits</string>
+    <string name="title_activity_main">If I Can Shoot Rabbits</string>
+    <string name="package_name">games.shootrabbits.mobile</string>
+    <string name="custom_url_scheme">games.shootrabbits.mobile</string>
+</resources>

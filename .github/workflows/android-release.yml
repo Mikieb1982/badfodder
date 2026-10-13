@@ -1,0 +1,39 @@
+name: Android release verification
+on:
+  push:
+    branches: [main]
+    paths: ['*.js', '*.css', 'index.html', 'assets/**', 'tests/mobile*', 'tools/android/**', '.github/workflows/android-release.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: npm ci --prefix tools/android --ignore-scripts
+      - run: tools/android/node_modules/.bin/playwright install --with-deps chromium
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: npm run build && npm run sync --prefix tools/android
+      - name: Four-mission mobile browser verification
+        run: node tests/mobile-release.cjs
+      - name: Compile native release APK
+        if: always()
+        run: cd tools/android/android && ./gradlew --no-daemon assembleRelease
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-verification
+          path: |
+            test-results/mobile-release/
+            tools/android/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 14

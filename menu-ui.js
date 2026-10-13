@@ -321,6 +321,9 @@ window.BadFodderMenu=class{
 if(!window.__badFodderAndroidBackInstalled){
   window.__badFodderAndroidBackInstalled=true;
   window.addEventListener('badfodder-android-back',()=>{
+    if(window.BadFodderCampaignIntro?.active){window.BadFodderCampaignIntro.skip();return;}
+    const prompt=document.querySelector('.presentation-prompt:not([hidden]) [data-presentation-skip]');if(prompt){prompt.click();return;}
+    const arcade=document.getElementById('arcadeResult');if(arcade&&!arcade.hidden){document.getElementById('arcadeMain')?.click();return;}
     const menu=window.BadFodderMenuInstance;
     if(menu&&!menu.screen.hidden){menu.back();return;}
     window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',code:'Escape',bubbles:true,cancelable:true}));

@@ -39,7 +39,7 @@ window.BadFodderScenery = class {
   const inView=(x,y,b,m=30)=>!b||!(x<b.x-m||x>b.x+b.w+m||y<b.y-m||y>b.y+b.h+m);
 
   function install(){
-    const art=window.BadFodderCableArt;if(!art){setTimeout(install,0);return}if(art.__polishedStreet)return;art.__polishedStreet=true;
+    const art=window.BadFodderCableArt;if(!art)return;if(art.__polishedStreet)return;art.__polishedStreet=true;
     const baseProps=art.drawStreetProps,baseFacade=art.drawFacadeDetails,baseScenery=art.drawScenery;
 
     art.drawStreetProps=function(ctx,map,S,bounds){
@@ -65,5 +65,7 @@ window.BadFodderScenery = class {
 
     art.drawScenery=function(ctx,map,S){baseScenery.call(this,ctx,map,S);const area=(map?.gameplayAdjustments||[]).find(a=>a.id==='coal-depot-closed');if(!area)return;const p=area.points.map(q=>[S(q[0]),S(q[1])]);ctx.save();ctx.strokeStyle='#39413f';ctx.lineWidth=Math.max(1,S(.5));path(ctx,p,true);ctx.stroke();samples([...p,p[0]],Math.max(18,S(18))).forEach(q=>{ctx.fillStyle='#333937';ctx.fillRect(q.x-S(.4),q.y-S(2.5),S(.8),S(5))});ctx.restore()};
   }
-  setTimeout(install,0);
+  // Mission modules load once. Do not poll for another mission's renderer.
+  document.addEventListener('load',install,true);
+  install();
 })();

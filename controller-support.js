@@ -2,7 +2,7 @@
 (function(root){
 'use strict';
 const DEADZONE=.18;
-let binding=null,padIndex=-1,previous=[],moving=false,cycleIndex=0,menuAxisX=0,menuAxisY=0,menuNextX=0,menuNextY=0,lastSurface=null,controllerPresent=false;
+let binding=null,padIndex=-1,previous=[],moving=false,cycleIndex=0,menuAxisX=0,menuAxisY=0,menuNextX=0,menuNextY=0,lastSurface=null,controllerPresent=false,suspended=false;
 const held=new Set(),actionHeld=new Set();
 const names=()=>root.BadFodderInputActions?.ACTIONS||{};
 function bindJoystick(options){binding=options}
@@ -86,7 +86,9 @@ function gameplayInput(gp){
  if(edge(gp,15))semantic('SELECT_NEXT','press',{multi:down(gp,4)},()=>cycle(1,down(gp,4)));
 }
 function reset(){releaseMove();semanticHold('PRIMARY_ACTION',false,down=>hold('f',down,'KeyF'));for(const k of [...held])hold(k,false,k==='f'?'KeyF':k);actionHeld.clear();previous=[];menuAxisX=menuAxisY=0;menuNextX=menuNextY=0;lastSurface=null}
-function loop(){const gp=pad();if(!gp){if(controllerPresent){controllerPresent=false;reset()}setTimeout(()=>requestAnimationFrame(loop),250);return}controllerPresent=true;if(menuOpen())menuInput(gp);else{lastSurface=null;gameplayInput(gp)}requestAnimationFrame(loop)}
+function loop(){if(suspended||document.hidden){setTimeout(()=>requestAnimationFrame(loop),250);return;}const gp=pad();if(!gp){if(controllerPresent){controllerPresent=false,suspended=false;reset()}setTimeout(()=>requestAnimationFrame(loop),250);return}controllerPresent=true;if(menuOpen())menuInput(gp);else{lastSurface=null;gameplayInput(gp)}requestAnimationFrame(loop)}
+for(const type of ['blur','badfodder-native-pause'])root.addEventListener(type,()=>{suspended=true;reset()});
+for(const type of ['focus','badfodder-native-resume'])root.addEventListener(type,()=>{reset();suspended=false});
 function installLegend(){
  const panel=document.querySelector('[data-view="controls"]');const dl=panel?.querySelector('dl');
  if(dl&&!document.getElementById('controllerControlHelp')){

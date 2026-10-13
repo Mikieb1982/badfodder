@@ -2,7 +2,7 @@
 (function(root){
   'use strict';
   const ASSET='assets/menu/rabbitscampaign.mp4';
-  let active=false;
+  let active=false,skipActive=null;
 
   function play(done){
     if(active||typeof document==='undefined'){done?.();return;}
@@ -39,7 +39,7 @@
 
     let finished=false,timer=null,playing=false,source='',fallbackTried=false;
     const clearTimer=()=>{if(timer){clearTimeout(timer);timer=null;}};
-    const finish=()=>{if(finished)return;finished=true;active=false;clearTimer();try{video.pause()}catch(_){}overlay.remove();done?.();};
+    const finish=()=>{if(finished)return;finished=true;active=false;skipActive=null;clearTimer();try{video.pause()}catch(_){}overlay.remove();done?.();};
     const assign=src=>{source=src;try{video.pause()}catch(_){}video.removeAttribute('src');video.src=src;try{video.load()}catch(_){};};
     const showRecovery=(message='PLAYBACK BLOCKED')=>{
       playing=false;clearTimer();loading.hidden=true;video.style.opacity='0';card.hidden=false;status.textContent=message;watch.disabled=false;
@@ -61,6 +61,7 @@
       else if(!video.paused){playing=true;clearTimer();card.hidden=true;loading.hidden=true;video.style.opacity='1'}else recover('TAP PLAY TO CONTINUE');
     };
 
+    skipActive=finish;
     watch.onclick=()=>start(source||original,true);continueBtn.onclick=finish;skip.onclick=finish;
     video.addEventListener('playing',()=>{playing=true;clearTimer();card.hidden=true;loading.hidden=true;video.style.opacity='1';});
     video.addEventListener('waiting',()=>{if(finished)return;playing=false;loading.hidden=false;loading.textContent='BUFFERING…';armTimeout();});
@@ -78,5 +79,5 @@
     start(mobile?mobileAsset:original);
   }
 
-  root.BadFodderCampaignIntro={play};
+  root.BadFodderCampaignIntro={play,get active(){return active},skip(){skipActive?.()}};
 })(typeof window!=='undefined'?window:globalThis);

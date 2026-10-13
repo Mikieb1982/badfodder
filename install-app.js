@@ -3,7 +3,7 @@
 'use strict';
 let deferred=null,registration=null,restarting=false;
 const standalone=()=>!!navigator.standalone||!!root.matchMedia?.('(display-mode: standalone)').matches;
-const nativeApp=()=>{try{return !!root.Capacitor?.isNativePlatform?.()||['android','ios'].includes(root.Capacitor?.getPlatform?.())}catch(_){return false}};
+const nativeApp=()=>{try{return !!root.BadFodderNative||!!root.Capacitor?.isNativePlatform?.()||['android','ios'].includes(root.Capacitor?.getPlatform?.())}catch(_){return false}};
 async function cleanupNativeOffline(){
   try{const regs=await navigator.serviceWorker?.getRegistrations?.();if(regs?.length)await Promise.all(regs.map(r=>r.unregister()))}catch(_){}
   try{if('caches' in root){const names=await caches.keys();await Promise.all(names.filter(n=>n.startsWith('if-i-can-shoot-rabbits-offline-')).map(n=>caches.delete(n)))}}catch(_){}

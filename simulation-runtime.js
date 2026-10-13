@@ -158,8 +158,8 @@
         window.BadFodderCoop?.clientFrame(frameDt);
       }
       const alpha=env.FIXED_DT?env.simulationAccumulator/env.FIXED_DT:1;
-      if(!MOBILE_RENDER||now-lastMobileRender>=32){
-        lastMobileRender=now;
+      if(!MOBILE_RENDER||now-lastMobileRender>=1000/30-.5){
+        lastMobileRender+=Math.max(1,Math.floor((now-lastMobileRender+.5)/(1000/30)))*(1000/30);
         BadFodderRuntime.renderFrame({started:env.started,menuOpen:env.menuOpen,draw:()=>drawInterpolated(alpha)});
       }
       env.diagnostics.record?.(elapsedMs,simulatedAt-measuredAt,performance.now()-simulatedAt);

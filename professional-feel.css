@@ -77,3 +77,8 @@
 @media(prefers-reduced-motion:reduce){
   .hud-mission.pro-objective-pulse{animation:none!important}
 }
+#campaignIntro video{visibility:visible;z-index:1;transform:translateZ(0)}
+@media(pointer:coarse){
+ #menuScreen[data-mode="pause"][data-panel="main"] .menu-actions>:not(#menuResume):not(#menuRestart):not(#menuOptions):not(#menuMain){display:none!important}
+ #fieldGuide{left:calc(150px + env(safe-area-inset-left))!important;right:calc(190px + env(safe-area-inset-right));bottom:64px!important;max-width:390px!important;font-size:11px!important}
+}

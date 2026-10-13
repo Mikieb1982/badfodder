@@ -1,0 +1,1 @@
+{"name":"rabbits-android-build","version":"1.0.0","private":true,"dependencies":{"@capacitor/core":"6.2.1","@capacitor/android":"6.2.1","@capacitor/cli":"6.2.1"},"devDependencies":{"playwright":"1.51.1"},"scripts":{"sync":"node prepare.cjs && cap sync android","build":"npm run sync && cd android && ./gradlew --no-daemon assembleRelease"}}

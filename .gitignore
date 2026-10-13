@@ -7,3 +7,11 @@ test-results/
 playwright-report/
 database-debug.log
 ui-debug.log
+
+# Android output and private signing material
+**/build/
+**/.gradle/
+**/local.properties
+*.keystore
+*.jks
+*.apk
