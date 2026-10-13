@@ -28,7 +28,7 @@ android {
     }
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            if (System.getenv('RABBITS_KEYSTORE')) signingConfig signingConfigs.release
             debuggable false
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'

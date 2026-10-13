@@ -23,8 +23,15 @@ jobs:
       - run: tools/android/node_modules/.bin/playwright install --with-deps chromium
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: npm run build && npm run sync --prefix tools/android
+      - run: node tests/mobile-runtime.cjs
       - name: Four-mission mobile browser verification
         run: node tests/mobile-release.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-browser-evidence
+          path: test-results/mobile-release/
+          if-no-files-found: warn
       - name: Compile native release APK
         if: always()
         run: cd tools/android/android && ./gradlew --no-daemon assembleRelease
