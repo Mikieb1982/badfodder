@@ -194,6 +194,8 @@ document.addEventListener('visibilitychange',()=>{
   if(enabled&&started)start();
 });
 // Safari can restore pages from the back-forward cache without a normal reload.
+addEventListener('badfodder-native-pause',pauseForBackground);
+addEventListener('badfodder-native-resume',()=>{if(enabled&&started&&!window.BadFodderCampaignIntro?.active)start()});
 addEventListener('pagehide',pauseForBackground);
 addEventListener('pageshow',()=>{if(enabled&&started)start()});
 audio.addEventListener('error',()=>{

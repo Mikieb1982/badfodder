@@ -37,9 +37,9 @@
     const skip=document.createElement('button');skip.type='button';skip.textContent='SKIP';skip.setAttribute('aria-label','Skip campaign introduction');
     skip.style.cssText='position:absolute;right:max(16px,env(safe-area-inset-right));top:max(16px,env(safe-area-inset-top));z-index:5;min-height:44px;border:1px solid rgba(255,255,255,.5);border-radius:999px;background:rgba(15,18,15,.78);color:#fff;padding:0 16px;font:800 12px/1 system-ui,sans-serif;letter-spacing:.08em;cursor:pointer;backdrop-filter:blur(5px);';
 
-    let finished=false,timer=null,playing=false,source='',fallbackTried=false;
+    let finished=false,timer=null,playing=false,source='',fallbackTried=false,resumeAfterInterruption=false;
     const clearTimer=()=>{if(timer){clearTimeout(timer);timer=null;}};
-    const finish=()=>{if(finished)return;finished=true;active=false;skipActive=null;clearTimer();try{video.pause()}catch(_){}overlay.remove();done?.();};
+    const finish=()=>{if(finished)return;finished=true;active=false;skipActive=null;clearTimer();root.removeEventListener('badfodder-native-pause',pauseIntro);root.removeEventListener('badfodder-native-resume',resumeIntro);try{video.pause()}catch(_){}overlay.remove();done?.();};
     const assign=src=>{source=src;try{video.pause()}catch(_){}video.removeAttribute('src');video.src=src;try{video.load()}catch(_){};};
     const showRecovery=(message='PLAYBACK BLOCKED')=>{
       playing=false;clearTimer();loading.hidden=true;video.style.opacity='0';card.hidden=false;status.textContent=message;watch.disabled=false;
@@ -61,6 +61,9 @@
       else if(!video.paused){playing=true;clearTimer();card.hidden=true;loading.hidden=true;video.style.opacity='1'}else recover('TAP PLAY TO CONTINUE');
     };
 
+    const pauseIntro=()=>{resumeAfterInterruption=!video.paused;clearTimer();video.pause()};
+    const resumeIntro=()=>{if(resumeAfterInterruption&&!finished){resumeAfterInterruption=false;start(source||original)}};
+    root.addEventListener('badfodder-native-pause',pauseIntro);root.addEventListener('badfodder-native-resume',resumeIntro);
     skipActive=finish;
     watch.onclick=()=>start(source||original,true);continueBtn.onclick=finish;skip.onclick=finish;
     video.addEventListener('playing',()=>{playing=true;clearTimer();card.hidden=true;loading.hidden=true;video.style.opacity='1';});

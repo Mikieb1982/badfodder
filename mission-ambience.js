@@ -28,6 +28,8 @@ function setState(next,key){const track=TRACKS[key];if(track&&mission!==key){gen
 function setVolume(value){const next=Number(value);if(!Number.isFinite(next))return;volume=Math.max(0,Math.min(1,next));try{(window.BadFodderStorage?.local||localStorage).setItem(KEY,String(volume))}catch(_){}render();sync()}
 function arm(){const first=!unlocked;unlocked=true;sync();if(first&&state==='PLAYING')window.BadFodderSfx?.environment?.(mission,'enter')}
 addEventListener('pointerdown',arm,{passive:true});addEventListener('touchstart',arm,{passive:true});addEventListener('keydown',arm);document.addEventListener('visibilitychange',sync);addEventListener('pagehide',()=>{generation++;stopFade();audio.pause();audio.volume=0;mixMusic(false)});addEventListener('pageshow',sync);
+addEventListener('badfodder-native-pause',()=>{generation++;stopFade();audio.pause();audio.volume=0;mixMusic(false)});
+addEventListener('badfodder-native-resume',sync);
 audio.addEventListener('error',()=>{const track=TRACKS[mission];if(track&&audio.src.split('?')[0].endsWith('.webm')){generation++;stopFade();audio.pause();audio.volume=0;audio.src=track[1];audio.load();sync()}else{failed=true;stopFade();audio.pause();audio.volume=0;mixMusic(false)}});
 if(input)input.addEventListener('input',event=>setVolume(Number(event.target.value)/100));window.BadFodderAmbience={setState,setVolume,sync,audio,get volume(){return volume}};render();
 })();

@@ -364,6 +364,7 @@
       root.__badFodderVoiceLifecycle=true;
       root.document.addEventListener?.('visibilitychange',()=>{if(root.document.hidden)stopAll(false)});
       root.addEventListener?.('pagehide',()=>stopAll(false));
+      root.addEventListener?.('badfodder-native-pause',()=>stopAll(false));
     }
   }
 
