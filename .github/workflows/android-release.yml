@@ -2,7 +2,7 @@ name: Android release verification
 on:
   push:
     branches: [main]
-    paths: ['*.js', '*.css', 'index.html', 'assets/**', 'tests/mobile*', 'tools/android/**', '.github/workflows/android-release.yml']
+    paths: ['*.js', '*.css', 'index.html', 'assets/**', 'tests/mobile*', 'tests/browser-lifecycle.cjs', 'tools/android/**', '.github/workflows/android-release.yml']
   workflow_dispatch:
 permissions:
   contents: read
