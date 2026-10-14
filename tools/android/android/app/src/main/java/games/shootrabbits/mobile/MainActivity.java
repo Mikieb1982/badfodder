@@ -46,7 +46,7 @@ public class MainActivity extends BridgeActivity {
     }
     @Override public void onWindowFocusChanged(boolean focused) {
         super.onWindowFocusChanged(focused);
-        if (focused) immersive(); else dispatch("badfodder-native-pause");
+        if (focused) { immersive(); dispatch("badfodder-native-resume"); } else dispatch("badfodder-native-pause");
     }
     @Override public void onPause() {
         dispatch("badfodder-native-pause");
