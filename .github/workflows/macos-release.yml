@@ -1,0 +1,102 @@
+name: macOS standalone build
+
+on:
+  push:
+    branches: ['build/macos-2026-10-17']
+    paths:
+      - 'tools/macos/**'
+      - '.github/workflows/macos-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-macos:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install and build game
+        run: |
+          npm ci
+          npm run build
+
+      - name: Prepare desktop wrapper
+        run: |
+          rm -rf build/macos-app build/macos-output
+          mkdir -p build/macos-app build/macos-output
+          cp tools/macos/package.json build/macos-app/package.json
+          cp tools/macos/main.cjs build/macos-app/main.cjs
+          cp -R dist build/macos-app/dist
+
+      - name: Create Mac icon
+        run: |
+          set -e
+          SRC='dist/assets/icons/icon-512.png'
+          mkdir -p build/AppIcon.iconset
+          sips -z 16 16 "$SRC" --out build/AppIcon.iconset/icon_16x16.png >/dev/null
+          sips -z 32 32 "$SRC" --out build/AppIcon.iconset/icon_16x16@2x.png >/dev/null
+          sips -z 32 32 "$SRC" --out build/AppIcon.iconset/icon_32x32.png >/dev/null
+          sips -z 64 64 "$SRC" --out build/AppIcon.iconset/icon_32x32@2x.png >/dev/null
+          sips -z 128 128 "$SRC" --out build/AppIcon.iconset/icon_128x128.png >/dev/null
+          sips -z 256 256 "$SRC" --out build/AppIcon.iconset/icon_128x128@2x.png >/dev/null
+          sips -z 256 256 "$SRC" --out build/AppIcon.iconset/icon_256x256.png >/dev/null
+          sips -z 512 512 "$SRC" --out build/AppIcon.iconset/icon_256x256@2x.png >/dev/null
+          sips -z 512 512 "$SRC" --out build/AppIcon.iconset/icon_512x512.png >/dev/null
+          sips -z 1024 1024 "$SRC" --out build/AppIcon.iconset/icon_512x512@2x.png >/dev/null
+          iconutil -c icns build/AppIcon.iconset -o build/AppIcon.icns
+
+      - name: Package Apple Silicon and Intel apps
+        run: |
+          set -e
+          ELECTRON_VERSION="$(npm view electron version)"
+          npx --yes @electron/packager@latest build/macos-app 'If I Can Shoot Rabbits' \
+            --platform=darwin \
+            --arch=arm64 \
+            --electron-version="$ELECTRON_VERSION" \
+            --out=build/macos-output \
+            --overwrite \
+            --icon=build/AppIcon.icns \
+            --app-bundle-id=com.mikieb1982.ificanshootrabbits \
+            --app-category-type=public.app-category.games
+          npx --yes @electron/packager@latest build/macos-app 'If I Can Shoot Rabbits' \
+            --platform=darwin \
+            --arch=x64 \
+            --electron-version="$ELECTRON_VERSION" \
+            --out=build/macos-output \
+            --overwrite \
+            --icon=build/AppIcon.icns \
+            --app-bundle-id=com.mikieb1982.ificanshootrabbits \
+            --app-category-type=public.app-category.games
+
+      - name: Ad-hoc sign apps
+        run: |
+          codesign --deep --force --sign - 'build/macos-output/If I Can Shoot Rabbits-darwin-arm64/If I Can Shoot Rabbits.app'
+          codesign --deep --force --sign - 'build/macos-output/If I Can Shoot Rabbits-darwin-x64/If I Can Shoot Rabbits.app'
+          codesign --verify --deep --strict 'build/macos-output/If I Can Shoot Rabbits-darwin-arm64/If I Can Shoot Rabbits.app'
+          codesign --verify --deep --strict 'build/macos-output/If I Can Shoot Rabbits-darwin-x64/If I Can Shoot Rabbits.app'
+
+      - name: Create DMGs
+        run: |
+          mkdir -p build/release
+          hdiutil create -volname 'If I Can Shoot Rabbits' \
+            -srcfolder 'build/macos-output/If I Can Shoot Rabbits-darwin-arm64/If I Can Shoot Rabbits.app' \
+            -ov -format UDZO 'build/release/If-I-Can-Shoot-Rabbits-macOS-Apple-Silicon.dmg'
+          hdiutil create -volname 'If I Can Shoot Rabbits' \
+            -srcfolder 'build/macos-output/If I Can Shoot Rabbits-darwin-x64/If I Can Shoot Rabbits.app' \
+            -ov -format UDZO 'build/release/If-I-Can-Shoot-Rabbits-macOS-Intel.dmg'
+          shasum -a 256 build/release/*.dmg > build/release/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: if-i-can-shoot-rabbits-macos
+          path: build/release/*
+          if-no-files-found: error
+          retention-days: 14
