@@ -2,7 +2,7 @@ name: macOS standalone build
 
 on:
   push:
-    branches: ['build/macos-2026-10-17']
+    branches: [main, 'build/macos-2026-10-17']
     paths:
       - 'tools/macos/**'
       - '.github/workflows/macos-release.yml'
