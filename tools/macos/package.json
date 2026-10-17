@@ -1,0 +1,6 @@
+{
+  "name": "if-i-can-shoot-rabbits-macos-wrapper",
+  "version": "1.0.0",
+  "private": true,
+  "main": "main.cjs"
+}
