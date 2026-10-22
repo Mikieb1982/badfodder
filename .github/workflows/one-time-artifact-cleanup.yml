@@ -1,0 +1,46 @@
+name: One-time Actions artifact cleanup
+
+on:
+  push:
+    paths:
+      - '.github/workflows/one-time-artifact-cleanup.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Delete old build artifacts
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const artifacts = await github.paginate(github.rest.actions.listArtifactsForRepo, {
+              owner, repo, per_page: 100
+            });
+            const sorted = artifacts.sort((a, b) =>
+              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
+            const preserve = null;
+            core.info('Found ' + sorted.length + ' artifacts');
+            if (preserve) core.info('Preserving latest APK artifact #' + preserve.id);
+            let deleted = 0;
+            let errors = 0;
+            for (const a of sorted) {
+              if (preserve && a.id === preserve.id) continue;
+              try {
+                await github.rest.actions.deleteArtifact({ owner, repo, artifact_id: a.id });
+                deleted++;
+              } catch (error) {
+                errors++;
+                core.warning('Failed to remove artifact #' + a.id + ' (' + a.name + '): ' + error.message);
+              }
+            }
+            core.info('Deleted ' + deleted + ' artifacts; failures: ' + errors);
+            if (errors) core.setFailed(errors + ' artifact deletions failed');
