@@ -94,7 +94,7 @@ jobs:
             -ov -format UDZO 'build/release/If-I-Can-Shoot-Rabbits-macOS-Intel.dmg'
           shasum -a 256 build/release/*.dmg > build/release/SHA256SUMS.txt
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: if-i-can-shoot-rabbits-macos
           path: build/release/*
